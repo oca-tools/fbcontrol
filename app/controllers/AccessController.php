@@ -1,10 +1,28 @@
-﻿<?php
+<?php
 class AccessController extends Controller
 {
+    private function autoCloseTimeoutShiftsForCurrentUser(): int
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return 0;
+        }
+        $graceMinutes = 10;
+        $closed = 0;
+        $closed += (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
+        $closed += (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
+        return $closed;
+    }
+
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+
+        $closedByTimeout = $this->autoCloseTimeoutShiftsForCurrentUser();
+        if ($closedByTimeout > 0 && !isset($_SESSION['flash'])) {
+            set_flash('warning', 'Turno encerrado automaticamente por tempo excedido (limite + 10 min).');
+        }
 
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
@@ -26,7 +44,7 @@ class AccessController extends Controller
                 if (stripos($rest['nome'], 'La Brasa') !== false) {
                     $ops = array_filter($ops, static function ($op) {
                         $name = mb_strtolower($op['operacao'] ?? '', 'UTF-8');
-                        return strpos($name, 'almoÃ§o') !== false || strpos($name, 'almoco') !== false;
+                        return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;
                     });
                 }
                 $restOps[$rest['id']] = array_values($ops);
@@ -62,13 +80,14 @@ class AccessController extends Controller
                 $startTol->modify("-{$tol} minutes");
                 if ($now >= $startTol && $now < $end) {
                     $minsToEnd = (int)ceil(($end->getTimestamp() - $now->getTimestamp()) / 60);
-                    $toleranceAlert = 'AtenÃ§Ã£o: faltam ' . $minsToEnd . ' min para o fim do turno (tolerÃ¢ncia ativa).';
+                    $toleranceAlert = 'Atenção: faltam ' . $minsToEnd . ' min para o fim do turno (tolerância ativa).';
                 }
             }
         }
 
         $accessModel = new AccessModel();
         $canCancel = $accessModel->countByTurno((int)$shift['id']) === 0;
+        $lastEditableAccess = $accessModel->findLastEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2);
 
         $this->view('access/index', [
             'mode' => 'register',
@@ -80,6 +99,7 @@ class AccessController extends Controller
             'is_corais' => ($shift['restaurante'] ?? '') === 'Restaurante Corais',
             'is_corais_jantar' => (($shift['restaurante'] ?? '') === 'Restaurante Corais') && (stripos($shift['operacao'] ?? '', 'Jantar') !== false),
             'can_cancel' => $canCancel,
+            'last_editable_access' => $lastEditableAccess,
         ]);
     }
 
@@ -87,13 +107,14 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $this->autoCloseTimeoutShiftsForCurrentUser();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token invÃ¡lido.');
+            set_flash('danger', 'Token inválido.');
             $this->redirect('/?r=access/index');
         }
 
@@ -119,7 +140,7 @@ class AccessController extends Controller
             if (stripos($rest['nome'], 'La Brasa') !== false) {
                 $ops = array_filter($ops, static function ($op) {
                     $name = mb_strtolower($op['operacao'] ?? '', 'UTF-8');
-                    return strpos($name, 'almoÃ§o') !== false || strpos($name, 'almoco') !== false;
+                    return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;
                 });
             }
             $restOps[$rest['id']] = array_values($ops);
@@ -133,25 +154,27 @@ class AccessController extends Controller
         $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
         $operacaoId = (int)($_POST['operacao_id'] ?? 0);
         $portaId = (int)($_POST['porta_id'] ?? 0);
+        $confirmStart = (int)($_POST['confirm_start'] ?? 0) === 1;
         $confirmEarly = (int)($_POST['confirm_early'] ?? 0) === 1;
 
         if ($restauranteId <= 0 || $operacaoId <= 0) {
-            set_flash('danger', 'Selecione restaurante e operaÃ§Ã£o.');
+            set_flash('danger', 'Selecione restaurante e operação.');
             $this->redirect('/?r=access/index');
         }
 
         $restOp = $opModel->findByRestaurantOperation($restauranteId, $operacaoId);
         if (!$restOp) {
-            set_flash('danger', 'OperaÃ§Ã£o invÃ¡lida para este restaurante.');
+            set_flash('danger', 'Operação inválida para este restaurante.');
             $this->redirect('/?r=access/index');
         }
+        $outsideHorario = $this->isOutsideHorario($restOp);
 
         $rest = $restaurantModel->find($restauranteId);
         $opInfo = (new OperationModel())->find($operacaoId);
         if ($rest && stripos($rest['nome'], 'La Brasa') !== false && $opInfo) {
             $opName = mb_strtolower($opInfo['nome'], 'UTF-8');
-            if (strpos($opName, 'almoÃ§o') === false && strpos($opName, 'almoco') === false) {
-                set_flash('danger', 'No La Brasa o registro Ã© permitido apenas para almoÃ§o.');
+            if (strpos($opName, 'almoço') === false && strpos($opName, 'almoco') === false) {
+                set_flash('danger', 'No La Brasa o registro é permitido apenas para almoço.');
                 $this->redirect('/?r=access/index');
             }
         }
@@ -160,7 +183,25 @@ class AccessController extends Controller
             $this->redirect('/?r=access/index');
         }
 
-        if ($this->isOutsideHorario($restOp) && !$confirmEarly) {
+        if (!$confirmStart && !($outsideHorario && $confirmEarly)) {
+            set_flash('warning', 'Confirme o checklist para iniciar o turno.');
+            $this->view('access/index', [
+                'mode' => 'start',
+                'restaurantes' => $restaurantes,
+                'restOps' => $restOps,
+                'doorsByRestaurant' => $doorsByRestaurant,
+                'flash' => get_flash(),
+                'need_confirm' => false,
+                'preselect' => [
+                    'restaurante_id' => $restauranteId,
+                    'operacao_id' => $operacaoId,
+                    'porta_id' => $portaId,
+                ],
+            ]);
+            return;
+        }
+
+        if ($outsideHorario && !$confirmEarly) {
             $this->view('access/index', [
                 'mode' => 'start',
                 'restaurantes' => $restaurantes,
@@ -190,13 +231,14 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $this->autoCloseTimeoutShiftsForCurrentUser();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token invÃ¡lido.');
+            set_flash('danger', 'Token inválido.');
             $this->redirect('/?r=access/index');
         }
 
@@ -215,7 +257,7 @@ class AccessController extends Controller
         }
 
         if ($uhNumero === '' || ($shift['exige_pax'] == 1 && $pax <= 0)) {
-            set_flash('danger', 'Preencha todos os campos obrigatÃ³rios.');
+            set_flash('danger', 'Preencha todos os campos obrigatórios.');
             $this->redirect('/?r=access/index');
         }
 
@@ -223,7 +265,7 @@ class AccessController extends Controller
             $unitModel = new UnitModel();
             $maxPax = $unitModel->maxPaxForNumero($uhNumero);
             if ($maxPax !== null && $pax > $maxPax) {
-                set_flash('danger', 'PAX excede o limite da UH. MÃ¡ximo permitido: ' . $maxPax . '.');
+                set_flash('danger', 'PAX excede o limite da UH. Máximo permitido: ' . $maxPax . '.');
                 $this->redirect('/?r=access/index');
             }
         }
@@ -237,7 +279,7 @@ class AccessController extends Controller
                 $currentTotal = $accessModel->sumPaxByUhOperacaoDate($uhNumero, (int)$shift['operacao_id'], $today);
                 if (($currentTotal + $pax) > $maxPax) {
                     $resta = max(0, $maxPax - $currentTotal);
-                    set_flash('danger', 'PAX excede o limite da UH para esta operaÃ§Ã£o no dia. Restante disponÃ­vel: ' . $resta . '.');
+                    set_flash('danger', 'PAX excede o limite da UH para esta operação no dia. Restante disponível: ' . $resta . '.');
                     $this->redirect('/?r=access/index');
                 }
             }
@@ -254,17 +296,17 @@ class AccessController extends Controller
                 $confirmNoShow = (int)($_POST['confirm_no_show'] ?? 0) === 1;
                 if ($this->isNoShowStatus((string)($tematica['status'] ?? ''))) {
                     if (!$confirmNoShow) {
-                        $mensagem = 'UH ' . $uhNumero . ' estÃ¡ como no-show no temÃ¡tico (' . $tematica['restaurante'] . '). Confirme para registrar no Jantar Corais.';
+                        $mensagem = 'UH ' . $uhNumero . ' está como no-show no temático (' . $tematica['restaurante'] . '). Confirme para registrar no Jantar Corais.';
                         set_flash('warning', $mensagem);
                         $this->redirect('/?r=access/index');
                     }
                     $coraisNoShowAllowed = true;
                 } else {
-                    $mensagem = 'AtenÃ§Ã£o: UH ' . $uhNumero . ' possui reserva no ' . $tematica['restaurante'];
+                    $mensagem = 'Atenção: UH ' . $uhNumero . ' possui reserva no ' . $tematica['restaurante'];
                     if (!empty($tematica['turno_hora'])) {
-                        $mensagem .= ' Ã s ' . $tematica['turno_hora'];
+                        $mensagem .= ' às ' . $tematica['turno_hora'];
                     }
-                    $mensagem .= '. NÃ£o Ã© permitido registrar no buffet.';
+                    $mensagem .= '. Não é permitido registrar no buffet.';
                     set_flash('danger', $mensagem);
                     $this->redirect('/?r=access/index');
                 }
@@ -280,14 +322,14 @@ class AccessController extends Controller
         ], Auth::user()['id']);
 
         if (!empty($result['error']) && $result['error'] === 'uh_invalida') {
-            set_flash('danger', 'UH invÃ¡lida. Verifique o nÃºmero do apartamento.');
+            set_flash('danger', 'UH inválida. Verifique o número do apartamento.');
         } elseif (($result['id'] ?? 0) > 0) {
             if ($coraisNoShowAllowed) {
-                set_flash('warning', 'Registro permitido por no-show temÃ¡tico confirmado.');
+                set_flash('warning', 'Registro permitido por no-show temático confirmado.');
             } elseif (!empty($result['alerta_duplicidade'])) {
-                set_flash('warning', 'AtenÃ§Ã£o: possÃ­vel duplicidade em menos de 10 minutos.');
+                set_flash('warning', 'Atenção: possível duplicidade em menos de 10 minutos.');
             } elseif (!empty($result['fora_do_horario'])) {
-                set_flash('warning', 'AtenÃ§Ã£o: acesso fora do horÃ¡rio da operaÃ§Ã£o.');
+                set_flash('warning', 'Atenção: acesso fora do horário da operação.');
             } else {
                 set_flash('success', 'Acesso registrado com sucesso.');
             }
@@ -295,6 +337,61 @@ class AccessController extends Controller
             set_flash('danger', 'Falha ao registrar acesso.');
         }
 
+        $this->redirect('/?r=access/index');
+    }
+
+    public function correct_last(): void
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=access/index');
+        }
+        if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+            set_flash('danger', 'Token inválido.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $shiftModel = new ShiftModel();
+        $shift = $shiftModel->getActiveByUser((int)Auth::user()['id']);
+        if (!$shift) {
+            set_flash('danger', 'Inicie um turno para corrigir lançamento.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $newPax = (int)($_POST['pax_corrigido'] ?? 0);
+        if ($newPax <= 0) {
+            set_flash('danger', 'Informe um valor de PAX válido.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $accessModel = new AccessModel();
+        $last = $accessModel->findLastEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2);
+        if (!$last) {
+            set_flash('warning', 'Não há lançamento elegível para correção (janela de 2 minutos).');
+            $this->redirect('/?r=access/index');
+        }
+
+        $uhNumero = (string)$last['uh_numero'];
+        $unitModel = new UnitModel();
+        $maxPax = $unitModel->maxPaxForNumero($uhNumero);
+        if ($maxPax !== null && $newPax > $maxPax) {
+            set_flash('danger', 'PAX corrigido excede o limite da UH. Máximo: ' . $maxPax . '.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
+        $currentTotal = $accessModel->sumPaxByUhOperacaoDate($uhNumero, (int)$shift['operacao_id'], $today);
+        $projectedTotal = $currentTotal - (int)$last['pax'] + $newPax;
+        if ($maxPax !== null && $projectedTotal > $maxPax) {
+            $resta = max(0, $maxPax - ($currentTotal - (int)$last['pax']));
+            set_flash('danger', 'Correção inválida: excede limite diário da UH nesta operação. Restante permitido: ' . $resta . '.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $accessModel->updatePax((int)$last['id'], $newPax, (int)Auth::user()['id']);
+        set_flash('success', '?ltimo lançamento corrigido com sucesso.');
         $this->redirect('/?r=access/index');
     }
 
@@ -308,7 +405,7 @@ class AccessController extends Controller
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token invÃ¡lido.');
+            set_flash('danger', 'Token inválido.');
             $this->redirect('/?r=access/index');
         }
 
@@ -320,14 +417,14 @@ class AccessController extends Controller
         }
 
         if (($shift['restaurante'] ?? '') !== 'Restaurante Corais') {
-            set_flash('danger', 'Registro de colaboradores disponÃ­vel apenas no Restaurante Corais.');
+            set_flash('danger', 'Registro de colaboradores disponível apenas no Restaurante Corais.');
             $this->redirect('/?r=access/index');
         }
 
         $nome = trim($_POST['nome_colaborador'] ?? '');
         $quantidade = (int)($_POST['quantidade'] ?? 0);
         if ($nome === '' || $quantidade <= 0) {
-            set_flash('danger', 'Preencha o nome do colaborador e a quantidade de refeiÃ§Ãµes.');
+            set_flash('danger', 'Preencha o nome do colaborador e a quantidade de refeições.');
             $this->redirect('/?r=access/index');
         }
 
@@ -340,7 +437,7 @@ class AccessController extends Controller
             'quantidade' => $quantidade,
         ], Auth::user()['id']);
 
-        set_flash('success', 'RefeiÃ§Ã£o de colaborador registrada.');
+        set_flash('success', 'Refeição de colaborador registrada.');
         $this->redirect('/?r=access/index');
     }
 
@@ -354,7 +451,7 @@ class AccessController extends Controller
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token invÃ¡lido.');
+            set_flash('danger', 'Token inválido.');
             $this->redirect('/?r=access/index');
         }
 
@@ -381,13 +478,13 @@ class AccessController extends Controller
             }
             $file = $_FILES['voucher_anexo'];
             if ($file['size'] > 5 * 1024 * 1024) {
-                set_flash('danger', 'Anexo muito grande. MÃ¡ximo 5MB.');
+                set_flash('danger', 'Anexo muito grande. Máximo 5MB.');
                 $this->redirect('/?r=access/index');
             }
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
             if (!in_array($ext, $allowed, true)) {
-                set_flash('danger', 'Formato invÃ¡lido. Use JPG, PNG, WEBP ou PDF.');
+                set_flash('danger', 'Formato inválido. Use JPG, PNG, WEBP ou PDF.');
                 $this->redirect('/?r=access/index');
             }
             $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -410,7 +507,7 @@ class AccessController extends Controller
             $filename = 'voucher_' . date('Ymd_His') . '_' . Auth::user()['id'] . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
             $dest = $uploadDir . '/' . $filename;
             if (!move_uploaded_file($file['tmp_name'], $dest)) {
-                set_flash('danger', 'NÃ£o foi possÃ­vel salvar o anexo do voucher.');
+                set_flash('danger', 'Não foi possível salvar o anexo do voucher.');
                 $this->redirect('/?r=access/index');
             }
             $voucherPath = '/uploads/vouchers/' . $filename;
@@ -419,7 +516,7 @@ class AccessController extends Controller
         $restauranteId = (int)($_POST['restaurante_id'] ?? ($shift['restaurante_id'] ?? 0));
         $operacaoId = (int)($_POST['operacao_id'] ?? ($shift['operacao_id'] ?? 0));
         if ($restauranteId <= 0 || $operacaoId <= 0) {
-            set_flash('danger', 'Selecione restaurante e operaÃ§Ã£o para o voucher.');
+            set_flash('danger', 'Selecione restaurante e operação para o voucher.');
             $this->redirect('/?r=vouchers/index');
         }
 
@@ -463,6 +560,7 @@ class AccessController extends Controller
 
     private function isNoShowStatus(string $status): bool
     {
-        return in_array($status, ['NÃ£o compareceu', 'Nao compareceu', 'Não compareceu'], true);
+        $normalized = mb_strtolower(normalize_mojibake(trim($status)), 'UTF-8');
+        return in_array($normalized, ['não compareceu', 'nao compareceu'], true);
     }
 }

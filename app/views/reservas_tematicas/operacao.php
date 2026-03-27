@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $turnos = $this->data['turnos'] ?? [];
@@ -7,7 +7,7 @@ $filters = $this->data['filters'] ?? [];
 $closed = $this->data['closed'] ?? false;
 $user = $this->data['user'] ?? Auth::user();
 $restrictedRestaurant = $this->data['restricted_restaurant'] ?? null;
-$finalStatuses = ['Finalizada', 'NÃ£o compareceu', 'Cancelada'];
+$finalStatuses = ['Finalizada', 'Não compareceu', 'Cancelada'];
 $isAdmin = in_array(($user['perfil'] ?? ''), ['admin', 'supervisor'], true);
 
 $statuses = [
@@ -15,9 +15,9 @@ $statuses = [
     'Conferida',
     'Em atendimento',
     'Finalizada',
-    'NÃ£o compareceu',
+    'Não compareceu',
     'Cancelada',
-    'DivergÃªncia',
+    'Divergência',
     'Excedente',
 ];
 ?>
@@ -27,8 +27,8 @@ $statuses = [
         <div class="section-title">
             <div class="icon"><i class="bi bi-clipboard-data"></i></div>
             <div>
-                <div class="text-uppercase text-muted small">Reservas TemÃ¡ticas</div>
-                <h3 class="fw-bold mb-1">Ambiente de OperaÃ§Ã£o</h3>
+                <div class="text-uppercase text-muted small">Reservas Temáticas</div>
+                <h3 class="fw-bold mb-1">Ambiente de Operação</h3>
                 <div class="text-muted">Acompanhe, confira e finalize as reservas do turno.</div>
             </div>
         </div>
@@ -40,7 +40,7 @@ $statuses = [
     <?php endif; ?>
 
     <?php if ($closed): ?>
-        <div class="alert alert-warning mt-3">Este turno estÃ¡ encerrado. Apenas supervisÃ£o pode alterar.</div>
+        <div class="alert alert-warning mt-3">Este turno está encerrado. Apenas supervisão pode alterar.</div>
     <?php endif; ?>
 </div>
 
@@ -70,7 +70,7 @@ $statuses = [
         <div class="icon"><i class="bi bi-funnel"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Filtros operacionais</div>
-            <h5 class="fw-bold mb-0">Selecione o turno para conferÃªncia</h5>
+            <h5 class="fw-bold mb-0">Selecione o turno para conferência</h5>
         </div>
     </div>
 
@@ -127,13 +127,13 @@ $statuses = [
         <div class="col-12 col-md-3">
             <label class="form-label">Ordenar por</label>
             <select class="form-select input-xl" name="order">
-                <option value="">HorÃ¡rio</option>
+                <option value="">Horário</option>
                 <option value="status" <?= ($filters['order'] ?? '') === 'status' ? 'selected' : '' ?>>Status</option>
             </select>
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/operacao">Remover filtro</a>
+                    <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/operacao">Remover filtro</a>
             <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&order=<?= h($filters['order']) ?>" target="_blank">
                 <i class="bi bi-printer"></i> Imprimir lista
             </a>
@@ -147,7 +147,7 @@ $statuses = [
             <input type="hidden" name="restaurante_id" value="<?= h($filters['restaurante_id']) ?>">
             <input type="hidden" name="turno_id" value="<?= h($filters['turno_id']) ?>">
             <input type="hidden" name="data_reserva" value="<?= h($filters['data']) ?>">
-            <button class="btn btn-outline-danger" <?= $closed ? 'disabled' : '' ?>><i class="bi bi-lock"></i> Encerrar turno</button>
+                            <button class="btn btn-outline-danger" <?= $closed ? 'disabled' : '' ?> onclick="return confirm('Confirma encerramento do turno temático?');"><i class="bi bi-lock"></i> Encerrar turno</button>
         </form>
     <?php endif; ?>
 </div>
@@ -156,8 +156,8 @@ $statuses = [
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-list-check"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">ConferÃªncia</div>
-            <h5 class="fw-bold mb-0">Reservas do perÃ­odo selecionado</h5>
+            <div class="text-uppercase text-muted small">Conferência</div>
+            <h5 class="fw-bold mb-0">Reservas do período selecionado</h5>
         </div>
     </div>
     <div class="table-responsive">
@@ -169,10 +169,10 @@ $statuses = [
                     <th>PAX reservada</th>
                     <th>Restaurante</th>
                     <th>Turno</th>
-                    <th>ObservaÃ§Ã£o original</th>
-                    <th>ObservaÃ§Ã£o operacional</th>
+                    <th>Observação original</th>
+                    <th>Observação operacional</th>
                     <th>PAX real</th>
-                    <th>AÃ§Ãµes</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -226,9 +226,9 @@ $statuses = [
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <textarea class="form-control form-control-sm" name="observacao_operacao" rows="2" placeholder="ObservaÃ§Ã£o operacional" <?= ((($rowFinal && !$isAdmin)) || ($closed && !$isAdmin)) ? 'disabled' : '' ?>><?= h($row['observacao_operacao'] ?? '') ?></textarea>
+                                <textarea class="form-control form-control-sm" name="observacao_operacao" rows="2" placeholder="Observação operacional" <?= ((($rowFinal && !$isAdmin)) || ($closed && !$isAdmin)) ? 'disabled' : '' ?>><?= h($row['observacao_operacao'] ?? '') ?></textarea>
                                 <?php if ($closed && $isAdmin): ?>
-                                    <input type="text" class="form-control form-control-sm" name="justificativa" placeholder="Justificativa da alteraÃ§Ã£o" required>
+                                    <input type="text" class="form-control form-control-sm" name="justificativa" placeholder="Justificativa da alteração" required>
                                 <?php endif; ?>
                                 <button class="btn btn-outline-primary btn-sm js-status-btn" data-status-current="<?= h($row['status']) ?>" <?= ((($rowFinal && !$isAdmin)) || ($closed && !$isAdmin)) ? 'disabled' : '' ?>><i class="bi bi-check2"></i> Atualizar</button>
                                 <?php if ($rowFinal && !$isAdmin): ?>
@@ -239,7 +239,7 @@ $statuses = [
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
-                    <tr><td colspan="9" class="text-muted">Nenhuma reserva encontrada para este perÃ­odo.</td></tr>
+                    <tr><td colspan="9" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -248,7 +248,7 @@ $statuses = [
 
 <script>
 (() => {
-    const finalStatuses = ['Finalizada', 'NÃ£o compareceu', 'Cancelada'];
+    const finalStatuses = ['Finalizada', 'Não compareceu', 'Cancelada'];
     document.querySelectorAll('form[action=\"/?r=reservasTematicas/operacao\"] .js-status-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const form = btn.closest('form');
@@ -257,7 +257,7 @@ $statuses = [
             if (!select) return;
             const selected = select.value;
             if (finalStatuses.includes(selected)) {
-                const ok = confirm('Esse status Ã© definitivo. Deseja confirmar?');
+                const ok = confirm('Esse status é definitivo. Deseja confirmar?');
                 if (!ok) {
                     e.preventDefault();
                     return;
@@ -270,5 +270,16 @@ $statuses = [
         });
     });
 })();
+
+// evita duplo envio em formulários operacionais
+document.querySelectorAll('form[action="/?r=reservasTematicas/operacao"]').forEach((f) => {
+    f.addEventListener('submit', () => {
+        const btn = f.querySelector('button[type="submit"], button:not([type])');
+        if (btn) {
+            btn.setAttribute('disabled', 'disabled');
+            setTimeout(() => btn.removeAttribute('disabled'), 5000);
+        }
+    });
+});
 </script>
 

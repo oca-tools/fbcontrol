@@ -44,7 +44,7 @@ class AuthController extends Controller
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-                set_flash('danger', 'Token invalido.');
+                set_flash('danger', 'Token inválido.');
                 $this->redirect('/?r=auth/login');
             }
 
@@ -66,7 +66,7 @@ class AuthController extends Controller
             }
 
             $this->registerFail();
-            set_flash('danger', 'Credenciais invalidas.');
+            set_flash('danger', 'Credenciais inválidas.');
             $this->redirect('/?r=auth/login');
         }
 

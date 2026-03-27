@@ -81,15 +81,22 @@ $user = Auth::user();
             </thead>
             <tbody>
                 <?php foreach ($turnos as $turno): ?>
+                    <?php
+                    $isEncerrado = !empty($turno['fim_em']);
+                    $totalAcessos = (int)($turno['total_acessos'] ?? 0);
+                    $isCancelado = $isEncerrado && $totalAcessos === 0;
+                    ?>
                     <tr>
                         <td><span class="tag <?= restaurant_badge_class($turno['restaurante']) ?>"><?= h($turno['restaurante']) ?></span></td>
                         <td><span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></td>
                         <td><?= h($turno['inicio_em']) ?></td>
                         <td><?= h($turno['fim_em'] ?? '-') ?></td>
                         <td><?= (int)$turno['total_pax'] ?></td>
-                        <td><?= (int)$turno['total_acessos'] ?></td>
+                        <td><?= $totalAcessos ?></td>
                         <td>
-                            <?php if ($turno['fim_em']): ?>
+                            <?php if ($isCancelado): ?>
+                                <span class="badge badge-danger">Cancelado</span>
+                            <?php elseif ($isEncerrado): ?>
                                 <span class="badge badge-success">Encerrado</span>
                             <?php else: ?>
                                 <span class="badge badge-warning">Em andamento</span>

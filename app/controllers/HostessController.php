@@ -31,7 +31,7 @@ class HostessController extends Controller
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token invalido.');
+            set_flash('danger', 'Token inválido.');
             $this->redirect('/?r=hostess/turnos');
         }
 
@@ -44,7 +44,7 @@ class HostessController extends Controller
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         if (!in_array($ext, $allowed, true)) {
-            set_flash('danger', 'Formato invalido. Use JPG, PNG ou WEBP.');
+            set_flash('danger', 'Formato inválido. Use JPG, PNG ou WEBP.');
             $this->redirect('/?r=hostess/turnos');
         }
 
@@ -57,7 +57,7 @@ class HostessController extends Controller
             'webp' => ['image/webp'],
         ];
         if (!in_array($mime, $allowedMimeByExt[$ext] ?? [], true)) {
-            set_flash('danger', 'Conteudo de arquivo invalido para a imagem enviada.');
+            set_flash('danger', 'Conteudo de arquivo inválido para a imagem enviada.');
             $this->redirect('/?r=hostess/turnos');
         }
 

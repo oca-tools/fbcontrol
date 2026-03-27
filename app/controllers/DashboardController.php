@@ -12,6 +12,7 @@ class DashboardController extends Controller
             'data_fim' => $_GET['data_fim'] ?? '',
             'restaurante_id' => $_GET['restaurante_id'] ?? '',
             'operacao_id' => $_GET['operacao_id'] ?? '',
+            'status' => $_GET['status'] ?? '',
         ];
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');
@@ -31,25 +32,28 @@ class DashboardController extends Controller
 
         $stats = $accessModel->dashboard($filters);
 
-        $includeTematico = true;
+        $includeTematico = !in_array($filters['status'] ?? '', ['nao_informado', 'day_use'], true);
         if (!empty($filters['operacao_id'])) {
             $selectedOp = $operationModel->find((int)$filters['operacao_id']);
             $selectedName = mb_strtolower($selectedOp['nome'] ?? '', 'UTF-8');
-            $isTematico = strpos($selectedName, 'temÃ¡tico') !== false || strpos($selectedName, 'tematico') !== false;
+            $isTematico = strpos($selectedName, 'temático') !== false || strpos($selectedName, 'tematico') !== false;
             $includeTematico = $isTematico;
         }
 
         if ($includeTematico) {
             $tematicoContribution = $reservaTematicaModel->dashboardFinalizadasPax($filters);
+            $tematicoTotalPax = (int)($tematicoContribution['total_pax'] ?? 0);
             $stats['totais_restaurante'] = $this->mergeTotalsByName(
                 $stats['totais_restaurante'] ?? [],
                 $tematicoContribution['by_restaurante'] ?? []
             );
-            $stats['totais_operacao'] = $this->mergeTotalsByName(
-                $stats['totais_operacao'] ?? [],
-                [['nome' => 'Tematico', 'total_pax' => (int)($tematicoContribution['total_pax'] ?? 0)]]
-            );
-            $stats['total_pax'] = (int)($stats['total_pax'] ?? 0) + (int)($tematicoContribution['total_pax'] ?? 0);
+            if ($tematicoTotalPax > 0) {
+                $stats['totais_operacao'] = $this->mergeTotalsByName(
+                    $stats['totais_operacao'] ?? [],
+                    [['nome' => 'Tematico', 'total_pax' => $tematicoTotalPax]]
+                );
+            }
+            $stats['total_pax'] = (int)($stats['total_pax'] ?? 0) + $tematicoTotalPax;
 
             $stats['fluxo_horario'] = $this->mergeTotalsByName(
                 $stats['fluxo_horario'] ?? [],
@@ -58,12 +62,22 @@ class DashboardController extends Controller
             );
         }
 
-        $recentes = $accessModel->recentAll(15, $filters['data'], $filters['data_inicio'], $filters['data_fim']);
+        $recentes = $accessModel->recentAll(
+            15,
+            $filters['data'],
+            $filters['data_inicio'],
+            $filters['data_fim'],
+            (string)$filters['status']
+        );
         if ($includeTematico) {
             $recentesTematicos = $reservaTematicaModel->dashboardFinalizadasRecent(
                 15,
                 $filters
             );
+            $statusFilter = (string)($filters['status'] ?? '');
+            if ($statusFilter !== '' && $statusFilter !== 'ok') {
+                $recentesTematicos = [];
+            }
             $recentes = $this->mergeRecentes($recentes, $recentesTematicos, 15);
         }
 
@@ -92,6 +106,7 @@ class DashboardController extends Controller
             'data_fim' => $_GET['data_fim'] ?? '',
             'restaurante_id' => $restauranteId,
             'operacao_id' => $_GET['operacao_id'] ?? '',
+            'status' => $_GET['status'] ?? '',
         ];
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');
@@ -157,7 +172,14 @@ class DashboardController extends Controller
             'operacoes' => $operacoes,
             'show_operacao_filter' => $allowOperacaoFilter,
             'stats' => $accessModel->dashboard($filters),
-            'recentes' => $accessModel->recentByRestaurant($restauranteId, 15, $filters['data'], $filters['data_inicio'], $filters['data_fim']),
+            'recentes' => $accessModel->recentByRestaurant(
+                $restauranteId,
+                15,
+                $filters['data'],
+                $filters['data_inicio'],
+                $filters['data_fim'],
+                (string)$filters['status']
+            ),
             'tematico_mode' => $tematicoMode,
             'tematico_stats' => $tematicoStats,
             'tematico_turnos' => $tematicoTurnos,

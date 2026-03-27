@@ -7,9 +7,9 @@ Sistema web para registro de acessos de hóspedes (PAX) por Unidade Habitacional
 - MySQL 8+
 
 ## Instalação rápida
-1. Crie o banco e tabelas com o script `sql/schema.sql`.
+1. Crie o banco e tabelas com o script `sql/schema_v1_1_final.sql`.
 2. Ajuste as credenciais em `config/config.php`.
-3. Gere o hash da senha do admin e substitua no `sql/schema.sql`.
+3. Gere o hash da senha do admin e substitua no `sql/schema_v1_1_final.sql`.
 4. Aponte o servidor para a pasta `public`.
 
 ## Rotas principais

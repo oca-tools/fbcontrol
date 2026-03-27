@@ -11,7 +11,7 @@ class OperationModel extends Model
         return $this->db->query("
             SELECT *
             FROM operacoes
-            WHERE nome NOT IN ('Tematico','Temático','Privileged')
+            WHERE nome NOT IN ('Tematico','Temático','Privileged','VIP Premium','Vip Premium')
             ORDER BY nome
         ")->fetchAll();
     }

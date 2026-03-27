@@ -1,79 +1,73 @@
 <?php
+
 function normalize_mojibake(string $value): string
 {
-    static $map = [
-        'Ã¡' => 'á',
-        'Ãà' => 'à',
-        'Ã¢' => 'â',
-        'Ã£' => 'ã',
-        'Ã¤' => 'ä',
-        'Ã©' => 'é',
-        'Ã¨' => 'è',
-        'Ãª' => 'ê',
-        'Ã«' => 'ë',
-        'Ã­' => 'í',
-        'Ã¬' => 'ì',
-        'Ã®' => 'î',
-        'Ã¯' => 'ï',
-        'Ã³' => 'ó',
-        'Ã²' => 'ò',
-        'Ã´' => 'ô',
-        'Ãµ' => 'õ',
-        'Ã¶' => 'ö',
-        'Ãº' => 'ú',
-        'Ã¹' => 'ù',
-        'Ã»' => 'û',
-        'Ã¼' => 'ü',
-        'Ã§' => 'ç',
-        'Ã' => 'Ç',
-        'Ã' => 'Á',
-        'Ã' => 'À',
-        'Ã' => 'Â',
-        'Ã' => 'Ã',
-        'Ã' => 'É',
-        'Ã' => 'Ê',
-        'Ã' => 'Í',
-        'Ã' => 'Ó',
-        'Ã' => 'Ô',
-        'Ã' => 'Õ',
-        'Ã' => 'Ú',
-        'Ãœ' => 'Ü',
-        'Ã±' => 'ñ',
-        'Âº' => 'º',
-        'Âª' => 'ª',
-        'Â°' => '°',
-        'Â' => '',
-        'NÃ£o' => 'Não',
+    $normalized = str_replace("\xEF\xBB\xBF", '', $value);
+
+    $score = static function (string $text): int {
+        return (int)preg_match_all('/Ã|Â|â|ï¿½|\?fï¿½/u', $text);
+    };
+
+    // Tenta reparar UTF-8 lido como ISO-8859-1/Windows-1252
+    for ($i = 0; $i < 2; $i++) {
+        $baseScore = $score($normalized);
+        $iso = @mb_convert_encoding($normalized, 'UTF-8', 'ISO-8859-1');
+        $win = @mb_convert_encoding($normalized, 'UTF-8', 'Windows-1252');
+
+        $best = $normalized;
+        $bestScore = $baseScore;
+        foreach ([$iso, $win] as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && $score($candidate) < $bestScore) {
+                $best = $candidate;
+                $bestScore = $score($candidate);
+            }
+        }
+
+        if ($best === $normalized) {
+            break;
+        }
+        $normalized = $best;
+    }
+
+    static $phraseMap = [
+        'Opera?fï¿½?fï¿½o' => 'Operação',
+        'opera?fï¿½?fï¿½o' => 'operação',
+        'Operaï¿½ï¿½o' => 'Operação',
+        'operaï¿½ï¿½o' => 'operação',
         'OperaÃ§Ã£o' => 'Operação',
-        'OperaÃ§Ãµes' => 'Operações',
-        'AÃ§Ã£o' => 'Ação',
-        'AÃ§Ãµes' => 'Ações',
-        'ConferÃªncia' => 'Conferência',
-        'DistribuiÃ§Ã£o' => 'Distribuição',
-        'ObservaÃ§Ã£o' => 'Observação',
-        'ObservaÃ§Ãµes' => 'Observações',
-        'Ãšltimos' => 'Últimos',
-        'HorÃ¡rio' => 'Horário',
-        'HorÃ¡rios' => 'Horários',
-        'invÃ¡lido' => 'inválido',
-        'invÃ¡lida' => 'inválida',
-        'invÃ¡lidos' => 'inválidos',
-        'invÃ¡lidas' => 'inválidas',
-        'nÃ£o' => 'não',
-        'temÃ¡tico' => 'temático',
-        'TemÃ¡tico' => 'Temático',
-        'almoÃ§o' => 'almoço',
-        'AlmoÃ§o' => 'Almoço',
-        'cafÃ©' => 'café',
-        'CafÃ©' => 'Café',
-        'ÃƒÂ£' => 'ã',
-        'ÃƒÂ¡' => 'á',
-        'ÃƒÂ©' => 'é',
-        'ÃƒÂ§' => 'ç',
-        'ÃƒÂ³' => 'ó',
+        'operaÃ§Ã£o' => 'operação',
+        'N?fï¿½o' => 'Não',
+        'n?fï¿½o' => 'não',
+        'Nï¿½o' => 'Não',
+        'nï¿½o' => 'não',
+        'Usu?fï¿½rio' => 'Usuário',
+        'Usuï¿½rio' => 'Usuário',
+        'N?fï¿½mero' => 'Número',
+        'Hor?fï¿½rio' => 'Horário',
+        'hor?fï¿½rio' => 'horário',
+        'In?fï¿½cio' => 'Início',
+        'in?fï¿½cio' => 'início',
+        'Tem?fï¿½tico' => 'Temático',
+        'tem?fï¿½tico' => 'temático',
+        'Relat?fï¿½rios' => 'Relatórios',
+        'Consolida?fï¿½?fï¿½o' => 'Consolidação',
+        'Movimenta?fï¿½?fï¿½o' => 'Movimentação',
+        'obrigat?fï¿½ria' => 'obrigatória',
+        'confirma?fï¿½?fï¿½o' => 'confirmação',
+        'corre?fï¿½?fï¿½o' => 'correção',
+        'di?fï¿½rio' => 'diário',
+        'refei?fï¿½?fï¿½es' => 'refeições',
+        'refei?fï¿½?fï¿½o' => 'refeição',
+        'Mï¿½ltiplo' => 'Múltiplo',
+        'Mï¿½ltiplos' => 'Múltiplos',
+        '?fï¿½ltimo' => 'último',
+        'ï¿½ltimos' => 'Últimos',
+        'r?fï¿½pida' => 'rápida',
+        'r?fï¿½pido' => 'rápido',
+        'Ã¢â‚¬Â¢' => '•',
     ];
 
-    return strtr($value, $map);
+    return strtr($normalized, $phraseMap);
 }
 
 function normalize_output_mojibake(string $buffer): string
@@ -167,7 +161,13 @@ function operation_badge_class(string $name): string
 function uh_badge_class($uh): string
 {
     $num = (int)$uh;
-    if (($num >= 100 && $num <= 299)) {
+    if ($num === 998) {
+        return 'uh-nao-informado';
+    }
+    if ($num === 999) {
+        return 'uh-day-use';
+    }
+    if ($num >= 100 && $num <= 299) {
         return 'uh-bungalow';
     }
     if ($num >= 300 && $num <= 1019) {
@@ -180,4 +180,16 @@ function uh_badge_class($uh): string
         return 'uh-nova';
     }
     return 'uh-default';
+}
+
+function uh_label($uh): string
+{
+    $num = (string)$uh;
+    if ($num === '998') {
+        return '998 (Não informado)';
+    }
+    if ($num === '999') {
+        return '999 (Day use)';
+    }
+    return $num;
 }

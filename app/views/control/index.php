@@ -4,6 +4,9 @@ $activeShifts = $this->data['active_shifts'] ?? [];
 $activeRestaurants = $this->data['active_restaurants'] ?? [];
 $stats = $this->data['stats_today'] ?? [];
 $recentes = $this->data['recentes'] ?? [];
+$page = (int)($this->data['page'] ?? 1);
+$totalPages = (int)($this->data['total_pages'] ?? 1);
+$totalRegistros = (int)($this->data['total_registros'] ?? count($recentes));
 ?>
 <div class="card p-4 mb-4">
     <div class="d-flex justify-content-between align-items-start">
@@ -46,7 +49,7 @@ $recentes = $this->data['recentes'] ?? [];
 <div class="row g-4 mb-4">
     <div class="col-12 col-lg-5">
         <div class="card p-4">
-    <h5 class="fw-bold mb-3">Restaurantes ativos</h5>
+            <h5 class="fw-bold mb-3">Restaurantes ativos</h5>
             <div class="d-flex flex-wrap gap-2">
                 <?php foreach ($activeRestaurants as $rest): ?>
                     <a class="btn btn-outline-primary" href="/?r=dashboard/restaurant&id=<?= (int)$rest['id'] ?>">
@@ -61,14 +64,14 @@ $recentes = $this->data['recentes'] ?? [];
     </div>
     <div class="col-12 col-lg-7">
         <div class="card p-4">
-    <h5 class="fw-bold mb-3">Turnos abertos</h5>
+            <h5 class="fw-bold mb-3">Turnos abertos</h5>
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
                             <th>Restaurante</th>
                             <th>Operação</th>
-                            <th>Usuario</th>
+                            <th>Usuário</th>
                             <th>Início</th>
                         </tr>
                     </thead>
@@ -92,7 +95,10 @@ $recentes = $this->data['recentes'] ?? [];
 </div>
 
 <div class="card p-4">
-    <h5 class="fw-bold">Últimos registros do dia</h5>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="fw-bold mb-0">Últimos registros do dia</h5>
+        <span class="text-muted small">Mostrando 20 por página (total: <?= $totalRegistros ?>)</span>
+    </div>
     <div class="table-responsive">
         <table class="table table-sm align-middle">
             <thead>
@@ -101,15 +107,15 @@ $recentes = $this->data['recentes'] ?? [];
                     <th>UH</th>
                     <th>PAX</th>
                     <th>Operação</th>
-                    <th>Usuario</th>
-                    <th>horário</th>
+                    <th>Usuário</th>
+                    <th>Horário</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($recentes as $item): ?>
                     <tr>
                         <td><span class="tag <?= restaurant_badge_class($item['restaurante']) ?>"><?= h($item['restaurante']) ?></span></td>
-                        <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero']) ?></span></td>
+                        <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
                         <td><?= h($item['pax']) ?></td>
                         <td><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
                         <td><?= h($item['usuario']) ?></td>
@@ -122,4 +128,17 @@ $recentes = $this->data['recentes'] ?? [];
             </tbody>
         </table>
     </div>
+    <?php if ($totalPages > 1): ?>
+        <nav class="mt-3">
+            <ul class="pagination pagination-sm mb-0">
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <li class="page-item <?= $i === $page ? 'active' : '' ?>">
+                        <a class="page-link" href="/?r=control/index&page=<?= $i ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </nav>
+    <?php endif; ?>
 </div>
+
+

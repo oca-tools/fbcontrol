@@ -11,6 +11,17 @@ $user = Auth::user();
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($appName) ?></title>
+    <script>
+    (function () {
+        try {
+            var savedTheme = localStorage.getItem('oca_theme');
+            var theme = savedTheme === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
     <?php if (!empty($logoPath)): ?>
         <link rel="icon" type="image/png" href="<?= h($logoPath) ?>">
     <?php endif; ?>
@@ -30,15 +41,46 @@ $user = Auth::user();
             --ab-card: #ffffff;
             --ab-border: #e2e8f0;
             --ab-glow: rgba(249, 115, 22, 0.2);
+            --ab-page-bg: #f8fafc;
+            --ab-grad-1: rgba(249,115,22,0.18);
+            --ab-grad-2: rgba(251,146,60,0.16);
+            --ab-sidebar-bg: #ffffff;
+            --ab-hover-bg: rgba(249, 115, 22, 0.12);
+            --ab-panel-bg: #ffffff;
+            --ab-soft-bg: #f8fafc;
+            --ab-input-bg: #ffffff;
+            --ab-input-text: #0f172a;
+        }
+        html[data-theme='dark'] {
+            --ab-ink: #e2e8f0;
+            --ab-muted: #94a3b8;
+            --ab-surface: #0b1220;
+            --ab-card: #111827;
+            --ab-border: #334155;
+            --ab-page-bg: #0b1220;
+            --ab-grad-1: rgba(249,115,22,0.1);
+            --ab-grad-2: rgba(251,146,60,0.08);
+            --ab-sidebar-bg: #0f172a;
+            --ab-hover-bg: rgba(249, 115, 22, 0.18);
+            --ab-panel-bg: #111827;
+            --ab-soft-bg: #0f172a;
+            --ab-input-bg: #0b1220;
+            --ab-input-text: #e2e8f0;
         }
         body {
             font-family: "Manrope", sans-serif;
             background:
-                radial-gradient(1200px 600px at 10% -10%, rgba(249,115,22,0.18), transparent 60%),
-                radial-gradient(900px 500px at 90% -20%, rgba(251,146,60,0.16), transparent 60%),
-                #f8fafc;
+                radial-gradient(1200px 600px at 10% -10%, var(--ab-grad-1), transparent 60%),
+                radial-gradient(900px 500px at 90% -20%, var(--ab-grad-2), transparent 60%),
+                var(--ab-page-bg);
             color: var(--ab-ink);
             overflow-x: hidden;
+        }
+        a {
+            color: #c2410c;
+        }
+        html[data-theme='dark'] a {
+            color: #fb923c;
         }
         *, *::before, *::after {
             box-sizing: border-box;
@@ -82,13 +124,17 @@ $user = Auth::user();
             box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
             border-radius: 22px;
             background: var(--ab-card);
+            color: var(--ab-ink);
         }
         .card-soft {
             background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.92) 100%);
         }
-        .status-success { color: var(--ab-success); }
-        .status-warning { color: var(--ab-warning); }
-        .status-danger { color: var(--ab-danger); }
+        html[data-theme='dark'] .card-soft {
+            background: linear-gradient(180deg, rgba(17,24,39,0.98) 0%, rgba(15,23,42,0.92) 100%);
+        }
+        .status-success { color: #22c55e; font-weight: 700; }
+        .status-warning { color: #f59e0b; font-weight: 700; }
+        .status-danger { color: #ef4444; font-weight: 700; }
         .badge {
             display: inline-flex;
             align-items: center;
@@ -100,13 +146,13 @@ $user = Auth::user();
             color: #fff;
             line-height: 1;
         }
-        .badge-success { background: var(--ab-success) !important; color: #fff !important; }
-        .badge-warning { background: var(--ab-warning) !important; color: #111827 !important; }
-        .badge-danger { background: var(--ab-danger) !important; color: #fff !important; }
+        .badge-success { background: linear-gradient(135deg, #16a34a, #22c55e) !important; color: #fff !important; box-shadow: 0 6px 14px rgba(34,197,94,0.32); }
+        .badge-warning { background: linear-gradient(135deg, #f59e0b, #fbbf24) !important; color: #1f2937 !important; box-shadow: 0 6px 14px rgba(245,158,11,0.32); }
+        .badge-danger { background: linear-gradient(135deg, #dc2626, #ef4444) !important; color: #fff !important; box-shadow: 0 6px 14px rgba(239,68,68,0.3); }
         .badge-soft {
-            background: #f1f5f9;
-            color: #b94700;
-            border: 1px solid var(--ab-border);
+            background: #fff;
+            color: #9a3412;
+            border: 1.5px solid #fdba74;
         }
         .tag {
             display: inline-flex;
@@ -119,18 +165,18 @@ $user = Auth::user();
             line-height: 1;
             white-space: nowrap;
         }
-        .tag-rest-corais { background: rgba(14, 116, 144, 0.12); color: #0e7490; border-color: rgba(14, 116, 144, 0.28); }
-        .tag-rest-giardino { background: rgba(16, 185, 129, 0.12); color: #0f766e; border-color: rgba(16, 185, 129, 0.28); }
-        .tag-rest-brasa { background: rgba(217, 119, 6, 0.12); color: #b45309; border-color: rgba(217, 119, 6, 0.28); }
-        .tag-rest-ixu { background: rgba(99, 102, 241, 0.12); color: #4f46e5; border-color: rgba(99, 102, 241, 0.28); }
-        .tag-rest-privileged { background: rgba(2, 132, 199, 0.12); color: #0369a1; border-color: rgba(2, 132, 199, 0.28); }
-        .tag-rest-default { background: rgba(148, 163, 184, 0.18); color: #475569; border-color: rgba(148, 163, 184, 0.28); }
-        .tag-op-cafe { background: rgba(251, 191, 36, 0.18); color: #92400e; border-color: rgba(251, 191, 36, 0.35); }
-        .tag-op-almoco { background: rgba(34, 197, 94, 0.16); color: #166534; border-color: rgba(34, 197, 94, 0.32); }
-        .tag-op-jantar { background: rgba(239, 68, 68, 0.14); color: #991b1b; border-color: rgba(239, 68, 68, 0.3); }
-        .tag-op-tematico { background: rgba(59, 130, 246, 0.16); color: #1d4ed8; border-color: rgba(59, 130, 246, 0.32); }
-        .tag-op-privileged { background: rgba(2, 132, 199, 0.14); color: #0c4a6e; border-color: rgba(2, 132, 199, 0.3); }
-        .tag-op-default { background: rgba(148, 163, 184, 0.18); color: #475569; border-color: rgba(148, 163, 184, 0.28); }
+        .tag-rest-corais { background: linear-gradient(135deg, #0891b2, #06b6d4); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(6,182,212,0.28); }
+        .tag-rest-giardino { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(34,197,94,0.3); }
+        .tag-rest-brasa { background: linear-gradient(135deg, #ea580c, #f97316); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(249,115,22,0.3); }
+        .tag-rest-ixu { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(99,102,241,0.3); }
+        .tag-rest-privileged { background: linear-gradient(135deg, #0e7490, #06b6d4); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(14,116,144,0.28); }
+        .tag-rest-default { background: linear-gradient(135deg, #64748b, #94a3b8); color: #fff; border-color: transparent; }
+        .tag-op-cafe { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #111827; border-color: transparent; }
+        .tag-op-almoco { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; border-color: transparent; }
+        .tag-op-jantar { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; border-color: transparent; }
+        .tag-op-tematico { background: linear-gradient(135deg, #4338ca, #6366f1); color: #fff; border-color: transparent; }
+        .tag-op-privileged { background: linear-gradient(135deg, #0369a1, #0ea5e9); color: #fff; border-color: transparent; }
+        .tag-op-default { background: linear-gradient(135deg, #64748b, #94a3b8); color: #fff; border-color: transparent; }
         .uh-badge {
             display: inline-flex;
             align-items: center;
@@ -141,11 +187,13 @@ $user = Auth::user();
             border: 1px solid transparent;
             letter-spacing: 0.2px;
         }
-        .uh-bungalow { background: rgba(249, 115, 22, 0.14); color: #9a3412; border-color: rgba(249, 115, 22, 0.3); }
-        .uh-standard { background: rgba(34, 197, 94, 0.14); color: #166534; border-color: rgba(34, 197, 94, 0.3); }
-        .uh-family { background: rgba(99, 102, 241, 0.14); color: #4338ca; border-color: rgba(99, 102, 241, 0.3); }
-        .uh-nova { background: rgba(14, 116, 144, 0.14); color: #0f766e; border-color: rgba(14, 116, 144, 0.3); }
-        .uh-default { background: rgba(148, 163, 184, 0.18); color: #475569; border-color: rgba(148, 163, 184, 0.28); }
+        .uh-bungalow { background: linear-gradient(135deg, #ea580c, #f97316); color: #fff; border-color: transparent; }
+        .uh-standard { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; border-color: transparent; }
+        .uh-family { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; border-color: transparent; }
+        .uh-nova { background: linear-gradient(135deg, #0284c7, #06b6d4); color: #fff; border-color: transparent; }
+        .uh-nao-informado { background: linear-gradient(135deg, #ca8a04, #facc15); color: #111827; border-color: transparent; }
+        .uh-day-use { background: linear-gradient(135deg, #db2777, #ec4899); color: #fff; border-color: transparent; }
+        .uh-default { background: linear-gradient(135deg, #64748b, #94a3b8); color: #fff; border-color: transparent; }
         .tag-grid {
             display: flex;
             flex-wrap: wrap;
@@ -162,18 +210,19 @@ $user = Auth::user();
             gap: 6px;
             padding: 0.35rem 0.7rem;
             border-radius: 999px;
-            border: 1px solid var(--ab-border);
+            border: 1.5px solid #fdba74;
             background: #fff;
             font-size: 0.85rem;
             font-weight: 600;
-            color: var(--ab-ink);
+            color: #9a3412;
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .tag-choice input:checked + label {
-            background: rgba(249, 115, 22, 0.16);
-            border-color: rgba(249, 115, 22, 0.45);
-            color: #9a3412;
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            border-color: #f97316;
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(249, 115, 22, 0.28);
         }
         .table-editor {
             table-layout: auto;
@@ -195,7 +244,7 @@ $user = Auth::user();
         }
         .sidebar {
             width: 280px;
-            background: #ffffff;
+            background: var(--ab-sidebar-bg);
             color: var(--ab-ink);
             border-right: 1px solid var(--ab-border);
             padding: 24px 20px;
@@ -226,7 +275,7 @@ $user = Auth::user();
         }
         .sidebar .nav-link.active,
         .sidebar .nav-link:hover {
-            background: rgba(249, 115, 22, 0.12);
+            background: var(--ab-hover-bg);
             color: #9a3412 !important;
         }
         .sidebar .nav-link i {
@@ -243,7 +292,7 @@ $user = Auth::user();
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            background: #fff;
+            background: var(--ab-panel-bg);
             border: 1px solid var(--ab-border);
             border-radius: 14px;
             padding: 10px 14px;
@@ -265,7 +314,7 @@ $user = Auth::user();
             margin-bottom: 24px;
         }
         .topbar .user-pill {
-            background: #fff;
+            background: var(--ab-panel-bg);
             border: 1px solid var(--ab-border);
             border-radius: 999px;
             padding: 8px 14px;
@@ -274,12 +323,13 @@ $user = Auth::user();
             gap: 10px;
         }
         .turno-pill {
-            background: rgba(249, 115, 22, 0.16);
-            border: 1px solid rgba(249, 115, 22, 0.35);
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            border: none;
             padding: 6px 12px;
             border-radius: 999px;
             font-size: 0.85rem;
-            color: #9a3412;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(249,115,22,0.28);
         }
         .stat-chip {
             display: inline-flex;
@@ -287,9 +337,33 @@ $user = Auth::user();
             gap: 8px;
             padding: 6px 10px;
             border-radius: 10px;
-            background: #f8fafc;
+            background: var(--ab-soft-bg);
             border: 1px solid var(--ab-border);
             font-size: 0.85rem;
+        }
+        .theme-toggle {
+            border: 1px solid var(--ab-border);
+            background: var(--ab-panel-bg);
+            color: var(--ab-ink);
+        }
+        .theme-toggle:hover {
+            border-color: #f97316;
+            color: #9a3412;
+        }
+        .form-control,
+        .form-select {
+            background-color: var(--ab-input-bg);
+            color: var(--ab-input-text);
+            border-color: var(--ab-border);
+        }
+        .form-control:focus,
+        .form-select:focus {
+            background-color: var(--ab-input-bg);
+            color: var(--ab-input-text);
+        }
+        .offcanvas {
+            background: var(--ab-panel-bg);
+            color: var(--ab-ink);
         }
         .metric-card {
             position: relative;
@@ -337,16 +411,264 @@ $user = Auth::user();
         .table tbody tr:hover {
             background: rgba(15, 23, 42, 0.03);
         }
-        .btn-primary {
-            background: #f97316;
-            border-color: #f97316;
+        .table {
+            color: var(--ab-ink);
         }
-        .btn-outline-primary {
+        .table > :not(caption) > * > * {
+            background-color: transparent;
+            color: inherit;
+            border-color: var(--ab-border);
+        }
+        .text-muted,
+        .text-secondary {
+            color: var(--ab-muted) !important;
+        }
+        .alert {
+            border-color: var(--ab-border);
+        }
+        html[data-theme='dark'] .alert-light,
+        html[data-theme='dark'] .bg-light {
+            background-color: #1f2937 !important;
+            color: var(--ab-ink) !important;
+            border-color: var(--ab-border) !important;
+        }
+        .list-group-item {
+            background: var(--ab-card);
+            color: var(--ab-ink);
+            border-color: var(--ab-border);
+        }
+        .modal-content {
+            background: var(--ab-card);
+            color: var(--ab-ink);
+            border-color: var(--ab-border);
+        }
+        .dropdown-menu {
+            background: var(--ab-card);
+            color: var(--ab-ink);
+            border-color: var(--ab-border);
+        }
+        .dropdown-item {
+            color: var(--ab-ink);
+        }
+        .dropdown-item:hover {
+            background: var(--ab-soft-bg);
+        }
+        .form-control::placeholder,
+        textarea::placeholder {
+            color: var(--ab-muted);
+            opacity: 1;
+        }
+        .btn-outline-dark {
+            border-color: var(--ab-border);
+            color: var(--ab-ink);
+        }
+        .btn-outline-dark:hover {
+            background: var(--ab-soft-bg);
             border-color: #f97316;
             color: #9a3412;
         }
-        .btn-outline-primary:hover {
+        .btn {
+            border-radius: 12px;
+            font-weight: 600;
+            letter-spacing: 0.1px;
+            transition: all 0.18s ease;
+        }
+        .btn i {
+            color: inherit !important;
+        }
+        .btn-sm {
+            border-radius: 10px;
+        }
+        .btn-lg {
+            border-radius: 14px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            border: none;
+            box-shadow: 0 10px 22px rgba(249, 115, 22, 0.28);
+            color: #fff !important;
+        }
+        .btn-primary:hover,
+        .btn-primary:focus {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 26px rgba(249, 115, 22, 0.35);
+            background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+            color: #fff !important;
+        }
+        .btn-primary:visited,
+        .btn-primary:active {
+            color: #fff !important;
+        }
+        .btn-outline-primary {
+            border-width: 1.5px;
+            border-color: #fb923c;
+            color: #9a3412;
+            background: #fff;
+        }
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            border-color: #f97316;
+            color: #fff !important;
+        }
+        html[data-theme='dark'] .btn-outline-primary {
+            background: #fff;
+            color: #9a3412 !important;
+        }
+        .btn-secondary,
+        .btn-outline-secondary {
+            border-radius: 12px;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            border: none;
+            color: #fff !important;
+            box-shadow: 0 10px 22px rgba(34, 197, 94, 0.25);
+        }
+        .btn-success:hover,
+        .btn-success:focus {
+            background: linear-gradient(135deg, #15803d, #16a34a);
+            color: #fff !important;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            border: none;
+            color: #fff !important;
+            box-shadow: 0 10px 22px rgba(239, 68, 68, 0.24);
+        }
+        .btn-danger:hover,
+        .btn-danger:focus {
+            background: linear-gradient(135deg, #b91c1c, #dc2626);
+            color: #fff !important;
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            border: none;
+            color: #fff !important;
+            box-shadow: 0 10px 22px rgba(245, 158, 11, 0.24);
+        }
+        .btn-warning:hover,
+        .btn-warning:focus {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: #fff !important;
+        }
+        .btn-info {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9);
+            border: none;
+            color: #fff !important;
+            box-shadow: 0 10px 22px rgba(14, 165, 233, 0.23);
+        }
+        .btn-info:hover,
+        .btn-info:focus {
+            background: linear-gradient(135deg, #0369a1, #0284c7);
+            color: #fff !important;
+        }
+        .btn-outline-secondary {
+            color: var(--ab-ink);
+            border-color: var(--ab-border);
+            background: transparent;
+        }
+        .btn-outline-secondary:hover,
+        .btn-outline-secondary:focus {
+            background: var(--ab-soft-bg);
+            color: var(--ab-ink);
+            border-color: #94a3b8;
+        }
+        .card {
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+        }
+        .card-header {
+            background: linear-gradient(180deg, rgba(249,115,22,0.08), transparent);
+            border-bottom: 1px solid var(--ab-border);
+            font-weight: 700;
+            color: var(--ab-ink);
+        }
+        html[data-theme='dark'] .card-header {
+            background: linear-gradient(180deg, rgba(249,115,22,0.13), rgba(15,23,42,0.2));
+        }
+        .form-label {
+            font-weight: 700;
+            font-size: 0.88rem;
+            margin-bottom: 0.35rem;
+            color: var(--ab-ink);
+        }
+        .form-text {
+            color: var(--ab-muted);
+        }
+        .form-control,
+        .form-select {
+            border-radius: 12px;
+            min-height: 44px;
+            box-shadow: none;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #fb923c;
+            box-shadow: 0 0 0 0.2rem rgba(249, 115, 22, 0.18);
+        }
+        .input-group-text {
+            background: var(--ab-soft-bg);
+            color: var(--ab-muted);
+            border-color: var(--ab-border);
+            border-radius: 12px;
+        }
+        .table-responsive {
+            border: 1px solid var(--ab-border);
+            border-radius: 14px;
+            background: var(--ab-card);
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: rgba(249,115,22,0.08);
+        }
+        html[data-theme='dark'] .table thead th {
+            background: rgba(249,115,22,0.14);
+            color: #fdba74;
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background: rgba(15,23,42,0.02);
+        }
+        html[data-theme='dark'] .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background: rgba(148,163,184,0.06);
+        }
+        .badge,
+        .tag,
+        .uh-badge {
+            font-weight: 700;
+            letter-spacing: 0.15px;
+        }
+        .alert {
+            border-radius: 12px;
+        }
+        .nav-tabs {
+            border-bottom-color: var(--ab-border);
+        }
+        .nav-tabs .nav-link {
+            border-radius: 10px 10px 0 0;
+            color: var(--ab-muted);
+            border: 1px solid transparent;
+        }
+        .nav-tabs .nav-link.active {
+            color: #9a3412;
+            border-color: var(--ab-border) var(--ab-border) transparent;
+            background: var(--ab-card);
+            font-weight: 700;
+        }
+        .pagination .page-link {
+            border-color: var(--ab-border);
+            color: var(--ab-ink);
+            background: var(--ab-card);
+        }
+        .pagination .page-link:hover {
+            background: var(--ab-soft-bg);
+        }
+        .pagination .active > .page-link {
             background: #f97316;
+            border-color: #f97316;
             color: #fff;
         }
         .app-content {
@@ -416,12 +738,13 @@ $user = Auth::user();
             .topbar .user-pill {
                 gap: 6px;
             }
-        .table-responsive {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            font-size: 0.9rem;
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                font-size: 0.9rem;
+            }
         }
-        }    </style>
+    </style>
 </head>
 <body>
 <div class="app-shell">
@@ -526,6 +849,7 @@ $user = Auth::user();
                         <a class="nav-link" href="/?r=operacoes/index"><i class="bi bi-collection"></i> Operações</a>
                         <a class="nav-link" href="/?r=horarios/index"><i class="bi bi-clock"></i> Horários</a>
                         <a class="nav-link" href="/?r=usuarios/index"><i class="bi bi-people"></i> Usuários</a>
+                        <a class="nav-link" href="/?r=emailRelatorios/index"><i class="bi bi-envelope-paper"></i> E-mail Diário</a>
                     <?php endif; ?>
                 <?php endif; ?>
             </nav>
@@ -535,9 +859,14 @@ $user = Auth::user();
         <?php if ($user): ?>
             <div class="mobile-nav">
                 <div class="brand"><?= h($appName) ?></div>
-                <button class="btn btn-sm menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
-                    <i class="bi bi-list"></i> Menu
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm theme-toggle js-theme-toggle" type="button" title="Alternar tema">
+                        <i class="bi bi-moon-stars-fill"></i>
+                    </button>
+                    <button class="btn btn-sm menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
+                        <i class="bi bi-list"></i> Menu
+                    </button>
+                </div>
             </div>
             <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
                 <div class="offcanvas-header">
@@ -608,6 +937,10 @@ $user = Auth::user();
                     <div class="h5 mb-0"><?= h($appName) ?> <span class="text-muted small">v<?= h($appVersion) ?></span></div>
                 </div>
                 <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-sm theme-toggle js-theme-toggle" type="button" title="Alternar tema">
+                        <i class="bi bi-moon-stars-fill me-1"></i>
+                        Tema
+                    </button>
                     <?php if ($activeShift): ?>
                         <div class="turno-pill">
                             <i class="bi bi-clock-history"></i>

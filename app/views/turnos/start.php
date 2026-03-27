@@ -30,6 +30,7 @@ $preselect = $this->data['preselect'] ?? [];
 
             <form method="post" action="/?r=turnos/start">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="confirm_start" id="confirm_start" value="0">
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Restaurante</label>
@@ -86,6 +87,12 @@ $preselect = $this->data['preselect'] ?? [];
                     <?php endif; ?>
 
                     <div class="col-12">
+                        <div class="alert alert-secondary mb-0">
+                            <strong>Checklist:</strong> confirme restaurante, operação e porta antes de iniciar.
+                        </div>
+                    </div>
+
+                    <div class="col-12">
                         <button class="btn btn-success btn-xl w-100">Iniciar turno</button>
                     </div>
                 </div>
@@ -112,10 +119,57 @@ function updateFilters() {
     filterOptions(operacaoSelect, restId);
     filterOptions(portaSelect, restId);
 
+    // Evita manter seleção de outro restaurante (operação/porta incompatíveis).
+    const opSelected = operacaoSelect.options[operacaoSelect.selectedIndex];
+    if (opSelected && opSelected.dataset.rest && opSelected.dataset.rest !== restId) {
+        operacaoSelect.value = '';
+    }
+    const doorSelected = portaSelect.options[portaSelect.selectedIndex];
+    if (doorSelected && doorSelected.dataset.rest && doorSelected.dataset.rest !== restId) {
+        portaSelect.value = '';
+    }
+
     const hasPorta = Array.from(portaSelect.options).some(opt => opt.dataset.rest === restId);
     portaWrapper.style.display = hasPorta ? 'block' : 'none';
 }
 
 restauranteSelect.addEventListener('change', updateFilters);
 updateFilters();
+
+const startForm = document.querySelector('form[action="/?r=turnos/start"]');
+if (startForm) {
+    startForm.addEventListener('submit', (e) => {
+        const confirmStart = document.getElementById('confirm_start');
+        if (confirmStart && confirmStart.value === '1') {
+            return;
+        }
+        const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
+        const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
+        const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
+        const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
+        const ok = window.confirm(
+            'Confirme o início do turno:\n' +
+            '- Usuário: ' + userName + '\n' +
+            '- Restaurante: ' + restLabel + '\n' +
+            '- Operação: ' + opLabel + '\n' +
+            '- Porta: ' + doorLabel
+        );
+        if (!ok) {
+            e.preventDefault();
+            return;
+        }
+        if (confirmStart) confirmStart.value = '1';
+    });
+}
+
+document.querySelectorAll('form').forEach((f) => {
+    f.addEventListener('submit', () => {
+        const btn = f.querySelector('button[type="submit"], button:not([type])');
+        if (btn) {
+            btn.setAttribute('disabled', 'disabled');
+            setTimeout(() => btn.removeAttribute('disabled'), 5000);
+        }
+    });
+});
 </script>
+

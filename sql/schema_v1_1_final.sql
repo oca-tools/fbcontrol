@@ -12,6 +12,19 @@ CREATE TABLE usuarios (
     criado_em DATETIME NOT NULL
 );
 
+CREATE TABLE sessoes_ativas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    session_id VARCHAR(128) NOT NULL,
+    token VARCHAR(64) NOT NULL,
+    ip VARCHAR(45) NULL,
+    user_agent VARCHAR(255) NULL,
+    atualizado_em DATETIME NOT NULL,
+    CONSTRAINT fk_sessoes_ativas_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_sessoes_ativas_usuario (usuario_id),
+    UNIQUE KEY uq_sessoes_ativas_token (token)
+);
+
 CREATE TABLE restaurantes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(120) NOT NULL,
@@ -434,3 +447,45 @@ INSERT IGNORE INTO reservas_tematicas_config_turnos (restaurante_id, turno_id, c
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 4, 16),
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 5, 16);
 
+-- UHs tÃ©cnicas operacionais
+INSERT IGNORE INTO unidades_habitacionais (numero, ativo, criado_em) VALUES
+('998', 1, NOW()),
+('999', 1, NOW());
+
+
+-- Configuracao de envio de e-mail diario (v1.1)
+CREATE TABLE IF NOT EXISTS relatorio_email_config (
+    id INT PRIMARY KEY,
+    ativo TINYINT(1) NOT NULL DEFAULT 0,
+    hora_envio TIME NOT NULL DEFAULT '23:00:00',
+    assunto VARCHAR(255) NOT NULL DEFAULT 'Resumo diario A&B - {data}',
+    remetente_nome VARCHAR(120) NOT NULL DEFAULT 'OCA FBControl',
+    remetente_email VARCHAR(190) NULL,
+    atualizado_em DATETIME NOT NULL
+);
+
+INSERT INTO relatorio_email_config (id, ativo, hora_envio, assunto, remetente_nome, remetente_email, atualizado_em)
+SELECT 1, 0, '23:00:00', 'Resumo diario A&B - {data}', 'OCA FBControl', NULL, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM relatorio_email_config WHERE id = 1);
+
+CREATE TABLE IF NOT EXISTS relatorio_email_destinatarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) NOT NULL,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    criado_em DATETIME NOT NULL,
+    UNIQUE KEY uniq_relatorio_email_dest (email)
+);
+
+CREATE TABLE IF NOT EXISTS relatorio_email_envios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    data_referencia DATE NOT NULL,
+    enviado_em DATETIME NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    assunto VARCHAR(255) NOT NULL,
+    total_destinatarios INT NOT NULL DEFAULT 0,
+    destinatarios TEXT NULL,
+    resumo_json LONGTEXT NULL,
+    erro TEXT NULL,
+    KEY idx_relatorio_email_data (data_referencia),
+    KEY idx_relatorio_email_status (status)
+);

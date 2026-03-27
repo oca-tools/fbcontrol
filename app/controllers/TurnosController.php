@@ -1,10 +1,22 @@
 <?php
 class TurnosController extends Controller
 {
+    private function autoCloseTimeoutShiftsForCurrentUser(): void
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return;
+        }
+        $graceMinutes = 10;
+        (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
+        (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
+    }
+
     public function start(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $this->autoCloseTimeoutShiftsForCurrentUser();
 
         $shiftModel = new ShiftModel();
         $active = $shiftModel->getActiveByUser(Auth::user()['id']);
@@ -48,6 +60,7 @@ class TurnosController extends Controller
             $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
             $operacaoId = (int)($_POST['operacao_id'] ?? 0);
             $portaId = (int)($_POST['porta_id'] ?? 0);
+            $confirmStart = (int)($_POST['confirm_start'] ?? 0) === 1;
             $confirmEarly = (int)($_POST['confirm_early'] ?? 0) === 1;
 
             if ($restauranteId <= 0 || $operacaoId <= 0) {
@@ -60,6 +73,7 @@ class TurnosController extends Controller
                 set_flash('danger', 'Operação inválida para este restaurante.');
                 $this->redirect('/?r=turnos/start');
             }
+            $outsideHorario = $this->isOutsideHorario($restOp);
 
             $rest = $restaurantModel->find($restauranteId);
             $opInfo = (new OperationModel())->find($operacaoId);
@@ -75,7 +89,24 @@ class TurnosController extends Controller
                 $this->redirect('/?r=turnos/start');
             }
 
-            if ($this->isOutsideHorario($restOp) && !$confirmEarly) {
+            if (!$confirmStart && !($outsideHorario && $confirmEarly)) {
+                set_flash('warning', 'Confirme o checklist para iniciar o turno.');
+                $this->view('turnos/start', [
+                    'restaurantes' => $restaurantes,
+                    'restOps' => $restOps,
+                    'doorsByRestaurant' => $doorsByRestaurant,
+                    'flash' => get_flash(),
+                    'need_confirm' => false,
+                    'preselect' => [
+                        'restaurante_id' => $restauranteId,
+                        'operacao_id' => $operacaoId,
+                        'porta_id' => $portaId,
+                    ],
+                ]);
+                return;
+            }
+
+            if ($outsideHorario && !$confirmEarly) {
                 $this->view('turnos/start', [
                     'restaurantes' => $restaurantes,
                     'restOps' => $restOps,
@@ -114,6 +145,7 @@ class TurnosController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $this->autoCloseTimeoutShiftsForCurrentUser();
 
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
@@ -140,10 +172,10 @@ class TurnosController extends Controller
                 if ($now < $end) {
                     $diffMin = (int)ceil(($end->getTimestamp() - $now->getTimestamp()) / 60);
                     $tol = (int)$restOp['tolerancia_min'];
-                    $msg = 'Ainda não é possível encerrar o turno. Faltam ' . $diffMin . ' min para o fim.';
-                    if ($tol > 0) {
-                        $msg .= ' Tolerância: ' . $tol . ' min antes do fim.';
-                    }
+            $msg = 'Ainda não é possível encerrar o turno. Faltam ' . $diffMin . ' min para o fim.';
+            if ($tol > 0) {
+                $msg .= ' Tolerância: ' . $tol . ' min antes do fim.';
+            }
                     set_flash('warning', $msg);
                     $this->redirect('/?r=access/index');
                 }
@@ -170,6 +202,7 @@ class TurnosController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $this->autoCloseTimeoutShiftsForCurrentUser();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');

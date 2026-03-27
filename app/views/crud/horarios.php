@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $operacoes = $this->data['operacoes'] ?? [];
@@ -122,5 +122,6 @@ $operacoes = $this->data['operacoes'] ?? [];
         </div>
     </div>
 </div>
+
 
 

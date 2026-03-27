@@ -11,6 +11,7 @@ $doorsByRestaurant = $this->data['doorsByRestaurant'] ?? [];
 $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 $canCancel = $this->data['can_cancel'] ?? false;
+$lastEditableAccess = $this->data['last_editable_access'] ?? null;
 ?>
 
 <?php if ($mode === 'start'): ?>
@@ -59,6 +60,7 @@ $canCancel = $this->data['can_cancel'] ?? false;
 
                 <form method="post" action="/?r=access/start">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="confirm_start" id="confirm_start" value="0">
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">Restaurante</label>
@@ -115,6 +117,12 @@ $canCancel = $this->data['can_cancel'] ?? false;
                         <?php endif; ?>
 
                         <div class="col-12">
+                            <div class="alert alert-secondary mb-0">
+                                <strong>Checklist:</strong> confirme restaurante, operação e porta antes de iniciar.
+                            </div>
+                        </div>
+
+                        <div class="col-12">
                             <button class="btn btn-success btn-xl w-100" id="startShiftBtn">Iniciar turno</button>
                         </div>
                     </div>
@@ -141,6 +149,16 @@ $canCancel = $this->data['can_cancel'] ?? false;
         const restId = restauranteSelect.value;
         filterOptions(operacaoSelect, restId);
         filterOptions(portaSelect, restId);
+
+        // Evita manter seleção de outro restaurante (operação/porta incompatíveis).
+        const opSelected = operacaoSelect.options[operacaoSelect.selectedIndex];
+        if (opSelected && opSelected.dataset.rest && opSelected.dataset.rest !== restId) {
+            operacaoSelect.value = '';
+        }
+        const doorSelected = portaSelect.options[portaSelect.selectedIndex];
+        if (doorSelected && doorSelected.dataset.rest && doorSelected.dataset.rest !== restId) {
+            portaSelect.value = '';
+        }
 
         const hasPorta = Array.from(portaSelect.options).some(opt => opt.dataset.rest === restId);
         portaWrapper.style.display = hasPorta ? 'block' : 'none';
@@ -207,6 +225,43 @@ $canCancel = $this->data['can_cancel'] ?? false;
             });
         }
     }
+
+    // confirmação obrigatória de checklist antes de iniciar
+    if (startForm) {
+        startForm.addEventListener('submit', (e) => {
+            const confirmStart = document.getElementById('confirm_start');
+            if (confirmStart && confirmStart.value === '1') {
+                return;
+            }
+            const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
+            const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
+            const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
+            const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
+            const ok = window.confirm(
+                'Confirme o início do turno:\n' +
+                '- Usuário: ' + userName + '\n' +
+                '- Restaurante: ' + restLabel + '\n' +
+                '- Operação: ' + opLabel + '\n' +
+                '- Porta: ' + doorLabel
+            );
+            if (!ok) {
+                e.preventDefault();
+                return;
+            }
+            if (confirmStart) confirmStart.value = '1';
+        });
+    }
+
+    // evita duplo envio
+    document.querySelectorAll('form').forEach((f) => {
+        f.addEventListener('submit', () => {
+            const btn = f.querySelector('button[type="submit"], button:not([type])');
+            if (btn) {
+                btn.setAttribute('disabled', 'disabled');
+                setTimeout(() => btn.removeAttribute('disabled'), 5000);
+            }
+        });
+    });
     </script>
 <?php else: ?>
     <div class="row g-4">
@@ -223,12 +278,12 @@ $canCancel = $this->data['can_cancel'] ?? false;
                     <div class="d-flex gap-2 flex-wrap">
                         <form method="post" action="/?r=turnos/end">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <button class="btn btn-outline-danger"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
+                            <button class="btn btn-outline-danger" onclick="return confirm('Confirma encerramento do turno?');"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
                         </form>
                         <?php if ($canCancel): ?>
                             <form method="post" action="/?r=turnos/cancel">
                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                <button class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>Cancelar turno</button>
+                                <button class="btn btn-outline-secondary" onclick="return confirm('Confirma cancelamento do turno sem registros?');"><i class="bi bi-x-circle me-1"></i>Cancelar turno</button>
                             </form>
                         <?php endif; ?>
                     </div>
@@ -236,6 +291,11 @@ $canCancel = $this->data['can_cancel'] ?? false;
 
                 <?php if ($flash): ?>
                     <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
+                <?php endif; ?>
+                <?php if ($restOp): ?>
+                    <div id="shiftCountdown" class="alert alert-info">
+                        Tempo restante do turno: calculando...
+                    </div>
                 <?php endif; ?>
 
                 <form method="post" action="/?r=access/register">
@@ -271,6 +331,31 @@ $canCancel = $this->data['can_cancel'] ?? false;
 
                     <button type="submit" class="btn btn-success btn-xl w-100"><i class="bi bi-check2-circle me-1"></i>Registrar</button>
                 </form>
+
+                <?php if (!empty($lastEditableAccess)): ?>
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="text-uppercase text-muted small">Correção rápida (2 min)</div>
+                            <div class="small text-muted">
+                                Último lançamento: UH <?= h(uh_label($lastEditableAccess['uh_numero'])) ?> - PAX atual <?= (int)$lastEditableAccess['pax'] ?>
+                            </div>
+                        </div>
+                        <span class="badge badge-warning">Janela curta</span>
+                    </div>
+                    <form method="post" action="/?r=access/correct_last" class="row g-2 align-items-end">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <div class="col-7">
+                            <label class="form-label mb-1">Novo PAX</label>
+                            <input type="number" min="1" name="pax_corrigido" class="form-control input-xl" value="<?= (int)$lastEditableAccess['pax'] ?>" required>
+                        </div>
+                        <div class="col-5">
+                            <button type="submit" class="btn btn-outline-primary btn-xl w-100" onclick="return confirm('Confirmar correção do último lançamento?')">
+                                Corrigir
+                            </button>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </div>
 
             <?php if (!empty($this->data['is_corais'])): ?>
@@ -319,17 +404,17 @@ $canCancel = $this->data['can_cancel'] ?? false;
                         <tbody>
                             <?php foreach ($recentes as $item): ?>
                                 <tr>
-                                    <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero']) ?></span></td>
+                                    <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
                                     <td><?= h($item['pax']) ?></td>
                                     <td><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
                                     <td>
-                                        <?php if ($item['alerta_duplicidade']): ?>
+                                        <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
                                             <span class="badge badge-warning">Duplicado</span>
-                                        <?php endif; ?>
-                                        <?php if ($item['fora_do_horario']): ?>
-                                        <span class="badge badge-danger">Fora do horário</span>
-                                        <?php endif; ?>
-                                        <?php if (!$item['alerta_duplicidade'] && !$item['fora_do_horario']): ?>
+                                        <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
+                                            <span class="badge badge-danger">Fora do horário</span>
+                                        <?php elseif (($item['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
+                                            <span class="badge badge-soft">Múltiplo acesso</span>
+                                        <?php else: ?>
                                             <span class="badge badge-success">OK</span>
                                         <?php endif; ?>
                                     </td>
@@ -417,25 +502,78 @@ $canCancel = $this->data['can_cancel'] ?? false;
     // clean draft after submit success
     <?php if ($flash && $flash['type'] === 'success'): ?>
         localStorage.removeItem(draftKey);
-        if (uhInput) uhInput.focus();
         if (uhInput) uhInput.value = '';
         if (paxInput) paxInput.value = 1;
+        // Em tablet/mobile, evita reabrir o teclado automaticamente.
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+        if (uhInput && typeof uhInput.blur === 'function') {
+            uhInput.blur();
+        }
         dirty = false;
     <?php endif; ?>
 
     <?php if ($restOp): ?>
     (function() {
         const endTime = '<?= h($restOp['hora_fim']) ?>';
-        const now = new Date();
+        const toleranceMin = <?= (int)($restOp['tolerancia_min'] ?? 0) ?>;
+        const countdownEl = document.getElementById('shiftCountdown');
         const [h, m, s] = endTime.split(':').map(Number);
-        const end = new Date();
-        end.setHours(h, m, s || 0, 0);
+        let endModalShown = false;
+        const calcEnd = () => {
+            const now = new Date();
+            const end = new Date();
+            end.setHours(h, m, s || 0, 0);
+            return { now, end };
+        };
 
-        if (now >= end) {
-            const modal = new bootstrap.Modal(document.getElementById('endShiftModal'));
-            modal.show();
-        }
+        const updateCountdown = () => {
+            const { now, end } = calcEnd();
+            const diffMs = end.getTime() - now.getTime();
+            const diffMin = Math.ceil(diffMs / 60000);
+            const tolEnd = new Date(end.getTime() + (toleranceMin * 60000));
+            if (countdownEl) {
+                if (diffMin > 10) {
+                    countdownEl.className = 'alert alert-info';
+                    countdownEl.textContent = `Tempo restante do turno: ${diffMin} min`;
+                } else if (diffMin > 0) {
+                    countdownEl.className = 'alert alert-warning';
+                    countdownEl.textContent = `Tempo restante do turno: ${diffMin} min`;
+                } else if (now <= tolEnd) {
+                    countdownEl.className = 'alert alert-warning';
+                    const extraMin = Math.max(0, Math.ceil((tolEnd.getTime() - now.getTime()) / 60000));
+                    countdownEl.textContent = `Turno fora do horário, aguardando tempo de tolerância (${extraMin} min).`;
+                } else {
+                    countdownEl.className = 'alert alert-danger';
+                    countdownEl.textContent = 'Turno fora do horário limite. Encerrar imediatamente.';
+                }
+            }
+            if (now > tolEnd && !endModalShown) {
+                const modal = new bootstrap.Modal(document.getElementById('endShiftModal'));
+                modal.show();
+                endModalShown = true;
+            }
+        };
+        updateCountdown();
+        setInterval(updateCountdown, 30000);
     })();
     <?php endif; ?>
+
+    // evita duplo envio
+    document.querySelectorAll('form').forEach((f) => {
+        f.addEventListener('submit', () => {
+            const btn = f.querySelector('button[type="submit"], button:not([type])');
+            if (btn) {
+                btn.setAttribute('disabled', 'disabled');
+                setTimeout(() => btn.removeAttribute('disabled'), 5000);
+            }
+        });
+    });
     </script>
 <?php endif; ?>
+
+
+
+
+

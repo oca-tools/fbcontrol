@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $filters = $this->data['filters'] ?? [];
 $summary = $this->data['summary'] ?? [];
 $byRestaurant = $this->data['by_restaurant'] ?? [];
@@ -26,7 +26,7 @@ $statuses = [
         <div class="icon"><i class="bi bi-clipboard-data"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Relatórios Temáticos</div>
-            <h3 class="fw-bold mb-0">Reservas Temáticas</h3>
+            <h3 class="fw-bold mb-0">Relatórios das Reservas Temáticas</h3>
             <div class="text-muted">Acompanhe reservas, comparecimentos e no-shows.</div>
         </div>
     </div>
@@ -89,11 +89,38 @@ $statuses = [
             </select>
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary" type="button" data-range="1">Ontem</button>
+            <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
+            <button class="btn btn-outline-primary" type="button" data-range="30">Últimos 30 dias</button>
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=relatoriosTematicos/index">Remover filtro</a>
+                    <a class="btn btn-primary btn-xl" href="/?r=relatoriosTematicos/index">Remover filtro</a>
         </div>
     </form>
 </div>
+<script>
+(() => {
+    const start = document.querySelector('input[name="data_inicio"]');
+    const end = document.querySelector('input[name="data_fim"]');
+    if (!start || !end) return;
+    document.querySelectorAll('[data-range]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fmt = (d) => d.toISOString().slice(0, 10);
+            const days = parseInt(btn.dataset.range, 10);
+            const today = new Date();
+            const from = new Date();
+            if (days === 1) {
+                from.setDate(today.getDate() - 1);
+                start.value = fmt(from);
+                end.value = fmt(from);
+                return;
+            }
+            from.setDate(today.getDate() - (days - 1));
+            start.value = fmt(from);
+            end.value = fmt(today);
+        });
+    });
+})();
+</script>
 
 <div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-lg-3">
@@ -137,7 +164,7 @@ $statuses = [
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-person-x"></i></div>
                 <div>
-                    <div class="text-muted small">PAX nÃ£o comparecidas</div>
+                    <div class="text-muted small">PAX não comparecidas</div>
                     <div class="display-6 fw-bold status-danger"><?= (int)($summary['pax_nao_comparecidas'] ?? 0) ?></div>
                 </div>
             </div>
@@ -316,3 +343,4 @@ $statuses = [
         </table>
     </div>
 </div>
+

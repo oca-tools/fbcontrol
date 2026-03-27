@@ -14,12 +14,28 @@ class UnitModel extends Model
         $stmt = $this->db->prepare("SELECT * FROM unidades_habitacionais WHERE numero = :numero AND ativo = 1 LIMIT 1");
         $stmt->execute([':numero' => $numero]);
         $item = $stmt->fetch();
+        if ($item) {
+            return $item;
+        }
+
+        // Garante UHs técnicas para operação (Não Informado / Day Use).
+        if (in_array($numero, ['998', '999'], true)) {
+            $this->ensureTechnicalUnit($numero);
+            $stmt = $this->db->prepare("SELECT * FROM unidades_habitacionais WHERE numero = :numero LIMIT 1");
+            $stmt->execute([':numero' => $numero]);
+            $item = $stmt->fetch();
+            return $item ?: null;
+        }
+
         return $item ?: null;
     }
 
     public function maxPaxForNumero(string $numero): ?int
     {
         $num = (int)$numero;
+        if ($num === 998 || $num === 999) {
+            return null; // UHs técnicas (não informado/day use): sem limite rígido por tipologia
+        }
         if ($num >= 100 && $num <= 299) {
             return 4; // bangalos (series 100 e 200)
         }
@@ -48,5 +64,23 @@ class UnitModel extends Model
         $id = (int)$this->db->lastInsertId();
         $this->audit('create', $userId, [], array_merge($data, ['id' => $id]), 'unidades_habitacionais', $id);
         return $id;
+    }
+
+    private function ensureTechnicalUnit(string $numero): void
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO unidades_habitacionais (numero, ativo, criado_em)
+            SELECT :numero_insert, 1, NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM unidades_habitacionais WHERE numero = :numero_exists
+            )
+        ");
+        $stmt->execute([
+            ':numero_insert' => $numero,
+            ':numero_exists' => $numero,
+        ]);
+
+        $stmtUpdate = $this->db->prepare("UPDATE unidades_habitacionais SET ativo = 1 WHERE numero = :numero");
+        $stmtUpdate->execute([':numero' => $numero]);
     }
 }

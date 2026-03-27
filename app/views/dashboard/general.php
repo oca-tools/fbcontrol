@@ -42,6 +42,18 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
             </select>
         </div>
         <div class="col-12 col-md-4">
+            <label class="form-label">Status</label>
+            <select class="form-select input-xl" name="status">
+                <option value="">Todos</option>
+                <option value="ok" <?= ($filters['status'] ?? '') === 'ok' ? 'selected' : '' ?>>OK</option>
+                <option value="duplicado" <?= ($filters['status'] ?? '') === 'duplicado' ? 'selected' : '' ?>>Duplicado</option>
+                <option value="fora_horario" <?= ($filters['status'] ?? '') === 'fora_horario' ? 'selected' : '' ?>>Fora do horário</option>
+                <option value="multiplo" <?= ($filters['status'] ?? '') === 'multiplo' ? 'selected' : '' ?>>Múltiplo acesso</option>
+                <option value="nao_informado" <?= ($filters['status'] ?? '') === 'nao_informado' ? 'selected' : '' ?>>Não informado</option>
+                <option value="day_use" <?= ($filters['status'] ?? '') === 'day_use' ? 'selected' : '' ?>>Day use</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
             <label class="form-label">Restaurante (abrir painel)</label>
             <select class="form-select input-xl" onchange="if(this.value){window.location='/?r=dashboard/restaurant&id='+this.value}">
                 <option value="">Selecione</option>
@@ -104,8 +116,16 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <div class="col-12 col-md-6 col-lg-3">
+<div class="card p-4 mb-4">
+    <div class="section-title mb-3">
+        <div class="icon"><i class="bi bi-shield-check"></i></div>
+        <div>
+            <div class="text-uppercase text-muted small">Qualidade operacional</div>
+            <h5 class="fw-bold mb-0">Alertas e consistência</h5>
+        </div>
+    </div>
+    <div class="row g-4">
+    <div class="col-12 col-md-6 col-lg-4">
         <div class="card metric-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-exclamation-triangle"></i></div>
@@ -119,7 +139,7 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
             </div>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-lg-4">
         <div class="card metric-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-clock-history"></i></div>
@@ -132,6 +152,67 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
                 <div class="progress-bar bg-danger" style="width: <?= $foraPercent ?>%"></div>
             </div>
         </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card metric-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-arrow-repeat"></i></div>
+                <div>
+                    <div class="text-muted small">Múltiplos acessos</div>
+                    <div class="h2 fw-bold mb-0"><?= (int)($stats['multiplos'] ?? 0) ?></div>
+                </div>
+            </div>
+            <div class="text-muted small mt-3">UH repetente no mesmo dia/operação</div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<div class="card p-4 mb-4">
+    <div class="section-title mb-3">
+        <div class="icon"><i class="bi bi-house-heart"></i></div>
+        <div>
+            <div class="text-uppercase text-muted small">Áreas especiais</div>
+            <h5 class="fw-bold mb-0">Não informado, Day use e VIP Premium</h5>
+        </div>
+    </div>
+    <div class="row g-4">
+    <div class="col-12 col-md-4">
+        <div class="card metric-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-question-circle"></i></div>
+                <div>
+                    <div class="text-muted small">Não informado</div>
+                    <div class="h2 fw-bold mb-0"><?= (int)($stats['nao_informado_acessos'] ?? 0) ?></div>
+                </div>
+            </div>
+            <div class="text-muted small mt-3">PAX: <?= (int)($stats['nao_informado_pax'] ?? 0) ?></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card metric-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-sun"></i></div>
+                <div>
+                    <div class="text-muted small">Day use</div>
+                    <div class="h2 fw-bold mb-0"><?= (int)($stats['day_use_acessos'] ?? 0) ?></div>
+                </div>
+            </div>
+            <div class="text-muted small mt-3">PAX: <?= (int)($stats['day_use_pax'] ?? 0) ?></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card metric-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-gem"></i></div>
+                <div>
+                    <div class="text-muted small">VIP Premium</div>
+                    <div class="h2 fw-bold mb-0"><?= (int)($stats['vip_premium_acessos'] ?? 0) ?></div>
+                </div>
+            </div>
+            <div class="text-muted small mt-3">PAX: <?= (int)($stats['vip_premium_pax'] ?? 0) ?></div>
+        </div>
+    </div>
     </div>
 </div>
 
@@ -285,16 +366,18 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
                 <?php foreach ($recentes as $item): ?>
                     <tr>
                         <td>
-                            <?php if ($item['alerta_duplicidade']): ?>
+                            <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
                                 <span class="badge badge-warning">Duplicado</span>
-                            <?php elseif ($item['fora_do_horario']): ?>
+                            <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
                                 <span class="badge badge-danger">Fora do horário</span>
+                            <?php elseif (($item['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
+                                <span class="badge badge-soft">Múltiplo acesso</span>
                             <?php else: ?>
                                 <span class="badge badge-success">OK</span>
                             <?php endif; ?>
                         </td>
                         <td><span class="tag <?= restaurant_badge_class($item['restaurante']) ?>"><?= h($item['restaurante']) ?></span></td>
-                        <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero']) ?></span></td>
+                        <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
                         <td><?= h($item['pax']) ?></td>
                         <td><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
                         <td><?= h($item['usuario']) ?></td>
@@ -308,3 +391,6 @@ $foraPercent = $totalAcessos > 0 ? round(($stats['fora_horario'] / $totalAcessos
         </table>
     </div>
 </div>
+
+
+

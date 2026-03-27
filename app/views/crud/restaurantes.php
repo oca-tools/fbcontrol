@@ -26,8 +26,8 @@
                     <label class="form-label">Tipo</label>
                     <select name="tipo" class="form-select input-xl">
                         <option value="buffet">Buffet</option>
-                        <option value="tematico">Temático</option>
-                        <option value="area">Área</option>
+                        <option value="tematico">Tematico</option>
+                        <option value="area">Area</option>
                     </select>
                 </div>
                 <div class="form-check mb-2">
@@ -50,6 +50,11 @@
             </div>
             <div class="row g-3">
                 <?php foreach ($this->data['items'] as $item): ?>
+                    <?php
+                    $portaNoTurno = (int)($item['seleciona_porta_no_turno'] ?? 0);
+                    $exigePax = (int)($item['exige_pax'] ?? 0);
+                    $ativo = (int)($item['ativo'] ?? 0);
+                    ?>
                     <div class="col-12">
                         <form method="post" action="/?r=restaurantes/edit" class="card p-3">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -60,37 +65,37 @@
                                     <input type="text" name="nome" class="form-control" value="<?= h($item['nome']) ?>">
                                     <?php if (stripos($item['nome'], 'La Brasa') !== false): ?>
                                         <div class="mt-2">
-                                            <span class="badge badge-warning">Híbrido (Buffet + Temático)</span>
+                                            <span class="badge badge-warning">Hibrido (Buffet + Tematico)</span>
                                         </div>
                                     <?php endif; ?>
                                 </div>
-                                <div class="col-12 col-md-3">
+                                <div class="col-12 col-md-2">
                                     <label class="form-label small text-muted">Tipo</label>
                                     <select name="tipo" class="form-select">
                                         <option value="buffet" <?= $item['tipo'] === 'buffet' ? 'selected' : '' ?>>Buffet</option>
-                                        <option value="tematico" <?= $item['tipo'] === 'tematico' ? 'selected' : '' ?>>Temático</option>
-                                        <option value="area" <?= $item['tipo'] === 'area' ? 'selected' : '' ?>>Área</option>
+                                        <option value="tematico" <?= $item['tipo'] === 'tematico' ? 'selected' : '' ?>>Tematico</option>
+                                        <option value="area" <?= $item['tipo'] === 'area' ? 'selected' : '' ?>>Area</option>
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-2">
                                     <label class="form-label small text-muted">Porta no turno</label>
                                     <select name="seleciona_porta_no_turno" class="form-select">
-                                        <option value="1" <?= $item['seleciona_porta_no_turno'] ? 'selected' : '' ?>>Sim</option>
-                                        <option value="0" <?= !$item['seleciona_porta_no_turno'] ? 'selected' : '' ?>>Não</option>
+                                        <option value="1" <?= $portaNoTurno === 1 ? 'selected' : '' ?>>Sim</option>
+                                        <option value="0" <?= $portaNoTurno === 0 ? 'selected' : '' ?>>Nao</option>
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-2">
                                     <label class="form-label small text-muted">Exige PAX</label>
                                     <select name="exige_pax" class="form-select">
-                                        <option value="1" <?= $item['exige_pax'] ? 'selected' : '' ?>>Sim</option>
-                                        <option value="0" <?= !$item['exige_pax'] ? 'selected' : '' ?>>Não</option>
+                                        <option value="1" <?= $exigePax === 1 ? 'selected' : '' ?>>Sim</option>
+                                        <option value="0" <?= $exigePax === 0 ? 'selected' : '' ?>>Nao</option>
                                     </select>
                                 </div>
-                                <div class="col-12 col-md-1">
+                                <div class="col-12 col-md-2">
                                     <label class="form-label small text-muted">Status</label>
                                     <select name="ativo" class="form-select">
-                                        <option value="1" <?= $item['ativo'] ? 'selected' : '' ?>>Ativo</option>
-                                        <option value="0" <?= !$item['ativo'] ? 'selected' : '' ?>>Inativo</option>
+                                        <option value="1" <?= $ativo === 1 ? 'selected' : '' ?>>Ativo</option>
+                                        <option value="0" <?= $ativo === 0 ? 'selected' : '' ?>>Inativo</option>
                                     </select>
                                 </div>
                                 <div class="col-12 col-md-2">
@@ -107,6 +112,3 @@
         </div>
     </div>
 </div>
-
-
-

@@ -7,7 +7,7 @@ DB_NAME="${DB_NAME:-controle_ab}"
 DB_USER="${DB_USER:-controle_ab_user}"
 DB_PASS="${DB_PASS:-troque_esta_senha}"
 MYSQL_ROOT_PASS="${MYSQL_ROOT_PASS:-}"
-PHP_VERSION="${PHP_VERSION:-8.2}"
+PHP_VERSION="${PHP_VERSION:-8.3}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Execute como root: sudo bash deploy/vps/install.sh"
@@ -25,9 +25,9 @@ if [[ -n "$MYSQL_ROOT_PASS" ]]; then
 fi
 
 "${MYSQL_CMD[@]}" <<SQL
-CREATE DATABASE IF NOT EXISTS \\`${DB_NAME}\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
-GRANT ALL PRIVILEGES ON \\`${DB_NAME}\\`.* TO '${DB_USER}'@'localhost';
+GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
 
@@ -43,8 +43,8 @@ sed -i "s/'name' => 'controle_ab'/'name' => '${DB_NAME//\//\\/}'/" "${APP_DIR}/c
 sed -i "s/'user' => 'controle_ab_user'/'user' => '${DB_USER//\//\\/}'/" "${APP_DIR}/config/config.local.php"
 sed -i "s/'pass' => 'troque_por_senha_forte'/'pass' => '${DB_PASS//\//\\/}'/" "${APP_DIR}/config/config.local.php"
 
-echo "[4/7] Importando schema consolidado 1.0..."
-SCHEMA_FILE="${APP_DIR}/sql/schema_v1_0_final.sql"
+echo "[4/7] Importando schema consolidado 1.1..."
+SCHEMA_FILE="${APP_DIR}/sql/schema_v1_1_final.sql"
 if [[ ! -f "$SCHEMA_FILE" ]]; then
   echo "Arquivo não encontrado: $SCHEMA_FILE"
   exit 1

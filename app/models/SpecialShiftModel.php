@@ -1,6 +1,66 @@
 <?php
 class SpecialShiftModel extends Model
 {
+    public function findExpiredActive(int $graceMinutes = 10, ?int $userId = null): array
+    {
+        $whereUser = '';
+        $params = [
+            ':grace_min' => max(0, $graceMinutes),
+        ];
+        if ($userId !== null) {
+            $whereUser = ' AND t.usuario_id = :user_id';
+            $params[':user_id'] = $userId;
+        }
+
+        $sql = "
+            SELECT
+                t.id,
+                t.usuario_id
+            FROM turnos_especiais t
+            JOIN restaurante_especiais re
+                ON re.restaurante_id = t.restaurante_id
+               AND re.tipo = t.tipo
+               AND re.ativo = 1
+            WHERE t.fim_em IS NULL
+              {$whereUser}
+              AND EXISTS (
+                    SELECT 1
+                    FROM acessos_especiais a
+                    WHERE a.turno_especial_id = t.id
+              )
+              AND NOW() >= DATE_ADD(
+                    DATE_ADD(
+                        CASE
+                            WHEN re.hora_fim < re.hora_inicio
+                                THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), re.hora_fim), INTERVAL 1 DAY)
+                            ELSE TIMESTAMP(DATE(t.inicio_em), re.hora_fim)
+                        END,
+                        INTERVAL re.tolerancia_min MINUTE
+                    ),
+                    INTERVAL :grace_min MINUTE
+              )
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function autoCloseExpired(int $graceMinutes = 10, ?int $userId = null): int
+    {
+        $expired = $this->findExpiredActive($graceMinutes, $userId);
+        if (empty($expired)) {
+            return 0;
+        }
+
+        $closed = 0;
+        foreach ($expired as $row) {
+            $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            $closed++;
+        }
+        return $closed;
+    }
+
     public function getActiveByUser(int $userId): ?array
     {
         $stmt = $this->db->prepare("
@@ -34,13 +94,13 @@ class SpecialShiftModel extends Model
         return $id;
     }
 
-    public function end(int $turnoId, int $userId): void
+    public function end(int $turnoId, int $userId, string $auditAction = 'update'): void
     {
         $before = $this->find($turnoId) ?? [];
         $stmt = $this->db->prepare("UPDATE turnos_especiais SET fim_em = NOW() WHERE id = :id");
         $stmt->execute([':id' => $turnoId]);
         $after = $this->find($turnoId) ?? [];
-        $this->audit('update', $userId, $before, $after, 'turnos_especiais', $turnoId);
+        $this->audit($auditAction, $userId, $before, $after, 'turnos_especiais', $turnoId);
     }
 
     public function find(int $id): ?array
@@ -120,7 +180,17 @@ class SpecialShiftModel extends Model
 
     public function countCompletedByUser(int $userId): int
     {
-        $stmt = $this->db->prepare("SELECT COUNT(*) AS total FROM turnos_especiais WHERE usuario_id = :user_id AND fim_em IS NOT NULL");
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM turnos_especiais t
+            WHERE t.usuario_id = :user_id
+              AND t.fim_em IS NOT NULL
+              AND EXISTS (
+                  SELECT 1
+                  FROM acessos_especiais a
+                  WHERE a.turno_especial_id = t.id
+              )
+        ");
         $stmt->execute([':user_id' => $userId]);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);

@@ -247,7 +247,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/reservas">Remover filtro</a>
+                    <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/reservas">Remover filtro</a>
         </div>
     </form>
 

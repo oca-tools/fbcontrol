@@ -9,8 +9,16 @@ class ControlController extends Controller
         $shiftModel = new ShiftModel();
         $accessModel = new AccessModel();
         $reservaTematicaModel = new ReservaTematicaModel();
+        $specialShiftModel = new SpecialShiftModel();
+
+        // Garante fechamento de turnos expirados independentemente do login da hostess.
+        $graceMinutes = 10;
+        $shiftModel->autoCloseExpired($graceMinutes, null);
+        $specialShiftModel->autoCloseExpired($graceMinutes, null);
 
         $today = date('Y-m-d');
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = 20;
 
         $buffetShifts = $shiftModel->listActive();
         $activeRestaurants = $shiftModel->activeRestaurants();
@@ -24,9 +32,19 @@ class ControlController extends Controller
         $stats['total_pax'] = (int)($stats['total_pax'] ?? 0) + (int)($temResumo['total_pax'] ?? 0);
         $stats['total_acessos'] = (int)($stats['total_acessos'] ?? 0) + (int)($temResumo['total_finalizadas'] ?? 0);
 
-        $recentes = $accessModel->recentAll(12, $today);
-        $recentesTematicos = $reservaTematicaModel->dashboardFinalizadasRecent(12, ['data' => $today]);
-        $recentes = $this->mergeRecentes($recentes, $recentesTematicos, 12);
+        $recentesBuffet = $accessModel->recentAll(2000, $today);
+        $recentesTematicos = $reservaTematicaModel->dashboardFinalizadasRecent(2000, ['data' => $today]);
+        $recentesTodos = array_merge($recentesBuffet, $recentesTematicos);
+        usort($recentesTodos, static function ($a, $b) {
+            return strcmp((string)($b['criado_em'] ?? ''), (string)($a['criado_em'] ?? ''));
+        });
+        $totalRegistros = count($recentesTodos);
+        $totalPages = max(1, (int)ceil($totalRegistros / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $perPage;
+        $recentes = array_slice($recentesTodos, $offset, $perPage);
 
         $this->view('control/index', [
             'today' => $today,
@@ -34,15 +52,9 @@ class ControlController extends Controller
             'active_restaurants' => array_values($restMap),
             'stats_today' => $stats,
             'recentes' => $recentes,
+            'page' => $page,
+            'total_pages' => $totalPages,
+            'total_registros' => $totalRegistros,
         ]);
-    }
-
-    private function mergeRecentes(array $base, array $extra, int $limit): array
-    {
-        $rows = array_merge($base, $extra);
-        usort($rows, static function ($a, $b) {
-            return strcmp((string)($b['criado_em'] ?? ''), (string)($a['criado_em'] ?? ''));
-        });
-        return array_slice($rows, 0, $limit);
     }
 }

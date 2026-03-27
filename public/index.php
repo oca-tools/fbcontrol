@@ -28,6 +28,10 @@ require __DIR__ . '/../app/core/Model.php';
 require __DIR__ . '/../app/core/Controller.php';
 require __DIR__ . '/../app/core/Auth.php';
 
+if (Auth::check()) {
+    Auth::enforceSingleSession();
+}
+
 spl_autoload_register(function ($class) {
     $paths = [
         __DIR__ . '/../app/controllers/' . $class . '.php',

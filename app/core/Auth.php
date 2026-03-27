@@ -1,6 +1,78 @@
 <?php
 class Auth
 {
+    private static ?bool $sessionRegistryAvailable = null;
+
+    private static function sessionToken(): string
+    {
+        if (empty($_SESSION['session_lock_token'])) {
+            $_SESSION['session_lock_token'] = bin2hex(random_bytes(16));
+        }
+        return (string)$_SESSION['session_lock_token'];
+    }
+
+    private static function sessionRegistryAvailable(): bool
+    {
+        if (self::$sessionRegistryAvailable !== null) {
+            return self::$sessionRegistryAvailable;
+        }
+
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->query("SHOW TABLES LIKE 'sessoes_ativas'");
+            self::$sessionRegistryAvailable = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            self::$sessionRegistryAvailable = false;
+        }
+        return self::$sessionRegistryAvailable;
+    }
+
+    private static function upsertSessionRegistry(int $userId): void
+    {
+        if (!self::sessionRegistryAvailable()) {
+            return;
+        }
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("
+                INSERT INTO sessoes_ativas (usuario_id, session_id, token, ip, user_agent, atualizado_em)
+                VALUES (:usuario_id, :session_id, :token, :ip, :user_agent, NOW())
+                ON DUPLICATE KEY UPDATE
+                    session_id = VALUES(session_id),
+                    token = VALUES(token),
+                    ip = VALUES(ip),
+                    user_agent = VALUES(user_agent),
+                    atualizado_em = NOW()
+            ");
+            $stmt->execute([
+                ':usuario_id' => $userId,
+                ':session_id' => session_id(),
+                ':token' => self::sessionToken(),
+                ':ip' => substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45),
+                ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+            ]);
+        } catch (Throwable $e) {
+            // Falha de registro de sessão não deve derrubar o login.
+        }
+    }
+
+    private static function clearSessionRegistry(): void
+    {
+        if (!self::sessionRegistryAvailable() || !isset($_SESSION['user']['id'])) {
+            return;
+        }
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("DELETE FROM sessoes_ativas WHERE usuario_id = :usuario_id AND token = :token");
+            $stmt->execute([
+                ':usuario_id' => (int)$_SESSION['user']['id'],
+                ':token' => (string)($_SESSION['session_lock_token'] ?? ''),
+            ]);
+        } catch (Throwable $e) {
+            // Sem impacto no logout.
+        }
+    }
+
     public static function check(): bool
     {
         return isset($_SESSION['user']);
@@ -33,10 +105,12 @@ class Auth
             'perfil' => $perfil,
             'foto_path' => $user['foto_path'] ?? null,
         ];
+        self::upsertSessionRegistry((int)$user['id']);
     }
 
     public static function logout(): void
     {
+        self::clearSessionRegistry();
         $_SESSION = [];
 
         if (ini_get('session.use_cookies')) {
@@ -45,6 +119,54 @@ class Auth
         }
 
         session_destroy();
+    }
+
+    public static function enforceSingleSession(): void
+    {
+        if (!self::check() || !self::sessionRegistryAvailable()) {
+            return;
+        }
+        try {
+            $userId = (int)($_SESSION['user']['id'] ?? 0);
+            if ($userId <= 0) {
+                return;
+            }
+
+            $db = Database::getInstance();
+            $stmt = $db->prepare("SELECT token FROM sessoes_ativas WHERE usuario_id = :usuario_id LIMIT 1");
+            $stmt->execute([':usuario_id' => $userId]);
+            $row = $stmt->fetch();
+            if (!$row) {
+                self::upsertSessionRegistry($userId);
+                return;
+            }
+
+            $currentToken = (string)($row['token'] ?? '');
+            $sessionToken = (string)($_SESSION['session_lock_token'] ?? '');
+            if ($sessionToken === '') {
+                $_SESSION['session_lock_token'] = $currentToken;
+                return;
+            }
+
+            if (!hash_equals($currentToken, $sessionToken)) {
+                if (function_exists('set_flash')) {
+                    set_flash('warning', 'Sua sessão foi encerrada porque uma nova sessão foi iniciada neste usuário.');
+                }
+                self::logout();
+                header('Location: /?r=auth/login');
+                exit;
+            }
+
+            // heartbeat simples
+            $touch = $db->prepare("UPDATE sessoes_ativas SET atualizado_em = NOW(), session_id = :session_id WHERE usuario_id = :usuario_id AND token = :token");
+            $touch->execute([
+                ':session_id' => session_id(),
+                ':usuario_id' => $userId,
+                ':token' => $sessionToken,
+            ]);
+        } catch (Throwable $e) {
+            // Falha do controle de sessão não bloqueia operação.
+        }
     }
 
     public static function requireRole(array $roles): void

@@ -1,6 +1,66 @@
 <?php
 class ShiftModel extends Model
 {
+    public function findExpiredActive(int $graceMinutes = 10, ?int $userId = null): array
+    {
+        $whereUser = '';
+        $params = [
+            ':grace_min' => max(0, $graceMinutes),
+        ];
+        if ($userId !== null) {
+            $whereUser = ' AND t.usuario_id = :user_id';
+            $params[':user_id'] = $userId;
+        }
+
+        $sql = "
+            SELECT
+                t.id,
+                t.usuario_id
+            FROM turnos t
+            JOIN restaurante_operacoes ro
+                ON ro.restaurante_id = t.restaurante_id
+               AND ro.operacao_id = t.operacao_id
+               AND ro.ativo = 1
+            WHERE t.fim_em IS NULL
+              {$whereUser}
+              AND EXISTS (
+                    SELECT 1
+                    FROM acessos a
+                    WHERE a.turno_id = t.id
+              )
+              AND NOW() >= DATE_ADD(
+                    DATE_ADD(
+                        CASE
+                            WHEN ro.hora_fim < ro.hora_inicio
+                                THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), ro.hora_fim), INTERVAL 1 DAY)
+                            ELSE TIMESTAMP(DATE(t.inicio_em), ro.hora_fim)
+                        END,
+                        INTERVAL ro.tolerancia_min MINUTE
+                    ),
+                    INTERVAL :grace_min MINUTE
+              )
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function autoCloseExpired(int $graceMinutes = 10, ?int $userId = null): int
+    {
+        $expired = $this->findExpiredActive($graceMinutes, $userId);
+        if (empty($expired)) {
+            return 0;
+        }
+
+        $closed = 0;
+        foreach ($expired as $row) {
+            $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            $closed++;
+        }
+        return $closed;
+    }
+
     public function getActiveByUser(int $userId): ?array
     {
         $stmt = $this->db->prepare("
@@ -35,13 +95,13 @@ class ShiftModel extends Model
         return $id;
     }
 
-    public function end(int $turnoId, int $userId): void
+    public function end(int $turnoId, int $userId, string $auditAction = 'update'): void
     {
         $before = $this->find($turnoId) ?? [];
         $stmt = $this->db->prepare("UPDATE turnos SET fim_em = NOW() WHERE id = :id");
         $stmt->execute([':id' => $turnoId]);
         $after = $this->find($turnoId) ?? [];
-        $this->audit('update', $userId, $before, $after, 'turnos', $turnoId);
+        $this->audit($auditAction, $userId, $before, $after, 'turnos', $turnoId);
     }
 
     public function find(int $id): ?array
@@ -123,7 +183,17 @@ class ShiftModel extends Model
 
     public function countCompletedByUser(int $userId): int
     {
-        $stmt = $this->db->prepare("SELECT COUNT(*) AS total FROM turnos WHERE usuario_id = :user_id AND fim_em IS NOT NULL");
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM turnos t
+            WHERE t.usuario_id = :user_id
+              AND t.fim_em IS NOT NULL
+              AND EXISTS (
+                  SELECT 1
+                  FROM acessos a
+                  WHERE a.turno_id = t.id
+              )
+        ");
         $stmt->execute([':user_id' => $userId]);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);

@@ -1,6 +1,6 @@
 ﻿# Instalação VPS - OCA FBControl
 
-Este guia instala o sistema em Ubuntu 22.04/24.04 com Apache + MySQL + PHP.
+Este guia instala o sistema em Ubuntu 24.04 com Apache + MySQL + PHP.
 
 ## 1) Preparar servidor
 
@@ -25,6 +25,7 @@ DB_NAME=controle_ab \
 DB_USER=controle_ab_user \
 DB_PASS='SENHA_FORTE_AQUI' \
 DOMAIN=ab.seudominio.com \
+PHP_VERSION=8.3 \
 bash deploy/vps/install.sh
 ```
 
@@ -39,20 +40,30 @@ sudo apt install -y certbot python3-certbot-apache
 sudo certbot --apache -d ab.seudominio.com
 ```
 
+## 4.1) Autoencerramento de turnos (cron)
+
+```bash
+sudo crontab -e
+```
+
+Adicionar:
+
+```bash
+* * * * * /usr/bin/php /var/www/ocafbcontrol/app/cron/auto_close_shifts.php >> /var/log/ocafbcontrol_cron.log 2>&1
+```
+
 ## 5) Atualização futura
 
 ```bash
 cd /opt/ocafbcontrol
 sudo git pull
+sudo bash deploy/sync_safe.sh
 ```
-
-Para atualização em ambiente já em produção, aplique somente scripts de atualização planejados.
-O `install.sh` atual é voltado para **instalação inicial limpa**.
 
 ## Observações
 
 - O instalador usa `config/config.local.php` para credenciais locais do VPS.
-- A instalação inicial usa **um único arquivo SQL consolidado**: `sql/schema_v1_0_final.sql`.
-- As migrações antigas foram mantidas apenas como histórico de evolução.
+- A instalação inicial usa arquivo SQL único consolidado: `sql/schema_v1_1_final.sql`.
+- Nesta versão 1.1 não existem migrações separadas no repositório.
 - O arquivo base `config/config.php` continua intacto e com fallback para variáveis de ambiente.
 - Uploads ficam em `public/uploads/`.

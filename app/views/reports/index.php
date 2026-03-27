@@ -6,12 +6,35 @@ $list = $this->data['list'] ?? [];
 $journey = $this->data['journey'] ?? [];
 $summary = $this->data['summary'] ?? [];
 $dailyMap = $this->data['daily_map'] ?? [];
+$dailyMapPaged = $this->data['daily_map_paged'] ?? $dailyMap;
+$mapPage = (int)($this->data['map_page'] ?? 1);
+$mapTotalPages = (int)($this->data['map_total_pages'] ?? 1);
+$mapTotal = (int)($this->data['map_total'] ?? count($dailyMap));
+$listPaged = $this->data['list_paged'] ?? $list;
+$biPage = (int)($this->data['bi_page'] ?? 1);
+$biTotalPages = (int)($this->data['bi_total_pages'] ?? 1);
+$biTotal = (int)($this->data['bi_total'] ?? count($list));
 $colaboradores = $this->data['colaboradores'] ?? [];
 $vouchers = $this->data['vouchers'] ?? [];
+$colaboradoresPaged = $this->data['colaboradores_paged'] ?? $colaboradores;
+$colabPage = (int)($this->data['colab_page'] ?? 1);
+$colabTotalPages = (int)($this->data['colab_total_pages'] ?? 1);
+$colabTotal = (int)($this->data['colab_total'] ?? count($colaboradores));
+$vouchersPaged = $this->data['vouchers_paged'] ?? $vouchers;
+$voucherPage = (int)($this->data['voucher_page'] ?? 1);
+$voucherTotalPages = (int)($this->data['voucher_total_pages'] ?? 1);
+$voucherTotal = (int)($this->data['voucher_total'] ?? count($vouchers));
 $totalRegistros = count($list);
 $totalPax = array_sum(array_map(fn($r) => (int)$r['pax'], $list));
 $duplicados = count(array_filter($list, fn($r) => $r['alerta_duplicidade']));
 $foraHorario = count(array_filter($list, fn($r) => $r['fora_do_horario']));
+$multiplos = count(array_filter($list, fn($r) => ($r['status_operacional'] ?? '') === 'Múltiplo Acesso'));
+$naoInformadoAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numero'] ?? '') === '998'));
+$naoInformadoPax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '998') ? (int)$r['pax'] : 0, $list));
+$dayUseAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numero'] ?? '') === '999'));
+$dayUsePax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '999') ? (int)$r['pax'] : 0, $list));
+$vipPremiumAcessos = count(array_filter($list, fn($r) => strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false));
+$vipPremiumPax = array_sum(array_map(fn($r) => (strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false) ? (int)$r['pax'] : 0, $list));
 $dupPercent = $totalRegistros > 0 ? round(($duplicados / $totalRegistros) * 100) : 0;
 $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 100) : 0;
 ?>
@@ -26,10 +49,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             </div>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-primary" href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <a class="btn btn-outline-primary" href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-download me-1"></i>Exportar CSV
             </a>
-            <a class="btn btn-primary" href="/?r=relatorios/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <a class="btn btn-primary" href="/?r=relatorios/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
             </a>
         </div>
@@ -74,6 +97,18 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                 <?php endforeach; ?>
             </select>
         </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">Status</label>
+            <select class="form-select input-xl" name="status">
+                <option value="">Todos</option>
+                <option value="ok" <?= ($filters['status'] ?? '') === 'ok' ? 'selected' : '' ?>>OK</option>
+                <option value="duplicado" <?= ($filters['status'] ?? '') === 'duplicado' ? 'selected' : '' ?>>Duplicado</option>
+                <option value="fora_horario" <?= ($filters['status'] ?? '') === 'fora_horario' ? 'selected' : '' ?>>Fora do horário</option>
+                <option value="multiplo" <?= ($filters['status'] ?? '') === 'multiplo' ? 'selected' : '' ?>>Múltiplo acesso</option>
+                <option value="nao_informado" <?= ($filters['status'] ?? '') === 'nao_informado' ? 'selected' : '' ?>>Não informado</option>
+                <option value="day_use" <?= ($filters['status'] ?? '') === 'day_use' ? 'selected' : '' ?>>Day use</option>
+            </select>
+        </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-outline-primary" type="button" data-range="1">Ontem</button>
             <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
@@ -90,11 +125,17 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
     if (!start || !end) return;
     document.querySelectorAll('[data-range]').forEach(btn => {
         btn.addEventListener('click', () => {
+            const fmt = (d) => d.toISOString().slice(0,10);
             const days = parseInt(btn.dataset.range, 10);
             const today = new Date();
             const from = new Date();
+            if (days === 1) {
+                from.setDate(today.getDate() - 1);
+                start.value = fmt(from);
+                end.value = fmt(from);
+                return;
+            }
             from.setDate(today.getDate() - (days - 1));
-            const fmt = (d) => d.toISOString().slice(0,10);
             start.value = fmt(from);
             end.value = fmt(today);
         });
@@ -159,6 +200,54 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             </div>
         </div>
     </div>
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-arrow-repeat"></i></div>
+                <div>
+                    <div class="text-muted small">Múltiplos acessos</div>
+                    <div class="display-6 fw-bold"><?= $multiplos ?></div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-repeat"></i> UH repetente</span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-question-circle"></i></div>
+                <div>
+                    <div class="text-muted small">Não informado</div>
+                    <div class="display-6 fw-bold"><?= $naoInformadoAcessos ?></div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $naoInformadoPax ?></span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-sun"></i></div>
+                <div>
+                    <div class="text-muted small">Day use</div>
+                    <div class="display-6 fw-bold"><?= $dayUseAcessos ?></div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $dayUsePax ?></span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-gem"></i></div>
+                <div>
+                    <div class="text-muted small">VIP Premium</div>
+                    <div class="display-6 fw-bold"><?= $vipPremiumAcessos ?></div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $vipPremiumPax ?></span>
+        </div>
+    </div>
 </div>
 
 <?php if (!empty($filters['uh_numero'])): ?>
@@ -169,7 +258,7 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                     <div class="icon"><i class="bi bi-house"></i></div>
                     <div>
                         <div class="text-uppercase text-muted small">Resumo da UH</div>
-                        <h5 class="fw-bold mb-0">UH <span class="uh-badge <?= uh_badge_class($filters['uh_numero']) ?>"><?= h($filters['uh_numero']) ?></span></h5>
+                        <h5 class="fw-bold mb-0">UH <span class="uh-badge <?= uh_badge_class($filters['uh_numero']) ?>"><?= h(uh_label($filters['uh_numero'])) ?></span></h5>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -266,25 +355,40 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                     <th>Jantar</th>
                     <th>Temático</th>
                     <th>Privileged</th>
+                    <th>VIP Premium</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($dailyMap as $row): ?>
+                <?php foreach ($dailyMapPaged as $row): ?>
                     <tr>
-                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h(uh_label($row['uh_numero'])) ?></span></td>
                         <td><?= $row['cafe'] ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
                         <td><?= $row['almoco'] ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
                         <td><?= $row['jantar'] ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
                         <td><?= $row['tematico'] ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
                         <td><?= $row['privileged'] ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
+                        <td><?= !empty($row['vip_premium']) ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-danger">Não</span>' ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($dailyMap)): ?>
-                    <tr><td colspan="6" class="text-muted">Sem registros no dia.</td></tr>
+                <?php if (empty($dailyMapPaged)): ?>
+                    <tr><td colspan="7" class="text-muted">Sem registros no dia.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <?php if ($mapTotalPages > 1): ?>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted small">Mapa diário: <?= $mapTotal ?> UHs (20 por página)</span>
+            <ul class="pagination pagination-sm mb-0">
+                <?php for ($i = 1; $i <= $mapTotalPages; $i++): ?>
+                    <?php $mapQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'map_page' => $i, 'bi_page' => $biPage])); ?>
+                    <li class="page-item <?= $i === $mapPage ? 'active' : '' ?>">
+                        <a class="page-link" href="/?<?= h($mapQuery) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 </div>
 
 <div class="card p-4">
@@ -294,6 +398,14 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             <div class="text-uppercase text-muted small">BI & auditoria</div>
             <h5 class="fw-bold mb-0">Base completa (para BI)</h5>
         </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <a class="btn btn-outline-primary" href="/?r=relatorios/export_bi&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+            <i class="bi bi-download me-1"></i>Exportar CSV
+        </a>
+        <a class="btn btn-primary" href="/?r=relatorios/export_bi&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
+        </a>
     </div>
     <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -311,20 +423,22 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($list as $row): ?>
+                <?php foreach ($listPaged as $row): ?>
                     <tr>
                         <td><span class="badge badge-soft">Acesso</span></td>
                         <td>
-                            <?php if ($row['alerta_duplicidade']): ?>
+                            <?php if (($row['status_operacional'] ?? '') === 'Duplicado'): ?>
                                 <span class="badge badge-warning">Duplicado</span>
-                            <?php elseif ($row['fora_do_horario']): ?>
+                            <?php elseif (($row['status_operacional'] ?? '') === 'Fora do Horário'): ?>
                                 <span class="badge badge-danger">Fora do horário</span>
+                            <?php elseif (($row['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
+                                <span class="badge badge-soft">Múltiplo acesso</span>
                             <?php else: ?>
                                 <span class="badge badge-success">OK</span>
                             <?php endif; ?>
                         </td>
                         <td><?= h($row['criado_em']) ?></td>
-                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h(uh_label($row['uh_numero'])) ?></span></td>
                         <td><?= h($row['pax']) ?></td>
                         <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                         <td><span class="tag <?= operation_badge_class($row['operacao']) ?>"><?= h($row['operacao']) ?></span></td>
@@ -332,12 +446,25 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                         <td><?= h($row['usuario']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($list)): ?>
+                <?php if (empty($listPaged)): ?>
                     <tr><td colspan="9" class="text-muted">Sem registros para o filtro atual.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <?php if ($biTotalPages > 1): ?>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted small">Base BI: <?= $biTotal ?> registros (20 por página)</span>
+            <ul class="pagination pagination-sm mb-0">
+                <?php for ($i = 1; $i <= $biTotalPages; $i++): ?>
+                    <?php $biQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'bi_page' => $i, 'map_page' => $mapPage])); ?>
+                    <li class="page-item <?= $i === $biPage ? 'active' : '' ?>">
+                        <a class="page-link" href="/?<?= h($biQuery) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 </div>
 
 <div class="card p-4 mt-4">
@@ -347,6 +474,14 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             <div class="text-uppercase text-muted small">Colaboradores</div>
             <h5 class="fw-bold mb-0">Refeições por colaborador</h5>
         </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <a class="btn btn-outline-primary" href="/?r=relatorios/export_colaboradores&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <i class="bi bi-download me-1"></i>Exportar CSV
+        </a>
+        <a class="btn btn-primary" href="/?r=relatorios/export_colaboradores&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
+        </a>
     </div>
     <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -361,7 +496,7 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($colaboradores as $row): ?>
+                <?php foreach ($colaboradoresPaged as $row): ?>
                     <tr>
                         <td><?= h($row['criado_em']) ?></td>
                         <td><?= h($row['nome_colaborador']) ?></td>
@@ -371,12 +506,25 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                         <td><?= h($row['usuario']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($colaboradores)): ?>
+                <?php if (empty($colaboradoresPaged)): ?>
                     <tr><td colspan="6" class="text-muted">Sem registros de colaboradores.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <?php if ($colabTotalPages > 1): ?>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted small">Colaboradores: <?= $colabTotal ?> registros (20 por página)</span>
+            <ul class="pagination pagination-sm mb-0">
+                <?php for ($i = 1; $i <= $colabTotalPages; $i++): ?>
+                    <?php $colabQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'colab_page' => $i, 'map_page' => $mapPage, 'bi_page' => $biPage, 'voucher_page' => $voucherPage])); ?>
+                    <li class="page-item <?= $i === $colabPage ? 'active' : '' ?>">
+                        <a class="page-link" href="/?<?= h($colabQuery) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 </div>
 
 <div class="card p-4 mt-4">
@@ -386,6 +534,14 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             <div class="text-uppercase text-muted small">Vouchers</div>
             <h5 class="fw-bold mb-0">Vouchers registrados</h5>
         </div>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <a class="btn btn-outline-primary" href="/?r=relatorios/export_vouchers&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <i class="bi bi-download me-1"></i>Exportar CSV
+        </a>
+        <a class="btn btn-primary" href="/?r=relatorios/export_vouchers&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
+        </a>
     </div>
     <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -405,7 +561,7 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($vouchers as $row): ?>
+                <?php foreach ($vouchersPaged as $row): ?>
                     <tr>
                         <td><?= h($row['criado_em']) ?></td>
                         <td><?= h($row['nome_hospede']) ?></td>
@@ -426,10 +582,26 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                         <td><?= h($row['usuario']) ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($vouchers)): ?>
+                <?php if (empty($vouchersPaged)): ?>
                     <tr><td colspan="11" class="text-muted">Sem vouchers registrados.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <?php if ($voucherTotalPages > 1): ?>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted small">Vouchers: <?= $voucherTotal ?> registros (20 por página)</span>
+            <ul class="pagination pagination-sm mb-0">
+                <?php for ($i = 1; $i <= $voucherTotalPages; $i++): ?>
+                    <?php $voucherQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'voucher_page' => $i, 'map_page' => $mapPage, 'bi_page' => $biPage, 'colab_page' => $colabPage])); ?>
+                    <li class="page-item <?= $i === $voucherPage ? 'active' : '' ?>">
+                        <a class="page-link" href="/?<?= h($voucherQuery) ?>"><?= $i ?></a>
+                    </li>
+                <?php endfor; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 </div>
+
+
+
