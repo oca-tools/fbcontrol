@@ -3,17 +3,19 @@ class OperationModel extends Model
 {
     public function all(): array
     {
-        return $this->db->query("SELECT * FROM operacoes ORDER BY nome")->fetchAll();
+        $rows = $this->db->query("SELECT * FROM operacoes ORDER BY nome, id")->fetchAll();
+        return $this->uniqueByNormalizedName($rows);
     }
 
     public function allBuffet(): array
     {
-        return $this->db->query("
+        $rows = $this->db->query("
             SELECT *
             FROM operacoes
             WHERE nome NOT IN ('Tematico','Temático','Privileged','VIP Premium','Vip Premium')
             ORDER BY nome
         ")->fetchAll();
+        return $this->uniqueByNormalizedName($rows);
     }
 
     public function find(int $id): ?array
@@ -55,5 +57,27 @@ class OperationModel extends Model
         ]);
         $after = $this->find($id) ?? [];
         $this->audit('update', $userId, $before, $after, 'operacoes', $id);
+    }
+
+    private function uniqueByNormalizedName(array $rows): array
+    {
+        $map = [];
+        foreach ($rows as $row) {
+            $name = trim((string)($row['nome'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $normalized = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+            $normalizedAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
+            $key = preg_replace('/[^a-z0-9]/', '', (string)$normalizedAscii);
+            if ($key === '') {
+                $key = $normalized;
+            }
+            if (!isset($map[$key])) {
+                $row['nome'] = normalize_mojibake($name);
+                $map[$key] = $row;
+            }
+        }
+        return array_values($map);
     }
 }

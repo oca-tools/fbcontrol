@@ -70,14 +70,40 @@ class EmailRelatoriosController extends Controller
         }
 
         $email = trim((string)($_POST['email'] ?? ''));
+        $receberAnexoVouchers = (int)($_POST['receber_anexo_vouchers'] ?? 0) === 1;
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             set_flash('danger', 'Informe um e-mail válido.');
             $this->redirect('/?r=emailRelatorios/index');
         }
 
         $model = new DailyReportEmailModel();
-        $model->addRecipient($email, (int)Auth::user()['id']);
+        $model->addRecipient($email, (int)Auth::user()['id'], $receberAnexoVouchers);
         set_flash('success', 'Destinatário adicionado.');
+        $this->redirect('/?r=emailRelatorios/index');
+    }
+
+    public function updateRecipientAttachment(): void
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin']);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=emailRelatorios/index');
+        }
+        if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+            set_flash('danger', 'Token inválido.');
+            $this->redirect('/?r=emailRelatorios/index');
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            set_flash('danger', 'Destinatário inválido.');
+            $this->redirect('/?r=emailRelatorios/index');
+        }
+        $enabled = (int)($_POST['receber_anexo_vouchers'] ?? 0) === 1;
+
+        $model = new DailyReportEmailModel();
+        $model->updateRecipientAttachmentFlag($id, $enabled, (int)Auth::user()['id']);
+        set_flash('success', 'Preferência de anexo atualizada.');
         $this->redirect('/?r=emailRelatorios/index');
     }
 
@@ -124,4 +150,3 @@ class EmailRelatoriosController extends Controller
         $this->redirect('/?r=emailRelatorios/index');
     }
 }
-

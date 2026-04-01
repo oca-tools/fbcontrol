@@ -14,10 +14,11 @@ if (!function_exists('cfg_env')) {
 $config = [
     'app' => [
         'name' => cfg_env('APP_NAME', 'OCA FBControl'),
-        'version' => cfg_env('APP_VERSION', '1.0'),
+        'version' => cfg_env('APP_VERSION', '2.0'),
         'logo_path' => cfg_env('APP_LOGO_PATH', '/assets/logo-oca.png'),
         'base_url' => cfg_env('APP_BASE_URL', '/'),
         'timezone' => cfg_env('APP_TIMEZONE', 'America/Sao_Paulo'),
+        'session_timeout_min' => (int)cfg_env('APP_SESSION_TIMEOUT_MIN', '30'),
     ],
     'db' => [
         'host' => cfg_env('DB_HOST', '127.0.0.1'),

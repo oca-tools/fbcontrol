@@ -1,5 +1,5 @@
-﻿CREATE DATABASE IF NOT EXISTS controle_ab CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE controle_ab;
+-- Importar este arquivo já com o banco de destino selecionado.
+-- Exemplo: mysql -u usuario -p nome_banco < schema_v1_1_final.sql
 
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -7,7 +7,7 @@ CREATE TABLE usuarios (
     email VARCHAR(160) NOT NULL UNIQUE,
     senha VARCHAR(255) NOT NULL,
     foto_path VARCHAR(255) NULL,
-    perfil ENUM('hostess', 'supervisor', 'admin') NOT NULL DEFAULT 'hostess',
+    perfil ENUM('hostess', 'gerente', 'supervisor', 'admin') NOT NULL DEFAULT 'hostess',
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     criado_em DATETIME NOT NULL
 );
@@ -280,10 +280,7 @@ INSERT INTO restaurante_operacoes (restaurante_id, operacao_id, hora_inicio, hor
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante Corais'), (SELECT id FROM operacoes WHERE nome = 'Almoco'), '12:30:00', '15:00:00', 30, 1),
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante Corais'), (SELECT id FROM operacoes WHERE nome = 'Jantar'), '19:00:00', '22:00:00', 30, 1);
 
--- Usuario admin inicial (trocar senha apos instalar)
-INSERT INTO usuarios (nome, email, senha, perfil, ativo, criado_em) VALUES
-('Admin A&B', 'admin@hotel.local', '$2y$10$noW0IVhd2SqOe9CXCGq7H.DeMA6DKU7iWHaDdfSHs6tD02BzzsDMe', 'admin', 1, NOW());
-
+-- Usuário admin é criado pelo instalador (deploy/vps/install.sh) com senha via variável de ambiente.
 INSERT INTO restaurante_especiais (restaurante_id, tipo, hora_inicio, hora_fim, tolerancia_min, ativo) VALUES
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 'tematico', '19:00:00', '22:00:00', 0, 1),
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante Giardino'), 'tematico', '19:00:00', '22:00:00', 0, 1),
@@ -343,6 +340,7 @@ CREATE TABLE IF NOT EXISTS reservas_tematicas_config (
     id INT AUTO_INCREMENT PRIMARY KEY,
     restaurante_id INT NOT NULL,
     capacidade_total INT NOT NULL DEFAULT 0,
+    auto_cancel_no_show_min INT NOT NULL DEFAULT 0,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
     UNIQUE KEY uq_res_tem_config_rest (restaurante_id),
     CONSTRAINT fk_res_tem_config_rest FOREIGN KEY (restaurante_id) REFERENCES restaurantes(id)
@@ -364,6 +362,7 @@ CREATE TABLE IF NOT EXISTS reservas_tematicas (
     data_reserva DATE NOT NULL,
     turno_id INT NOT NULL,
     uh_id INT NOT NULL,
+    titular_nome VARCHAR(180) NULL,
     pax INT NOT NULL,
     pax_real INT NULL,
     observacao_reserva TEXT NULL,
@@ -380,6 +379,7 @@ CREATE TABLE IF NOT EXISTS reservas_tematicas (
     atualizado_em DATETIME NULL,
     INDEX idx_res_tem_data_rest_turno (data_reserva, restaurante_id, turno_id),
     INDEX idx_res_tem_uh (uh_id),
+    INDEX idx_res_tem_titular (titular_nome),
     CONSTRAINT fk_res_tem_rest FOREIGN KEY (restaurante_id) REFERENCES restaurantes(id),
     CONSTRAINT fk_res_tem_turno FOREIGN KEY (turno_id) REFERENCES reservas_tematicas_turnos(id),
     CONSTRAINT fk_res_tem_uh FOREIGN KEY (uh_id) REFERENCES unidades_habitacionais(id),
@@ -425,10 +425,10 @@ INSERT IGNORE INTO reservas_tematicas_periodos (id, hora_inicio, hora_fim, ativo
 (1, '08:30:00', '12:00:00', 1, 1),
 (2, '13:00:00', '16:30:00', 1, 2);
 
-INSERT IGNORE INTO reservas_tematicas_config (restaurante_id, capacidade_total, ativo) VALUES
-((SELECT id FROM restaurantes WHERE nome = 'Restaurante Giardino'), 130, 1),
-((SELECT id FROM restaurantes WHERE nome = 'Restaurante La Brasa'), 130, 1),
-((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 80, 1);
+INSERT IGNORE INTO reservas_tematicas_config (restaurante_id, capacidade_total, auto_cancel_no_show_min, ativo) VALUES
+((SELECT id FROM restaurantes WHERE nome = 'Restaurante Giardino'), 130, 0, 1),
+((SELECT id FROM restaurantes WHERE nome = 'Restaurante La Brasa'), 130, 0, 1),
+((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 80, 0, 1);
 
 INSERT IGNORE INTO reservas_tematicas_config_turnos (restaurante_id, turno_id, capacidade) VALUES
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante Giardino'), 1, 26),
@@ -447,7 +447,7 @@ INSERT IGNORE INTO reservas_tematicas_config_turnos (restaurante_id, turno_id, c
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 4, 16),
 ((SELECT id FROM restaurantes WHERE nome = 'Restaurante IX''u'), 5, 16);
 
--- UHs tÃ©cnicas operacionais
+-- UHs técnicas operacionais
 INSERT IGNORE INTO unidades_habitacionais (numero, ativo, criado_em) VALUES
 ('998', 1, NOW()),
 ('999', 1, NOW());
@@ -472,6 +472,7 @@ CREATE TABLE IF NOT EXISTS relatorio_email_destinatarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(190) NOT NULL,
     ativo TINYINT(1) NOT NULL DEFAULT 1,
+    receber_anexo_vouchers TINYINT(1) NOT NULL DEFAULT 0,
     criado_em DATETIME NOT NULL,
     UNIQUE KEY uniq_relatorio_email_dest (email)
 );
@@ -489,3 +490,18 @@ CREATE TABLE IF NOT EXISTS relatorio_email_envios (
     KEY idx_relatorio_email_data (data_referencia),
     KEY idx_relatorio_email_status (status)
 );
+
+-- Ocupacao diaria para comparativo executivo (v2.0)
+CREATE TABLE IF NOT EXISTS kpi_ocupacao_diaria (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    data_ref DATE NOT NULL,
+    ocupacao_uh INT NULL,
+    ocupacao_pax INT NULL,
+    observacao VARCHAR(255) NULL,
+    atualizado_por INT NOT NULL,
+    atualizado_em DATETIME NOT NULL,
+    UNIQUE KEY uq_kpi_ocupacao_data (data_ref),
+    KEY idx_kpi_ocupacao_data (data_ref),
+    CONSTRAINT fk_kpi_ocupacao_usuario FOREIGN KEY (atualizado_por) REFERENCES usuarios(id)
+);
+

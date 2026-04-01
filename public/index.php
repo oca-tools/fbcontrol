@@ -17,6 +17,24 @@ header('Content-Type: text/html; charset=utf-8');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+if ($https) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+$csp = [
+    "default-src 'self'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    "style-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
+    "connect-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+];
+header('Content-Security-Policy: ' . implode('; ', $csp));
 
 $config = require __DIR__ . '/../config/config.php';
 date_default_timezone_set($config['app']['timezone']);
@@ -29,6 +47,8 @@ require __DIR__ . '/../app/core/Controller.php';
 require __DIR__ . '/../app/core/Auth.php';
 
 if (Auth::check()) {
+    $timeout = (int)($config['app']['session_timeout_min'] ?? 30);
+    Auth::enforceIdleTimeout($timeout);
     Auth::enforceSingleSession();
 }
 
@@ -45,12 +65,18 @@ spl_autoload_register(function ($class) {
     }
 });
 
-$route = $_GET['r'] ?? '';
-if ($route === '') {
-    $route = Auth::check() ? 'access/index' : 'auth/login';
+$route = (string)($_GET['r'] ?? '');
+if ($route !== '' && !preg_match('/^[a-zA-Z0-9_\/-]+$/', $route)) {
+    http_response_code(400);
+    $route = 'errors/notFound';
 }
-if ($route === 'home') {
-    $route = Auth::check() ? 'access/index' : 'auth/login';
+if ($route === '' || $route === 'home') {
+    if (!Auth::check()) {
+        $route = 'auth/login';
+    } else {
+        $perfil = strtolower((string)(Auth::user()['perfil'] ?? ''));
+        $route = ($perfil === 'gerente') ? 'dashboard/index' : 'access/index';
+    }
 }
 
 [$controllerName, $action] = array_pad(explode('/', $route, 2), 2, 'index');
@@ -63,7 +89,7 @@ if (!class_exists($controllerClass)) {
 }
 
 $controller = new $controllerClass();
-if (!method_exists($controller, $action)) {
+if (!preg_match('/^[a-zA-Z0-9_]+$/', $action) || !is_callable([$controller, $action])) {
     http_response_code(404);
     $controller = new ErrorsController();
     $action = 'notFound';

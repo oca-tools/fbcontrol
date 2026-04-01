@@ -12,6 +12,8 @@ $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 $canCancel = $this->data['can_cancel'] ?? false;
 $lastEditableAccess = $this->data['last_editable_access'] ?? null;
+$allowHostessTutorial = (bool)($this->data['allow_hostess_tutorial'] ?? false);
+$showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
 ?>
 
 <?php if ($mode === 'start'): ?>
@@ -24,7 +26,14 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                         <h3 class="fw-bold mb-1">Iniciar turno</h3>
                         <p class="text-muted mb-0">Selecione o restaurante e a Operação do seu turno.</p>
                     </div>
-                    <span class="turno-pill">Checklist rápido</span>
+                    <div class="d-flex gap-2 flex-wrap justify-content-end">
+                        <?php if ($allowHostessTutorial): ?>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="openHostessTutorialStart">
+                                <i class="bi bi-mortarboard me-1"></i>Tutorial
+                            </button>
+                        <?php endif; ?>
+                        <span class="turno-pill">Checklist rápido</span>
+                    </div>
                 </div>
 
                 <?php if ($flash): ?>
@@ -37,24 +46,6 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
 <?php if ($needConfirm): ?>
                     <div class="alert alert-warning">
                         O turno está sendo iniciado fora do horário. Confirme para continuar.
-                    </div>
-
-                    <div class="modal fade" id="earlyStartModal" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Início antes do horário</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                                </div>
-                                <div class="modal-body">
-                                    Você está iniciando o turno fora do horário permitido. Confirme se deseja continuar.
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Voltar</button>
-                                    <button type="button" class="btn btn-warning" id="confirmEarlyBtn">Confirmar início</button>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 <?php endif; ?>
 
@@ -123,7 +114,7 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                         </div>
 
                         <div class="col-12">
-                            <button class="btn btn-success btn-xl w-100" id="startShiftBtn">Iniciar turno</button>
+                            <button class="btn btn-success btn-xl w-100" id="startShiftBtn" disabled>Iniciar turno</button>
                         </div>
                     </div>
                 </form>
@@ -131,12 +122,76 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
         </div>
     </div>
 
+
+    <div id="startShiftConfirm" class="export-toast-wrap" style="display:none;">
+        <div class="export-toast" style="max-width:min(92vw,640px);">
+            <div class="ok-icon" style="background:linear-gradient(135deg,#f97316,#fb923c);">
+                <i class="bi bi-play-fill"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="txt mb-1" id="startShiftConfirmTitle">Confirmar início do turno</div>
+                <div class="small text-muted" id="startShiftConfirmBody"></div>
+                <div class="mt-3 d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary" id="startShiftNo">Não</button>
+                    <button type="button" class="btn btn-primary" id="startShiftYes">Sim, iniciar turno</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php if ($allowHostessTutorial): ?>
+    <div class="modal fade" id="hostessTutorialModalStart" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-mortarboard me-1"></i>Tutorial rápido da Hostess</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small text-muted mb-2">Passo <span id="tutorialStepNumStart">1</span> de 5</div>
+                    <div class="card p-3 bg-light border-0">
+                        <h6 class="fw-bold mb-1" id="tutorialStepTitleStart">Selecione restaurante, operação e porta</h6>
+                        <p class="mb-0 text-muted" id="tutorialStepTextStart">Esse é o primeiro passo do turno: selecione restaurante e operação corretos. No Corais, confirme também a porta.</p>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-12 col-md-6">
+                            <div class="alert alert-info mb-0 small">
+                                <strong>Dica:</strong> confira o resumo antes de confirmar o início do turno.
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="alert alert-warning mb-0 small">
+                                <strong>Atenção:</strong> fora do horário, o sistema solicita confirmação adicional.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="tutorialSkipStart">Pular por agora</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" id="tutorialPrevStart" disabled>Voltar</button>
+                        <button type="button" class="btn btn-primary" id="tutorialNextStart">Próximo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     <script>
     const draftKey = 'ab_turno_start_draft';
     const restauranteSelect = document.getElementById('restaurante_id');
     const operacaoSelect = document.getElementById('operacao_id');
     const portaSelect = document.getElementById('porta_id');
     const portaWrapper = document.getElementById('porta_wrapper');
+    const startBtn = document.getElementById('startShiftBtn');
+    const needConfirm = <?= $needConfirm ? 'true' : 'false' ?>;
+    const confirmEarly = document.getElementById('confirm_early');
+    const startForm = document.querySelector("form[action='/?r=access/start']");
+    const confirmStart = document.getElementById('confirm_start');
+    const confirmBox = document.getElementById('startShiftConfirm');
+    const confirmBody = document.getElementById('startShiftConfirmBody');
+    const btnNo = document.getElementById('startShiftNo');
+    const btnYes = document.getElementById('startShiftYes');
+    let pendingSubmit = false;
 
     function filterOptions(select, restId) {
         Array.from(select.options).forEach((opt) => {
@@ -145,12 +200,23 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
         });
     }
 
+    function canStartShift() {
+        const hasRestaurant = restauranteSelect.value !== '';
+        const hasOperacao = operacaoSelect.value !== '';
+        const doorVisible = portaWrapper.style.display !== 'none';
+        const hasDoor = !doorVisible || portaSelect.value !== '';
+        return hasRestaurant && hasOperacao && hasDoor;
+    }
+
+    function updateStartButtonState() {
+        if (startBtn) startBtn.disabled = !canStartShift();
+    }
+
     function updateFilters() {
         const restId = restauranteSelect.value;
         filterOptions(operacaoSelect, restId);
         filterOptions(portaSelect, restId);
 
-        // Evita manter seleção de outro restaurante (operação/porta incompatíveis).
         const opSelected = operacaoSelect.options[operacaoSelect.selectedIndex];
         if (opSelected && opSelected.dataset.rest && opSelected.dataset.rest !== restId) {
             operacaoSelect.value = '';
@@ -162,17 +228,46 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
 
         const hasPorta = Array.from(portaSelect.options).some(opt => opt.dataset.rest === restId);
         portaWrapper.style.display = hasPorta ? 'block' : 'none';
+        updateStartButtonState();
+    }
+
+    function buildStartSummary() {
+        const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
+        const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
+        const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
+        const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
+        let html = ''
+            + '<strong>Usuário:</strong> ' + userName + '<br>'
+            + '<strong>Restaurante:</strong> ' + restLabel + '<br>'
+            + '<strong>Operação:</strong> ' + opLabel + '<br>'
+            + '<strong>Porta:</strong> ' + doorLabel;
+        if (needConfirm) {
+            html += '<br><span class="status-warning">Atenção: início fora do horário permitido.</span>';
+        }
+        return html;
+    }
+
+    function openStartConfirm() {
+        if (!confirmBox || !confirmBody) return;
+        confirmBody.innerHTML = buildStartSummary();
+        confirmBox.style.display = 'flex';
+    }
+
+    function closeStartConfirm() {
+        if (confirmBox) confirmBox.style.display = 'none';
     }
 
     restauranteSelect.addEventListener('change', updateFilters);
+    operacaoSelect.addEventListener('change', updateStartButtonState);
+    portaSelect.addEventListener('change', updateStartButtonState);
     updateFilters();
 
-    // restore draft
     const draft = JSON.parse(localStorage.getItem(draftKey) || '{}');
     if (draft.restaurante_id) restauranteSelect.value = draft.restaurante_id;
     updateFilters();
     if (draft.operacao_id) operacaoSelect.value = draft.operacao_id;
     if (draft.porta_id) portaSelect.value = draft.porta_id;
+    updateStartButtonState();
 
     function saveDraft() {
         localStorage.setItem(draftKey, JSON.stringify({
@@ -197,62 +292,150 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
         e.returnValue = '';
     });
 
-    // avoid warning on normal submit
-    const startForm = document.querySelector('form[action=\"/?r=access/start\"]');
-    if (startForm) {
-        startForm.addEventListener('submit', () => { dirty = false; });
-    }
-
-    // highlight early start with modal
-    const needConfirm = <?= $needConfirm ? 'true' : 'false' ?>;
-    if (needConfirm) {
-        const modal = new bootstrap.Modal(document.getElementById('earlyStartModal'));
-        const startBtn = document.getElementById('startShiftBtn');
-        const confirmEarly = document.getElementById('confirm_early');
-        if (startBtn) {
-            startBtn.addEventListener('click', (e) => {
-                if (!confirmEarly || !confirmEarly.checked) {
-                    e.preventDefault();
-                    modal.show();
-                }
-            });
-        }
-        const confirmBtn = document.getElementById('confirmEarlyBtn');
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', () => {
-                if (confirmEarly) confirmEarly.checked = true;
-                modal.hide();
-            });
-        }
-    }
-
-    // confirmação obrigatória de checklist antes de iniciar
     if (startForm) {
         startForm.addEventListener('submit', (e) => {
-            const confirmStart = document.getElementById('confirm_start');
-            if (confirmStart && confirmStart.value === '1') {
+            if (pendingSubmit) {
+                pendingSubmit = false;
+                dirty = false;
                 return;
             }
-            const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
-            const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
-            const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
-            const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
-            const ok = window.confirm(
-                'Confirme o início do turno:\n' +
-                '- Usuário: ' + userName + '\n' +
-                '- Restaurante: ' + restLabel + '\n' +
-                '- Operação: ' + opLabel + '\n' +
-                '- Porta: ' + doorLabel
-            );
-            if (!ok) {
+            if (!canStartShift()) {
                 e.preventDefault();
                 return;
             }
-            if (confirmStart) confirmStart.value = '1';
+            e.preventDefault();
+            openStartConfirm();
         });
     }
 
-    // evita duplo envio
+    if (btnNo) {
+        btnNo.addEventListener('click', () => {
+            pendingSubmit = false;
+            closeStartConfirm();
+        });
+    }
+    if (confirmBox) {
+        confirmBox.addEventListener('click', (e) => {
+            if (e.target === confirmBox) {
+                pendingSubmit = false;
+                closeStartConfirm();
+            }
+        });
+    }
+    if (btnYes) {
+        btnYes.addEventListener('click', () => {
+            if (needConfirm && confirmEarly) confirmEarly.checked = true;
+            if (confirmStart) confirmStart.value = '1';
+            pendingSubmit = true;
+            closeStartConfirm();
+            startForm?.requestSubmit();
+        });
+    }
+
+    (function () {
+        const modalEl = document.getElementById('hostessTutorialModalStart');
+        if (!modalEl) return;
+        let modal = null;
+        function getModal() {
+            if (!modal && window.bootstrap && window.bootstrap.Modal) {
+                modal = new window.bootstrap.Modal(modalEl);
+            }
+            return modal;
+        }
+        const openBtn = document.getElementById('openHostessTutorialStart');
+        const stepNum = document.getElementById('tutorialStepNumStart');
+        const stepTitle = document.getElementById('tutorialStepTitleStart');
+        const stepText = document.getElementById('tutorialStepTextStart');
+        const btnPrev = document.getElementById('tutorialPrevStart');
+        const btnNext = document.getElementById('tutorialNextStart');
+        const btnSkip = document.getElementById('tutorialSkipStart');
+        const csrf = '<?= h(csrf_token()) ?>';
+        const autoOpen = <?= $showHostessTutorial ? 'true' : 'false' ?>;
+
+        const steps = [
+            {
+                title: 'Selecione restaurante e operação',
+                text: 'No início do turno, selecione o restaurante correto e a operação correspondente ao serviço atual.'
+            },
+            {
+                title: 'Defina a porta (quando houver)',
+                text: 'Quando o restaurante tiver controle por porta, selecione a entrada correta antes de iniciar.'
+            },
+            {
+                title: 'Confirme o resumo do turno',
+                text: 'Revise os dados no popup de confirmação. Fora do horário, valide o início com atenção.'
+            },
+            {
+                title: 'Registro rápido de hóspedes',
+                text: 'Após iniciar, registre UH e PAX. Use os atalhos 998 (Não informado) e 999 (Day use) quando necessário.'
+            },
+            {
+                title: 'Fechamento e qualidade',
+                text: 'Encerrar turno finaliza a operação. Se houver erro de digitação recente, use a correção rápida.'
+            }
+        ];
+        let idx = 0;
+
+        function renderStep() {
+            if (!stepNum || !stepTitle || !stepText || !btnPrev || !btnNext) return;
+            stepNum.textContent = String(idx + 1);
+            stepTitle.textContent = steps[idx].title;
+            stepText.textContent = steps[idx].text;
+            btnPrev.disabled = idx === 0;
+            btnNext.textContent = idx === (steps.length - 1) ? 'Concluir tutorial' : 'Próximo';
+        }
+
+        function post(url) {
+            const body = new URLSearchParams();
+            body.set('csrf_token', csrf);
+            return fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                body: body.toString()
+            }).catch(() => null);
+        }
+
+        openBtn?.addEventListener('click', () => {
+            idx = 0;
+            renderStep();
+            const m = getModal();
+            if (!m) return;
+            m.show();
+            post('/?r=onboarding/hostessSeen');
+        });
+
+        btnPrev?.addEventListener('click', () => {
+            idx = Math.max(0, idx - 1);
+            renderStep();
+        });
+
+        btnNext?.addEventListener('click', async () => {
+            if (idx < steps.length - 1) {
+                idx++;
+                renderStep();
+                return;
+            }
+            await post('/?r=onboarding/hostessComplete');
+            getModal()?.hide();
+        });
+
+        btnSkip?.addEventListener('click', async () => {
+            await post('/?r=onboarding/hostessSeen');
+            getModal()?.hide();
+        });
+
+        if (autoOpen) {
+            setTimeout(() => {
+                idx = 0;
+                renderStep();
+                const m = getModal();
+                if (!m) return;
+                m.show();
+                post('/?r=onboarding/hostessSeen');
+            }, 650);
+        }
+    })();
+
     document.querySelectorAll('form').forEach((f) => {
         f.addEventListener('submit', () => {
             const btn = f.querySelector('button[type="submit"], button:not([type])');
@@ -276,14 +459,19 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                         <div class="text-muted">Operação: <span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></div>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
+                        <?php if ($allowHostessTutorial): ?>
+                            <button type="button" class="btn btn-outline-primary" id="openHostessTutorial">
+                                <i class="bi bi-mortarboard me-1"></i>Tutorial
+                            </button>
+                        <?php endif; ?>
                         <form method="post" action="/?r=turnos/end">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <button class="btn btn-outline-danger" onclick="return confirm('Confirma encerramento do turno?');"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
+                            <button class="btn btn-outline-danger" data-confirm="Confirma encerramento do turno?" data-confirm-title="Encerrar turno" data-confirm-type="danger"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
                         </form>
                         <?php if ($canCancel): ?>
                             <form method="post" action="/?r=turnos/cancel">
                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                <button class="btn btn-outline-secondary" onclick="return confirm('Confirma cancelamento do turno sem registros?');"><i class="bi bi-x-circle me-1"></i>Cancelar turno</button>
+                                <button class="btn btn-outline-secondary" data-confirm="Confirma cancelamento do turno sem registros?" data-confirm-title="Cancelar turno"><i class="bi bi-x-circle me-1"></i>Cancelar turno</button>
                             </form>
                         <?php endif; ?>
                     </div>
@@ -303,6 +491,18 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                     <div class="mb-3">
                     <label class="form-label">Número da UH</label>
                         <input type="text" name="uh_numero" class="form-control input-xl" inputmode="numeric" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Exceções rápidas</label>
+                        <div class="d-flex flex-wrap gap-2" id="uhQuickExceptions">
+                            <button type="button" class="btn btn-outline-primary btn-sm js-quick-uh" data-uh="998" data-label="Não informado">
+                                <i class="bi bi-question-circle me-1"></i>Não informado
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm js-quick-uh" data-uh="999" data-label="Day use">
+                                <i class="bi bi-sun me-1"></i>Day use
+                            </button>
+                        </div>
+                        <div class="small text-muted mt-1" id="uhQuickHint">Toque para preencher a UH automaticamente.</div>
                     </div>
 
                     <?php if ($turno['exige_pax'] == 1): ?>
@@ -350,7 +550,7 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                             <input type="number" min="1" name="pax_corrigido" class="form-control input-xl" value="<?= (int)$lastEditableAccess['pax'] ?>" required>
                         </div>
                         <div class="col-5">
-                            <button type="submit" class="btn btn-outline-primary btn-xl w-100" onclick="return confirm('Confirmar correção do último lançamento?')">
+                            <button type="submit" class="btn btn-outline-primary btn-xl w-100" data-confirm="Confirmar correção do último lançamento?" data-confirm-title="Corrigir lançamento">
                                 Corrigir
                             </button>
                         </div>
@@ -430,6 +630,43 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
         </div>
     </div>
 
+    <div class="modal fade" id="hostessTutorialModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-mortarboard me-1"></i>Tutorial rápido da Hostess</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="small text-muted mb-2">Passo <span id="tutorialStepNum">1</span> de 4</div>
+                    <div class="card p-3 bg-light border-0">
+                        <h6 class="fw-bold mb-1" id="tutorialStepTitle">Inicie o turno corretamente</h6>
+                        <p class="mb-0 text-muted" id="tutorialStepText">Selecione restaurante, operação e porta (quando aplicável). Confira o resumo antes de confirmar.</p>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-12 col-md-6">
+                            <div class="alert alert-info mb-0 small">
+                                <strong>Dica:</strong> em caso de dúvida, registre "998 (Não informado)" ou "999 (Day use)".
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="alert alert-warning mb-0 small">
+                                <strong>Atenção:</strong> no jantar do Corais, reservas temáticas podem bloquear o lançamento.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="tutorialSkip">Pular por agora</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" id="tutorialPrev" disabled>Voltar</button>
+                        <button type="button" class="btn btn-primary" id="tutorialNext">Próximo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="endShiftModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -462,6 +699,40 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
 
     const uhInput = document.querySelector('input[name="uh_numero"]');
     const paxInput = document.getElementById('pax');
+    const quickUhButtons = Array.from(document.querySelectorAll('.js-quick-uh'));
+    const quickHint = document.getElementById('uhQuickHint');
+
+    function syncQuickUhState() {
+        if (!uhInput) return;
+        const current = (uhInput.value || '').trim();
+        quickUhButtons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.uh === current);
+        });
+        if (!quickHint) return;
+        if (current === '998') {
+            quickHint.textContent = 'UH técnica selecionada: Não informado (998).';
+        } else if (current === '999') {
+            quickHint.textContent = 'UH técnica selecionada: Day use (999).';
+        } else {
+            quickHint.textContent = 'Toque para preencher a UH automaticamente.';
+        }
+    }
+
+    quickUhButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!uhInput) return;
+            uhInput.value = btn.dataset.uh || '';
+            uhInput.dispatchEvent(new Event('input', { bubbles: true }));
+            syncQuickUhState();
+            if (paxInput) {
+                paxInput.focus();
+                if (typeof paxInput.select === 'function') paxInput.select();
+            } else {
+                uhInput.blur();
+            }
+        });
+    });
+
     if (uhInput) {
         const draft = JSON.parse(localStorage.getItem(draftKey) || '{}');
         if (draft.uh_numero) uhInput.value = draft.uh_numero;
@@ -481,6 +752,10 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
             });
         }
     }
+    if (uhInput) {
+        uhInput.addEventListener('input', syncQuickUhState);
+    }
+    syncQuickUhState();
 
     let dirty = false;
     function markDirty() { dirty = true; }
@@ -504,6 +779,7 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
         localStorage.removeItem(draftKey);
         if (uhInput) uhInput.value = '';
         if (paxInput) paxInput.value = 1;
+        syncQuickUhState();
         // Em tablet/mobile, evita reabrir o teclado automaticamente.
         if (document.activeElement && typeof document.activeElement.blur === 'function') {
             document.activeElement.blur();
@@ -550,15 +826,117 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
                 }
             }
             if (now > tolEnd && !endModalShown) {
-                const modal = new bootstrap.Modal(document.getElementById('endShiftModal'));
-                modal.show();
-                endModalShown = true;
+                const modalEl = document.getElementById('endShiftModal');
+                if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                    const modal = new window.bootstrap.Modal(modalEl);
+                    modal.show();
+                    endModalShown = true;
+                }
             }
         };
         updateCountdown();
         setInterval(updateCountdown, 30000);
     })();
     <?php endif; ?>
+
+    (function () {
+        const modalEl = document.getElementById('hostessTutorialModal');
+        if (!modalEl) return;
+        let modal = null;
+        function getModal() {
+            if (!modal && window.bootstrap && window.bootstrap.Modal) {
+                modal = new window.bootstrap.Modal(modalEl);
+            }
+            return modal;
+        }
+        const openBtns = [
+            document.getElementById('openHostessTutorial'),].filter(Boolean);
+        const stepNum = document.getElementById('tutorialStepNum');
+        const stepTitle = document.getElementById('tutorialStepTitle');
+        const stepText = document.getElementById('tutorialStepText');
+        const btnPrev = document.getElementById('tutorialPrev');
+        const btnNext = document.getElementById('tutorialNext');
+        const btnSkip = document.getElementById('tutorialSkip');
+        const csrf = '<?= h(csrf_token()) ?>';
+        const autoOpen = <?= $showHostessTutorial ? 'true' : 'false' ?>;
+
+        const steps = [
+            {
+                title: 'Inicie o turno corretamente',
+                text: 'Selecione restaurante, operação e porta (quando aplicável). Confira o resumo antes de confirmar.'
+            },
+            {
+                title: 'Registre UH e PAX com agilidade',
+                text: 'Use os botões de ajuste de PAX e valide o número da UH. O sistema sinaliza duplicidade e fora de horário.'
+            },
+            {
+                title: 'Tratamento de exceções',
+                text: 'Para ausência de UH, use 998 (Não informado). Para day use, use 999. No Corais jantar, respeite o alerta de reserva temática.'
+            },
+            {
+                title: 'Fechamento seguro do turno',
+                text: 'Encerrar turno grava o fechamento operacional. Se houver erro de PAX recente, use a correção rápida da janela de 2 minutos.'
+            }
+        ];
+        let idx = 0;
+
+        function renderStep() {
+            if (!stepNum || !stepTitle || !stepText || !btnPrev || !btnNext) return;
+            stepNum.textContent = String(idx + 1);
+            stepTitle.textContent = steps[idx].title;
+            stepText.textContent = steps[idx].text;
+            btnPrev.disabled = idx === 0;
+            btnNext.textContent = idx === (steps.length - 1) ? 'Concluir tutorial' : 'Próximo';
+        }
+
+        function post(url) {
+            const body = new URLSearchParams();
+            body.set('csrf_token', csrf);
+            return fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                body: body.toString()
+            }).catch(() => null);
+        }
+
+        openBtns.forEach((btn) => btn.addEventListener('click', () => {
+            idx = 0;
+            renderStep();
+            const m = getModal();
+            if (!m) return;
+            m.show();
+            post('/?r=onboarding/hostessSeen');
+        }));
+
+        btnPrev?.addEventListener('click', () => {
+            idx = Math.max(0, idx - 1);
+            renderStep();
+        });
+        btnNext?.addEventListener('click', async () => {
+            if (idx < steps.length - 1) {
+                idx++;
+                renderStep();
+                return;
+            }
+            await post('/?r=onboarding/hostessComplete');
+            getModal()?.hide();
+        });
+        btnSkip?.addEventListener('click', async () => {
+            await post('/?r=onboarding/hostessSeen');
+            getModal()?.hide();
+        });
+
+        if (autoOpen) {
+            setTimeout(() => {
+                idx = 0;
+                renderStep();
+                const m = getModal();
+                if (!m) return;
+                m.show();
+                post('/?r=onboarding/hostessSeen');
+            }, 650);
+        }
+    })();
 
     // evita duplo envio
     document.querySelectorAll('form').forEach((f) => {
@@ -572,6 +950,8 @@ $lastEditableAccess = $this->data['last_editable_access'] ?? null;
     });
     </script>
 <?php endif; ?>
+
+
 
 
 

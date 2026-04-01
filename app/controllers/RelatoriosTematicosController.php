@@ -107,7 +107,7 @@ class RelatoriosTematicosController extends Controller
         }
         $out = fopen('php://output', 'w');
         fputcsv($out, [
-            'data_reserva','turno','restaurante','uh','pax_reservada','pax_real','status','excedente',
+            'data_reserva','turno','restaurante','uh','titular','pax_reservada','pax_real','status','excedente',
             'obs_reserva','tags','obs_operacao','usuario','criado_em'
         ]);
         foreach ($rows as $r) {
@@ -116,6 +116,7 @@ class RelatoriosTematicosController extends Controller
                 $r['turno_hora'],
                 $r['restaurante'],
                 $r['uh_numero'],
+                $r['titular_nome'] ?? '',
                 $r['pax'],
                 $r['pax_real'] ?? '',
                 $r['status'],

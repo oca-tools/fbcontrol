@@ -12,6 +12,63 @@ foreach ($configs as $cfg) {
 }
 ?>
 
+<style>
+    .table-capacidade-turno {
+        table-layout: fixed;
+        width: 100%;
+    }
+    .table-capacidade-turno th,
+    .table-capacidade-turno td {
+        white-space: nowrap;
+    }
+    .table-capacidade-turno .col-rest {
+        width: 180px;
+    }
+    .table-capacidade-turno .col-total {
+        width: 92px;
+    }
+    .table-capacidade-turno .col-auto-cancel {
+        width: 118px;
+        text-align: center;
+    }
+    .table-capacidade-turno .col-turno {
+        width: 72px;
+        text-align: center;
+    }
+    .table-capacidade-turno .turno-input {
+        min-width: 0 !important;
+        width: 100%;
+        max-width: 72px;
+        margin: 0 auto;
+        text-align: center;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+    }
+    .table-capacidade-turno .total-input {
+        min-width: 0 !important;
+        width: 100%;
+        max-width: 86px;
+        text-align: center;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+    }
+    .table-capacidade-turno .rest-tag {
+        display: inline-flex;
+        max-width: 166px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
+    @media (max-width: 1200px) {
+        .table-capacidade-turno .col-rest {
+            width: 160px;
+        }
+        .table-capacidade-turno .col-turno {
+            width: 68px;
+        }
+    }
+</style>
+
 <div class="card card-soft p-4 mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div class="section-title">
@@ -42,13 +99,14 @@ foreach ($configs as $cfg) {
     <form method="post" action="/?r=reservasTematicas/admin" class="table-responsive">
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <input type="hidden" name="action" value="config_capacidade">
-        <table class="table table-sm align-middle table-editor">
+        <table class="table table-sm align-middle table-editor table-capacidade-turno">
             <thead>
                 <tr>
-                    <th>Restaurante</th>
-                    <th class="col-mini">Capacidade total</th>
+                    <th class="col-rest">Restaurante</th>
+                    <th class="col-total text-center">Total</th>
+                    <th class="col-auto-cancel">Auto no-show (min)</th>
                     <?php foreach ($turnos as $turno): ?>
-                        <th><?= h($turno['hora']) ?></th>
+                        <th class="col-turno"><?= h(substr((string)$turno['hora'], 0, 5)) ?></th>
                     <?php endforeach; ?>
                 </tr>
             </thead>
@@ -56,17 +114,30 @@ foreach ($configs as $cfg) {
                 <?php foreach ($restaurantes as $rest): ?>
                     <?php $cfg = $configMap[$rest['id']] ?? ['capacidade_total' => 0]; ?>
                     <tr>
-                        <td><span class="tag <?= restaurant_badge_class($rest['nome']) ?>"><?= h($rest['nome']) ?></span></td>
-                        <td><input type="number" class="form-control" name="capacidade_total[<?= (int)$rest['id'] ?>]" value="<?= h($cfg['capacidade_total'] ?? 0) ?>"></td>
+                        <td>
+                            <span class="tag rest-tag <?= restaurant_badge_class($rest['nome']) ?>" title="<?= h($rest['nome']) ?>">
+                                <?= h($rest['nome']) ?>
+                            </span>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control total-input" name="capacidade_total[<?= (int)$rest['id'] ?>]" value="<?= h($cfg['capacidade_total'] ?? 0) ?>">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control total-input" min="0" max="240" name="auto_cancel_no_show_min[<?= (int)$rest['id'] ?>]" value="<?= h($cfg['auto_cancel_no_show_min'] ?? 0) ?>" title="Minutos após o horário do turno para marcar Não compareceu automaticamente">
+                        </td>
                         <?php foreach ($turnosConfig[$rest['id']] ?? [] as $turnoCfg): ?>
                             <td>
-                                <input type="number" class="form-control" name="capacidade_turno[<?= (int)$rest['id'] ?>][<?= (int)$turnoCfg['turno_id'] ?>]" value="<?= h($turnoCfg['capacidade'] ?? 0) ?>">
+                                <input type="number" class="form-control turno-input" name="capacidade_turno[<?= (int)$rest['id'] ?>][<?= (int)$turnoCfg['turno_id'] ?>]" value="<?= h($turnoCfg['capacidade'] ?? 0) ?>">
                             </td>
                         <?php endforeach; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Auto no-show (min):</strong> após esse tempo, reservas ainda em <em>Reservada</em> são movidas automaticamente para <em>Não compareceu</em>.
+        </div>
         <button class="btn btn-primary btn-xl">Salvar capacidades</button>
     </form>
 </div>

@@ -41,6 +41,10 @@ class HostessController extends Controller
         }
 
         $file = $_FILES['foto'];
+        if (!is_uploaded_file($file['tmp_name'])) {
+            set_flash('danger', 'Upload inválido.');
+            $this->redirect('/?r=hostess/turnos');
+        }
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         if (!in_array($ext, $allowed, true)) {
@@ -72,7 +76,12 @@ class HostessController extends Controller
         }
 
         $userId = Auth::user()['id'];
-        $filename = 'user_' . $userId . '.' . $ext;
+        foreach (glob($uploadDir . '/user_' . $userId . '_*.*') ?: [] as $oldFile) {
+            if (is_file($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+        $filename = 'user_' . $userId . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         $dest = $uploadDir . '/' . $filename;
         if (!move_uploaded_file($file['tmp_name'], $dest)) {
             set_flash('danger', 'Nao foi possivel salvar a foto.');

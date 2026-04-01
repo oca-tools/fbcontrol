@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $operacoes = $this->data['operacoes'] ?? [];

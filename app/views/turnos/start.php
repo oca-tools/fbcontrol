@@ -138,27 +138,37 @@ updateFilters();
 
 const startForm = document.querySelector('form[action="/?r=turnos/start"]');
 if (startForm) {
-    startForm.addEventListener('submit', (e) => {
+    startForm.addEventListener('submit', async (e) => {
+        if (startForm.dataset.confirmPending === '1') {
+            e.preventDefault();
+            return;
+        }
         const confirmStart = document.getElementById('confirm_start');
         if (confirmStart && confirmStart.value === '1') {
             return;
         }
+        e.preventDefault();
+        startForm.dataset.confirmPending = '1';
         const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
         const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
         const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
         const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
-        const ok = window.confirm(
-            'Confirme o início do turno:\n' +
-            '- Usuário: ' + userName + '\n' +
-            '- Restaurante: ' + restLabel + '\n' +
-            '- Operação: ' + opLabel + '\n' +
-            '- Porta: ' + doorLabel
-        );
+        const ok = await window.ocafConfirm({
+            title: 'Confirmar início do turno',
+            message:
+                '<strong>Usuário:</strong> ' + userName + '<br>' +
+                '<strong>Restaurante:</strong> ' + restLabel + '<br>' +
+                '<strong>Operação:</strong> ' + opLabel + '<br>' +
+                '<strong>Porta:</strong> ' + doorLabel,
+            confirmText: 'Sim, iniciar turno',
+            cancelText: 'Não'
+        });
+        startForm.dataset.confirmPending = '0';
         if (!ok) {
-            e.preventDefault();
             return;
         }
         if (confirmStart) confirmStart.value = '1';
+        startForm.submit();
     });
 }
 

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/var/www/ocafbcontrol}"
@@ -8,6 +8,9 @@ DB_USER="${DB_USER:-controle_ab_user}"
 DB_PASS="${DB_PASS:-troque_esta_senha}"
 MYSQL_ROOT_PASS="${MYSQL_ROOT_PASS:-}"
 PHP_VERSION="${PHP_VERSION:-8.3}"
+ADMIN_NAME="${ADMIN_NAME:-Admin OCA}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@localhost}"
+ADMIN_PASS="${ADMIN_PASS:-}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Execute como root: sudo bash deploy/vps/install.sh"
@@ -49,7 +52,25 @@ if [[ ! -f "$SCHEMA_FILE" ]]; then
   echo "Arquivo não encontrado: $SCHEMA_FILE"
   exit 1
 fi
-mysql -u "${DB_USER}" -p"${DB_PASS}" < "$SCHEMA_FILE"
+mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < "$SCHEMA_FILE"
+
+if [[ -z "${ADMIN_PASS}" ]]; then
+  ADMIN_PASS="$(tr -dc 'A-Za-z0-9@#%+=' </dev/urandom | head -c 14 || true)"
+  if [[ -z "${ADMIN_PASS}" ]]; then
+    ADMIN_PASS="TrocarSenha123!"
+  fi
+fi
+
+ADMIN_PASS_HASH="$(php -r 'echo password_hash($argv[1], PASSWORD_DEFAULT);' "${ADMIN_PASS}")"
+mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" <<SQL
+INSERT INTO usuarios (nome, email, senha, perfil, ativo, criado_em)
+VALUES ('${ADMIN_NAME}', '${ADMIN_EMAIL}', '${ADMIN_PASS_HASH}', 'admin', 1, NOW())
+ON DUPLICATE KEY UPDATE
+  nome = VALUES(nome),
+  senha = VALUES(senha),
+  perfil = 'admin',
+  ativo = 1;
+SQL
 
 echo "[5/7] Ajustando permissões..."
 chown -R www-data:www-data "${APP_DIR}"
@@ -84,3 +105,5 @@ systemctl restart apache2
 echo "[7/7] Concluído."
 echo "URL: http://${DOMAIN:-SEU_IP_PUBLICO}/"
 echo "Se usar domínio real, ative SSL com: certbot --apache -d seu-dominio"
+echo "Admin inicial: ${ADMIN_EMAIL}"
+echo "Senha admin inicial: ${ADMIN_PASS}"

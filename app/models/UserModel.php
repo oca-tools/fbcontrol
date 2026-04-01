@@ -104,4 +104,36 @@ class UserModel extends Model
         $after = $this->find($id) ?? [];
         $this->audit('deactivate', $userId, $before, $after, 'usuarios', $id);
     }
+
+    public function anonymizeAndDeactivate(int $id, int $userId): void
+    {
+        $before = $this->find($id) ?? [];
+        if (empty($before)) {
+            return;
+        }
+
+        $token = date('YmdHis') . '_' . $id;
+        $anonEmail = 'removido+' . $token . '@anon.local';
+        $anonName = 'Usuário removido #' . $id;
+        $randomPass = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+
+        $stmt = $this->db->prepare("
+            UPDATE usuarios
+            SET nome = :nome,
+                email = :email,
+                senha = :senha,
+                foto_path = NULL,
+                ativo = 0
+            WHERE id = :id
+        ");
+        $stmt->execute([
+            ':id' => $id,
+            ':nome' => $anonName,
+            ':email' => $anonEmail,
+            ':senha' => $randomPass,
+        ]);
+
+        $after = $this->find($id) ?? [];
+        $this->audit('anonymize_deactivate', $userId, $before, $after, 'usuarios', $id);
+    }
 }

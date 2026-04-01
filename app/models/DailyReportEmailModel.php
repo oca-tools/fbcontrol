@@ -1,6 +1,34 @@
 <?php
 class DailyReportEmailModel extends Model
 {
+    private static ?bool $recipientAttachmentReady = null;
+    private static ?bool $recipientAttachmentExists = null;
+
+    private function ensureRecipientAttachmentColumn(): void
+    {
+        if (self::$recipientAttachmentReady === true && self::$recipientAttachmentExists !== null) {
+            return;
+        }
+        self::$recipientAttachmentExists = false;
+        try {
+            $check = $this->db->query("SHOW COLUMNS FROM relatorio_email_destinatarios LIKE 'receber_anexo_vouchers'");
+            if ($check && $check->fetch()) {
+                self::$recipientAttachmentExists = true;
+                self::$recipientAttachmentReady = true;
+                return;
+            }
+            $this->db->exec("
+                ALTER TABLE relatorio_email_destinatarios
+                ADD COLUMN IF NOT EXISTS receber_anexo_vouchers TINYINT(1) NOT NULL DEFAULT 0
+            ");
+            $check = $this->db->query("SHOW COLUMNS FROM relatorio_email_destinatarios LIKE 'receber_anexo_vouchers'");
+            self::$recipientAttachmentExists = (bool)($check && $check->fetch());
+        } catch (Throwable $e) {
+            // Se nÃ£o conseguir alterar automaticamente, segue fluxo padrÃ£o.
+        }
+        self::$recipientAttachmentReady = true;
+    }
+
     public function getConfig(): array
     {
         $stmt = $this->db->query("SELECT * FROM relatorio_email_config WHERE id = 1 LIMIT 1");
@@ -12,7 +40,7 @@ class DailyReportEmailModel extends Model
             'id' => 1,
             'ativo' => 0,
             'hora_envio' => '23:00:00',
-            'assunto' => 'Resumo diário A&B - {data}',
+            'assunto' => 'Resumo diÃ¡rio A&B - {data}',
             'remetente_nome' => 'OCA FBControl',
             'remetente_email' => '',
         ];
@@ -45,6 +73,7 @@ class DailyReportEmailModel extends Model
 
     public function listRecipients(): array
     {
+        $this->ensureRecipientAttachmentColumn();
         $stmt = $this->db->query("
             SELECT *
             FROM relatorio_email_destinatarios
@@ -53,16 +82,58 @@ class DailyReportEmailModel extends Model
         return $stmt->fetchAll();
     }
 
-    public function addRecipient(string $email, int $userId): void
+    public function addRecipient(string $email, int $userId, bool $receberAnexoVouchers = false): void
     {
-        $stmt = $this->db->prepare("
-            INSERT INTO relatorio_email_destinatarios (email, ativo, criado_em)
-            VALUES (:email, 1, NOW())
-            ON DUPLICATE KEY UPDATE ativo = 1
-        ");
-        $stmt->execute([':email' => $email]);
+        $this->ensureRecipientAttachmentColumn();
+        if (self::$recipientAttachmentExists) {
+            $stmt = $this->db->prepare("
+                INSERT INTO relatorio_email_destinatarios (email, ativo, receber_anexo_vouchers, criado_em)
+                VALUES (:email, 1, :receber_anexo_vouchers, NOW())
+                ON DUPLICATE KEY UPDATE
+                    ativo = 1,
+                    receber_anexo_vouchers = VALUES(receber_anexo_vouchers)
+            ");
+            $stmt->execute([
+                ':email' => $email,
+                ':receber_anexo_vouchers' => $receberAnexoVouchers ? 1 : 0,
+            ]);
+        } else {
+            $stmt = $this->db->prepare("
+                INSERT INTO relatorio_email_destinatarios (email, ativo, criado_em)
+                VALUES (:email, 1, NOW())
+                ON DUPLICATE KEY UPDATE ativo = 1
+            ");
+            $stmt->execute([':email' => $email]);
+        }
         $id = (int)$this->db->lastInsertId();
-        $this->audit('create', $userId, [], ['email' => $email, 'id' => $id], 'relatorio_email_destinatarios', $id > 0 ? $id : null);
+        $this->audit('create', $userId, [], [
+            'email' => $email,
+            'id' => $id,
+            'receber_anexo_vouchers' => $receberAnexoVouchers ? 1 : 0,
+        ], 'relatorio_email_destinatarios', $id > 0 ? $id : null);
+    }
+
+    public function updateRecipientAttachmentFlag(int $id, bool $enabled, int $userId): void
+    {
+        $this->ensureRecipientAttachmentColumn();
+        if (!self::$recipientAttachmentExists) {
+            return;
+        }
+        $before = $this->findRecipient($id);
+        if (!$before) {
+            return;
+        }
+        $stmt = $this->db->prepare("
+            UPDATE relatorio_email_destinatarios
+               SET receber_anexo_vouchers = :enabled
+             WHERE id = :id
+        ");
+        $stmt->execute([
+            ':enabled' => $enabled ? 1 : 0,
+            ':id' => $id,
+        ]);
+        $after = $this->findRecipient($id) ?? [];
+        $this->audit('update', $userId, $before, $after, 'relatorio_email_destinatarios', $id);
     }
 
     public function removeRecipient(int $id, int $userId): void
@@ -103,41 +174,82 @@ class DailyReportEmailModel extends Model
         $config = $this->getConfig();
         $recipientsRows = $this->listRecipients();
         $recipients = array_values(array_unique(array_filter(array_map(static fn($r) => trim((string)$r['email']), $recipientsRows))));
+        $recipientMap = [];
+        foreach ($recipientsRows as $row) {
+            $email = $this->sanitizeEmail((string)($row['email'] ?? ''));
+            if ($email === '') {
+                continue;
+            }
+            $recipientMap[$email] = $row;
+        }
 
         if (!$force && (int)($config['ativo'] ?? 0) !== 1) {
-            return ['ok' => false, 'message' => 'Envio automático desativado.'];
+            return ['ok' => false, 'message' => 'Envio automÃ¡tico desativado.'];
         }
         if (empty($recipients)) {
-            return ['ok' => false, 'message' => 'Nenhum destinatário configurado.'];
+            return ['ok' => false, 'message' => 'Nenhum destinatÃ¡rio configurado.'];
         }
         if (!$force && $this->wasSent($dateRef)) {
-            return ['ok' => true, 'message' => 'Relatório já enviado para esta data.'];
+            return ['ok' => true, 'message' => 'RelatÃ³rio jÃ¡ enviado para esta data.'];
         }
 
         $metrics = $this->buildMetrics($dateRef);
-        $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diário A&B - {data}'));
+        $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diÃ¡rio A&B - {data}'));
         $subject = str_replace('{data}', date('d/m/Y', strtotime($dateRef)), $subjectTpl);
+        $subject = $this->sanitizeHeaderValue($subject, 'Resumo diÃ¡rio A&B');
         $html = $this->buildHtml($dateRef, $metrics);
         $text = $this->buildText($dateRef, $metrics);
 
-        $fromName = trim((string)($config['remetente_nome'] ?? 'OCA FBControl'));
-        $fromEmail = trim((string)($config['remetente_email'] ?? ''));
-        if ($fromEmail === '') {
+        $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'OCA FBControl'), 'OCA FBControl');
+        $fromEmailRaw = trim((string)($config['remetente_email'] ?? ''));
+        if ($fromEmailRaw === '') {
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $fromEmail = 'no-reply@' . preg_replace('/^www\./', '', $host);
+            $fromEmailRaw = 'no-reply@' . preg_replace('/^www\./', '', $host);
+        }
+        $fromEmail = $this->sanitizeEmail($fromEmailRaw);
+        if ($fromEmail === '') {
+            $fromEmail = 'no-reply@localhost';
         }
 
         $headers = [];
         $headers[] = 'MIME-Version: 1.0';
         $headers[] = 'Content-Type: text/html; charset=UTF-8';
+        $headers[] = 'Content-Transfer-Encoding: quoted-printable';
         $headers[] = 'From: ' . $fromName . ' <' . $fromEmail . '>';
         $headers[] = 'Reply-To: ' . $fromEmail;
         $headers[] = 'X-Mailer: PHP/' . phpversion();
 
         $okCount = 0;
         $lastError = '';
-        foreach ($recipients as $to) {
-            $ok = @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $html, implode("\r\n", $headers));
+        $envelopeFrom = '-f' . $fromEmail;
+        $voucherAttachments = $this->getVoucherAttachments($dateRef);
+        foreach ($recipients as $toRaw) {
+            $to = $this->sanitizeEmail($toRaw);
+            if ($to === '') {
+                continue;
+            }
+            $recipient = $recipientMap[$to] ?? [];
+            $wantsVoucherAttachment = (int)($recipient['receber_anexo_vouchers'] ?? 0) === 1;
+            if ($wantsVoucherAttachment && !empty($voucherAttachments)) {
+                $message = $this->buildMultipartMessage($html, $voucherAttachments);
+                $mailHeaders = [
+                    'MIME-Version: 1.0',
+                    'Content-Type: multipart/mixed; boundary="' . $message['boundary'] . '"',
+                    'From: ' . $fromName . ' <' . $fromEmail . '>',
+                    'Reply-To: ' . $fromEmail,
+                    'X-Mailer: PHP/' . phpversion(),
+                ];
+                $ok = @mail(
+                    $to,
+                    '=?UTF-8?B?' . base64_encode($subject) . '?=',
+                    $message['body'],
+                    implode("\r\n", $mailHeaders),
+                    $envelopeFrom
+                );
+            } else {
+                $htmlBody = quoted_printable_encode($html);
+                $ok = @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $htmlBody, implode("\r\n", $headers), $envelopeFrom);
+            }
             if ($ok) {
                 $okCount++;
             } else {
@@ -201,14 +313,15 @@ class DailyReportEmailModel extends Model
     private function buildMetrics(string $dateRef): array
     {
         return [
-            'PAX CAFÉ DA MANHÃ CORAIS' => $this->sumAcessos($dateRef, 'corais', ['café da manhã', 'cafe da manha', 'café', 'cafe']),
-            'PAX ALMOÇO CORAIS' => $this->sumAcessos($dateRef, 'corais', ['almoço', 'almoco']),
+            'PAX CAFÃ‰ DA MANHÃƒ CORAIS' => $this->sumAcessos($dateRef, 'corais', ['cafe da manha', 'cafÃ© da manhÃ£', 'cafe', 'cafÃ©']),
+            'PAX ALMOÃ‡O CORAIS' => $this->sumAcessos($dateRef, 'corais', ['almoco', 'almoÃ§o']),
             'PAX JANTAR CORAIS' => $this->sumAcessos($dateRef, 'corais', ['jantar']),
-            'PAX ALMOÇO LA BRASA' => $this->sumAcessos($dateRef, 'la brasa', ['almoço', 'almoco']),
+            'PAX ALMOÃ‡O LA BRASA' => $this->sumAcessos($dateRef, 'la brasa', ['almoco', 'almoÃ§o']),
             'PAX PRIVILEGED' => $this->sumPrivileged($dateRef),
             'PAX VIP PREMIUM' => $this->sumVipPremium($dateRef),
             'PAX DAY USE' => $this->sumByUhTecnica($dateRef, '999'),
-            'PAX NÃO INFORMADO' => $this->sumByUhTecnica($dateRef, '998'),
+            'PAX NÃƒO INFORMADO' => $this->sumByUhTecnica($dateRef, '998'),
+            'VOUCHERS REGISTRADOS' => $this->sumVouchers($dateRef),
             'PAX RESERVADA GIARDINO' => $this->sumTematicaReservada($dateRef, 'giardino'),
             'PAX REAL GIARDINO' => $this->sumTematicaReal($dateRef, 'giardino'),
             'PAX RESERVADA IXU' => $this->sumTematicaReservada($dateRef, 'ix'),
@@ -297,6 +410,18 @@ class DailyReportEmailModel extends Model
         return (int)($row['total'] ?? 0);
     }
 
+    private function sumVouchers(string $dateRef): int
+    {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM vouchers v
+            WHERE v.data_venda = :d
+        ");
+        $stmt->execute([':d' => $dateRef]);
+        $row = $stmt->fetch();
+        return (int)($row['total'] ?? 0);
+    }
+
     private function sumTematicaReservada(string $dateRef, string $restauranteLike): int
     {
         $stmt = $this->db->prepare("
@@ -343,7 +468,7 @@ class DailyReportEmailModel extends Model
         $stmt = $this->db->prepare("
             SELECT COALESCE(SUM(
                 CASE
-                    WHEN rsv.status = 'Não compareceu' THEN rsv.pax
+                    WHEN rsv.status IN ('Nao compareceu', 'Não compareceu', 'NÃ£o compareceu', 'NÃƒÂ£o compareceu') THEN rsv.pax
                     WHEN rsv.status <> 'Cancelada' AND rsv.pax_real IS NOT NULL AND rsv.pax_real < rsv.pax THEN (rsv.pax - rsv.pax_real)
                     ELSE 0
                 END
@@ -364,26 +489,141 @@ class DailyReportEmailModel extends Model
     private function buildHtml(string $dateRef, array $metrics): string
     {
         $rows = '';
+        $rowIndex = 0;
+
         foreach ($metrics as $label => $value) {
-            $rows .= '<tr><td style="padding:8px 10px;border:1px solid #e2e8f0;">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</td>';
-            $rows .= '<td style="padding:8px 10px;border:1px solid #e2e8f0;text-align:right;font-weight:700;">' . (int)$value . '</td></tr>';
+            $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$label);
+            $bg = ($rowIndex % 2 === 0) ? '#ffffff' : '#fff7ed';
+            $rows .= '<tr style="background:' . $bg . ';">';
+            $rows .= '<td style="padding:10px 12px;border-bottom:1px solid #fde2c7;color:#111827;font-size:14px;word-break:break-word;">' . htmlspecialchars($cleanLabel, ENT_QUOTES, 'UTF-8') . '</td>';
+            $rows .= '<td style="padding:10px 12px;border-bottom:1px solid #fde2c7;text-align:right;font-weight:700;color:#9a3412;font-size:14px;white-space:nowrap;width:96px;">' . (int)$value . '</td>';
+            $rows .= '</tr>';
+            $rowIndex++;
         }
-        return '<html><body style="font-family:Arial,sans-serif;">'
-            . '<h2>Resumo diário A&B - ' . date('d/m/Y', strtotime($dateRef)) . '</h2>'
-            . '<table style="border-collapse:collapse;width:100%;max-width:760px;">'
-            . '<thead><tr><th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:left;">Indicador</th>'
-            . '<th style="padding:8px 10px;border:1px solid #e2e8f0;text-align:right;">Valor</th></tr></thead>'
-            . '<tbody>' . $rows . '</tbody></table>'
-            . '<p style="margin-top:16px;color:#64748b;font-size:12px;">Gerado automaticamente pelo OCA FBControl.</p>'
+
+        return '<html><body style="margin:0;padding:18px;background:#f8fafc;font-family:Segoe UI,Arial,sans-serif;">'
+            . '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #fed7aa;border-radius:14px;overflow:hidden;">'
+            . '<tr><td style="padding:18px 20px;background:linear-gradient(90deg,#f97316,#fb923c);color:#ffffff;">'
+            . '<div style="font-size:12px;opacity:.95;letter-spacing:.3px;text-transform:uppercase;">RelatÃ³rio diÃ¡rio</div>'
+            . '<div style="font-size:22px;font-weight:700;line-height:1.3;">OCA FBControl</div>'
+            . '<div style="font-size:13px;opacity:.95;">Data de referÃªncia: ' . date('d/m/Y', strtotime($dateRef)) . '</div>'
+            . '</td></tr>'
+            . '<tr><td style="padding:14px 20px 8px 20px;color:#475569;font-size:13px;">Indicadores operacionais de A&amp;B para acompanhamento gerencial.</td></tr>'
+            . '<tr><td style="padding:0 20px 14px 20px;">'
+            . '<table cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;border:1px solid #fde2c7;border-radius:10px;overflow:hidden;">'
+            . '<thead><tr style="background:#fff1e6;">'
+            . '<th style="padding:10px 12px;text-align:left;font-size:12px;color:#9a3412;border-bottom:1px solid #fde2c7;">INDICADOR</th>'
+            . '<th style="padding:10px 12px;text-align:right;font-size:12px;color:#9a3412;border-bottom:1px solid #fde2c7;width:96px;">VALOR</th>'
+            . '</tr></thead>'
+            . '<tbody>' . $rows . '</tbody>'
+            . '</table>'
+            . '</td></tr>'
+            . '<tr><td style="padding:0 20px 18px 20px;font-size:12px;color:#94a3b8;">Gerado automaticamente pelo OCA FBControl.</td></tr>'
+            . '</table>'
             . '</body></html>';
     }
 
     private function buildText(string $dateRef, array $metrics): string
     {
-        $lines = ["Resumo diário A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
+        $lines = ["Resumo diÃ¡rio A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
         foreach ($metrics as $label => $value) {
-            $lines[] = $label . ': ' . (int)$value;
+            $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$label);
+            $lines[] = $cleanLabel . ': ' . (int)$value;
         }
         return implode("\n", $lines);
     }
+
+    private function getVoucherAttachments(string $dateRef): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT voucher_anexo_path
+            FROM vouchers
+            WHERE data_venda = :d
+              AND voucher_anexo_path IS NOT NULL
+              AND voucher_anexo_path <> ''
+            ORDER BY id ASC
+        ");
+        $stmt->execute([':d' => $dateRef]);
+        $rows = $stmt->fetchAll();
+        $files = [];
+        $uploadRoot = realpath(dirname(__DIR__, 2) . '/public/uploads/vouchers');
+        if ($uploadRoot === false) {
+            return [];
+        }
+        foreach ($rows as $row) {
+            $publicPath = (string)($row['voucher_anexo_path'] ?? '');
+            if ($publicPath === '') {
+                continue;
+            }
+            $normalized = str_replace('\\', '/', $publicPath);
+            $normalized = preg_replace('#^https?://[^/]+#i', '', $normalized);
+            if (strpos($normalized, '/public/') === 0) {
+                $fullPath = dirname(__DIR__, 2) . $normalized;
+            } else {
+                $fullPath = dirname(__DIR__, 2) . '/public/' . ltrim($normalized, '/');
+            }
+            $real = realpath($fullPath);
+            if ($real === false || strpos($real, $uploadRoot) !== 0) {
+                continue;
+            }
+            if (!is_file($real) || !is_readable($real)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+                continue;
+            }
+            $files[] = [
+                'path' => $real,
+                'name' => basename($real),
+            ];
+            if (count($files) >= 20) {
+                break; // evita e-mails gigantes
+            }
+        }
+        return $files;
+    }
+
+    private function buildMultipartMessage(string $html, array $attachments): array
+    {
+        $boundary = 'oca_fbcontrol_' . bin2hex(random_bytes(8));
+        $eol = "\r\n";
+        $body = '--' . $boundary . $eol;
+        $body .= 'Content-Type: text/html; charset=UTF-8' . $eol;
+        $body .= 'Content-Transfer-Encoding: quoted-printable' . $eol . $eol;
+        $body .= quoted_printable_encode($html) . $eol;
+
+        foreach ($attachments as $file) {
+            $mime = mime_content_type($file['path']) ?: 'application/octet-stream';
+            $raw = @file_get_contents($file['path']);
+            if ($raw === false) {
+                continue;
+            }
+            $content = chunk_split(base64_encode($raw));
+            $body .= '--' . $boundary . $eol;
+            $body .= 'Content-Type: ' . $mime . '; name="' . $file['name'] . '"' . $eol;
+            $body .= 'Content-Disposition: attachment; filename="' . $file['name'] . '"' . $eol;
+            $body .= 'Content-Transfer-Encoding: base64' . $eol . $eol;
+            $body .= $content . $eol;
+        }
+
+        $body .= '--' . $boundary . '--' . $eol;
+        return [
+            'boundary' => $boundary,
+            'body' => $body,
+        ];
+    }
+
+    private function sanitizeHeaderValue(string $value, string $fallback = ''): string
+    {
+        $clean = trim(str_replace(["\r", "\n"], '', $value));
+        return $clean !== '' ? $clean : $fallback;
+    }
+
+    private function sanitizeEmail(string $email): string
+    {
+        $clean = trim(str_replace(["\r", "\n"], '', $email));
+        return filter_var($clean, FILTER_VALIDATE_EMAIL) ? $clean : '';
+    }
 }
+

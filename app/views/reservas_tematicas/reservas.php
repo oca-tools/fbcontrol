@@ -23,12 +23,10 @@ $tagsPadrao = [
 ];
 $statusMap = [
     'Reservada' => 'badge-warning',
-    'Conferida' => 'badge-success',
-    'Em atendimento' => 'badge-warning',
     'Finalizada' => 'badge-success',
-    'Não compareceu' => 'badge-danger',
+    'Nao compareceu' => 'badge-danger',
     'Cancelada' => 'badge-danger',
-    'Divergência' => 'badge-danger',
+    'Divergencia' => 'badge-danger',
     'Excedente' => 'badge-warning',
 ];
 $selectedTags = [];
@@ -75,7 +73,11 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                     <div class="text-uppercase text-muted small"><?= $editItem ? 'Editar reserva' : 'Nova reserva' ?></div>
                     <h5 class="fw-bold mb-0">Cadastro rápido</h5>
                 </div>
-                <span class="badge badge-success">Ativo</span>
+                <?php if ($isHostess && !$canReserve): ?>
+                    <span class="badge badge-danger">Inativo</span>
+                <?php else: ?>
+                    <span class="badge badge-success">Ativo</span>
+                <?php endif; ?>
             </div>
 
             <form method="post" action="/?r=reservasTematicas/reservas">
@@ -105,6 +107,11 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                 <div class="mb-3">
                     <label class="form-label">UH</label>
                     <input type="text" class="form-control input-xl" name="uh_numero" inputmode="numeric" value="<?= h($editItem['uh_numero'] ?? '') ?>" placeholder="Ex: 402" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Titular da reserva</label>
+                    <input type="text" class="form-control input-xl" name="titular_nome" value="<?= h($editItem['titular_nome'] ?? '') ?>" placeholder="Nome e sobrenome" required>
                 </div>
 
                 <div class="mb-3">
@@ -245,6 +252,10 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
             <label class="form-label">UH</label>
             <input type="text" class="form-control input-xl" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>">
         </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">Titular</label>
+            <input type="text" class="form-control input-xl" name="titular" value="<?= h($filters['titular'] ?? '') ?>" placeholder="Nome do titular">
+        </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
                     <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/reservas">Remover filtro</a>
@@ -259,6 +270,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                     <th>Data</th>
                     <th>Turno</th>
                     <th>UH</th>
+                    <th>Titular</th>
                     <th>PAX</th>
                     <th>Restaurante</th>
                     <th>Observações</th>
@@ -269,7 +281,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
             </thead>
             <tbody>
                 <?php foreach ($reservas as $row): ?>
-                    <?php $statusClass = $statusMap[$row['status']] ?? 'badge-soft'; ?>
+                    <?php $statusClass = $statusMap[normalize_mojibake((string)($row['status'] ?? ''))] ?? 'badge-soft'; ?>
                     <tr>
                         <td>
                             <span class="badge <?= h($statusClass) ?>"><?= h($row['status']) ?></span>
@@ -280,6 +292,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                         <td><?= h($row['data_reserva']) ?></td>
                         <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
                         <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                        <td><?= h($row['titular_nome'] ?? '-') ?></td>
                         <td><?= h($row['pax']) ?></td>
                         <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                         <td><?= h($row['observacao_reserva'] ?? '-') ?></td>
@@ -301,7 +314,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
-                    <tr><td colspan="10" class="text-muted">Nenhuma reserva encontrada.</td></tr>
+                    <tr><td colspan="11" class="text-muted">Nenhuma reserva encontrada.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

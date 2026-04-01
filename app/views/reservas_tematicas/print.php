@@ -2,7 +2,7 @@
 $reservas = $this->data['reservas'] ?? [];
 $filters = $this->data['filters'] ?? [];
 $tipo = $this->data['tipo'] ?? 'detalhada';
-$colspan = $tipo === 'detalhada' ? 8 : 6;
+$colspan = $tipo === 'detalhada' ? 9 : 7;
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -37,6 +37,7 @@ $colspan = $tipo === 'detalhada' ? 8 : 6;
                 <th>Data</th>
                 <th>Turno</th>
                 <th>UH</th>
+                <th>Titular</th>
                 <th>PAX</th>
                 <th>Status</th>
                 <?php if ($tipo === 'detalhada'): ?>
@@ -52,6 +53,7 @@ $colspan = $tipo === 'detalhada' ? 8 : 6;
                     <td><?= htmlspecialchars($row['data_reserva']) ?></td>
                     <td><?= htmlspecialchars($row['turno_hora']) ?></td>
                     <td><?= htmlspecialchars($row['uh_numero']) ?></td>
+                    <td><?= htmlspecialchars($row['titular_nome'] ?? '-') ?></td>
                     <td><?= htmlspecialchars($row['pax']) ?></td>
                     <td><?= htmlspecialchars($row['status']) ?><?= !empty($row['excedente']) ? ' (Excedente)' : '' ?></td>
                     <?php if ($tipo === 'detalhada'): ?>

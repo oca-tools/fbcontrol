@@ -3,6 +3,7 @@ return [
     'app' => [
         'base_url' => '/',
         'timezone' => 'America/Sao_Paulo',
+        'session_timeout_min' => 30,
     ],
     'db' => [
         'host' => '127.0.0.1',

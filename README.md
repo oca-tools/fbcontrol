@@ -1,25 +1,41 @@
-# OCA FBControl v1.0
+# OCA FBControl v2.0
 
-Sistema web para registro de acessos de hóspedes (PAX) por Unidade Habitacional (UH) em restaurantes e áreas do hotel.
+Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido de acesso, turnos, auditoria, relatórios e reservas temáticas.
 
-## Requisitos
-- PHP 8+
+## Stack
+- PHP 8+ (MVC simples)
 - MySQL 8+
+- Bootstrap 5
+
+## Módulos principais
+- Login e perfis (`hostess`, `supervisor`, `gerente`, `admin`)
+- Registro operacional por turno (UH, PAX, restaurante, porta, operação)
+- Regras de duplicidade, fora de horário e múltiplo acesso
+- Dashboard geral + centro de controle
+- Relatórios operacionais e temáticos
+- Vouchers + refeições de colaborador
+- Reservas temáticas (reserva, operação e administração)
+- KPIs estratégicos (v2.0)
+- Onboarding/tutorial de hostess (v2.0)
+- Envio de e-mail diário
 
 ## Instalação rápida
-1. Crie o banco e tabelas com o script `sql/schema_v1_1_final.sql`.
-2. Ajuste as credenciais em `config/config.php`.
-3. Gere o hash da senha do admin e substitua no `sql/schema_v1_1_final.sql`.
-4. Aponte o servidor para a pasta `public`.
+1. Execute `sql/schema_v1_1_final.sql`.
+2. (v2.0) Execute `sql/migration_v2_0_onboarding_kpis.sql`.
+3. (v2.0) Execute `sql/migration_v2_0_ocupacao_diaria.sql`.
+4. Ajuste `config/config.php` (ou `config/config.local.php`).
+5. Configure o servidor web apontando para `public`.
+6. Acesse: `/?r=auth/login`.
 
-## Rotas principais
-- `/?r=auth/login`
-- `/?r=access/index`
+## Rotas úteis
+- `/?r=access/index` (registro/turno)
 - `/?r=dashboard/index`
-- `/?r=restaurantes/index`
-- `/?r=portas/index`
-- `/?r=operacoes/index`
-- `/?r=usuarios/index`
+- `/?r=control/index`
+- `/?r=relatorios/index`
+- `/?r=relatoriosTematicos/index`
+- `/?r=kpis/index` (novo)
+- `/?r=emailRelatorios/index`
 
-## API (futuro)
-Endpoint de exemplo: `/?r=api/ping` (retorna JSON).
+## Deploy VPS
+- Script: `deploy/vps/install.sh`
+- Guia: `docs/INSTALACAO_VPS.md`

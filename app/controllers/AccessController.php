@@ -1,6 +1,55 @@
 <?php
 class AccessController extends Controller
 {
+    private function isTematicoRestaurantName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        return strpos($name, 'giardino') !== false
+            || strpos($name, 'la brasa') !== false
+            || strpos($name, "ix'u") !== false
+            || strpos($name, 'ixu') !== false
+            || strpos($name, 'ix') !== false;
+    }
+
+    private function isHostessTematicoOnlyUser(?array $user): bool
+    {
+        if (!$user || ($user['perfil'] ?? '') !== 'hostess') {
+            return false;
+        }
+
+        $assigned = (new UserRestaurantModel())->byUser((int)$user['id']);
+        if (empty($assigned)) {
+            return false;
+        }
+
+        $hasTematico = false;
+        $hasRegistroBuffet = false;
+        foreach ($assigned as $rest) {
+            $name = (string)($rest['nome'] ?? '');
+            if ($this->isTematicoRestaurantName($name)) {
+                $hasTematico = true;
+                continue;
+            }
+            $hasRegistroBuffet = true;
+        }
+
+        return $hasTematico && !$hasRegistroBuffet;
+    }
+
+    private function redirectIfTematicoOnlyHostess(?array $user = null): bool
+    {
+        $user = $user ?? Auth::user();
+        if (!$this->isHostessTematicoOnlyUser($user)) {
+            return false;
+        }
+
+        if (!isset($_SESSION['flash'])) {
+            set_flash('info', 'Para restaurantes temáticos, utilize a tela de Operação Temática.');
+        }
+        $this->redirect('/?r=reservasTematicas/operacao');
+        return true;
+    }
+
     private function autoCloseTimeoutShiftsForCurrentUser(): int
     {
         $user = Auth::user();
@@ -18,17 +67,27 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        $user = Auth::user();
+        if ($this->redirectIfTematicoOnlyHostess($user)) {
+            return;
+        }
 
         $closedByTimeout = $this->autoCloseTimeoutShiftsForCurrentUser();
         if ($closedByTimeout > 0 && !isset($_SESSION['flash'])) {
             set_flash('warning', 'Turno encerrado automaticamente por tempo excedido (limite + 10 min).');
         }
 
+        $allowHostessTutorial = (($user['perfil'] ?? '') === 'hostess');
+        $showHostessTutorial = false;
+        if (($user['perfil'] ?? '') === 'hostess') {
+            $onboarding = (new UserOnboardingModel())->getByUser((int)$user['id']);
+            $showHostessTutorial = (int)($onboarding['hostess_tutorial_completed'] ?? 0) !== 1;
+        }
+
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
 
         if (!$shift) {
-            $user = Auth::user();
             $restaurantModel = new RestaurantModel();
             $opModel = new RestaurantOperationModel();
             $doorModel = new DoorModel();
@@ -63,6 +122,8 @@ class AccessController extends Controller
                 'flash' => get_flash(),
                 'need_confirm' => false,
                 'preselect' => [],
+                'allow_hostess_tutorial' => $allowHostessTutorial,
+                'show_hostess_tutorial' => $showHostessTutorial,
             ]);
             return;
         }
@@ -100,6 +161,8 @@ class AccessController extends Controller
             'is_corais_jantar' => (($shift['restaurante'] ?? '') === 'Restaurante Corais') && (stripos($shift['operacao'] ?? '', 'Jantar') !== false),
             'can_cancel' => $canCancel,
             'last_editable_access' => $lastEditableAccess,
+            'allow_hostess_tutorial' => $allowHostessTutorial,
+            'show_hostess_tutorial' => $showHostessTutorial,
         ]);
     }
 
@@ -108,6 +171,9 @@ class AccessController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
+        if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -232,6 +298,9 @@ class AccessController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
+        if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -344,6 +413,9 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -399,6 +471,9 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -445,6 +520,9 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -477,6 +555,10 @@ class AccessController extends Controller
                 $this->redirect('/?r=access/index');
             }
             $file = $_FILES['voucher_anexo'];
+            if (!is_uploaded_file($file['tmp_name'])) {
+                set_flash('danger', 'Upload inválido.');
+                $this->redirect('/?r=access/index');
+            }
             if ($file['size'] > 5 * 1024 * 1024) {
                 set_flash('danger', 'Anexo muito grande. Máximo 5MB.');
                 $this->redirect('/?r=access/index');

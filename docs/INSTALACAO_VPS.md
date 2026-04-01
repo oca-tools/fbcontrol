@@ -1,4 +1,4 @@
-﻿# Instalação VPS - OCA FBControl
+# Instalação VPS - OCA FBControl
 
 Este guia instala o sistema em Ubuntu 24.04 com Apache + MySQL + PHP.
 

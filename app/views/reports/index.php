@@ -24,6 +24,8 @@ $vouchersPaged = $this->data['vouchers_paged'] ?? $vouchers;
 $voucherPage = (int)($this->data['voucher_page'] ?? 1);
 $voucherTotalPages = (int)($this->data['voucher_total_pages'] ?? 1);
 $voucherTotal = (int)($this->data['voucher_total'] ?? count($vouchers));
+$insights = $this->data['insights'] ?? [];
+$tematicosResumo = $this->data['tematicos_resumo'] ?? [];
 $totalRegistros = count($list);
 $totalPax = array_sum(array_map(fn($r) => (int)$r['pax'], $list));
 $duplicados = count(array_filter($list, fn($r) => $r['alerta_duplicidade']));
@@ -33,11 +35,21 @@ $naoInformadoAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numer
 $naoInformadoPax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '998') ? (int)$r['pax'] : 0, $list));
 $dayUseAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numero'] ?? '') === '999'));
 $dayUsePax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '999') ? (int)$r['pax'] : 0, $list));
+$privilegedAcessos = count(array_filter($list, fn($r) => strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'privileged') !== false));
+$privilegedPax = array_sum(array_map(fn($r) => (strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'privileged') !== false) ? (int)$r['pax'] : 0, $list));
 $vipPremiumAcessos = count(array_filter($list, fn($r) => strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false));
 $vipPremiumPax = array_sum(array_map(fn($r) => (strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false) ? (int)$r['pax'] : 0, $list));
 $dupPercent = $totalRegistros > 0 ? round(($duplicados / $totalRegistros) * 100) : 0;
 $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 100) : 0;
+$indiceQualidade = (float)($insights['indice_qualidade'] ?? 0);
+$taxaAlertas = (float)($insights['taxa_alertas'] ?? 0);
+$taxaNaoInformado = (float)($insights['taxa_nao_informado'] ?? 0);
+$taxaDayUse = (float)($insights['taxa_day_use'] ?? 0);
+$paxReservadasTem = (int)($tematicosResumo['pax_reservadas'] ?? 0);
+$paxComparecidasTem = (int)($tematicosResumo['pax_comparecidas'] ?? 0);
+$taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $paxReservadasTem) * 100, 2) : 0;
 ?>
+<div class="split-pane-layout">
 <div class="card card-soft p-4 mb-4">
     <div class="d-flex justify-content-between align-items-start">
             <div class="section-title">
@@ -49,10 +61,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
             </div>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-primary" href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+            <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-download me-1"></i>Exportar CSV
             </a>
-            <a class="btn btn-primary" href="/?r=relatorios/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+            <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
             </a>
         </div>
@@ -118,6 +130,8 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     </form>
 </div>
+
+</div>
 <script>
 (() => {
     const start = document.querySelector('input[name="data_inicio"]');
@@ -147,7 +161,58 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
     <div class="alert alert-warning">Mapa diário é exibido apenas para uma data única. Para visualizar o mapa, informe apenas a Data (única).</div>
 <?php endif; ?>
 
-<div class="row g-4 mb-4">
+<div class="row g-4 mb-4 split-full">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-shield-check"></i></div>
+                <div>
+                    <div class="text-muted small">Índice de qualidade</div>
+                    <div class="display-6 fw-bold"><?= h((string)$indiceQualidade) ?>%</div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-exclamation-triangle"></i> Alertas <?= h((string)$taxaAlertas) ?>%</span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-question-circle"></i></div>
+                <div>
+                    <div class="text-muted small">Taxa de não informado</div>
+                    <div class="display-6 fw-bold"><?= h((string)$taxaNaoInformado) ?>%</div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-clipboard-check"></i> Melhorar coleta</span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-sun"></i></div>
+                <div>
+                    <div class="text-muted small">Taxa de Day use</div>
+                    <div class="display-6 fw-bold"><?= h((string)$taxaDayUse) ?>%</div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> Participação no fluxo</span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-stars"></i></div>
+                <div>
+                    <div class="text-muted small">Comparecimento temático</div>
+                    <div class="display-6 fw-bold"><?= h((string)$taxaComparecimentoTem) ?>%</div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> <?= $paxComparecidasTem ?>/<?= $paxReservadasTem ?> PAX</span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4 split-side sticky-side">
     <div class="col-12 col-md-6 col-lg-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
@@ -234,6 +299,18 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
                 </div>
             </div>
             <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $dayUsePax ?></span>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card metric-card p-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="metric-icon"><i class="bi bi-stars"></i></div>
+                <div>
+                    <div class="text-muted small">Privileged</div>
+                    <div class="display-6 fw-bold"><?= $privilegedAcessos ?></div>
+                </div>
+            </div>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $privilegedPax ?></span>
         </div>
     </div>
     <div class="col-12 col-md-6 col-lg-3">
@@ -338,10 +415,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary" href="/?r=relatorios/export_mapa&type=csv&data=<?= h($filters['data']) ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_mapa&type=csv&data=<?= h($filters['data']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary" href="/?r=relatorios/export_mapa&type=xlsx&data=<?= h($filters['data']) ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_mapa&type=xlsx&data=<?= h($filters['data']) ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -400,10 +477,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary" href="/?r=relatorios/export_bi&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_bi&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary" href="/?r=relatorios/export_bi&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_bi&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -476,10 +553,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary" href="/?r=relatorios/export_colaboradores&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_colaboradores&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary" href="/?r=relatorios/export_colaboradores&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_colaboradores&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -536,10 +613,10 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary" href="/?r=relatorios/export_vouchers&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_vouchers&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary" href="/?r=relatorios/export_vouchers&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_vouchers&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -602,6 +679,7 @@ $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 10
         </div>
     <?php endif; ?>
 </div>
+
 
 
 

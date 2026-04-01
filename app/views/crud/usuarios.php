@@ -38,6 +38,7 @@ $assigned = $this->data['assigned'] ?? [];
                     <label class="form-label">Perfil</label>
                     <select name="perfil" class="form-select input-xl">
                         <option value="hostess">Hostess</option>
+                        <option value="gerente">Gerente</option>
                         <option value="supervisor">Supervisor</option>
                         <option value="admin">Admin</option>
                     </select>
@@ -66,10 +67,20 @@ $assigned = $this->data['assigned'] ?? [];
             </div>
             <div class="row g-3">
                 <?php foreach ($this->data['items'] as $item): ?>
+                    <?php
+                        $isRemovedUser =
+                            (strpos((string)($item['email'] ?? ''), '@anon.local') !== false) ||
+                            (stripos((string)($item['nome'] ?? ''), 'removido') !== false);
+                    ?>
                     <div class="col-12">
                         <form method="post" action="/?r=usuarios/edit" class="card p-3">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                            <?php if ($isRemovedUser): ?>
+                                <div class="d-flex justify-content-end mb-2">
+                                    <span class="badge badge-danger">Usuário removido</span>
+                                </div>
+                            <?php endif; ?>
                             <div class="row g-3 align-items-end">
                                 <div class="col-12 col-md-4">
                                     <label class="form-label small text-muted">Nome</label>
@@ -83,6 +94,7 @@ $assigned = $this->data['assigned'] ?? [];
                                     <label class="form-label small text-muted">Perfil</label>
                                     <select name="perfil" class="form-select">
                                         <option value="hostess" <?= $item['perfil'] === 'hostess' ? 'selected' : '' ?>>Hostess</option>
+                                        <option value="gerente" <?= $item['perfil'] === 'gerente' ? 'selected' : '' ?>>Gerente</option>
                                         <option value="supervisor" <?= $item['perfil'] === 'supervisor' ? 'selected' : '' ?>>Supervisor</option>
                                         <option value="admin" <?= $item['perfil'] === 'admin' ? 'selected' : '' ?>>Admin</option>
                                     </select>
@@ -113,7 +125,7 @@ $assigned = $this->data['assigned'] ?? [];
                                 </div>
                                 <div class="col-12 col-md-2 d-grid gap-2">
                                     <button class="btn btn-outline-primary w-100">Salvar</button>
-                                    <button class="btn btn-outline-danger w-100" type="submit" formaction="/?r=usuarios/delete" onclick="return confirm('Desativar este usuário?');">Desativar</button>
+                                    <button class="btn btn-outline-danger w-100" type="submit" formaction="/?r=usuarios/delete" data-confirm="Excluir usuário? Os dados pessoais serão anonimizados e o histórico será mantido." data-confirm-title="Excluir usuário" data-confirm-type="danger">Excluir</button>
                                 </div>
                             </div>
                         </form>

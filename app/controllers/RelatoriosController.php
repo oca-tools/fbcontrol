@@ -26,6 +26,8 @@ class RelatoriosController extends Controller
 
         $colaboradores = $colabModel->listByFilters($filters);
         $vouchers = $voucherModel->listByFilters($filters);
+        $insights = $accessModel->kpiSummary($filters);
+        $tematicosResumo = (new ReservaTematicaModel())->dashboardStats($filters);
 
         $journey = [];
         $summary = [];
@@ -100,6 +102,8 @@ class RelatoriosController extends Controller
             'voucher_page' => $voucherPage,
             'voucher_total_pages' => $voucherTotalPages,
             'voucher_total' => $voucherTotal,
+            'insights' => $insights,
+            'tematicos_resumo' => $tematicosResumo,
         ]);
     }
 

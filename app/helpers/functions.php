@@ -5,21 +5,32 @@ function normalize_mojibake(string $value): string
     $normalized = str_replace("\xEF\xBB\xBF", '', $value);
 
     $score = static function (string $text): int {
-        return (int)preg_match_all('/Ã|Â|â|ï¿½|\?fï¿½/u', $text);
+        return (int)preg_match_all('/(?:\x{00C3}[\x{0080}-\x{00BF}]|\x{00C2}[\x{0080}-\x{00BF}]|\x{00E2}\x{20AC}|\x{FFFD})/u', $text);
     };
 
-    // Tenta reparar UTF-8 lido como ISO-8859-1/Windows-1252
-    for ($i = 0; $i < 2; $i++) {
+    for ($i = 0; $i < 4; $i++) {
         $baseScore = $score($normalized);
-        $iso = @mb_convert_encoding($normalized, 'UTF-8', 'ISO-8859-1');
-        $win = @mb_convert_encoding($normalized, 'UTF-8', 'Windows-1252');
+        if ($baseScore === 0) {
+            break;
+        }
+
+        $candidates = [
+            @utf8_decode($normalized),
+            @mb_convert_encoding($normalized, 'ISO-8859-1', 'UTF-8'),
+            @mb_convert_encoding($normalized, 'Windows-1252', 'UTF-8'),
+        ];
 
         $best = $normalized;
         $bestScore = $baseScore;
-        foreach ([$iso, $win] as $candidate) {
-            if (is_string($candidate) && $candidate !== '' && $score($candidate) < $bestScore) {
+
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate) || $candidate === '' || !mb_check_encoding($candidate, 'UTF-8')) {
+                continue;
+            }
+            $candidateScore = $score($candidate);
+            if ($candidateScore < $bestScore) {
                 $best = $candidate;
-                $bestScore = $score($candidate);
+                $bestScore = $candidateScore;
             }
         }
 
@@ -29,45 +40,11 @@ function normalize_mojibake(string $value): string
         $normalized = $best;
     }
 
-    static $phraseMap = [
-        'Opera?fï¿½?fï¿½o' => 'Operação',
-        'opera?fï¿½?fï¿½o' => 'operação',
-        'Operaï¿½ï¿½o' => 'Operação',
-        'operaï¿½ï¿½o' => 'operação',
-        'OperaÃ§Ã£o' => 'Operação',
-        'operaÃ§Ã£o' => 'operação',
-        'N?fï¿½o' => 'Não',
-        'n?fï¿½o' => 'não',
-        'Nï¿½o' => 'Não',
-        'nï¿½o' => 'não',
-        'Usu?fï¿½rio' => 'Usuário',
-        'Usuï¿½rio' => 'Usuário',
-        'N?fï¿½mero' => 'Número',
-        'Hor?fï¿½rio' => 'Horário',
-        'hor?fï¿½rio' => 'horário',
-        'In?fï¿½cio' => 'Início',
-        'in?fï¿½cio' => 'início',
-        'Tem?fï¿½tico' => 'Temático',
-        'tem?fï¿½tico' => 'temático',
-        'Relat?fï¿½rios' => 'Relatórios',
-        'Consolida?fï¿½?fï¿½o' => 'Consolidação',
-        'Movimenta?fï¿½?fï¿½o' => 'Movimentação',
-        'obrigat?fï¿½ria' => 'obrigatória',
-        'confirma?fï¿½?fï¿½o' => 'confirmação',
-        'corre?fï¿½?fï¿½o' => 'correção',
-        'di?fï¿½rio' => 'diário',
-        'refei?fï¿½?fï¿½es' => 'refeições',
-        'refei?fï¿½?fï¿½o' => 'refeição',
-        'Mï¿½ltiplo' => 'Múltiplo',
-        'Mï¿½ltiplos' => 'Múltiplos',
-        '?fï¿½ltimo' => 'último',
-        'ï¿½ltimos' => 'Últimos',
-        'r?fï¿½pida' => 'rápida',
-        'r?fï¿½pido' => 'rápido',
-        'Ã¢â‚¬Â¢' => '•',
-    ];
+    // Remove common leftover artifacts.
+    $normalized = str_replace("\xC2\xA0", ' ', $normalized);
+    $normalized = preg_replace('/\x{00C2}(?=\s|[\d%\)\]\.,;:!?])/u', '', $normalized) ?? $normalized;
 
-    return strtr($normalized, $phraseMap);
+    return $normalized;
 }
 
 function normalize_output_mojibake(string $buffer): string
@@ -118,7 +95,7 @@ function json_response(array $data, int $status = 200): void
 
 function restaurant_badge_class(string $name): string
 {
-    $n = mb_strtolower($name, 'UTF-8');
+    $n = mb_strtolower(normalize_mojibake($name), 'UTF-8');
     if (strpos($n, 'corais') !== false) {
         return 'tag-rest-corais';
     }
@@ -139,7 +116,7 @@ function restaurant_badge_class(string $name): string
 
 function operation_badge_class(string $name): string
 {
-    $n = mb_strtolower($name, 'UTF-8');
+    $n = mb_strtolower(normalize_mojibake($name), 'UTF-8');
     if (strpos($n, 'café') !== false || strpos($n, 'cafe') !== false) {
         return 'tag-op-cafe';
     }

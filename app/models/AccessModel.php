@@ -100,6 +100,19 @@ class AccessModel extends Model
 
 
         // ObservAção: Operações que atravessam meia-noite podem precisar de ajuste futuro.
+        if ($end < $start) {
+            $end->modify('+1 day');
+            if ($now < $start) {
+                $now->modify('+1 day');
+            }
+        }
+
+        $tolerance = (int)($restauranteOperacao['tolerancia_min'] ?? 0);
+        if ($tolerance > 0) {
+            $start->modify("-{$tolerance} minutes");
+            $end->modify("+{$tolerance} minutes");
+        }
+
         return $now < $start || $now > $end;
     }
 
@@ -354,6 +367,22 @@ class AccessModel extends Model
         ", $params);
         $vipPremiumRow = $vipPremium[0] ?? [];
 
+        $privileged = $this->aggregate("
+            SELECT
+                COUNT(*) AS privileged_acessos,
+                COALESCE(SUM(a.pax), 0) AS privileged_pax
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN restaurantes r ON r.id = a.restaurante_id
+            JOIN operacoes o ON o.id = a.operacao_id
+            $where
+              AND (
+                    LOWER(r.nome) LIKE '%privileged%'
+                 OR LOWER(o.nome) LIKE '%privileged%'
+              )
+        ", $params);
+        $privilegedRow = $privileged[0] ?? [];
+
         return [
             'totais_operacao' => $totaisOperacao,
             'totais_restaurante' => $totaisRestaurante,
@@ -367,6 +396,8 @@ class AccessModel extends Model
             'nao_informado_pax' => (int)($uhTecnicasRow['nao_informado_pax'] ?? 0),
             'day_use_acessos' => (int)($uhTecnicasRow['day_use_acessos'] ?? 0),
             'day_use_pax' => (int)($uhTecnicasRow['day_use_pax'] ?? 0),
+            'privileged_acessos' => (int)($privilegedRow['privileged_acessos'] ?? 0),
+            'privileged_pax' => (int)($privilegedRow['privileged_pax'] ?? 0),
             'vip_premium_acessos' => (int)($vipPremiumRow['vip_premium_acessos'] ?? 0),
             'vip_premium_pax' => (int)($vipPremiumRow['vip_premium_pax'] ?? 0),
         ];
@@ -636,6 +667,344 @@ class AccessModel extends Model
             'duplicados' => (int)($row['duplicados'] ?? 0),
             'fora_horario' => (int)($row['fora_horario'] ?? 0),
         ];
+    }
+
+    private function buildKpiWhere(array $filters, array &$params, string $alias = 'a'): string
+    {
+        $where = "WHERE 1=1";
+        $params = [];
+
+        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
+            $where .= " AND DATE({$alias}.criado_em) BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $filters['data_inicio'];
+            $params[':data_fim'] = $filters['data_fim'];
+        } elseif (!empty($filters['data'])) {
+            $where .= " AND DATE({$alias}.criado_em) = :data";
+            $params[':data'] = $filters['data'];
+        }
+        if (!empty($filters['restaurante_id'])) {
+            $where .= " AND {$alias}.restaurante_id = :restaurante_id";
+            $params[':restaurante_id'] = (int)$filters['restaurante_id'];
+        }
+        if (!empty($filters['operacao_id'])) {
+            $where .= " AND {$alias}.operacao_id = :operacao_id";
+            $params[':operacao_id'] = (int)$filters['operacao_id'];
+        }
+        if (!empty($filters['uh_numero'])) {
+            $where .= " AND uh.numero = :uh";
+            $params[':uh'] = $filters['uh_numero'];
+        }
+
+        $this->appendStatusFilter($where, (string)($filters['status'] ?? ''), $alias);
+        return $where;
+    }
+
+    public function kpiSummary(array $filters): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $multiple = $this->multipleAccessExistsSql('a');
+
+        $stmt = $this->db->prepare("
+            SELECT
+                COUNT(*) AS total_registros,
+                COALESCE(SUM(a.pax), 0) AS total_pax,
+                COUNT(DISTINCT a.uh_id) AS uhs_unicas,
+                COUNT(DISTINCT CASE WHEN uh.numero NOT IN ('998','999') THEN a.uh_id END) AS uhs_hospedes,
+                COUNT(DISTINCT a.usuario_id) AS operadores_ativos,
+                SUM(CASE WHEN a.alerta_duplicidade = 1 THEN 1 ELSE 0 END) AS duplicados,
+                SUM(CASE WHEN a.fora_do_horario = 1 THEN 1 ELSE 0 END) AS fora_horario,
+                SUM(CASE WHEN a.alerta_duplicidade = 0 AND a.fora_do_horario = 0 AND {$multiple} THEN 1 ELSE 0 END) AS multiplos,
+                SUM(CASE WHEN uh.numero = '998' THEN 1 ELSE 0 END) AS nao_informado_registros,
+                SUM(CASE WHEN uh.numero = '998' THEN a.pax ELSE 0 END) AS nao_informado_pax,
+                SUM(CASE WHEN uh.numero = '999' THEN 1 ELSE 0 END) AS day_use_registros,
+                SUM(CASE WHEN uh.numero = '999' THEN a.pax ELSE 0 END) AS day_use_pax,
+                AVG(a.pax) AS media_pax_registro
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            $where
+        ");
+        $stmt->execute($params);
+        $row = $stmt->fetch() ?: [];
+
+        $totalRegistros = (int)($row['total_registros'] ?? 0);
+        $totalPax = (int)($row['total_pax'] ?? 0);
+        $duplicados = (int)($row['duplicados'] ?? 0);
+        $foraHorario = (int)($row['fora_horario'] ?? 0);
+        $multiplos = (int)($row['multiplos'] ?? 0);
+        $alertas = $duplicados + $foraHorario + $multiplos;
+
+        $topRest = $this->aggregate("
+            SELECT r.nome, COALESCE(SUM(a.pax), 0) AS total_pax, COUNT(*) AS registros
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN restaurantes r ON r.id = a.restaurante_id
+            $where
+            GROUP BY r.id, r.nome
+            ORDER BY total_pax DESC, registros DESC
+            LIMIT 1
+        ", $params);
+
+        $topOp = $this->aggregate("
+            SELECT o.nome, COALESCE(SUM(a.pax), 0) AS total_pax, COUNT(*) AS registros
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN operacoes o ON o.id = a.operacao_id
+            $where
+            GROUP BY o.id, o.nome
+            ORDER BY total_pax DESC, registros DESC
+            LIMIT 1
+        ", $params);
+
+        $percent = static function (int $part, int $total): float {
+            if ($total <= 0) {
+                return 0.0;
+            }
+            return round(($part / $total) * 100, 2);
+        };
+
+        $taxaAlertas = $percent($alertas, $totalRegistros);
+        $indiceQualidade = max(0.0, round(100 - $taxaAlertas, 2));
+
+        return [
+            'total_registros' => $totalRegistros,
+            'total_pax' => $totalPax,
+            'uhs_unicas' => (int)($row['uhs_unicas'] ?? 0),
+            'uhs_hospedes' => (int)($row['uhs_hospedes'] ?? 0),
+            'operadores_ativos' => (int)($row['operadores_ativos'] ?? 0),
+            'duplicados' => $duplicados,
+            'fora_horario' => $foraHorario,
+            'multiplos' => $multiplos,
+            'alertas_total' => $alertas,
+            'nao_informado_registros' => (int)($row['nao_informado_registros'] ?? 0),
+            'nao_informado_pax' => (int)($row['nao_informado_pax'] ?? 0),
+            'day_use_registros' => (int)($row['day_use_registros'] ?? 0),
+            'day_use_pax' => (int)($row['day_use_pax'] ?? 0),
+            'media_pax_registro' => round((float)($row['media_pax_registro'] ?? 0), 2),
+            'pax_por_uh' => (int)($row['uhs_unicas'] ?? 0) > 0 ? round($totalPax / (int)$row['uhs_unicas'], 2) : 0.0,
+            'taxa_alertas' => $taxaAlertas,
+            'indice_qualidade' => $indiceQualidade,
+            'taxa_day_use' => $percent((int)($row['day_use_registros'] ?? 0), $totalRegistros),
+            'taxa_nao_informado' => $percent((int)($row['nao_informado_registros'] ?? 0), $totalRegistros),
+            'top_restaurante' => $topRest[0] ?? null,
+            'top_operacao' => $topOp[0] ?? null,
+        ];
+    }
+
+    public function kpiDailyTrend(array $filters): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $stmt = $this->db->prepare("
+            SELECT
+                DATE(a.criado_em) AS data_ref,
+                COUNT(*) AS registros,
+                COALESCE(SUM(a.pax), 0) AS pax_total,
+                COUNT(DISTINCT a.uh_id) AS uhs_unicas,
+                SUM(CASE WHEN a.alerta_duplicidade = 1 THEN 1 ELSE 0 END) AS duplicados,
+                SUM(CASE WHEN a.fora_do_horario = 1 THEN 1 ELSE 0 END) AS fora_horario
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            $where
+            GROUP BY DATE(a.criado_em)
+            ORDER BY data_ref ASC
+        ");
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function kpiOperatorRanking(array $filters, int $limit = 8): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $multiple = $this->multipleAccessExistsSql('a');
+
+        $stmt = $this->db->prepare("
+            SELECT
+                u.id,
+                u.nome,
+                COUNT(*) AS registros,
+                COALESCE(SUM(a.pax), 0) AS pax_total,
+                SUM(CASE WHEN a.alerta_duplicidade = 1 THEN 1 ELSE 0 END) AS duplicados,
+                SUM(CASE WHEN a.fora_do_horario = 1 THEN 1 ELSE 0 END) AS fora_horario,
+                SUM(CASE WHEN a.alerta_duplicidade = 0 AND a.fora_do_horario = 0 AND {$multiple} THEN 1 ELSE 0 END) AS multiplos
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN usuarios u ON u.id = a.usuario_id
+            $where
+            GROUP BY u.id, u.nome
+            ORDER BY registros DESC, pax_total DESC
+            LIMIT :lim
+        ");
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        $stmt->bindValue(':lim', max(1, $limit), PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $reg = (int)($row['registros'] ?? 0);
+            $alertas = (int)($row['duplicados'] ?? 0) + (int)($row['fora_horario'] ?? 0) + (int)($row['multiplos'] ?? 0);
+            $row['alertas_total'] = $alertas;
+            $row['indice_qualidade'] = $reg > 0 ? round(max(0, 100 - (($alertas / $reg) * 100)), 2) : 100.0;
+        }
+        unset($row);
+        return $rows;
+    }
+
+    private function normalizeOperationLabel(string $name): string
+    {
+        $normalized = normalize_mojibake(trim($name));
+        $token = mb_strtolower($normalized, 'UTF-8');
+        $tokenAscii = strtr($token, ['á' => 'a', 'ã' => 'a', 'â' => 'a', 'é' => 'e', 'ê' => 'e', 'í' => 'i', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ú' => 'u', 'ç' => 'c']);
+
+        if (strpos($tokenAscii, 'temat') !== false) {
+            return 'Temático';
+        }
+        if (strpos($tokenAscii, 'cafe') !== false) {
+            return 'Café';
+        }
+        if (strpos($tokenAscii, 'almoc') !== false) {
+            return 'Almoço';
+        }
+        if (strpos($tokenAscii, 'jantar') !== false) {
+            return 'Jantar';
+        }
+        if (strpos($tokenAscii, 'privileged') !== false) {
+            return 'Privileged';
+        }
+        if (strpos($tokenAscii, 'vip') !== false && strpos($tokenAscii, 'premium') !== false) {
+            return 'VIP Premium';
+        }
+        return $normalized !== '' ? $normalized : 'Sem nome';
+    }
+
+    public function kpiOperationMix(array $filters): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $rows = $this->aggregate("
+            SELECT o.nome, COALESCE(SUM(a.pax), 0) AS total_pax
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN operacoes o ON o.id = a.operacao_id
+            $where
+            GROUP BY o.nome
+        ", $params);
+
+        $merged = [];
+        foreach ($rows as $row) {
+            $label = $this->normalizeOperationLabel((string)($row['nome'] ?? ''));
+            if (!isset($merged[$label])) {
+                $merged[$label] = 0;
+            }
+            $merged[$label] += (int)($row['total_pax'] ?? 0);
+        }
+        arsort($merged);
+
+        $result = [];
+        foreach ($merged as $label => $total) {
+            $result[] = ['nome' => $label, 'total_pax' => (int)$total];
+        }
+        return $result;
+    }
+
+    public function kpiRestaurantMix(array $filters): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $rows = $this->aggregate("
+            SELECT r.nome, COALESCE(SUM(a.pax), 0) AS total_pax
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN restaurantes r ON r.id = a.restaurante_id
+            $where
+            GROUP BY r.id, r.nome
+            ORDER BY total_pax DESC
+        ", $params);
+
+        foreach ($rows as &$row) {
+            $row['nome'] = normalize_mojibake((string)($row['nome'] ?? ''));
+            $row['total_pax'] = (int)($row['total_pax'] ?? 0);
+        }
+        unset($row);
+        return $rows;
+    }
+
+    public function kpiCandleSeries(array $filters): array
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $stmt = $this->db->prepare("
+            SELECT
+                t.data_ref,
+                CAST(SUBSTRING_INDEX(GROUP_CONCAT(t.pax_hora ORDER BY t.hora_ref ASC SEPARATOR ','), ',', 1) AS UNSIGNED) AS open_pax,
+                MAX(t.pax_hora) AS high_pax,
+                MIN(t.pax_hora) AS low_pax,
+                CAST(SUBSTRING_INDEX(GROUP_CONCAT(t.pax_hora ORDER BY t.hora_ref DESC SEPARATOR ','), ',', 1) AS UNSIGNED) AS close_pax
+            FROM (
+                SELECT
+                    DATE(a.criado_em) AS data_ref,
+                    DATE_FORMAT(a.criado_em, '%H:00') AS hora_ref,
+                    SUM(a.pax) AS pax_hora
+                FROM acessos a
+                JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+                $where
+                GROUP BY DATE(a.criado_em), DATE_FORMAT(a.criado_em, '%H:00')
+            ) t
+            GROUP BY t.data_ref
+            ORDER BY t.data_ref ASC
+        ");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['open_pax'] = (int)($row['open_pax'] ?? 0);
+            $row['high_pax'] = (int)($row['high_pax'] ?? 0);
+            $row['low_pax'] = (int)($row['low_pax'] ?? 0);
+            $row['close_pax'] = (int)($row['close_pax'] ?? 0);
+        }
+        unset($row);
+        return $rows;
+    }
+
+    public function kpiBuffetPax(array $filters): int
+    {
+        $params = [];
+        $where = $this->buildKpiWhere($filters, $params, 'a');
+        $stmt = $this->db->prepare("
+            SELECT COALESCE(SUM(a.pax), 0) AS total_pax
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN restaurantes r ON r.id = a.restaurante_id
+            $where
+              AND r.tipo = 'buffet'
+        ");
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        return (int)($row['total_pax'] ?? 0);
+    }
+
+    public function kpiBuffetDailyRange(string $dataInicio, string $dataFim): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT DATE(a.criado_em) AS data_ref, COALESCE(SUM(a.pax), 0) AS total_pax
+            FROM acessos a
+            JOIN restaurantes r ON r.id = a.restaurante_id
+            WHERE DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim
+              AND r.tipo = 'buffet'
+            GROUP BY DATE(a.criado_em)
+            ORDER BY DATE(a.criado_em) ASC
+        ");
+        $stmt->execute([
+            ':data_inicio' => $dataInicio,
+            ':data_fim' => $dataFim,
+        ]);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['total_pax'] = (int)($row['total_pax'] ?? 0);
+        }
+        unset($row);
+        return $rows;
     }
 
     private function aggregate(string $sql, array $params): array

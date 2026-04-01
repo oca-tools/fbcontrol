@@ -12,6 +12,15 @@ class Controller
         $viewPath = __DIR__ . '/../views/' . $view . '.php';
         if (!file_exists($viewPath)) {
             http_response_code(404);
+            $notFoundPath = __DIR__ . '/../views/errors/not_found.php';
+            $message = 'OOps, página não encontrada.';
+            $flash = get_flash();
+            if (file_exists($notFoundPath)) {
+                require __DIR__ . '/../views/partials/header.php';
+                require $notFoundPath;
+                require __DIR__ . '/../views/partials/footer.php';
+                return;
+            }
             echo 'View não encontrada.';
             return;
         }
@@ -23,7 +32,11 @@ class Controller
 
     protected function redirect(string $route): void
     {
-        header('Location: ' . $route);
+        $safeRoute = str_replace(["\r", "\n"], '', $route);
+        if ($safeRoute === '' || strpos($safeRoute, '://') !== false) {
+            $safeRoute = '/?r=home';
+        }
+        header('Location: ' . $safeRoute);
         exit;
     }
 
@@ -34,6 +47,9 @@ class Controller
 
         if (in_array($perfil, ['hostess', 'admin', 'supervisor'], true)) {
             $this->redirect('/?r=access/index');
+        }
+        if ($perfil === 'gerente') {
+            $this->redirect('/?r=dashboard/index');
         }
         $this->redirect('/?r=auth/login');
     }

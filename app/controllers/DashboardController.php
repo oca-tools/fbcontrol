@@ -50,7 +50,7 @@ class DashboardController extends Controller
             if ($tematicoTotalPax > 0) {
                 $stats['totais_operacao'] = $this->mergeTotalsByName(
                     $stats['totais_operacao'] ?? [],
-                    [['nome' => 'Tematico', 'total_pax' => $tematicoTotalPax]]
+                    [['nome' => 'Temático', 'total_pax' => $tematicoTotalPax]]
                 );
             }
             $stats['total_pax'] = (int)($stats['total_pax'] ?? 0) + $tematicoTotalPax;
@@ -191,7 +191,7 @@ class DashboardController extends Controller
     {
         $map = [];
         foreach ($base as $row) {
-            $name = (string)($row[$nameKey] ?? '');
+            $name = $this->normalizeAggregateName((string)($row[$nameKey] ?? ''), $nameKey);
             if ($name === '') {
                 continue;
             }
@@ -202,7 +202,7 @@ class DashboardController extends Controller
         }
 
         foreach ($extra as $row) {
-            $name = (string)($row[$nameKey] ?? '');
+            $name = $this->normalizeAggregateName((string)($row[$nameKey] ?? ''), $nameKey);
             if ($name === '') {
                 continue;
             }
@@ -219,6 +219,31 @@ class DashboardController extends Controller
         return $result;
     }
 
+    private function normalizeAggregateName(string $name, string $nameKey): string
+    {
+        $clean = trim(normalize_mojibake($name));
+        if ($clean === '' || $nameKey !== 'nome') {
+            return $clean;
+        }
+
+        // Evita duplicidade entre rótulos equivalentes com/sem acento.
+        $low = mb_strtolower($clean, 'UTF-8');
+        $flat = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $low);
+        $flat = is_string($flat) ? preg_replace('/[^a-z0-9 ]/', '', $flat) : $low;
+        $flat = trim((string)$flat);
+
+        if (strpos($flat, 'tematic') !== false) {
+            return 'Temático';
+        }
+        if (strpos($flat, 'cafe') !== false) {
+            return 'Café';
+        }
+        if (strpos($flat, 'almoco') !== false) {
+            return 'Almoço';
+        }
+        return $clean;
+    }
+
     private function mergeRecentes(array $base, array $extra, int $limit): array
     {
         $rows = array_merge($base, $extra);
@@ -228,3 +253,4 @@ class DashboardController extends Controller
         return array_slice($rows, 0, $limit);
     }
 }
+

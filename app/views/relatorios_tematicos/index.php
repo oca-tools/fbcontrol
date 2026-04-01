@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $filters = $this->data['filters'] ?? [];
 $summary = $this->data['summary'] ?? [];
 $byRestaurant = $this->data['by_restaurant'] ?? [];
@@ -34,10 +34,10 @@ $statuses = [
 
 <div class="card p-4 mb-4">
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary" href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary" href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -343,4 +343,5 @@ $statuses = [
         </table>
     </div>
 </div>
+
 

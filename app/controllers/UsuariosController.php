@@ -137,16 +137,17 @@ class UsuariosController extends Controller
             $this->redirect('/?r=usuarios/index');
         }
         if ($id === (int)Auth::user()['id']) {
-            set_flash('warning', 'Você não pode desativar seu próprio usuário.');
+            set_flash('warning', 'Você não pode excluir seu próprio usuário.');
             $this->redirect('/?r=usuarios/index');
         }
 
         $model = new UserModel();
         $assignModel = new UserRestaurantModel();
         $assignModel->clearByUser($id, Auth::user()['id']);
-        $model->deactivate($id, Auth::user()['id']);
+        $model->anonymizeAndDeactivate($id, Auth::user()['id']);
 
-        set_flash('success', 'Usuário desativado.');
+        set_flash('success', 'Usuário excluído com anonimização e mantido para auditoria.');
         $this->redirect('/?r=usuarios/index');
     }
 }
+

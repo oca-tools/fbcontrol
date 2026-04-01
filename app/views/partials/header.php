@@ -35,6 +35,7 @@ $user = Auth::user();
             --ab-danger: #ef4444;
             --ab-ink: #0f172a;
             --ab-muted: #64748b;
+            --ab-primary: #f97316;
             --ab-accent: #f97316;
             --ab-accent-2: #fb923c;
             --ab-surface: #f8fafc;
@@ -42,6 +43,7 @@ $user = Auth::user();
             --ab-border: #e2e8f0;
             --ab-glow: rgba(249, 115, 22, 0.2);
             --ab-page-bg: #f8fafc;
+            --ab-bg: #f8fafc;
             --ab-grad-1: rgba(249,115,22,0.18);
             --ab-grad-2: rgba(251,146,60,0.16);
             --ab-sidebar-bg: #ffffff;
@@ -50,22 +52,29 @@ $user = Auth::user();
             --ab-soft-bg: #f8fafc;
             --ab-input-bg: #ffffff;
             --ab-input-text: #0f172a;
+            --ab-shadow-card: 0 18px 44px rgba(15, 23, 42, 0.08);
+            --ab-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --ab-ring: 0 0 0 0.22rem rgba(249, 115, 22, 0.18);
         }
         html[data-theme='dark'] {
-            --ab-ink: #e2e8f0;
-            --ab-muted: #94a3b8;
-            --ab-surface: #0b1220;
-            --ab-card: #111827;
-            --ab-border: #334155;
-            --ab-page-bg: #0b1220;
-            --ab-grad-1: rgba(249,115,22,0.1);
-            --ab-grad-2: rgba(251,146,60,0.08);
-            --ab-sidebar-bg: #0f172a;
+            --ab-ink: #edf4ff;
+            --ab-muted: #a8b5c8;
+            --ab-surface: #121b2e;
+            --ab-card: #172338;
+            --ab-border: #324561;
+            --ab-page-bg: #0f1a2c;
+            --ab-bg: #0f1a2c;
+            --ab-grad-1: rgba(249,115,22,0.14);
+            --ab-grad-2: rgba(251,146,60,0.1);
+            --ab-sidebar-bg: #131f34;
             --ab-hover-bg: rgba(249, 115, 22, 0.18);
-            --ab-panel-bg: #111827;
-            --ab-soft-bg: #0f172a;
-            --ab-input-bg: #0b1220;
-            --ab-input-text: #e2e8f0;
+            --ab-panel-bg: #18263b;
+            --ab-soft-bg: #1c2d46;
+            --ab-input-bg: #122038;
+            --ab-input-text: #edf4ff;
+            --ab-shadow-card: 0 22px 48px rgba(2, 6, 23, 0.5);
+            --ab-shadow-soft: 0 10px 28px rgba(2, 6, 23, 0.34);
+            --ab-ring: 0 0 0 0.22rem rgba(251, 146, 60, 0.24);
         }
         body {
             font-family: "Manrope", sans-serif;
@@ -75,6 +84,9 @@ $user = Auth::user();
                 var(--ab-page-bg);
             color: var(--ab-ink);
             overflow-x: hidden;
+            line-height: 1.42;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         a {
             color: #c2410c;
@@ -121,16 +133,30 @@ $user = Auth::user();
         }
         .card {
             border: 1px solid var(--ab-border);
-            box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
-            border-radius: 22px;
+            box-shadow: var(--ab-shadow-card);
+            border-radius: 24px;
             background: var(--ab-card);
             color: var(--ab-ink);
+            backdrop-filter: saturate(120%) blur(6px);
+            transition: transform .18s ease, box-shadow .22s ease, border-color .2s ease;
+        }
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 22px 52px rgba(15, 23, 42, 0.11);
         }
         .card-soft {
-            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.92) 100%);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%) 0%,
+                color-mix(in srgb, var(--ab-soft-bg) 92%, #ffffff 8%) 100%
+            );
         }
         html[data-theme='dark'] .card-soft {
-            background: linear-gradient(180deg, rgba(17,24,39,0.98) 0%, rgba(15,23,42,0.92) 100%);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--ab-card) 95%, #1f2a3d 5%) 0%,
+                color-mix(in srgb, var(--ab-soft-bg) 93%, #152138 7%) 100%
+            );
         }
         .status-success { color: #22c55e; font-weight: 700; }
         .status-warning { color: #f59e0b; font-weight: 700; }
@@ -153,6 +179,11 @@ $user = Auth::user();
             background: #fff;
             color: #9a3412;
             border: 1.5px solid #fdba74;
+        }
+        html[data-theme='dark'] .badge-soft {
+            background: color-mix(in srgb, var(--ab-soft-bg) 86%, #152138 14%);
+            color: #fdba74;
+            border-color: rgba(251, 146, 60, 0.5);
         }
         .tag {
             display: inline-flex;
@@ -218,6 +249,11 @@ $user = Auth::user();
             cursor: pointer;
             transition: all 0.2s ease;
         }
+        html[data-theme='dark'] .tag-choice label {
+            background: color-mix(in srgb, var(--ab-soft-bg) 88%, #16253d 12%);
+            color: #fdba74;
+            border-color: rgba(251, 146, 60, 0.45);
+        }
         .tag-choice input:checked + label {
             background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
             border-color: #f97316;
@@ -250,9 +286,93 @@ $user = Auth::user();
             padding: 24px 20px;
             position: sticky;
             top: 0;
-            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--ab-shadow-soft);
+        }
+        .sidebar-top {
+            flex: 0 0 auto;
+            padding-bottom: 8px;
+            border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+        }
+        .sidebar-user-card {
+            margin-top: 6px;
+            padding: 12px;
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--ab-soft-bg) 86%, white 14%);
+            border: 1px solid color-mix(in srgb, var(--ab-border) 78%, white 22%);
+        }
+        html[data-theme='dark'] .sidebar-user-card {
+            background: color-mix(in srgb, var(--ab-soft-bg) 90%, #0f172a 10%);
+            border-color: color-mix(in srgb, var(--ab-border) 92%, #0f172a 8%);
+        }
+        .sidebar-user-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            object-fit: cover;
+        }
+        .sidebar-user-fallback {
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(249,115,22,0.12);
+            color: #c2410c;
+        }
+        .sidebar-user-role {
+            color: var(--ab-muted);
+            font-size: 0.78rem;
+        }
+        .sidebar-user-extra {
+            display: grid;
+            gap: 4px;
+            margin-top: 8px;
+            color: var(--ab-muted);
+            font-size: 0.78rem;
+        }
+        .sidebar-menu {
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
+            overflow-x: hidden;
+            padding-top: 14px;
+            padding-right: 4px;
+            margin-right: -4px;
             scrollbar-width: thin;
+            scrollbar-color: rgba(249,115,22,.45) transparent;
+        }
+        .sidebar-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 999px;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(251,146,60,.7), rgba(249,115,22,.45));
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(251,146,60,.92), rgba(249,115,22,.72));
+            background-clip: padding-box;
+        }
+        .sidebar-menu .nav {
+            padding-bottom: 8px;
+        }
+        .sidebar-menu::before,
+        .sidebar-menu::after {
+            display: none;
+        }
+        .sidebar-menu .nav-link:first-child {
+            margin-top: 2px;
         }
         .sidebar .brand-badge {
             display: inline-flex;
@@ -266,17 +386,21 @@ $user = Auth::user();
         }
         .sidebar .nav-link {
             color: var(--ab-ink) !important;
-            border-radius: 12px;
-            padding: 10px 14px;
+            border-radius: 14px;
+            padding: 11px 14px;
             margin-bottom: 6px;
             display: flex;
             align-items: center;
             gap: 10px;
+            border: 1px solid transparent;
+            transition: all .16s ease;
         }
         .sidebar .nav-link.active,
         .sidebar .nav-link:hover {
             background: var(--ab-hover-bg);
             color: #9a3412 !important;
+            border-color: rgba(249, 115, 22, 0.24);
+            transform: translateX(2px);
         }
         .sidebar .nav-link i {
             color: #f97316;
@@ -321,6 +445,7 @@ $user = Auth::user();
             display: flex;
             align-items: center;
             gap: 10px;
+            box-shadow: var(--ab-shadow-soft);
         }
         .turno-pill {
             background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
@@ -345,6 +470,7 @@ $user = Auth::user();
             border: 1px solid var(--ab-border);
             background: var(--ab-panel-bg);
             color: var(--ab-ink);
+            box-shadow: var(--ab-shadow-soft);
         }
         .theme-toggle:hover {
             border-color: #f97316;
@@ -355,6 +481,7 @@ $user = Auth::user();
             background-color: var(--ab-input-bg);
             color: var(--ab-input-text);
             border-color: var(--ab-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
         }
         .form-control:focus,
         .form-select:focus {
@@ -468,7 +595,7 @@ $user = Auth::user();
             color: #9a3412;
         }
         .btn {
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 600;
             letter-spacing: 0.1px;
             transition: all 0.18s ease;
@@ -503,7 +630,7 @@ $user = Auth::user();
             border-width: 1.5px;
             border-color: #fb923c;
             color: #9a3412;
-            background: #fff;
+            background: var(--ab-card);
         }
         .btn-outline-primary:hover,
         .btn-outline-primary:focus {
@@ -512,8 +639,9 @@ $user = Auth::user();
             color: #fff !important;
         }
         html[data-theme='dark'] .btn-outline-primary {
-            background: #fff;
-            color: #9a3412 !important;
+            background: rgba(251, 146, 60, 0.08);
+            color: #fdba74 !important;
+            border-color: #fb923c;
         }
         .btn-secondary,
         .btn-outline-secondary {
@@ -575,9 +703,9 @@ $user = Auth::user();
             border-color: #94a3b8;
         }
         .card {
-            border-radius: 18px;
+            border-radius: 22px;
             overflow: hidden;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--ab-shadow-card);
         }
         .card-header {
             background: linear-gradient(180deg, rgba(249,115,22,0.08), transparent);
@@ -606,7 +734,7 @@ $user = Auth::user();
         .form-control:focus,
         .form-select:focus {
             border-color: #fb923c;
-            box-shadow: 0 0 0 0.2rem rgba(249, 115, 22, 0.18);
+            box-shadow: var(--ab-ring);
         }
         .input-group-text {
             background: var(--ab-soft-bg);
@@ -662,25 +790,340 @@ $user = Auth::user();
             border-color: var(--ab-border);
             color: var(--ab-ink);
             background: var(--ab-card);
+            border-radius: 12px;
+            min-width: 40px;
+            text-align: center;
+            margin: 0 2px;
         }
         .pagination .page-link:hover {
             background: var(--ab-soft-bg);
+            transform: translateY(-1px);
         }
         .pagination .active > .page-link {
-            background: #f97316;
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
             border-color: #f97316;
             color: #fff;
+            box-shadow: 0 10px 20px rgba(249, 115, 22, 0.28);
         }
         .app-content {
-            max-width: 1280px;
+            max-width: 1320px;
             margin: 0 auto;
+        }
+        /* iOS-like visual refresh (strong overrides) */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            letter-spacing: 0.01em;
+        }
+        .card,
+        .card-soft,
+        .table-responsive,
+        .topbar .user-pill,
+        .mobile-nav {
+            border-radius: 20px !important;
+        }
+        .card,
+        .table-responsive,
+        .topbar .user-pill,
+        .mobile-nav {
+            background: color-mix(in srgb, var(--ab-card) 92%, white 8%) !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 85%, white 15%) !important;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.10) !important;
+        }
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            padding: 10px 0;
+            backdrop-filter: blur(8px);
+        }
+        html[data-theme='dark'] .card,
+        html[data-theme='dark'] .table-responsive,
+        html[data-theme='dark'] .topbar .user-pill,
+        html[data-theme='dark'] .mobile-nav {
+            background: color-mix(in srgb, #111827 92%, #1f2937 8%) !important;
+            border-color: #334155 !important;
+            box-shadow: 0 18px 44px rgba(2, 6, 23, 0.5) !important;
+        }
+        .btn {
+            border-radius: 16px !important;
+            padding-top: 0.58rem;
+            padding-bottom: 0.58rem;
+        }
+        .btn-primary,
+        .btn-success,
+        .btn-danger,
+        .btn-warning,
+        .btn-info {
+            color: #fff !important;
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+        }
+        .btn-outline-primary {
+            backdrop-filter: blur(8px);
+            border-width: 1.5px !important;
+        }
+        .form-control,
+        .form-select {
+            border-radius: 14px !important;
+            min-height: 46px;
+            padding-top: 0.55rem;
+            padding-bottom: 0.55rem;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            box-shadow: 0 0 0 0.24rem rgba(249, 115, 22, 0.16), 0 8px 20px rgba(249, 115, 22, 0.12) !important;
+        }
+        .metric-card::before {
+            height: 5px !important;
+            background: linear-gradient(90deg, #f97316, #fb923c, #fdba74) !important;
+        }
+        .metric-icon {
+            border-radius: 16px !important;
+            background: linear-gradient(145deg, rgba(249, 115, 22, 0.24), rgba(251, 146, 60, 0.14)) !important;
+        }
+        .section-title .icon {
+            border-radius: 14px !important;
+            background: linear-gradient(145deg, rgba(249,115,22,0.22), rgba(251,146,60,0.12)) !important;
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            box-shadow: 0 8px 16px rgba(249, 115, 22, 0.16);
+        }
+        .sidebar .nav-link {
+            border-radius: 14px !important;
+            margin-bottom: 8px;
+        }
+        .sidebar .nav-link i {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(249, 115, 22, 0.14);
+            color: #c2410c !important;
+            font-size: 0.9rem;
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            box-shadow: 0 8px 20px rgba(249, 115, 22, 0.16);
+        }
+        .table thead th {
+            font-size: 0.78rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .table thead th i {
+            font-size: .8rem;
+            color: #f97316;
+            opacity: .92;
+        }
+        html[data-theme='dark'] .table thead th i {
+            color: #fdba74;
+        }
+        .table tbody td {
+            vertical-align: middle;
+        }
+        .table tbody tr {
+            transition: background .14s ease, transform .12s ease;
+        }
+        .table tbody tr:hover {
+            transform: translateY(-1px);
+        }
+        .split-pane-layout {
+            display: block;
+        }
+        @media (min-width: 992px) {
+            .app-content .row.g-4 {
+                --bs-gutter-x: 1rem;
+                --bs-gutter-y: 1rem;
+            }
+            .app-content .row.g-3 {
+                --bs-gutter-x: 0.9rem;
+                --bs-gutter-y: 0.9rem;
+            }
+            .app-content .mb-4 {
+                margin-bottom: 1rem !important;
+            }
+            .app-content .mb-3 {
+                margin-bottom: 0.75rem !important;
+            }
+            .app-content .card.p-4 {
+                padding: 1.15rem !important;
+            }
+            .app-content .card.p-3 {
+                padding: 0.95rem !important;
+            }
+        }
+        @media (min-width: 1280px) {
+            .split-pane-layout {
+                display: grid;
+                grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.95fr);
+                gap: 12px;
+                align-items: start;
+            }
+            .split-pane-layout > .mb-4 {
+                margin-bottom: 0 !important;
+            }
+            .split-pane-layout > .split-full {
+                grid-column: 1 / -1;
+            }
+            .split-pane-layout > .split-side {
+                grid-column: 2;
+            }
+            .split-pane-layout > .split-side.side-span-2 {
+                grid-row: 1 / span 2;
+            }
+            .split-pane-layout > :not(.split-side):not(.split-full) {
+                grid-column: 1;
+            }
+            .split-pane-layout > .split-side.sticky-side {
+                position: sticky;
+                top: 74px;
+            }
+            .split-pane-layout .split-side .col-lg-4 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+        .pagination {
+            gap: 4px;
+        }
+        .pagination .page-link {
+            border-radius: 14px !important;
+            min-width: 42px !important;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .export-toast-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .export-toast {
+            min-width: 320px;
+            max-width: min(92vw, 560px);
+            background: color-mix(in srgb, var(--ab-card) 92%, white 8%);
+            color: var(--ab-ink);
+            border: 1px solid color-mix(in srgb, var(--ab-border) 82%, white 18%);
+            border-radius: 18px;
+            box-shadow: 0 30px 80px rgba(15, 23, 42, 0.34);
+            padding: 18px 22px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            animation: toast-in .26s ease-out;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+        }
+        .export-toast .ok-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            color: #fff;
+            font-size: 1.2rem;
+            animation: pop-check .45s ease-out;
+            flex: 0 0 44px;
+            box-shadow: 0 10px 24px rgba(34, 197, 94, 0.35);
+        }
+        .export-toast .txt {
+            font-size: 1.02rem;
+            font-weight: 600;
+            line-height: 1.4rem;
+        }
+        .app-confirm-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(2, 6, 23, 0.46);
+            backdrop-filter: blur(4px);
+        }
+        .app-confirm-wrap.is-open {
+            display: flex;
+            animation: confirm-fade-in .16s ease-out;
+        }
+        .app-confirm-card {
+            width: min(96vw, 560px);
+            background: color-mix(in srgb, var(--ab-card) 94%, white 6%);
+            border: 1px solid color-mix(in srgb, var(--ab-border) 84%, white 16%);
+            border-radius: 20px;
+            box-shadow: 0 32px 88px rgba(2, 6, 23, 0.38);
+            padding: 20px 20px 16px;
+            transform: translateY(8px) scale(.98);
+            animation: confirm-pop-in .2s ease-out forwards;
+        }
+        .app-confirm-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .app-confirm-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f97316, #fb923c);
+            color: #fff;
+            box-shadow: 0 12px 26px rgba(249, 115, 22, 0.3);
+            flex: 0 0 42px;
+        }
+        .app-confirm-wrap.danger .app-confirm-icon {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            box-shadow: 0 12px 26px rgba(239, 68, 68, 0.3);
+        }
+        .app-confirm-title {
+            font-weight: 800;
+            font-size: 1.02rem;
+            color: var(--ab-ink);
+        }
+        .app-confirm-message {
+            color: var(--ab-muted);
+            font-size: 0.94rem;
+            line-height: 1.42rem;
+            margin-bottom: 14px;
+        }
+        .app-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        @keyframes confirm-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes confirm-pop-in {
+            from { opacity: 0; transform: translateY(8px) scale(.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(8px) scale(.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pop-check {
+            0% { transform: scale(.4); opacity: 0; }
+            60% { transform: scale(1.12); opacity: 1; }
+            100% { transform: scale(1); }
         }
         @media (max-width: 992px) {
             .sidebar {
                 display: none;
             }
             .app-main {
-                padding: 16px;
+                padding: 14px;
             }
             .mobile-nav {
                 display: flex;
@@ -689,6 +1132,8 @@ $user = Auth::user();
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 12px;
+                position: static;
+                padding: 0;
             }
             .topbar .user-pill {
                 width: 100%;
@@ -705,6 +1150,12 @@ $user = Auth::user();
             .btn-xl {
                 width: 100%;
             }
+            .card {
+                border-radius: 18px !important;
+            }
+            .table-responsive {
+                border-radius: 12px !important;
+            }
             .input-xl {
                 font-size: 1.05rem;
                 padding: 0.9rem;
@@ -719,10 +1170,47 @@ $user = Auth::user();
         }
         @media (max-width: 576px) {
             .app-main {
-                padding: 12px;
+                padding: 10px;
+            }
+            body.compact-mobile .btn {
+                min-height: 40px;
+                font-size: .88rem;
+                padding: .42rem .62rem;
+            }
+            body.compact-mobile .btn-xl {
+                font-size: .96rem;
+                padding: .7rem .95rem;
+            }
+            body.compact-mobile .form-control,
+            body.compact-mobile .form-select {
+                min-height: 40px;
+                font-size: .92rem;
+                padding: .42rem .62rem;
+            }
+            body.compact-mobile .card {
+                border-radius: 14px !important;
+            }
+            body.compact-mobile .metric-card {
+                padding: .75rem !important;
+            }
+            body.compact-mobile .metric-icon {
+                width: 34px;
+                height: 34px;
+                border-radius: 10px !important;
+                font-size: .92rem;
+            }
+            body.compact-mobile .section-title .icon {
+                width: 30px;
+                height: 30px;
+                border-radius: 10px !important;
             }
             .card {
                 border-radius: 16px;
+            }
+            .section-title h3,
+            .section-title h4,
+            .section-title h5 {
+                font-size: 1.02rem;
             }
             .section-title {
                 align-items: flex-start;
@@ -737,11 +1225,376 @@ $user = Auth::user();
             }
             .topbar .user-pill {
                 gap: 6px;
+                border-radius: 14px;
+                padding: 8px 10px;
+                width: 100%;
             }
             .table-responsive {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
-                font-size: 0.9rem;
+                font-size: 0.86rem;
+            }
+            .table thead th,
+            .table tbody td {
+                white-space: nowrap;
+            }
+            .export-toast-wrap {
+                padding: 14px;
+            }
+            .export-toast {
+                max-width: 100%;
+                width: 100%;
+                min-width: auto;
+            }
+        }
+        @media (min-width: 993px) {
+            .topbar .user-pill.desktop-only {
+                display: none !important;
+            }
+        }
+
+        /* ===== v2.0 - Refino visual iOS-like ===== */
+        :root {
+            --ab-radius-xl: 22px;
+            --ab-radius-lg: 16px;
+            --ab-radius-md: 12px;
+            --ab-card-border: color-mix(in srgb, #dbe4f0 84%, #ffffff 16%);
+            --ab-card-shadow: 0 20px 48px rgba(15, 23, 42, 0.1);
+            --ab-card-shadow-soft: 0 12px 30px rgba(15, 23, 42, 0.07);
+        }
+        [data-theme="dark"] {
+            --ab-card-border: color-mix(in srgb, #3f587a 70%, #0f1a2c 30%);
+            --ab-card-shadow: 0 24px 52px rgba(2, 6, 23, 0.42);
+            --ab-card-shadow-soft: 0 12px 30px rgba(2, 6, 23, 0.32);
+        }
+        body {
+            background:
+                radial-gradient(1100px 520px at 8% -8%, color-mix(in srgb, var(--ab-primary) 12%, transparent), transparent 72%),
+                radial-gradient(1100px 520px at 100% -10%, color-mix(in srgb, var(--ab-accent-2) 10%, transparent), transparent 74%),
+                var(--ab-bg);
+            background-attachment: fixed;
+        }
+        .card,
+        .card-soft,
+        .metric-card,
+        .table-responsive,
+        .topbar .user-pill,
+        .mobile-nav {
+            border-radius: var(--ab-radius-xl) !important;
+            border: 1px solid var(--ab-card-border) !important;
+            box-shadow: var(--ab-card-shadow-soft) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .card,
+        .card-soft,
+        .metric-card,
+        .table-responsive {
+            background: color-mix(in srgb, var(--ab-card) 94%, #ffffff 6%) !important;
+        }
+        [data-theme="dark"] .card,
+        [data-theme="dark"] .card-soft,
+        [data-theme="dark"] .metric-card,
+        [data-theme="dark"] .table-responsive {
+            background: color-mix(in srgb, var(--ab-card) 96%, #22344d 4%) !important;
+        }
+        .card:hover,
+        .metric-card:hover {
+            box-shadow: var(--ab-card-shadow) !important;
+            transform: translateY(-1px);
+        }
+        .sidebar {
+            border-right: 1px solid var(--ab-card-border);
+            box-shadow: 10px 0 34px rgba(15, 23, 42, 0.07);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+        [data-theme="dark"] .sidebar {
+            box-shadow: 8px 0 32px rgba(2, 6, 23, 0.28);
+        }
+        .sidebar-menu .nav-link {
+            border-radius: var(--ab-radius-lg) !important;
+            border: 1px solid transparent;
+            background: color-mix(in srgb, var(--ab-panel-bg) 88%, transparent);
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            border-color: color-mix(in srgb, var(--ab-primary) 28%, transparent);
+            box-shadow: 0 10px 24px rgba(249, 115, 22, 0.2);
+        }
+        .topbar {
+            border-radius: var(--ab-radius-xl);
+            border: 1px solid var(--ab-card-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: var(--ab-card-shadow-soft);
+            background: color-mix(in srgb, var(--ab-panel-bg) 92%, transparent);
+            padding-inline: 14px;
+        }
+        [data-theme="dark"] .topbar {
+            background: color-mix(in srgb, var(--ab-panel-bg) 86%, #0f1a2c 14%);
+        }
+        .btn {
+            border-radius: var(--ab-radius-md);
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .btn-primary,
+        .btn-success,
+        .btn-danger,
+        .btn-warning,
+        .btn-info {
+            color: #fff !important;
+            text-shadow: 0 1px 0 rgba(0,0,0,0.18);
+        }
+        .btn-outline-primary {
+            border-color: rgba(249, 115, 22, 0.45);
+            color: #c2410c !important;
+            background: color-mix(in srgb, var(--ab-card) 90%, transparent);
+        }
+        [data-theme="dark"] .btn-outline-primary {
+            color: #fdba74 !important;
+            border-color: rgba(251, 146, 60, 0.54);
+            background: rgba(251,146,60,0.08);
+        }
+        .form-control,
+        .form-select,
+        .input-group-text {
+            border-radius: 14px !important;
+        }
+        .table {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+        .table thead th {
+            border-bottom: none !important;
+        }
+        .table tbody tr {
+            background: color-mix(in srgb, var(--ab-panel-bg) 90%, transparent);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ab-border) 82%, transparent);
+        }
+        [data-theme="dark"] .table tbody tr {
+            background: color-mix(in srgb, var(--ab-soft-bg) 78%, #18263b 22%);
+        }
+        .table tbody td:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+        .table tbody td:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+        .section-title .icon {
+            box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.25), 0 8px 16px rgba(249, 115, 22, 0.16);
+        }
+        .split-pane-layout {
+            row-gap: 14px !important;
+        }
+        html[data-theme='dark'] .bg-white,
+        html[data-theme='dark'] .bg-light,
+        html[data-theme='dark'] .bg-body,
+        html[data-theme='dark'] .bg-body-secondary,
+        html[data-theme='dark'] .bg-body-tertiary,
+        html[data-theme='dark'] .bg-light-subtle {
+            background-color: var(--ab-panel-bg) !important;
+            color: var(--ab-ink) !important;
+        }
+        html[data-theme='dark'] .table-light > :not(caption) > * > * {
+            background-color: color-mix(in srgb, var(--ab-soft-bg) 84%, #122038 16%) !important;
+            color: var(--ab-ink) !important;
+            border-color: var(--ab-border) !important;
+        }
+        html[data-theme='dark'] .text-dark,
+        html[data-theme='dark'] .text-body,
+        html[data-theme='dark'] .text-black {
+            color: var(--ab-ink) !important;
+        }
+        html[data-theme='dark'] .border,
+        html[data-theme='dark'] .border-top,
+        html[data-theme='dark'] .border-bottom,
+        html[data-theme='dark'] .border-start,
+        html[data-theme='dark'] .border-end {
+            border-color: var(--ab-border) !important;
+        }
+        html[data-theme='dark'] .offcanvas .nav-link {
+            color: var(--ab-ink) !important;
+        }
+
+        /* Tabelas: acabamento visual refinado (desktop + mobile) */
+        .table-responsive {
+            position: relative;
+            border-radius: 18px !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 86%, transparent) !important;
+            background: color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%) !important;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+            overflow-x: auto;
+            overflow-y: visible;
+            padding: 2px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            scrollbar-gutter: stable both-edges;
+        }
+        .table-responsive::before,
+        .table-responsive::after {
+            content: "";
+            position: sticky;
+            top: 0;
+            bottom: 0;
+            width: 18px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .2s ease;
+            z-index: 5;
+            display: block;
+        }
+        .table-responsive::before {
+            left: 0;
+            float: left;
+            margin-right: -18px;
+            background: linear-gradient(90deg, color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%) 0%, rgba(255,255,255,0) 100%);
+        }
+        .table-responsive::after {
+            right: 0;
+            float: right;
+            margin-left: -18px;
+            background: linear-gradient(270deg, color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%) 0%, rgba(255,255,255,0) 100%);
+        }
+        .table-responsive.is-scrollable:not(.at-start)::before {
+            opacity: 1;
+        }
+        .table-responsive.is-scrollable:not(.at-end)::after {
+            opacity: 1;
+        }
+        .table-responsive::-webkit-scrollbar {
+            height: 10px;
+        }
+        .table-responsive::-webkit-scrollbar-track {
+            background: color-mix(in srgb, var(--ab-soft-bg) 68%, transparent);
+            border-radius: 999px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: linear-gradient(90deg, rgba(251,146,60,.82), rgba(249,115,22,.72));
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(90deg, rgba(251,146,60,.96), rgba(249,115,22,.86));
+            background-clip: padding-box;
+        }
+        [data-theme='dark'] .table-responsive {
+            background: color-mix(in srgb, var(--ab-card) 95%, #152138 5%) !important;
+            box-shadow: 0 12px 28px rgba(2, 6, 23, 0.3) !important;
+        }
+        [data-theme='dark'] .table-responsive::before {
+            background: linear-gradient(90deg, color-mix(in srgb, var(--ab-card) 96%, #152138 4%) 0%, rgba(21,33,56,0) 100%);
+        }
+        [data-theme='dark'] .table-responsive::after {
+            background: linear-gradient(270deg, color-mix(in srgb, var(--ab-card) 96%, #152138 4%) 0%, rgba(21,33,56,0) 100%);
+        }
+        [data-theme='dark'] .table-responsive::-webkit-scrollbar-track {
+            background: color-mix(in srgb, var(--ab-soft-bg) 74%, #0f1a2c 26%);
+        }
+        .table {
+            margin-bottom: 0 !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            background: transparent;
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+            background: linear-gradient(180deg, rgba(249,115,22,0.12) 0%, rgba(249,115,22,0.07) 100%) !important;
+            color: #9a3412 !important;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 80%, transparent) !important;
+            padding: 0.74rem 0.78rem !important;
+            white-space: nowrap;
+        }
+        [data-theme='dark'] .table thead th {
+            background: linear-gradient(180deg, rgba(251,146,60,0.2) 0%, rgba(251,146,60,0.12) 100%) !important;
+            color: #ffd7b0 !important;
+            border-bottom-color: color-mix(in srgb, var(--ab-border) 92%, transparent) !important;
+        }
+        .table tbody td {
+            padding: 0.76rem 0.78rem !important;
+            border-top: 0 !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 74%, transparent) !important;
+            vertical-align: middle;
+            background: transparent;
+        }
+        [data-theme='dark'] .table tbody td {
+            border-bottom-color: color-mix(in srgb, var(--ab-border) 82%, transparent) !important;
+        }
+        .table tbody tr:last-child td {
+            border-bottom-color: transparent !important;
+        }
+        .table tbody tr {
+            transition: transform .14s ease, box-shadow .14s ease;
+        }
+        .table tbody tr:hover td {
+            background: color-mix(in srgb, rgba(249,115,22,0.1) 65%, transparent) !important;
+        }
+        [data-theme='dark'] .table tbody tr:hover td {
+            background: color-mix(in srgb, rgba(251,146,60,0.17) 52%, rgba(21,33,56,0.74) 48%) !important;
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background: color-mix(in srgb, var(--ab-soft-bg) 66%, transparent) !important;
+        }
+        [data-theme='dark'] .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background: color-mix(in srgb, var(--ab-soft-bg) 78%, #14233a 22%) !important;
+        }
+        .table td .btn,
+        .table td .form-control,
+        .table td .form-select {
+            min-height: 36px;
+            border-radius: 10px !important;
+        }
+        .table td .btn-sm {
+            padding: 0.32rem 0.58rem;
+            font-size: 0.8rem;
+        }
+        .table .text-muted {
+            font-size: 0.85rem;
+        }
+        .table td:first-child,
+        .table th:first-child {
+            padding-left: 0.92rem !important;
+        }
+        .table td:last-child,
+        .table th:last-child {
+            padding-right: 0.92rem !important;
+        }
+        @media (max-width: 768px) {
+            .table-responsive {
+                border-radius: 14px !important;
+                padding: 1px;
+            }
+            .table thead th {
+                font-size: 0.68rem;
+                padding: 0.6rem 0.62rem !important;
+            }
+            .table tbody td {
+                font-size: 0.84rem;
+                padding: 0.62rem !important;
+                white-space: nowrap;
+            }
+        }
+        @media (max-width: 992px) {
+            .topbar {
+                border: 0;
+                box-shadow: none;
+                background: transparent;
+                padding-inline: 0;
+            }
+            .card,
+            .table-responsive,
+            .mobile-nav {
+                border-radius: 18px !important;
             }
         }
     </style>
@@ -754,22 +1607,33 @@ $user = Auth::user();
         $activeShift = $shiftModel->getActiveByUser($user['id']);
         $canTematicas = in_array($user['perfil'], ['admin', 'supervisor'], true);
         $canTematicasReserva = false;
+        $isHostessTematicoOnly = false;
         if (!$canTematicas && $user['perfil'] === 'hostess') {
             $userRestaurantModel = new UserRestaurantModel();
             $assignedRests = $userRestaurantModel->byUser($user['id']);
+            $hasTematico = false;
+            $hasRegistroClassico = false;
             foreach ($assignedRests as $rest) {
-                if (stripos($rest['nome'], 'Corais') !== false) {
+                $restName = (string)($rest['nome'] ?? '');
+                if (stripos($restName, 'Corais') !== false) {
                     $canTematicas = true;
                     $canTematicasReserva = true;
+                    $hasRegistroClassico = true;
                 }
-                $name = mb_strtolower($rest['nome'], 'UTF-8');
-                if (strpos($name, 'giardino') !== false || strpos($name, 'la brasa') !== false || strpos($name, 'ix') !== false || strpos($name, 'ixu') !== false) {
+                $name = mb_strtolower(normalize_mojibake($restName), 'UTF-8');
+                $isTematicoRest = (strpos($name, 'giardino') !== false || strpos($name, 'la brasa') !== false || strpos($name, "ix'u") !== false || strpos($name, 'ixu') !== false || strpos($name, 'ix') !== false);
+                if ($isTematicoRest) {
                     $canTematicas = true;
+                    $hasTematico = true;
+                } else {
+                    $hasRegistroClassico = true;
                 }
             }
+            $isHostessTematicoOnly = $hasTematico && !$hasRegistroClassico;
         }
         ?>
         <aside class="sidebar">
+            <div class="sidebar-top">
             <div class="mb-4 brand-block">
                 <div class="text-uppercase text-muted small">Plataforma</div>
                 <div class="brand-title h4 mb-1"><?= h($appName) ?></div>
@@ -781,8 +1645,18 @@ $user = Auth::user();
                     <img src="<?= h($logoPath) ?>" alt="Logo do Resort" class="brand-logo">
                 <?php endif; ?>
             </div>
-            <?php if ($user['perfil'] === 'hostess'): ?>
-                <?php
+            <?php
+            $perfilLabelMap = [
+                'admin' => 'Administrador',
+                'supervisor' => 'Supervisor',
+                'gerente' => 'Gerente',
+                'hostess' => 'Hostess',
+            ];
+            $perfilAtual = strtolower((string)($user['perfil'] ?? ''));
+            $perfilLabel = $perfilLabelMap[$perfilAtual] ?? ucfirst($perfilAtual);
+            $completedTurns = 0;
+            $level = null;
+            if ($perfilAtual === 'hostess') {
                 $completedTurns = $shiftModel->countCompletedByUser($user['id']);
                 $level = 'Bronze';
                 if ($completedTurns >= 60) {
@@ -792,30 +1666,38 @@ $user = Auth::user();
                 } elseif ($completedTurns >= 10) {
                     $level = 'Prata';
                 }
-                ?>
-                <div class="mb-3 p-3 rounded-3" style="background: rgba(249,115,22,0.08); border: 1px solid rgba(249,115,22,0.2);">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <?php if (!empty($user['foto_path'])): ?>
-                            <img src="<?= h($user['foto_path']) ?>" alt="Foto" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
-                        <?php else: ?>
-                            <div class="d-flex align-items-center justify-content-center bg-light" style="width:40px;height:40px;border-radius:50%;">
-                                <i class="bi bi-person"></i>
-                            </div>
-                        <?php endif; ?>
-                        <div>
-                            <div class="fw-semibold"><?= h($user['nome']) ?></div>
-                            <div class="text-muted small">Hostess</div>
+            }
+            ?>
+            <div class="sidebar-user-card">
+                <div class="d-flex align-items-center gap-2">
+                    <?php if (!empty($user['foto_path'])): ?>
+                        <img src="<?= h($user['foto_path']) ?>" alt="Foto do usuário" class="sidebar-user-avatar">
+                    <?php else: ?>
+                        <div class="sidebar-user-fallback">
+                            <i class="bi bi-person"></i>
                         </div>
-                    </div>
-                    <div class="d-flex flex-column gap-1 small text-muted">
-                        <span><i class="bi bi-award me-1"></i>Nível <?= h($level) ?></span>
-                        <span><i class="bi bi-flag me-1"></i><?= (int)$completedTurns ?> turnos concluídos</span>
+                    <?php endif; ?>
+                    <div>
+                        <div class="fw-semibold"><?= h($user['nome']) ?></div>
+                        <div class="sidebar-user-role"><?= h($perfilLabel) ?></div>
                     </div>
                 </div>
-            <?php endif; ?>
-            <nav class="nav flex-column">
+                <?php if ($perfilAtual === 'hostess'): ?>
+                    <div class="sidebar-user-extra">
+                        <span><i class="bi bi-award me-1"></i>Nível <?= h((string)$level) ?></span>
+                        <span><i class="bi bi-flag me-1"></i><?= (int)$completedTurns ?> turnos concluídos</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+            </div>
+            <div class="sidebar-menu">
+                <nav class="nav flex-column">
                 <?php if (in_array($user['perfil'], ['hostess'], true)): ?>
-                    <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
+                    <?php if ($isHostessTematicoOnly): ?>
+                        <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Registro Temático</a>
+                    <?php else: ?>
+                        <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
+                    <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($user['perfil'] === 'hostess'): ?>
                     <a class="nav-link" href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
@@ -827,7 +1709,9 @@ $user = Auth::user();
                     <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true) || $canTematicasReserva): ?>
                         <a class="nav-link" href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
                     <?php endif; ?>
-                    <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
+                    <?php if (!($user['perfil'] === 'hostess' && $isHostessTematicoOnly)): ?>
+                        <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
+                    <?php endif; ?>
                     <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                         <a class="nav-link" href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
                     <?php endif; ?>
@@ -835,6 +1719,7 @@ $user = Auth::user();
                 <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
                     <a class="nav-link" href="/?r=control/index"><i class="bi bi-speedometer2"></i> Centro de Controle</a>
                     <a class="nav-link" href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
+                    <a class="nav-link" href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
                     <a class="nav-link" href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
                     <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true)): ?>
                         <a class="nav-link" href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
@@ -852,7 +1737,8 @@ $user = Auth::user();
                         <a class="nav-link" href="/?r=emailRelatorios/index"><i class="bi bi-envelope-paper"></i> E-mail Diário</a>
                     <?php endif; ?>
                 <?php endif; ?>
-            </nav>
+                </nav>
+            </div>
         </aside>
     <?php endif; ?>
     <div class="app-main">
@@ -891,7 +1777,11 @@ $user = Auth::user();
                     <?php endif; ?>
                     <div class="nav flex-column gap-1">
                         <?php if (in_array($user['perfil'], ['hostess'], true)): ?>
-                            <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
+                            <?php if ($isHostessTematicoOnly): ?>
+                                <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Registro Temático</a>
+                            <?php else: ?>
+                                <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <?php if ($user['perfil'] === 'hostess'): ?>
                             <a class="nav-link" href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
@@ -903,7 +1793,9 @@ $user = Auth::user();
                             <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true) || $canTematicasReserva): ?>
                                 <a class="nav-link" href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
                             <?php endif; ?>
-                            <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
+                            <?php if (!($user['perfil'] === 'hostess' && $isHostessTematicoOnly)): ?>
+                                <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
+                            <?php endif; ?>
                             <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                                 <a class="nav-link" href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
                             <?php endif; ?>
@@ -911,6 +1803,7 @@ $user = Auth::user();
                         <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
                             <a class="nav-link" href="/?r=control/index"><i class="bi bi-speedometer2"></i> Centro de Controle</a>
                             <a class="nav-link" href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
+                            <a class="nav-link" href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
                             <a class="nav-link" href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
                             <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true)): ?>
                                 <a class="nav-link" href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
@@ -941,6 +1834,10 @@ $user = Auth::user();
                         <i class="bi bi-moon-stars-fill me-1"></i>
                         Tema
                     </button>
+                    <a class="btn btn-outline-dark btn-sm" href="/?r=auth/logout">
+                        <i class="bi bi-box-arrow-right me-1"></i>
+                        Sair
+                    </a>
                     <?php if ($activeShift): ?>
                         <div class="turno-pill">
                             <i class="bi bi-clock-history"></i>
@@ -952,16 +1849,16 @@ $user = Auth::user();
                             <div class="stat-chip"><i class="bi bi-door-open"></i><?= h($activeShift['porta']) ?></div>
                         <?php endif; ?>
                     <?php endif; ?>
-                    <div class="user-pill">
+                    <div class="user-pill desktop-only">
                         <i class="bi bi-person-circle"></i>
                         <div>
                             <div class="fw-semibold"><?= h($user['nome']) ?></div>
                             <div class="text-muted small"><?= h($user['perfil']) ?></div>
                         </div>
-                        <a class="btn btn-outline-dark btn-sm" href="/?r=auth/logout">Sair</a>
                     </div>
                 </div>
             </div>
         <?php endif; ?>
         <main class="app-content pb-4">
+
 

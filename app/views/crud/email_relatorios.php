@@ -61,19 +61,40 @@ $logs = $this->data['logs'] ?? [];
                 <div class="col-12 col-md-8">
                     <input type="email" class="form-control input-xl" name="email" placeholder="email@dominio.com" required>
                 </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="receber_anexo_vouchers" value="1" id="receber_anexo_vouchers_novo">
+                        <label class="form-check-label" for="receber_anexo_vouchers_novo">
+                            Enviar anexos dos vouchers para este destinatário
+                        </label>
+                    </div>
+                </div>
                 <div class="col-12 col-md-4">
                     <button class="btn btn-outline-primary btn-xl w-100">Adicionar</button>
                 </div>
             </form>
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
-                    <thead><tr><th>E-mail</th><th style="width:120px;">Ação</th></tr></thead>
+                    <thead><tr><th>E-mail</th><th style="width:220px;">Anexo vouchers</th><th style="width:120px;">Ação</th></tr></thead>
                     <tbody>
                     <?php foreach ($recipients as $r): ?>
                         <tr>
                             <td><?= h($r['email']) ?></td>
                             <td>
-                                <form method="post" action="/?r=emailRelatorios/removeRecipient" onsubmit="return confirm('Remover destinatário?');">
+                                <form method="post" action="/?r=emailRelatorios/updateRecipientAttachment" class="d-flex align-items-center gap-2">
+                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                    <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
+                                    <input type="hidden" name="receber_anexo_vouchers" value="<?= (int)($r['receber_anexo_vouchers'] ?? 0) === 1 ? '0' : '1' ?>">
+                                    <span class="badge <?= (int)($r['receber_anexo_vouchers'] ?? 0) === 1 ? 'badge-success' : 'badge-soft' ?>">
+                                        <?= (int)($r['receber_anexo_vouchers'] ?? 0) === 1 ? 'Ativo' : 'Inativo' ?>
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                                        <?= (int)($r['receber_anexo_vouchers'] ?? 0) === 1 ? 'Desativar' : 'Ativar' ?>
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" action="/?r=emailRelatorios/removeRecipient" data-confirm="Remover destinatário?" data-confirm-title="Remover destinatário" data-confirm-type="danger">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
                                     <button class="btn btn-sm btn-outline-danger">Remover</button>
@@ -82,7 +103,7 @@ $logs = $this->data['logs'] ?? [];
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($recipients)): ?>
-                        <tr><td colspan="2" class="text-muted">Nenhum destinatário.</td></tr>
+                        <tr><td colspan="3" class="text-muted">Nenhum destinatário.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

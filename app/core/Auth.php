@@ -105,6 +105,7 @@ class Auth
             'perfil' => $perfil,
             'foto_path' => $user['foto_path'] ?? null,
         ];
+        $_SESSION['last_activity_at'] = time();
         self::upsertSessionRegistry((int)$user['id']);
     }
 
@@ -169,6 +170,28 @@ class Auth
         }
     }
 
+    public static function enforceIdleTimeout(int $timeoutMinutes = 30): void
+    {
+        if (!self::check()) {
+            return;
+        }
+
+        $timeoutSeconds = max(60, $timeoutMinutes * 60);
+        $now = time();
+        $last = (int)($_SESSION['last_activity_at'] ?? 0);
+
+        if ($last > 0 && ($now - $last) > $timeoutSeconds) {
+            if (function_exists('set_flash')) {
+                set_flash('warning', 'Sessão encerrada por inatividade (' . (int)$timeoutMinutes . ' minutos).');
+            }
+            self::logout();
+            header('Location: /?r=auth/login');
+            exit;
+        }
+
+        $_SESSION['last_activity_at'] = $now;
+    }
+
     public static function requireRole(array $roles): void
     {
         $user = self::user();
@@ -184,3 +207,4 @@ class Auth
         }
     }
 }
+
