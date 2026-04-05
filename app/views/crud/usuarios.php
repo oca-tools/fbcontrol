@@ -1,7 +1,9 @@
 <?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
-$assigned = $this->data['assigned'] ?? [];
+$assignmentOptions = $this->data['assignment_options'] ?? [];
+$assignedRestaurants = $this->data['assigned_restaurants'] ?? [];
+$assignedOperations = $this->data['assigned_operations'] ?? [];
 ?>
 <div class="card card-soft p-4 mb-4">
     <div class="section-title">
@@ -44,13 +46,13 @@ $assigned = $this->data['assigned'] ?? [];
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Restaurantes (para hostess)</label>
+                    <label class="form-label">Restaurantes e Operações (para hostess)</label>
                     <div class="tag-grid">
-                        <?php foreach ($restaurantes as $rest): ?>
-                            <?php $rid = (int)$rest['id']; ?>
+                        <?php foreach ($assignmentOptions as $opt): ?>
+                            <?php $key = preg_replace('/[^a-zA-Z0-9_]/', '_', (string)$opt['key']); ?>
                             <div class="tag-choice">
-                                <input type="checkbox" id="novo_rest_<?= $rid ?>" name="restaurantes[]" value="<?= $rid ?>">
-                                <label for="novo_rest_<?= $rid ?>"><?= h($rest['nome']) ?></label>
+                                <input type="checkbox" id="novo_assign_<?= h($key) ?>" name="assignments[]" value="<?= h((string)$opt['key']) ?>">
+                                <label for="novo_assign_<?= h($key) ?>"><?= h((string)$opt['label']) ?></label>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -68,6 +70,7 @@ $assigned = $this->data['assigned'] ?? [];
             <div class="row g-3">
                 <?php foreach ($this->data['items'] as $item): ?>
                     <?php
+                        $uid = (int)$item['id'];
                         $isRemovedUser =
                             (strpos((string)($item['email'] ?? ''), '@anon.local') !== false) ||
                             (stripos((string)($item['nome'] ?? ''), 'removido') !== false);
@@ -75,7 +78,7 @@ $assigned = $this->data['assigned'] ?? [];
                     <div class="col-12">
                         <form method="post" action="/?r=usuarios/edit" class="card p-3">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                            <input type="hidden" name="id" value="<?= $uid ?>">
                             <?php if ($isRemovedUser): ?>
                                 <div class="d-flex justify-content-end mb-2">
                                     <span class="badge badge-danger">Usuário removido</span>
@@ -111,14 +114,26 @@ $assigned = $this->data['assigned'] ?? [];
                                     <input type="password" name="senha" class="form-control" placeholder="Digite uma nova senha">
                                 </div>
                                 <div class="col-12 col-md-6">
-                                    <label class="form-label small text-muted">Restaurantes</label>
+                                    <label class="form-label small text-muted">Restaurantes e operações</label>
                                     <div class="tag-grid">
-                                        <?php foreach ($restaurantes as $rest): ?>
-                                            <?php $rid = (int)$rest['id']; ?>
-                                            <?php $isSelected = in_array($rid, $assigned[$item['id']] ?? [], true); ?>
+                                        <?php foreach ($assignmentOptions as $opt): ?>
+                                            <?php
+                                                $rid = (int)($opt['restaurante_id'] ?? 0);
+                                                $oid = isset($opt['operacao_id']) && $opt['operacao_id'] !== null ? (int)$opt['operacao_id'] : null;
+                                                $restSelected = in_array($rid, $assignedRestaurants[$uid] ?? [], true);
+                                                $opsSelected = $assignedOperations[$uid][$rid] ?? [];
+                                                $isSelected = $oid === null
+                                                    ? $restSelected
+                                                    : (in_array($oid, $opsSelected, true) || ($restSelected && empty($opsSelected)));
+                                                $key = preg_replace('/[^a-zA-Z0-9_]/', '_', (string)$opt['key']);
+                                            ?>
                                             <div class="tag-choice">
-                                                <input type="checkbox" id="edit_<?= (int)$item['id'] ?>_rest_<?= $rid ?>" name="restaurantes[]" value="<?= $rid ?>" <?= $isSelected ? 'checked' : '' ?>>
-                                                <label for="edit_<?= (int)$item['id'] ?>_rest_<?= $rid ?>"><?= h($rest['nome']) ?></label>
+                                                <input type="checkbox"
+                                                       id="edit_<?= $uid ?>_assign_<?= h($key) ?>"
+                                                       name="assignments[]"
+                                                       value="<?= h((string)$opt['key']) ?>"
+                                                       <?= $isSelected ? 'checked' : '' ?>>
+                                                <label for="edit_<?= $uid ?>_assign_<?= h($key) ?>"><?= h((string)$opt['label']) ?></label>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
@@ -138,6 +153,3 @@ $assigned = $this->data['assigned'] ?? [];
         </div>
     </div>
 </div>
-
-
-

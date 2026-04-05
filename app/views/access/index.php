@@ -12,14 +12,39 @@ $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 $canCancel = $this->data['can_cancel'] ?? false;
 $lastEditableAccess = $this->data['last_editable_access'] ?? null;
-$allowHostessTutorial = (bool)($this->data['allow_hostess_tutorial'] ?? false);
-$showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
+// Tutorial legado desativado: agora usamos o tutorial guiado global por página/perfil.
+$allowHostessTutorial = false;
+$showHostessTutorial = false;
 ?>
 
+<style>
+    .access-start-grid .saas-hero-card,
+    .access-register-grid .saas-hero-card {
+        border-radius: 24px;
+        box-shadow: var(--ab-shadow-card);
+    }
+    .access-register-grid .section-block {
+        border: 1px solid var(--ab-border);
+        border-radius: 22px;
+        padding: 1rem;
+        background: var(--ab-card);
+        box-shadow: var(--ab-shadow-soft);
+    }
+    .access-register-grid .recent-live-table td,
+    .access-register-grid .recent-live-table th {
+        white-space: nowrap;
+    }
+    .access-register-grid .quick-uh-wrap {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.5rem;
+    }
+</style>
+
 <?php if ($mode === 'start'): ?>
-    <div class="row justify-content-center">
+    <div class="row justify-content-center access-start-grid">
         <div class="col-12 col-lg-8">
-            <div class="card p-4">
+            <div class="card p-4 saas-hero-card">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
                         <div class="text-uppercase text-muted small">Turno operacional</div>
@@ -447,9 +472,9 @@ $showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
     });
     </script>
 <?php else: ?>
-    <div class="row g-4">
+    <div class="row g-4 access-register-grid">
         <div class="col-12 col-lg-7">
-            <div class="card p-4">
+            <div class="card p-4 saas-hero-card">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
                         <div class="text-uppercase text-muted small">Registro em tempo real</div>
@@ -494,7 +519,7 @@ $showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Exceções rápidas</label>
-                        <div class="d-flex flex-wrap gap-2" id="uhQuickExceptions">
+                        <div class="quick-uh-wrap" id="uhQuickExceptions">
                             <button type="button" class="btn btn-outline-primary btn-sm js-quick-uh" data-uh="998" data-label="Não informado">
                                 <i class="bi bi-question-circle me-1"></i>Não informado
                             </button>
@@ -559,7 +584,7 @@ $showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
             </div>
 
             <?php if (!empty($this->data['is_corais'])): ?>
-                <div class="card p-4 mt-4">
+                <div class="section-block mt-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
                             <div class="text-uppercase text-muted small">Registros adicionais</div>
@@ -586,13 +611,13 @@ $showHostessTutorial = (bool)($this->data['show_hostess_tutorial'] ?? false);
         </div>
 
         <div class="col-12 col-lg-5">
-            <div class="card p-4">
+            <div class="section-block">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="fw-bold mb-0">Últimos acessos</h4>
                     <span class="text-muted small">Ao vivo</span>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle">
+                    <table class="table table-sm align-middle recent-live-table">
                         <thead>
                             <tr>
                                 <th>UH</th>

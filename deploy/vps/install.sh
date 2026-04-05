@@ -46,8 +46,8 @@ sed -i "s/'name' => 'controle_ab'/'name' => '${DB_NAME//\//\\/}'/" "${APP_DIR}/c
 sed -i "s/'user' => 'controle_ab_user'/'user' => '${DB_USER//\//\\/}'/" "${APP_DIR}/config/config.local.php"
 sed -i "s/'pass' => 'troque_por_senha_forte'/'pass' => '${DB_PASS//\//\\/}'/" "${APP_DIR}/config/config.local.php"
 
-echo "[4/7] Importando schema consolidado 1.1..."
-SCHEMA_FILE="${APP_DIR}/sql/schema_v1_1_final.sql"
+echo "[4/7] Importando schema consolidado 2.1..."
+SCHEMA_FILE="${APP_DIR}/sql/schema_v2_1_final.sql"
 if [[ ! -f "$SCHEMA_FILE" ]]; then
   echo "Arquivo não encontrado: $SCHEMA_FILE"
   exit 1

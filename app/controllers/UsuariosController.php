@@ -8,13 +8,23 @@ class UsuariosController extends Controller
 
         $model = new UserModel();
         $restaurantModel = new RestaurantModel();
+        $operationModel = new RestaurantOperationModel();
         $items = $model->all();
+
         $assignModel = new UserRestaurantModel();
-        $map = $assignModel->mapByUsers(array_map(fn($u) => (int)$u['id'], $items));
+        $assignOpModel = new UserRestaurantOperationModel();
+        $userIds = array_map(fn($u) => (int)$u['id'], $items);
+
+        $restaurants = $restaurantModel->all();
+        $assignedRestaurants = $assignModel->mapByUsers($userIds);
+        $assignedOperations = $assignOpModel->mapByUsers($userIds);
+
         $this->view('crud/usuarios', [
             'items' => $items,
-            'restaurantes' => $restaurantModel->all(),
-            'assigned' => $map,
+            'restaurantes' => $restaurants,
+            'assignment_options' => $this->buildAssignmentOptions($restaurants, $operationModel),
+            'assigned_restaurants' => $assignedRestaurants,
+            'assigned_operations' => $assignedOperations,
             'flash' => get_flash(),
         ]);
     }
@@ -36,7 +46,7 @@ class UsuariosController extends Controller
         $email = trim($_POST['email'] ?? '');
         $senha = $_POST['senha'] ?? '';
         $perfil = $_POST['perfil'] ?? 'hostess';
-        $restaurantes = $_POST['restaurantes'] ?? [];
+        [$restaurantes, $restaurantesOperacoes] = $this->parseAssignmentSelections($_POST['assignments'] ?? []);
 
         if ($nome === '' || $email === '' || $senha === '') {
             set_flash('danger', 'Preencha todos os campos obrigatórios.');
@@ -48,18 +58,27 @@ class UsuariosController extends Controller
             set_flash('danger', 'Este e-mail já está cadastrado.');
             $this->redirect('/?r=usuarios/index');
         }
+
+        $adminId = (int)Auth::user()['id'];
         $userId = $model->create([
             'nome' => $nome,
             'email' => $email,
             'senha' => $senha,
             'perfil' => $perfil,
             'ativo' => 1,
-        ], Auth::user()['id']);
+        ], $adminId);
 
-        if (!empty($restaurantes)) {
-            $assignModel = new UserRestaurantModel();
-            foreach ($restaurantes as $restId) {
-                $assignModel->assign($userId, (int)$restId, Auth::user()['id']);
+        $assignModel = new UserRestaurantModel();
+        foreach ($restaurantes as $restId) {
+            $assignModel->assign($userId, (int)$restId, $adminId);
+        }
+
+        if (!empty($restaurantesOperacoes)) {
+            $assignOpModel = new UserRestaurantOperationModel();
+            foreach ($restaurantesOperacoes as $restId => $ops) {
+                foreach ($ops as $opId) {
+                    $assignOpModel->assign($userId, (int)$restId, (int)$opId, $adminId);
+                }
             }
         }
 
@@ -86,7 +105,7 @@ class UsuariosController extends Controller
         $senha = $_POST['senha'] ?? '';
         $perfil = $_POST['perfil'] ?? 'hostess';
         $ativo = (int)($_POST['ativo'] ?? 1);
-        $restaurantes = $_POST['restaurantes'] ?? [];
+        [$restaurantes, $restaurantesOperacoes] = $this->parseAssignmentSelections($_POST['assignments'] ?? []);
 
         if ($id <= 0 || $nome === '' || $email === '') {
             set_flash('danger', 'Dados inválidos.');
@@ -98,19 +117,28 @@ class UsuariosController extends Controller
             set_flash('danger', 'Este e-mail já está cadastrado para outro usuário.');
             $this->redirect('/?r=usuarios/index');
         }
+
+        $adminId = (int)Auth::user()['id'];
         $model->update($id, [
             'nome' => $nome,
             'email' => $email,
             'senha' => $senha,
             'perfil' => $perfil,
             'ativo' => $ativo,
-        ], Auth::user()['id']);
+        ], $adminId);
 
         $assignModel = new UserRestaurantModel();
-        $assignModel->clearByUser($id, Auth::user()['id']);
-        if (!empty($restaurantes)) {
-            foreach ($restaurantes as $restId) {
-                $assignModel->assign($id, (int)$restId, Auth::user()['id']);
+        $assignOpModel = new UserRestaurantOperationModel();
+        $assignModel->clearByUser($id, $adminId);
+        $assignOpModel->clearByUser($id, $adminId);
+
+        foreach ($restaurantes as $restId) {
+            $assignModel->assign($id, (int)$restId, $adminId);
+        }
+
+        foreach ($restaurantesOperacoes as $restId => $ops) {
+            foreach ($ops as $opId) {
+                $assignOpModel->assign($id, (int)$restId, (int)$opId, $adminId);
             }
         }
 
@@ -141,13 +169,147 @@ class UsuariosController extends Controller
             $this->redirect('/?r=usuarios/index');
         }
 
+        $adminId = (int)Auth::user()['id'];
         $model = new UserModel();
         $assignModel = new UserRestaurantModel();
-        $assignModel->clearByUser($id, Auth::user()['id']);
-        $model->anonymizeAndDeactivate($id, Auth::user()['id']);
+        $assignOpModel = new UserRestaurantOperationModel();
+        $assignModel->clearByUser($id, $adminId);
+        $assignOpModel->clearByUser($id, $adminId);
+        $model->anonymizeAndDeactivate($id, $adminId);
 
         set_flash('success', 'Usuário excluído com anonimização e mantido para auditoria.');
         $this->redirect('/?r=usuarios/index');
     }
-}
 
+    private function normalizeForCompare(string $value): string
+    {
+        $value = mb_strtolower(normalize_mojibake($value), 'UTF-8');
+        return strtr($value, [
+            'á' => 'a',
+            'à' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'é' => 'e',
+            'ê' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+        ]);
+    }
+
+    private function buildAssignmentOptions(array $restaurants, RestaurantOperationModel $operationModel): array
+    {
+        $options = [];
+        foreach ($restaurants as $rest) {
+            $restId = (int)$rest['id'];
+            $restName = (string)($rest['nome'] ?? '');
+            $restNameNorm = $this->normalizeForCompare($restName);
+            $isLaBrasa = strpos($restNameNorm, 'la brasa') !== false;
+
+            if (!$isLaBrasa) {
+                $options[] = [
+                    'key' => 'r' . $restId,
+                    'restaurante_id' => $restId,
+                    'operacao_id' => null,
+                    'label' => $restName,
+                ];
+                continue;
+            }
+
+            $ops = $operationModel->byRestaurant($restId);
+            $hasSpecial = false;
+            foreach ($ops as $op) {
+                $opId = (int)($op['operacao_id'] ?? 0);
+                $opName = (string)($op['operacao'] ?? '');
+                $opNorm = $this->normalizeForCompare($opName);
+                if ($opId <= 0) {
+                    continue;
+                }
+
+                if (strpos($opNorm, 'almoco') !== false) {
+                    $options[] = [
+                        'key' => 'r' . $restId . '_o' . $opId,
+                        'restaurante_id' => $restId,
+                        'operacao_id' => $opId,
+                        'label' => 'La Brasa (Almoço)',
+                    ];
+                    $hasSpecial = true;
+                    continue;
+                }
+
+                if (strpos($opNorm, 'tematico') !== false) {
+                    $options[] = [
+                        'key' => 'r' . $restId . '_o' . $opId,
+                        'restaurante_id' => $restId,
+                        'operacao_id' => $opId,
+                        'label' => 'La Brasa (Temático)',
+                    ];
+                    $hasSpecial = true;
+                }
+            }
+
+            if (!$hasSpecial) {
+                $options[] = [
+                    'key' => 'r' . $restId,
+                    'restaurante_id' => $restId,
+                    'operacao_id' => null,
+                    'label' => $restName,
+                ];
+            }
+        }
+
+        return $options;
+    }
+
+    private function parseAssignmentSelections(array $rawSelections): array
+    {
+        $restaurantIds = [];
+        $operationMap = [];
+        $allOpsByRestaurant = [];
+
+        foreach ($rawSelections as $value) {
+            $value = trim((string)$value);
+            if ($value === '') {
+                continue;
+            }
+
+            if (preg_match('/^r(\d+)$/', $value, $m)) {
+                $restId = (int)$m[1];
+                if ($restId > 0) {
+                    $restaurantIds[$restId] = $restId;
+                    $allOpsByRestaurant[$restId] = true;
+                }
+                continue;
+            }
+
+            if (preg_match('/^r(\d+)_o(\d+)$/', $value, $m)) {
+                $restId = (int)$m[1];
+                $opId = (int)$m[2];
+                if ($restId > 0 && $opId > 0) {
+                    $restaurantIds[$restId] = $restId;
+                    if (!isset($operationMap[$restId])) {
+                        $operationMap[$restId] = [];
+                    }
+                    $operationMap[$restId][$opId] = $opId;
+                }
+            }
+        }
+
+        foreach (array_keys($allOpsByRestaurant) as $restId) {
+            unset($operationMap[$restId]);
+        }
+
+        $normalizedOps = [];
+        foreach ($operationMap as $restId => $ops) {
+            $normalizedOps[$restId] = array_values(array_unique(array_map('intval', $ops)));
+        }
+
+        return [
+            array_values(array_unique(array_map('intval', $restaurantIds))),
+            $normalizedOps,
+        ];
+    }
+}

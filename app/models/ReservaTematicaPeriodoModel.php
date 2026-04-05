@@ -38,6 +38,22 @@ class ReservaTematicaPeriodoModel extends Model
             ]);
         }
     }
+
+    public function create(string $horaInicio, string $horaFim, int $ativo = 1, int $ordem = 0): int
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO reservas_tematicas_periodos (hora_inicio, hora_fim, ativo, ordem)
+            VALUES (:hora_inicio, :hora_fim, :ativo, :ordem)
+        ");
+        $stmt->execute([
+            ':hora_inicio' => $horaInicio,
+            ':hora_fim' => $horaFim,
+            ':ativo' => $ativo ? 1 : 0,
+            ':ordem' => $ordem,
+        ]);
+
+        return (int)$this->db->lastInsertId();
+    }
 }
 
 

@@ -4,6 +4,7 @@ return [
         'base_url' => '/',
         'timezone' => 'America/Sao_Paulo',
         'session_timeout_min' => 30,
+        'favicon_path' => '/assets/favicon-fb-white.svg',
     ],
     'db' => [
         'host' => '127.0.0.1',

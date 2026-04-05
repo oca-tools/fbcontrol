@@ -1,10 +1,10 @@
-<?php
+﻿<?php
 class ReservaTematicaModel extends Model
 {
     private ?bool $hasPaxRealColumnCache = null;
     private ?bool $hasTitularNomeColumnCache = null;
-    private const STATUS_NO_SHOW_VARIANTS = ['Nao compareceu', 'Não compareceu', 'NÃ£o compareceu', 'NÃƒÂ£o compareceu'];
-    private const STATUS_DIVERGENCIA_VARIANTS = ['Divergencia', 'Divergência', 'DivergÃªncia', 'DivergÃƒÂªncia'];
+    private const STATUS_NO_SHOW_VARIANTS = ['Nao compareceu', 'Não compareceu', 'Não compareceu', 'Não compareceu'];
+    private const STATUS_DIVERGENCIA_VARIANTS = ['Divergencia', 'Divergência', 'Divergência', 'Divergência'];
 
     private function hasPaxRealColumn(): bool
     {
@@ -85,16 +85,16 @@ class ReservaTematicaModel extends Model
             $where .= " AND {$alias}.status IN (:status_no_show_a, :status_no_show_b, :status_no_show_c, :status_no_show_d)";
             $params[':status_no_show_a'] = 'Nao compareceu';
             $params[':status_no_show_b'] = 'Não compareceu';
-            $params[':status_no_show_c'] = 'NÃ£o compareceu';
-            $params[':status_no_show_d'] = 'NÃƒÂ£o compareceu';
+            $params[':status_no_show_c'] = 'Não compareceu';
+            $params[':status_no_show_d'] = 'Não compareceu';
             return;
         }
         if (in_array($statusNorm, self::STATUS_DIVERGENCIA_VARIANTS, true)) {
             $where .= " AND {$alias}.status IN (:status_div_a, :status_div_b, :status_div_c, :status_div_d)";
             $params[':status_div_a'] = 'Divergencia';
             $params[':status_div_b'] = 'Divergência';
-            $params[':status_div_c'] = 'DivergÃªncia';
-            $params[':status_div_d'] = 'DivergÃƒÂªncia';
+            $params[':status_div_c'] = 'Divergência';
+            $params[':status_div_d'] = 'Divergência';
             return;
         }
 
@@ -926,6 +926,7 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 }
+
 
 
 

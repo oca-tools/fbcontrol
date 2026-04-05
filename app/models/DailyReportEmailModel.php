@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 class DailyReportEmailModel extends Model
 {
     private static ?bool $recipientAttachmentReady = null;
@@ -24,7 +24,7 @@ class DailyReportEmailModel extends Model
             $check = $this->db->query("SHOW COLUMNS FROM relatorio_email_destinatarios LIKE 'receber_anexo_vouchers'");
             self::$recipientAttachmentExists = (bool)($check && $check->fetch());
         } catch (Throwable $e) {
-            // Se nÃ£o conseguir alterar automaticamente, segue fluxo padrÃ£o.
+            // Se não conseguir alterar automaticamente, segue fluxo padrão.
         }
         self::$recipientAttachmentReady = true;
     }
@@ -40,7 +40,7 @@ class DailyReportEmailModel extends Model
             'id' => 1,
             'ativo' => 0,
             'hora_envio' => '23:00:00',
-            'assunto' => 'Resumo diÃ¡rio A&B - {data}',
+            'assunto' => 'Resumo diário A&B - {data}',
             'remetente_nome' => 'OCA FBControl',
             'remetente_email' => '',
         ];
@@ -184,19 +184,19 @@ class DailyReportEmailModel extends Model
         }
 
         if (!$force && (int)($config['ativo'] ?? 0) !== 1) {
-            return ['ok' => false, 'message' => 'Envio automÃ¡tico desativado.'];
+            return ['ok' => false, 'message' => 'Envio automático desativado.'];
         }
         if (empty($recipients)) {
-            return ['ok' => false, 'message' => 'Nenhum destinatÃ¡rio configurado.'];
+            return ['ok' => false, 'message' => 'Nenhum destinatário configurado.'];
         }
         if (!$force && $this->wasSent($dateRef)) {
-            return ['ok' => true, 'message' => 'RelatÃ³rio jÃ¡ enviado para esta data.'];
+            return ['ok' => true, 'message' => 'Relatório já enviado para esta data.'];
         }
 
         $metrics = $this->buildMetrics($dateRef);
-        $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diÃ¡rio A&B - {data}'));
+        $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diário A&B - {data}'));
         $subject = str_replace('{data}', date('d/m/Y', strtotime($dateRef)), $subjectTpl);
-        $subject = $this->sanitizeHeaderValue($subject, 'Resumo diÃ¡rio A&B');
+        $subject = $this->sanitizeHeaderValue($subject, 'Resumo diário A&B');
         $html = $this->buildHtml($dateRef, $metrics);
         $text = $this->buildText($dateRef, $metrics);
 
@@ -313,14 +313,14 @@ class DailyReportEmailModel extends Model
     private function buildMetrics(string $dateRef): array
     {
         return [
-            'PAX CAFÃ‰ DA MANHÃƒ CORAIS' => $this->sumAcessos($dateRef, 'corais', ['cafe da manha', 'cafÃ© da manhÃ£', 'cafe', 'cafÃ©']),
-            'PAX ALMOÃ‡O CORAIS' => $this->sumAcessos($dateRef, 'corais', ['almoco', 'almoÃ§o']),
+            'PAX CAFÉ DA MANHÃ CORAIS' => $this->sumAcessos($dateRef, 'corais', ['cafe da manha', 'café da manhã', 'cafe', 'café']),
+            'PAX ALMOÇO CORAIS' => $this->sumAcessos($dateRef, 'corais', ['almoco', 'almoço']),
             'PAX JANTAR CORAIS' => $this->sumAcessos($dateRef, 'corais', ['jantar']),
-            'PAX ALMOÃ‡O LA BRASA' => $this->sumAcessos($dateRef, 'la brasa', ['almoco', 'almoÃ§o']),
+            'PAX ALMOÇO LA BRASA' => $this->sumAcessos($dateRef, 'la brasa', ['almoco', 'almoço']),
             'PAX PRIVILEGED' => $this->sumPrivileged($dateRef),
             'PAX VIP PREMIUM' => $this->sumVipPremium($dateRef),
             'PAX DAY USE' => $this->sumByUhTecnica($dateRef, '999'),
-            'PAX NÃƒO INFORMADO' => $this->sumByUhTecnica($dateRef, '998'),
+            'PAX NÃO INFORMADO' => $this->sumByUhTecnica($dateRef, '998'),
             'VOUCHERS REGISTRADOS' => $this->sumVouchers($dateRef),
             'PAX RESERVADA GIARDINO' => $this->sumTematicaReservada($dateRef, 'giardino'),
             'PAX REAL GIARDINO' => $this->sumTematicaReal($dateRef, 'giardino'),
@@ -468,7 +468,7 @@ class DailyReportEmailModel extends Model
         $stmt = $this->db->prepare("
             SELECT COALESCE(SUM(
                 CASE
-                    WHEN rsv.status IN ('Nao compareceu', 'Não compareceu', 'NÃ£o compareceu', 'NÃƒÂ£o compareceu') THEN rsv.pax
+                    WHEN rsv.status IN ('Nao compareceu', 'Não compareceu', 'Não compareceu', 'Não compareceu') THEN rsv.pax
                     WHEN rsv.status <> 'Cancelada' AND rsv.pax_real IS NOT NULL AND rsv.pax_real < rsv.pax THEN (rsv.pax - rsv.pax_real)
                     ELSE 0
                 END
@@ -504,9 +504,9 @@ class DailyReportEmailModel extends Model
         return '<html><body style="margin:0;padding:18px;background:#f8fafc;font-family:Segoe UI,Arial,sans-serif;">'
             . '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #fed7aa;border-radius:14px;overflow:hidden;">'
             . '<tr><td style="padding:18px 20px;background:linear-gradient(90deg,#f97316,#fb923c);color:#ffffff;">'
-            . '<div style="font-size:12px;opacity:.95;letter-spacing:.3px;text-transform:uppercase;">RelatÃ³rio diÃ¡rio</div>'
+            . '<div style="font-size:12px;opacity:.95;letter-spacing:.3px;text-transform:uppercase;">Relatório diário</div>'
             . '<div style="font-size:22px;font-weight:700;line-height:1.3;">OCA FBControl</div>'
-            . '<div style="font-size:13px;opacity:.95;">Data de referÃªncia: ' . date('d/m/Y', strtotime($dateRef)) . '</div>'
+            . '<div style="font-size:13px;opacity:.95;">Data de referência: ' . date('d/m/Y', strtotime($dateRef)) . '</div>'
             . '</td></tr>'
             . '<tr><td style="padding:14px 20px 8px 20px;color:#475569;font-size:13px;">Indicadores operacionais de A&amp;B para acompanhamento gerencial.</td></tr>'
             . '<tr><td style="padding:0 20px 14px 20px;">'
@@ -525,7 +525,7 @@ class DailyReportEmailModel extends Model
 
     private function buildText(string $dateRef, array $metrics): string
     {
-        $lines = ["Resumo diÃ¡rio A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
+        $lines = ["Resumo diário A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
         foreach ($metrics as $label => $value) {
             $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$label);
             $lines[] = $cleanLabel . ': ' . (int)$value;
@@ -626,4 +626,5 @@ class DailyReportEmailModel extends Model
         return filter_var($clean, FILTER_VALIDATE_EMAIL) ? $clean : '';
     }
 }
+
 

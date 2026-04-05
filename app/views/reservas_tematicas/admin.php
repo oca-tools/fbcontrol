@@ -160,6 +160,7 @@ foreach ($configs as $cfg) {
                     <th>Hora</th>
                     <th class="col-mini">Ativo</th>
                     <th class="col-mini">Ordem</th>
+                    <th class="col-mini text-end">Ação</th>
                 </tr>
             </thead>
             <tbody>
@@ -173,11 +174,46 @@ foreach ($configs as $cfg) {
                             </select>
                         </td>
                         <td><input type="number" class="form-control" name="turnos[<?= (int)$turno['id'] ?>][ordem]" value="<?= h($turno['ordem']) ?>"></td>
+                        <td class="text-end">
+                            <button
+                                type="submit"
+                                class="btn btn-sm btn-outline-danger"
+                                name="remove_turno_id"
+                                value="<?= (int)$turno['id'] ?>"
+                                onclick="return confirm('Confirma remover este turno? Se já houver histórico, ele será apenas inativado.');"
+                            >
+                                Remover
+                            </button>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
         <button class="btn btn-primary btn-xl">Salvar turnos</button>
+    </form>
+
+    <hr class="my-4">
+    <form method="post" action="/?r=reservasTematicas/admin" class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+        <input type="hidden" name="action" value="add_turno">
+        <div class="col-12 col-md-4 col-lg-3">
+            <label class="form-label mb-1">Novo turno (hora)</label>
+            <input type="time" class="form-control" name="novo_turno_hora" required>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label mb-1">Ordem</label>
+            <input type="number" class="form-control" name="novo_turno_ordem" value="0">
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label mb-1">Ativo</label>
+            <select class="form-select" name="novo_turno_ativo">
+                <option value="1" selected>Sim</option>
+                <option value="0">Não</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 col-lg-2">
+            <button class="btn btn-outline-primary w-100">Adicionar turno</button>
+        </div>
     </form>
 </div>
 
@@ -186,7 +222,7 @@ foreach ($configs as $cfg) {
         <div class="icon"><i class="bi bi-calendar-range"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Períodos de reserva</div>
-            <h5 class="fw-bold mb-0">Janelas de atendimento</h5>
+            <h5 class="fw-bold mb-0">Horários de operação das reservas</h5>
         </div>
     </div>
 
@@ -219,6 +255,34 @@ foreach ($configs as $cfg) {
             </tbody>
         </table>
         <button class="btn btn-primary btn-xl">Salvar períodos</button>
+    </form>
+
+    <hr class="my-4">
+    <form method="post" action="/?r=reservasTematicas/admin" class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+        <input type="hidden" name="action" value="add_periodo">
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label mb-1">Início</label>
+            <input type="time" class="form-control" name="novo_periodo_inicio" required>
+        </div>
+        <div class="col-12 col-md-3 col-lg-2">
+            <label class="form-label mb-1">Fim</label>
+            <input type="time" class="form-control" name="novo_periodo_fim" required>
+        </div>
+        <div class="col-6 col-md-2 col-lg-2">
+            <label class="form-label mb-1">Ordem</label>
+            <input type="number" class="form-control" name="novo_periodo_ordem" value="0">
+        </div>
+        <div class="col-6 col-md-2 col-lg-2">
+            <label class="form-label mb-1">Ativo</label>
+            <select class="form-select" name="novo_periodo_ativo">
+                <option value="1" selected>Sim</option>
+                <option value="0">Não</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2 col-lg-2">
+            <button class="btn btn-outline-primary w-100">Adicionar período</button>
+        </div>
     </form>
 </div>
 

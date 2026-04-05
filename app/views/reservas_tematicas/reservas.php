@@ -19,7 +19,6 @@ $tagsPadrao = [
     'Atenção especial',
     'VIP',
     'Restrição alimentar',
-    'Observação geral',
 ];
 $statusMap = [
     'Reservada' => 'badge-warning',

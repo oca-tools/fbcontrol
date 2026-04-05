@@ -1,6 +1,23 @@
 <?php
 class ReservaTematicaLogModel extends Model
 {
+    public function countManualByUserSince(int $userId, string $since): int
+    {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM reservas_tematicas_logs
+            WHERE usuario_id = :usuario_id
+              AND acao = 'status'
+              AND criado_em >= :since
+        ");
+        $stmt->execute([
+            ':usuario_id' => $userId,
+            ':since' => $since,
+        ]);
+        $row = $stmt->fetch();
+        return (int)($row['total'] ?? 0);
+    }
+
     public function log(int $reservaId, string $acao, int $userId, array $antes = [], array $depois = [], ?string $justificativa = null): void
     {
         $stmt = $this->db->prepare("

@@ -16,6 +16,7 @@ $config = [
         'name' => cfg_env('APP_NAME', 'OCA FBControl'),
         'version' => cfg_env('APP_VERSION', '2.0'),
         'logo_path' => cfg_env('APP_LOGO_PATH', '/assets/logo-oca.png'),
+        'favicon_path' => cfg_env('APP_FAVICON_PATH', '/assets/favicon-fb-white.svg'),
         'base_url' => cfg_env('APP_BASE_URL', '/'),
         'timezone' => cfg_env('APP_TIMEZONE', 'America/Sao_Paulo'),
         'session_timeout_min' => (int)cfg_env('APP_SESSION_TIMEOUT_MIN', '30'),
