@@ -3,6 +3,8 @@
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
 ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_httponly', '1');
+$bootTimeoutMin = max(30, (int)(getenv('APP_SESSION_TIMEOUT_MIN') ?: 30));
+ini_set('session.gc_maxlifetime', (string)(($bootTimeoutMin * 60) + 300));
 $sessionName = getenv('APP_SESSION_NAME') ?: 'OCA_FBCONTROL_SESSID';
 session_name($sessionName);
 session_set_cookie_params([
@@ -53,7 +55,7 @@ require __DIR__ . '/../app/core/Controller.php';
 require __DIR__ . '/../app/core/Auth.php';
 
 if (Auth::check()) {
-    $timeout = (int)($config['app']['session_timeout_min'] ?? 30);
+    $timeout = max(30, (int)($config['app']['session_timeout_min'] ?? 30));
     Auth::enforceIdleTimeout($timeout);
     Auth::enforceSessionBinding();
     Auth::enforceSingleSession();

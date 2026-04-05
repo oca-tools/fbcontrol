@@ -134,17 +134,26 @@ $flash = $this->data['flash'] ?? null;
     }
     .auth-input-wrap .input-icon {
         position: absolute;
-        left: 12px;
+        left: 14px;
         top: 50%;
         transform: translateY(-50%);
         color: var(--ab-muted);
         pointer-events: none;
+        width: 1rem;
+        text-align: center;
+        z-index: 2;
     }
     .auth-input-wrap .form-control {
         min-height: 50px;
-        padding-left: 2.25rem;
+        padding-left: 2.75rem !important;
+        padding-right: 0.95rem;
         border-radius: 12px;
         font-weight: 580;
+        position: relative;
+        z-index: 1;
+    }
+    .auth-input-wrap.has-toggle .form-control {
+        padding-right: 2.8rem !important;
     }
     .auth-pass-toggle {
         position: absolute;
@@ -240,7 +249,7 @@ $flash = $this->data['flash'] ?? null;
 
                 <div class="mb-4">
                     <label class="form-label">Senha</label>
-                    <div class="auth-input-wrap">
+                    <div class="auth-input-wrap has-toggle">
                         <span class="input-icon"><i class="bi bi-lock"></i></span>
                         <input type="password" id="loginSenha" name="senha" class="form-control input-xl" required autocomplete="current-password">
                         <button class="auth-pass-toggle js-toggle-pass" type="button" aria-label="Mostrar senha">

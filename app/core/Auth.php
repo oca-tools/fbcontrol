@@ -11,10 +11,11 @@ class Auth
         $ipPrefix = $ip;
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             $parts = explode('.', $ip);
-            $ipPrefix = implode('.', array_slice($parts, 0, 3));
+            // /16 reduz falso positivo em redes móveis sem perder totalmente o vínculo de contexto.
+            $ipPrefix = implode('.', array_slice($parts, 0, 2));
         } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $parts = explode(':', $ip);
-            $ipPrefix = implode(':', array_slice($parts, 0, 4));
+            $ipPrefix = implode(':', array_slice($parts, 0, 3));
         }
 
         return hash('sha256', $ipPrefix . '|' . $ua);

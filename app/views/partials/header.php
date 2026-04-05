@@ -2326,15 +2326,31 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
                 flex: 0 1 auto;
                 min-width: 0;
                 width: auto !important;
-                max-width: min(72vw, 320px);
+                max-width: min(66vw, 280px);
                 margin-right: 0.25rem;
                 justify-content: flex-start;
+                gap: 0.36rem;
+                padding: 0.28rem 0.54rem !important;
             }
             .topbar .user-pill.desktop-only .fw-semibold {
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                max-width: 170px;
+                max-width: 145px;
+                font-size: 0.82rem;
+                line-height: 1.1;
+            }
+            .topbar .user-pill.desktop-only .text-muted.small {
+                display: block;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 145px;
+                font-size: 0.66rem !important;
+                line-height: 1.05;
+            }
+            .topbar .user-pill.desktop-only i {
+                font-size: 0.82rem;
             }
             .topbar .topbar-logout {
                 flex: 0 0 auto;
