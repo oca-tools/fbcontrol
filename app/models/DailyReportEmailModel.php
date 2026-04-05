@@ -231,7 +231,7 @@ class DailyReportEmailModel extends Model
             $recipient = $recipientMap[$to] ?? [];
             $wantsVoucherAttachment = (int)($recipient['receber_anexo_vouchers'] ?? 0) === 1;
             if ($wantsVoucherAttachment && !empty($voucherAttachments)) {
-                $message = $this->buildMultipartMessage($html, $voucherAttachments);
+                $message = $this->buildMultipartMessage($html, $text, $voucherAttachments);
                 $mailHeaders = [
                     'MIME-Version: 1.0',
                     'Content-Type: multipart/mixed; boundary="' . $message['boundary'] . '"',
@@ -492,7 +492,7 @@ class DailyReportEmailModel extends Model
         $rowIndex = 0;
 
         foreach ($metrics as $label => $value) {
-            $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$label);
+            $cleanLabel = $this->normalizeMetricLabel((string)$label);
             $bg = ($rowIndex % 2 === 0) ? '#ffffff' : '#fff7ed';
             $rows .= '<tr style="background:' . $bg . ';">';
             $rows .= '<td style="padding:10px 12px;border-bottom:1px solid #fde2c7;color:#111827;font-size:14px;word-break:break-word;">' . htmlspecialchars($cleanLabel, ENT_QUOTES, 'UTF-8') . '</td>';
@@ -527,7 +527,7 @@ class DailyReportEmailModel extends Model
     {
         $lines = ["Resumo diário A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
         foreach ($metrics as $label => $value) {
-            $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string)$label);
+            $cleanLabel = $this->normalizeMetricLabel((string)$label);
             $lines[] = $cleanLabel . ': ' . (int)$value;
         }
         return implode("\n", $lines);
@@ -584,11 +584,15 @@ class DailyReportEmailModel extends Model
         return $files;
     }
 
-    private function buildMultipartMessage(string $html, array $attachments): array
+    private function buildMultipartMessage(string $html, string $text, array $attachments): array
     {
         $boundary = 'oca_fbcontrol_' . bin2hex(random_bytes(8));
         $eol = "\r\n";
         $body = '--' . $boundary . $eol;
+        $body .= 'Content-Type: text/plain; charset=UTF-8' . $eol;
+        $body .= 'Content-Transfer-Encoding: quoted-printable' . $eol . $eol;
+        $body .= quoted_printable_encode($text) . $eol;
+        $body .= '--' . $boundary . $eol;
         $body .= 'Content-Type: text/html; charset=UTF-8' . $eol;
         $body .= 'Content-Transfer-Encoding: quoted-printable' . $eol . $eol;
         $body .= quoted_printable_encode($html) . $eol;
@@ -612,6 +616,14 @@ class DailyReportEmailModel extends Model
             'boundary' => $boundary,
             'body' => $body,
         ];
+    }
+
+    private function normalizeMetricLabel(string $label): string
+    {
+        $cleanLabel = normalize_mojibake($label);
+        $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $cleanLabel) ?? $cleanLabel;
+        $cleanLabel = preg_replace('/\s+/u', ' ', trim($cleanLabel)) ?? trim($cleanLabel);
+        return $cleanLabel;
     }
 
     private function sanitizeHeaderValue(string $value, string $fallback = ''): string
