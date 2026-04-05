@@ -16,7 +16,9 @@ class AuthController extends Controller
     {
         $base = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ocafbcontrol_auth_throttle';
         if (!is_dir($base)) {
-            @mkdir($base, 0755, true);
+            @mkdir($base, 0700, true);
+        } else {
+            @chmod($base, 0700);
         }
         return $base . DIRECTORY_SEPARATOR . $this->throttleKey($email) . '.json';
     }
@@ -45,7 +47,17 @@ class AuthController extends Controller
     private function writeThrottle(?string $email, array $entry): void
     {
         $file = $this->throttleFilePath($email);
-        @file_put_contents($file, json_encode($entry, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        if (is_link($file)) {
+            return;
+        }
+        $tmpFile = $file . '.tmp';
+        $encoded = json_encode($entry, JSON_UNESCAPED_UNICODE);
+        if ($encoded === false) {
+            return;
+        }
+        @file_put_contents($tmpFile, $encoded, LOCK_EX);
+        @chmod($tmpFile, 0600);
+        @rename($tmpFile, $file);
     }
 
     private function getBlockedSeconds(?string $email = null): int
@@ -65,6 +77,12 @@ class AuthController extends Controller
     private function isBlocked(?string $email = null): bool
     {
         return $this->getBlockedSeconds($email) > 0;
+    }
+
+    private function blockedSecondsForLogin(?string $email = null): int
+    {
+        // Bloqueio combinado por e-mail+IP e também por IP isolado.
+        return max($this->getBlockedSeconds($email), $this->getBlockedSeconds(null));
     }
 
     private function registerFail(?string $email = null): void
@@ -114,8 +132,8 @@ class AuthController extends Controller
                 $this->redirect('/?r=auth/login');
             }
 
-            if ($this->isBlocked($email)) {
-                $remaining = $this->getBlockedSeconds($email);
+            $remaining = $this->blockedSecondsForLogin($email);
+            if ($remaining > 0) {
                 $mins = max(1, (int)ceil($remaining / 60));
                 set_flash('danger', 'Muitas tentativas. Aguarde ' . $mins . ' minuto(s) e tente novamente.');
                 (new SecurityLogModel())->log('auth_blocked', null, [
@@ -140,6 +158,7 @@ class AuthController extends Controller
             }
 
             $this->registerFail($email);
+            $this->registerFail(null);
             (new SecurityLogModel())->log('auth_login_failed', null, [
                 'email' => mb_strtolower($email, 'UTF-8'),
                 'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
@@ -167,4 +186,3 @@ class AuthController extends Controller
         $this->redirect('/?r=auth/login');
     }
 }
-

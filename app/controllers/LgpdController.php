@@ -1,6 +1,22 @@
 <?php
 class LgpdController extends Controller
 {
+    private function handleFailure(string $publicMessage, Throwable $e, string $event): void
+    {
+        try {
+            (new SecurityLogModel())->log($event, (int)(Auth::user()['id'] ?? 0), [
+                'exception' => get_class($e),
+                'message' => mb_substr((string)$e->getMessage(), 0, 300, 'UTF-8'),
+                'route' => (string)($_GET['r'] ?? ''),
+                'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+            ]);
+        } catch (Throwable $ignored) {
+            // Nao interrompe o fluxo de erro amigavel.
+        }
+
+        set_flash('danger', $publicMessage);
+    }
+
     private function canEdit(): bool
     {
         $perfil = strtolower((string)(Auth::user()['perfil'] ?? ''));
@@ -92,7 +108,7 @@ class LgpdController extends Controller
             $model->saveConfig($payload, (int)Auth::user()['id']);
             set_flash('success', 'Configuração LGPD salva com sucesso.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao salvar configuração LGPD: ' . $e->getMessage());
+            $this->handleFailure('Falha ao salvar configuracao LGPD. Verifique os logs.', $e, 'lgpd_config_save_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -129,7 +145,7 @@ class LgpdController extends Controller
             $model->createRequest($payload, (int)Auth::user()['id']);
             set_flash('success', 'Solicitação LGPD registrada.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao registrar solicitação: ' . $e->getMessage());
+            $this->handleFailure('Falha ao registrar solicitacao LGPD. Verifique os logs.', $e, 'lgpd_request_create_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -169,7 +185,7 @@ class LgpdController extends Controller
             $ok = $model->updateRequest($id, $payload, (int)Auth::user()['id']);
             set_flash($ok ? 'success' : 'warning', $ok ? 'Solicitação atualizada.' : 'Solicitação não encontrada.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao atualizar solicitação: ' . $e->getMessage());
+            $this->handleFailure('Falha ao atualizar solicitacao LGPD. Verifique os logs.', $e, 'lgpd_request_update_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -212,7 +228,7 @@ class LgpdController extends Controller
             $model->createIncident($payload, (int)Auth::user()['id']);
             set_flash('success', 'Incidente registrado.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao registrar incidente: ' . $e->getMessage());
+            $this->handleFailure('Falha ao registrar incidente LGPD. Verifique os logs.', $e, 'lgpd_incident_create_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -256,7 +272,7 @@ class LgpdController extends Controller
             $ok = $model->updateIncident($id, $payload, (int)Auth::user()['id']);
             set_flash($ok ? 'success' : 'warning', $ok ? 'Incidente atualizado.' : 'Incidente não encontrado.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao atualizar incidente: ' . $e->getMessage());
+            $this->handleFailure('Falha ao atualizar incidente LGPD. Verifique os logs.', $e, 'lgpd_incident_update_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -291,7 +307,7 @@ class LgpdController extends Controller
             $model->upsertRetentionPolicy($payload, (int)Auth::user()['id']);
             set_flash('success', 'Política de retenção salva.');
         } catch (Throwable $e) {
-            set_flash('danger', 'Não foi possível salvar a política: ' . $e->getMessage());
+            $this->handleFailure('Nao foi possivel salvar a politica de retencao. Verifique os logs.', $e, 'lgpd_retention_policy_save_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }
@@ -317,13 +333,17 @@ class LgpdController extends Controller
                 (int)$result['affected']
             );
             if (!empty($result['errors'])) {
-                $msg .= ' Erros: ' . implode(' | ', $result['errors']);
+                (new SecurityLogModel())->log('lgpd_retention_run_errors', (int)(Auth::user()['id'] ?? 0), [
+                    'errors_count' => count($result['errors']),
+                    'errors' => array_slice($result['errors'], 0, 20),
+                ]);
+                $msg .= ' Houve falhas em algumas politicas. Consulte os logs.';
                 set_flash('warning', $msg);
             } else {
                 set_flash('success', $msg);
             }
         } catch (Throwable $e) {
-            set_flash('danger', 'Falha ao executar retenção: ' . $e->getMessage());
+            $this->handleFailure('Falha ao executar retencao LGPD. Verifique os logs.', $e, 'lgpd_retention_run_failed');
         }
         $this->redirect('/?r=lgpd/index');
     }

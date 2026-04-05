@@ -1,5 +1,17 @@
 <?php
 
+$appEnv = strtolower((string)(getenv('APP_ENV') ?: 'production'));
+if ($appEnv === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+}
+
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
 ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_httponly', '1');
@@ -31,6 +43,13 @@ if ($https) {
 }
 $csp = [
     "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "manifest-src 'self'",
+    "media-src 'self'",
     "img-src 'self' data:",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
     "style-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
@@ -38,9 +57,6 @@ $csp = [
     "script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
     "connect-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com",
-    "frame-ancestors 'self'",
-    "base-uri 'self'",
-    "form-action 'self'",
 ];
 header('Content-Security-Policy: ' . implode('; ', $csp));
 
@@ -96,12 +112,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($routeLower, $csrfExemptRoutes, true)) {
         $csrfToken = (string)($_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
         if (!csrf_validate($csrfToken)) {
+            try {
+                (new SecurityLogModel())->log('csrf_invalid', (int)(Auth::user()['id'] ?? 0), [
+                    'route' => $routeLower,
+                    'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                    'method' => (string)($_SERVER['REQUEST_METHOD'] ?? ''),
+                ]);
+            } catch (Throwable $ignored) {
+                // Falha de log nao interrompe retorno seguro.
+            }
+
             http_response_code(419);
             if (!headers_sent()) {
                 header('Content-Type: text/html; charset=utf-8');
             }
-            set_flash('danger', 'SessÃ£o expirada. Atualize a pÃ¡gina e tente novamente.');
-            echo 'Token invÃ¡lido ou expirado.';
+            set_flash('danger', 'Sessao expirada. Atualize a pagina e tente novamente.');
+            echo 'Token invalido ou expirado.';
             exit;
         }
     }
@@ -117,7 +143,17 @@ if (!class_exists($controllerClass)) {
 }
 
 $controller = new $controllerClass();
-if (!preg_match('/^[a-zA-Z0-9_]+$/', $action) || !is_callable([$controller, $action])) {
+$isValidActionName = preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $action) === 1 && !str_starts_with($action, '__');
+$isAllowedAction = false;
+if ($isValidActionName && is_callable([$controller, $action])) {
+    try {
+        $method = new ReflectionMethod($controller, $action);
+        $isAllowedAction = $method->isPublic() && ($method->getDeclaringClass()->getName() === get_class($controller));
+    } catch (Throwable $ignored) {
+        $isAllowedAction = false;
+    }
+}
+if (!$isAllowedAction) {
     http_response_code(404);
     $controller = new ErrorsController();
     $action = 'notFound';
