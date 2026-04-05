@@ -37,3 +37,4 @@ Adicionar no cron do servidor:
 - Ativar MFA para contas de administrador.
 - Restringir acesso ao banco por IP interno sempre que possivel.
 - Manter backups cifrados e teste de restauracao mensal.
+- Seguir o runbook operacional em `docs/LGPD_OPERACAO.md`.

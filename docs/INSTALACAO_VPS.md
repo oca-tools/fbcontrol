@@ -1,69 +1,85 @@
-# Instalação VPS - OCA FBControl
+# Instalacao VPS - OCA FBControl
 
-Este guia instala o sistema em Ubuntu 24.04 com Apache + MySQL + PHP.
+Guia para Ubuntu 24.04 (Apache + MySQL + PHP 8.3).
 
 ## 1) Preparar servidor
 
 ```bash
-sudo apt update && sudo apt install -y git rsync
+sudo apt update && sudo apt install -y git rsync unzip
 cd /opt
 sudo git clone <URL_DO_REPOSITORIO> ocafbcontrol
 cd ocafbcontrol
 ```
 
-## 2) Rodar instalador automático
+## 2) Instalar aplicacao
 
 ```bash
-sudo bash deploy/vps/install.sh
-```
-
-Com parâmetros personalizados:
-
-```bash
-sudo APP_DIR=/var/www/ocafbcontrol \
+sudo APP_DIR=/var/www/apps/fbcontrol/current \
 DB_NAME=controle_ab \
 DB_USER=controle_ab_user \
 DB_PASS='SENHA_FORTE_AQUI' \
-DOMAIN=ab.seudominio.com \
+DOMAIN=fb.seudominio.com \
 PHP_VERSION=8.3 \
+APP_TIMEZONE=America/Sao_Paulo \
+APP_SESSION_TIMEOUT_MIN=30 \
 bash deploy/vps/install.sh
 ```
 
-## 3) Login inicial
+Opcional: aplicar hardening no final da instalacao.
 
-Use o usuário admin já cadastrado no banco (ou crie via SQL, se necessário).
+```bash
+sudo RUN_POST_HARDENING=yes bash deploy/vps/install.sh
+```
 
-## 4) SSL (produção)
+## 3) SSL (producao)
 
 ```bash
 sudo apt install -y certbot python3-certbot-apache
-sudo certbot --apache -d ab.seudominio.com
+sudo certbot --apache -d fb.seudominio.com
 ```
 
-## 4.1) Autoencerramento de turnos (cron)
+## 4) Hardening de servidor (manual)
 
 ```bash
-sudo crontab -e
+sudo SSH_PORT=22 DISABLE_SSH_PASSWORD_AUTH=no bash deploy/vps/hardening.sh
 ```
 
-Adicionar:
+Se voce ja usa chave SSH e quer bloquear senha:
 
 ```bash
-* * * * * /usr/bin/php /var/www/ocafbcontrol/app/cron/auto_close_shifts.php >> /var/log/ocafbcontrol_cron.log 2>&1
+sudo DISABLE_SSH_PASSWORD_AUTH=yes bash deploy/vps/hardening.sh
 ```
 
-## 5) Atualização futura
+## 5) Backup e restore drill
 
 ```bash
-cd /opt/ocafbcontrol
-sudo git pull
-sudo bash deploy/sync_safe.sh
+sudo APP_DIR=/var/www/apps/fbcontrol/current \
+BACKUP_DIR=/var/backups/fbcontrol \
+KEEP_DAYS=14 \
+MYSQL_ROOT_PASS='SENHA_ROOT_MYSQL' \
+bash deploy/vps/backup_restore_check.sh
 ```
 
-## Observações
+## 6) Cron recomendados
 
-- O instalador usa `config/config.local.php` para credenciais locais do VPS.
-- A instalação inicial usa arquivo SQL único consolidado: `sql/schema_v1_1_final.sql`.
-- Nesta versão 1.1 não existem migrações separadas no repositório.
-- O arquivo base `config/config.php` continua intacto e com fallback para variáveis de ambiente.
-- Uploads ficam em `public/uploads/`.
+Adicionar no root crontab (`sudo crontab -e`):
+
+```bash
+* * * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/auto_close_shifts.php >> /var/log/fbcontrol_shifts.log 2>&1
+0 3 * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/lgpd_retention.php >> /var/log/fbcontrol_lgpd_retention.log 2>&1
+30 3 * * * /var/www/apps/fbcontrol/current/deploy/vps/backup_restore_check.sh >> /var/log/fbcontrol_backup.log 2>&1
+```
+
+## 7) Validacao local de seguranca
+
+No repositorio, rode:
+
+```bash
+bash deploy/security/run_security_checks.sh
+```
+
+## Observacoes
+
+- O schema consolidado atual e `sql/schema_v2_1_final.sql`.
+- Nao sobrescreva `config/config.local.php` em deploy incremental.
+- `public/uploads/` deve permanecer persistente entre releases.
