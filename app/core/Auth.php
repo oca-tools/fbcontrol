@@ -3,6 +3,23 @@ class Auth
 {
     private static ?bool $sessionRegistryAvailable = null;
 
+    private static function sessionFingerprint(): string
+    {
+        $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+        $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+
+        $ipPrefix = $ip;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $parts = explode('.', $ip);
+            $ipPrefix = implode('.', array_slice($parts, 0, 3));
+        } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $parts = explode(':', $ip);
+            $ipPrefix = implode(':', array_slice($parts, 0, 4));
+        }
+
+        return hash('sha256', $ipPrefix . '|' . $ua);
+    }
+
     private static function sessionToken(): string
     {
         if (empty($_SESSION['session_lock_token'])) {
@@ -106,6 +123,9 @@ class Auth
             'foto_path' => $user['foto_path'] ?? null,
         ];
         $_SESSION['last_activity_at'] = time();
+        $_SESSION['logged_in_at'] = time();
+        $_SESSION['session_fingerprint'] = self::sessionFingerprint();
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         self::upsertSessionRegistry((int)$user['id']);
     }
 
@@ -167,6 +187,30 @@ class Auth
             ]);
         } catch (Throwable $e) {
             // Falha do controle de sessão não bloqueia operação.
+        }
+    }
+
+    public static function enforceSessionBinding(): void
+    {
+        if (!self::check()) {
+            return;
+        }
+
+        $current = self::sessionFingerprint();
+        $stored = (string)($_SESSION['session_fingerprint'] ?? '');
+
+        if ($stored === '') {
+            $_SESSION['session_fingerprint'] = $current;
+            return;
+        }
+
+        if (!hash_equals($stored, $current)) {
+            if (function_exists('set_flash')) {
+                set_flash('warning', 'SessÃ£o encerrada por mudanÃ§a de contexto do navegador.');
+            }
+            self::logout();
+            header('Location: /?r=auth/login');
+            exit;
         }
     }
 

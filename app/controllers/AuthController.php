@@ -1,6 +1,10 @@
 <?php
 class AuthController extends Controller
 {
+    private const THROTTLE_WINDOW_SECONDS = 900; // 15 min
+    private const THROTTLE_LIMIT = 5;
+    private const THROTTLE_MAX_BACKOFF_SECONDS = 1800; // 30 min
+
     private function throttleKey(?string $email = null): string
     {
         $ip = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
@@ -8,75 +12,139 @@ class AuthController extends Controller
         return hash('sha256', $ip . '|' . $emailKey);
     }
 
+    private function throttleFilePath(?string $email = null): string
+    {
+        $base = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ocafbcontrol_auth_throttle';
+        if (!is_dir($base)) {
+            @mkdir($base, 0755, true);
+        }
+        return $base . DIRECTORY_SEPARATOR . $this->throttleKey($email) . '.json';
+    }
+
+    private function readThrottle(?string $email = null): array
+    {
+        $file = $this->throttleFilePath($email);
+        if (!is_file($file)) {
+            return ['count' => 0, 'first' => 0, 'last' => 0, 'blocked_until' => 0];
+        }
+
+        $raw = @file_get_contents($file);
+        $data = json_decode((string)$raw, true);
+        if (!is_array($data)) {
+            return ['count' => 0, 'first' => 0, 'last' => 0, 'blocked_until' => 0];
+        }
+
+        return [
+            'count' => (int)($data['count'] ?? 0),
+            'first' => (int)($data['first'] ?? 0),
+            'last' => (int)($data['last'] ?? 0),
+            'blocked_until' => (int)($data['blocked_until'] ?? 0),
+        ];
+    }
+
+    private function writeThrottle(?string $email, array $entry): void
+    {
+        $file = $this->throttleFilePath($email);
+        @file_put_contents($file, json_encode($entry, JSON_UNESCAPED_UNICODE), LOCK_EX);
+    }
+
+    private function getBlockedSeconds(?string $email = null): int
+    {
+        $entry = $this->readThrottle($email);
+        $now = time();
+
+        if (($now - (int)$entry['first']) > self::THROTTLE_WINDOW_SECONDS) {
+            $this->clearThrottle($email);
+            return 0;
+        }
+
+        $remaining = (int)$entry['blocked_until'] - $now;
+        return max(0, $remaining);
+    }
+
     private function isBlocked(?string $email = null): bool
     {
-        $key = $this->throttleKey($email);
-        $attempt = $_SESSION['auth_throttle'][$key] ?? null;
-        if (!$attempt) {
-            return false;
-        }
-        $window = 10 * 60;
-        if ((time() - (int)$attempt['first']) > $window) {
-            unset($_SESSION['auth_throttle'][$key]);
-            return false;
-        }
-        return (int)$attempt['count'] >= 5;
+        return $this->getBlockedSeconds($email) > 0;
     }
 
     private function registerFail(?string $email = null): void
     {
-        $key = $this->throttleKey($email);
+        $entry = $this->readThrottle($email);
         $now = time();
-        $window = 10 * 60;
-        if (!isset($_SESSION['auth_throttle']) || !is_array($_SESSION['auth_throttle'])) {
-            $_SESSION['auth_throttle'] = [];
+
+        if (($now - (int)$entry['first']) > self::THROTTLE_WINDOW_SECONDS) {
+            $entry = ['count' => 0, 'first' => $now, 'last' => 0, 'blocked_until' => 0];
         }
-        foreach ($_SESSION['auth_throttle'] as $k => $entry) {
-            if (($now - (int)($entry['first'] ?? 0)) > $window) {
-                unset($_SESSION['auth_throttle'][$k]);
-            }
+        if ((int)$entry['first'] <= 0) {
+            $entry['first'] = $now;
         }
-        $entry = $_SESSION['auth_throttle'][$key] ?? ['count' => 0, 'first' => $now];
-        if (($now - (int)$entry['first']) > $window) {
-            $entry = ['count' => 0, 'first' => $now];
-        }
+
         $entry['count'] = (int)$entry['count'] + 1;
-        $_SESSION['auth_throttle'][$key] = $entry;
+        $entry['last'] = $now;
+
+        if ((int)$entry['count'] >= self::THROTTLE_LIMIT) {
+            $overflow = (int)$entry['count'] - self::THROTTLE_LIMIT;
+            $backoff = min(self::THROTTLE_MAX_BACKOFF_SECONDS, (int)(60 * (2 ** $overflow)));
+            $entry['blocked_until'] = max((int)$entry['blocked_until'], $now + $backoff);
+        }
+
+        $this->writeThrottle($email, $entry);
     }
 
     private function clearThrottle(?string $email = null): void
     {
-        $key = $this->throttleKey($email);
-        unset($_SESSION['auth_throttle'][$key]);
+        $file = $this->throttleFilePath($email);
+        if (is_file($file)) {
+            @unlink($file);
+        }
     }
 
     public function login(): void
     {
+        if (Auth::check() && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=home');
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim((string)($_POST['email'] ?? ''));
-            if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-                set_flash('danger', 'Token inválido.');
+            $senha = (string)($_POST['senha'] ?? '');
+
+            if ($email === '' || $senha === '') {
+                set_flash('danger', 'Informe e-mail e senha.');
                 $this->redirect('/?r=auth/login');
             }
 
             if ($this->isBlocked($email)) {
-                set_flash('danger', 'Muitas tentativas. Aguarde 10 minutos e tente novamente.');
+                $remaining = $this->getBlockedSeconds($email);
+                $mins = max(1, (int)ceil($remaining / 60));
+                set_flash('danger', 'Muitas tentativas. Aguarde ' . $mins . ' minuto(s) e tente novamente.');
+                (new SecurityLogModel())->log('auth_blocked', null, [
+                    'email' => mb_strtolower($email, 'UTF-8'),
+                    'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                    'blocked_seconds' => $remaining,
+                ]);
                 $this->redirect('/?r=auth/login');
             }
-
-            $senha = $_POST['senha'] ?? '';
 
             $userModel = new UserModel();
             $user = $userModel->findByEmail($email);
 
-            if ($user && password_verify($senha, $user['senha'])) {
+            if ($user && password_verify($senha, (string)$user['senha'])) {
                 $this->clearThrottle($email);
                 Auth::login($user);
+                (new SecurityLogModel())->log('auth_login_success', (int)$user['id'], [
+                    'email' => mb_strtolower($email, 'UTF-8'),
+                    'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                ]);
                 $this->redirect('/?r=home');
             }
 
             $this->registerFail($email);
-            set_flash('danger', 'Credenciais inválidas.');
+            (new SecurityLogModel())->log('auth_login_failed', null, [
+                'email' => mb_strtolower($email, 'UTF-8'),
+                'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+            ]);
+            set_flash('danger', 'Credenciais invÃ¡lidas.');
             $this->redirect('/?r=auth/login');
         }
 
@@ -87,7 +155,16 @@ class AuthController extends Controller
 
     public function logout(): void
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=home');
+        }
+
+        $user = Auth::user();
+        (new SecurityLogModel())->log('auth_logout', (int)($user['id'] ?? 0), [
+            'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+        ]);
         Auth::logout();
         $this->redirect('/?r=auth/login');
     }
 }
+

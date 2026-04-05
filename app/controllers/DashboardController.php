@@ -1,18 +1,20 @@
 <?php
 class DashboardController extends Controller
 {
+    private const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
+            'data' => sanitize_date_param($_GET['data'] ?? ''),
+            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
+            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
+            'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
         ];
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');
@@ -101,12 +103,12 @@ class DashboardController extends Controller
         }
 
         $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
+            'data' => sanitize_date_param($_GET['data'] ?? ''),
+            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
+            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
             'restaurante_id' => $restauranteId,
-            'operacao_id' => $_GET['operacao_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
+            'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
         ];
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');

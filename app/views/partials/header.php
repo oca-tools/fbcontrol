@@ -3,7 +3,16 @@ $config = require __DIR__ . '/../../../config/config.php';
 $appName = $config['app']['name'];
 $appVersion = $config['app']['version'] ?? '1.0';
 $logoPath = $config['app']['logo_path'] ?? '';
+$faviconPath = $config['app']['favicon_path'] ?? '';
 $user = Auth::user();
+$currentRouteRaw = (string)($_GET['r'] ?? '');
+if ($currentRouteRaw === '') {
+    $currentRouteRaw = $user ? 'home' : 'auth/login';
+}
+$currentRoute = preg_replace('/[^a-zA-Z0-9_\/-]/', '', $currentRouteRaw);
+$currentRole = $user['perfil'] ?? 'guest';
+$currentUserId = (int)($user['id'] ?? 0);
+$showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '')), ['hostess', 'supervisor', 'gerente'], true);
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -13,16 +22,20 @@ $user = Auth::user();
     <title><?= h($appName) ?></title>
     <script>
     (function () {
+        var allowedThemes = ['light', 'dark', 'sand', 'ocean'];
         try {
             var savedTheme = localStorage.getItem('oca_theme');
-            var theme = savedTheme === 'dark' ? 'dark' : 'light';
+            var theme = allowedThemes.indexOf(savedTheme) >= 0 ? savedTheme : 'light';
             document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
             document.documentElement.setAttribute('data-theme', 'light');
         }
     })();
     </script>
-    <?php if (!empty($logoPath)): ?>
+    <?php if (!empty($faviconPath)): ?>
+        <link rel="icon" type="image/svg+xml" href="<?= h($faviconPath) ?>">
+        <link rel="shortcut icon" href="<?= h($faviconPath) ?>">
+    <?php elseif (!empty($logoPath)): ?>
         <link rel="icon" type="image/png" href="<?= h($logoPath) ?>">
     <?php endif; ?>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -76,6 +89,52 @@ $user = Auth::user();
             --ab-shadow-soft: 0 10px 28px rgba(2, 6, 23, 0.34);
             --ab-ring: 0 0 0 0.22rem rgba(251, 146, 60, 0.24);
         }
+        html[data-theme='sand'] {
+            --ab-primary: #ea580c;
+            --ab-accent: #d97706;
+            --ab-accent-2: #f59e0b;
+            --ab-ink: #1f2937;
+            --ab-muted: #6b7280;
+            --ab-surface: #fffaf2;
+            --ab-card: #ffffff;
+            --ab-border: #f2d8b0;
+            --ab-page-bg: #fff8ef;
+            --ab-bg: #fff8ef;
+            --ab-grad-1: rgba(251, 146, 60, 0.2);
+            --ab-grad-2: rgba(245, 158, 11, 0.16);
+            --ab-sidebar-bg: #fff5e6;
+            --ab-hover-bg: rgba(245, 158, 11, 0.14);
+            --ab-panel-bg: #fffdf8;
+            --ab-soft-bg: #fff4de;
+            --ab-input-bg: #ffffff;
+            --ab-input-text: #1f2937;
+            --ab-shadow-card: 0 16px 38px rgba(146, 64, 14, 0.12);
+            --ab-shadow-soft: 0 10px 26px rgba(146, 64, 14, 0.09);
+            --ab-ring: 0 0 0 0.22rem rgba(217, 119, 6, 0.2);
+        }
+        html[data-theme='ocean'] {
+            --ab-primary: #0ea5e9;
+            --ab-accent: #0284c7;
+            --ab-accent-2: #06b6d4;
+            --ab-ink: #0f172a;
+            --ab-muted: #64748b;
+            --ab-surface: #f2fbff;
+            --ab-card: #ffffff;
+            --ab-border: #bde6f8;
+            --ab-page-bg: #edf9ff;
+            --ab-bg: #edf9ff;
+            --ab-grad-1: rgba(14, 165, 233, 0.18);
+            --ab-grad-2: rgba(6, 182, 212, 0.14);
+            --ab-sidebar-bg: #eef9ff;
+            --ab-hover-bg: rgba(14, 165, 233, 0.15);
+            --ab-panel-bg: #ffffff;
+            --ab-soft-bg: #e8f7ff;
+            --ab-input-bg: #ffffff;
+            --ab-input-text: #0f172a;
+            --ab-shadow-card: 0 18px 42px rgba(2, 132, 199, 0.11);
+            --ab-shadow-soft: 0 10px 26px rgba(2, 132, 199, 0.08);
+            --ab-ring: 0 0 0 0.22rem rgba(14, 165, 233, 0.18);
+        }
         body {
             font-family: "Manrope", sans-serif;
             background:
@@ -93,6 +152,12 @@ $user = Auth::user();
         }
         html[data-theme='dark'] a {
             color: #fb923c;
+        }
+        html[data-theme='sand'] a {
+            color: #b45309;
+        }
+        html[data-theme='ocean'] a {
+            color: #0369a1;
         }
         *, *::before, *::after {
             box-sizing: border-box;
@@ -466,15 +531,19 @@ $user = Auth::user();
             border: 1px solid var(--ab-border);
             font-size: 0.85rem;
         }
-        .theme-toggle {
+        .theme-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.45rem 0.62rem;
+            border-radius: 10px;
             border: 1px solid var(--ab-border);
-            background: var(--ab-panel-bg);
-            color: var(--ab-ink);
-            box-shadow: var(--ab-shadow-soft);
-        }
-        .theme-toggle:hover {
-            border-color: #f97316;
-            color: #9a3412;
+            background: color-mix(in srgb, var(--ab-soft-bg) 78%, transparent);
+            color: var(--ab-muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
         .form-control,
         .form-select {
@@ -1046,20 +1115,23 @@ $user = Auth::user();
             align-items: center;
             justify-content: center;
             padding: 16px;
-            background: rgba(2, 6, 23, 0.46);
-            backdrop-filter: blur(4px);
+            background: rgba(2, 6, 23, 0.3);
+            backdrop-filter: blur(2px);
         }
         .app-confirm-wrap.is-open {
             display: flex;
             animation: confirm-fade-in .16s ease-out;
         }
         .app-confirm-card {
-            width: min(96vw, 560px);
+            width: min(94vw, 460px);
+            max-height: min(88vh, 640px);
+            overflow-y: auto;
+            overflow-x: hidden;
             background: color-mix(in srgb, var(--ab-card) 94%, white 6%);
             border: 1px solid color-mix(in srgb, var(--ab-border) 84%, white 16%);
             border-radius: 20px;
             box-shadow: 0 32px 88px rgba(2, 6, 23, 0.38);
-            padding: 20px 20px 16px;
+            padding: 18px 18px 14px;
             transform: translateY(8px) scale(.98);
             animation: confirm-pop-in .2s ease-out forwards;
         }
@@ -1095,11 +1167,37 @@ $user = Auth::user();
             font-size: 0.94rem;
             line-height: 1.42rem;
             margin-bottom: 14px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
         }
         .app-confirm-actions {
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+            flex-wrap: wrap;
+        }
+        .app-confirm-actions .btn {
+            min-height: 40px;
+            min-width: 106px;
+            padding-inline: 14px;
+            font-size: 0.9rem;
+            font-weight: 680;
+            flex: 0 1 auto;
+        }
+        @media (max-width: 576px) {
+            .app-confirm-card {
+                width: min(95vw, 420px);
+                border-radius: 16px;
+                padding: 14px 14px 12px;
+            }
+            .app-confirm-actions {
+                gap: 6px;
+            }
+            .app-confirm-actions .btn {
+                flex: 1 1 0;
+                min-width: 0;
+            }
         }
         @keyframes confirm-fade-in {
             from { opacity: 0; }
@@ -1569,6 +1667,242 @@ $user = Auth::user();
         .table th:last-child {
             padding-right: 0.92rem !important;
         }
+        .saas-page {
+            display: grid;
+            gap: 1rem;
+        }
+        .saas-hero-card {
+            padding: 1.25rem;
+            border-radius: 24px;
+            border: 1px solid var(--ab-border);
+            background: linear-gradient(
+                155deg,
+                color-mix(in srgb, var(--ab-card) 93%, #fff 7%) 0%,
+                color-mix(in srgb, var(--ab-soft-bg) 92%, #fff 8%) 100%
+            );
+            box-shadow: var(--ab-shadow-card);
+        }
+        html[data-theme='dark'] .saas-hero-card {
+            background: linear-gradient(
+                160deg,
+                color-mix(in srgb, var(--ab-card) 90%, #0f172a 10%) 0%,
+                color-mix(in srgb, var(--ab-soft-bg) 88%, #0f172a 12%) 100%
+            );
+        }
+        .saas-headline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .saas-title {
+            margin: 0;
+            font-size: clamp(1.1rem, 1.45vw, 1.45rem);
+            font-family: "Space Grotesk", sans-serif;
+            letter-spacing: 0.01em;
+        }
+        .saas-subtitle {
+            margin: 0;
+            color: var(--ab-muted);
+            font-size: 0.92rem;
+        }
+        .saas-label {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--ab-muted);
+        }
+        .saas-filter-grid .form-label {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--ab-muted);
+        }
+        .saas-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .saas-toolbar .btn {
+            min-height: 42px;
+        }
+        .saas-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .saas-mini-card {
+            border: 1px solid var(--ab-border);
+            border-radius: 18px;
+            padding: 0.85rem 0.95rem;
+            background: color-mix(in srgb, var(--ab-soft-bg) 88%, transparent);
+        }
+        html[data-theme='dark'] .saas-mini-card {
+            background: color-mix(in srgb, var(--ab-soft-bg) 82%, #111827 18%);
+        }
+        .saas-stat-card {
+            border: 1px solid var(--ab-border);
+            border-radius: 20px;
+            padding: 1rem;
+            background: var(--ab-card);
+            box-shadow: var(--ab-shadow-soft);
+            height: 100%;
+        }
+        .saas-stat-value {
+            font-size: clamp(1.35rem, 2.5vw, 1.95rem);
+            line-height: 1.05;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .saas-table-card {
+            border: 1px solid var(--ab-border);
+            border-radius: 22px;
+            padding: 1rem;
+            background: var(--ab-card);
+            box-shadow: var(--ab-shadow-soft);
+            height: 100%;
+        }
+        .saas-table-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 0.9rem;
+        }
+        .saas-table-head h5 {
+            margin: 0;
+            font-size: 1.02rem;
+            font-weight: 700;
+        }
+        .saas-divider {
+            height: 1px;
+            background: color-mix(in srgb, var(--ab-border) 84%, transparent);
+            margin: 0.75rem 0 1rem;
+        }
+        .saas-grid-top {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+        @media (min-width: 1200px) {
+            .saas-grid-top {
+                grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            }
+        }
+        .saas-kpi-grid {
+            display: grid;
+            gap: 0.85rem;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        }
+        .saas-table-scroll {
+            border-radius: 16px;
+            overflow: auto;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 84%, transparent);
+        }
+        .saas-status-dot {
+            display: inline-flex;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            margin-right: 0.45rem;
+            vertical-align: middle;
+        }
+        .saas-status-dot.ok { background: #22c55e; }
+        .saas-status-dot.warn { background: #f59e0b; }
+        .saas-status-dot.err { background: #ef4444; }
+        .saas-status-dot.info { background: #3b82f6; }
+        /* UI/UX 2.0 - acabamento premium */
+        .sidebar {
+            border-right: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--ab-sidebar-bg) 88%, #ffffff 12%) 0%,
+                color-mix(in srgb, var(--ab-sidebar-bg) 94%, #f8fafc 6%) 100%
+            );
+            -webkit-backdrop-filter: blur(18px);
+            backdrop-filter: blur(18px);
+        }
+        .sidebar .nav-link {
+            position: relative;
+            overflow: hidden;
+            border-radius: 14px;
+        }
+        .sidebar .nav-link::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, color-mix(in srgb, var(--ab-accent) 16%, transparent), transparent 60%);
+            opacity: 0;
+            transition: opacity .18s ease;
+            pointer-events: none;
+        }
+        .sidebar .nav-link:hover::after,
+        .sidebar .nav-link.active::after {
+            opacity: 1;
+        }
+        .topbar {
+            position: sticky;
+            top: 10px;
+            z-index: 35;
+            border-radius: 18px;
+            padding: 12px 14px;
+            background: color-mix(in srgb, var(--ab-panel-bg) 86%, transparent);
+            border: 1px solid color-mix(in srgb, var(--ab-border) 84%, transparent);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+            box-shadow: var(--ab-shadow-soft);
+        }
+        .card,
+        .table-responsive {
+            border-color: color-mix(in srgb, var(--ab-border) 84%, transparent);
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+        }
+        html[data-theme='dark'] .card,
+        html[data-theme='dark'] .table-responsive {
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.36);
+        }
+        html[data-theme='sand'] .metric-card::before {
+            background: linear-gradient(90deg, #f97316, #f59e0b, #fbbf24);
+        }
+        html[data-theme='ocean'] .metric-card::before {
+            background: linear-gradient(90deg, #06b6d4, #0ea5e9, #38bdf8);
+        }
+        .btn-primary {
+            background-image: linear-gradient(135deg, color-mix(in srgb, var(--ab-accent) 88%, #f97316 12%), color-mix(in srgb, var(--ab-accent-2) 82%, #fb923c 18%));
+            border: 0;
+            box-shadow: 0 10px 22px color-mix(in srgb, var(--ab-accent) 32%, transparent);
+        }
+        .btn-primary:hover {
+            filter: saturate(1.05) brightness(1.02);
+            transform: translateY(-1px);
+        }
+        .btn-outline-primary {
+            border-color: color-mix(in srgb, var(--ab-accent) 46%, var(--ab-border) 54%);
+            color: color-mix(in srgb, var(--ab-accent) 76%, #9a3412 24%) !important;
+            background: color-mix(in srgb, var(--ab-card) 92%, transparent);
+        }
+        .btn-outline-primary:hover {
+            color: #fff !important;
+            background: color-mix(in srgb, var(--ab-accent) 82%, #f97316 18%);
+            border-color: transparent;
+        }
+        .table thead th {
+            letter-spacing: 0.04em;
+            font-size: 0.72rem;
+        }
+        .table tbody td {
+            font-size: 0.9rem;
+        }
+        .mobile-nav {
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--ab-panel-bg) 88%, transparent);
+            border-color: color-mix(in srgb, var(--ab-border) 84%, transparent);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+        }
         @media (max-width: 768px) {
             .table-responsive {
                 border-radius: 14px !important;
@@ -1597,9 +1931,834 @@ $user = Auth::user();
                 border-radius: 18px !important;
             }
         }
+
+        /* UI Revamp v3 - Premium SaaS aesthetic */
+        :root {
+            --ui-radius-xs: 10px;
+            --ui-radius-sm: 14px;
+            --ui-radius-md: 18px;
+            --ui-radius-lg: 24px;
+            --ui-radius-xl: 28px;
+            --ui-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+            --ui-shadow-md: 0 14px 36px rgba(15, 23, 42, 0.12);
+            --ui-shadow-lg: 0 22px 54px rgba(15, 23, 42, 0.16);
+        }
+        html[data-theme='dark'] {
+            --ui-shadow-sm: 0 8px 20px rgba(2, 6, 23, 0.24);
+            --ui-shadow-md: 0 16px 40px rgba(2, 6, 23, 0.34);
+            --ui-shadow-lg: 0 24px 56px rgba(2, 6, 23, 0.46);
+        }
+
+        .app-shell {
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 14px;
+            gap: 1rem;
+            grid-template-columns: 300px minmax(0, 1fr);
+            align-items: start;
+        }
+        .app-main {
+            min-width: 0;
+            display: grid;
+            gap: 0.9rem;
+        }
+        .app-content {
+            display: grid;
+            gap: 1rem;
+            padding: 0.1rem 0.1rem 0.6rem;
+        }
+        .app-content > .row {
+            margin-top: 0 !important;
+        }
+        .app-content .row.g-3,
+        .app-content .row.g-4 {
+            --bs-gutter-x: 1rem;
+            --bs-gutter-y: 1rem;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 12px;
+            height: calc(100vh - 24px);
+            border-radius: var(--ui-radius-xl) !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 84%, transparent) !important;
+            background:
+                linear-gradient(160deg, color-mix(in srgb, var(--ab-sidebar-bg) 95%, #ffffff 5%) 0%, color-mix(in srgb, var(--ab-soft-bg) 90%, #ffffff 10%) 100%) !important;
+            box-shadow: var(--ui-shadow-md) !important;
+            overflow: hidden;
+        }
+        html[data-theme='dark'] .sidebar {
+            background:
+                linear-gradient(160deg, color-mix(in srgb, var(--ab-sidebar-bg) 95%, #0b1320 5%) 0%, color-mix(in srgb, var(--ab-soft-bg) 92%, #0b1320 8%) 100%) !important;
+        }
+        .sidebar-top {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            margin: -0.35rem -0.35rem 0.65rem;
+            padding: 0.95rem 0.95rem 0.7rem;
+            background: color-mix(in srgb, var(--ab-sidebar-bg) 88%, transparent);
+            border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 70%, transparent);
+            -webkit-backdrop-filter: blur(14px);
+            backdrop-filter: blur(14px);
+        }
+        .sidebar-menu {
+            padding: 0 0.5rem 0.7rem !important;
+            overscroll-behavior: contain;
+        }
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-weight: 650;
+            font-size: 0.96rem;
+            border-radius: var(--ui-radius-sm);
+            margin-bottom: 0.18rem;
+            padding: 0.64rem 0.7rem;
+            border: 1px solid transparent;
+            transition: all .16s ease;
+        }
+        .sidebar .nav-link i {
+            width: 1.2rem;
+            text-align: center;
+            font-size: 1rem;
+            opacity: 0.92;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            transform: translateX(2px);
+            border-color: color-mix(in srgb, var(--ab-accent) 32%, transparent);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        }
+        .sidebar-user-card {
+            border-radius: var(--ui-radius-md) !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 74%, transparent);
+            box-shadow: var(--ui-shadow-sm);
+        }
+        .sidebar-user-avatar,
+        .sidebar-user-fallback {
+            width: 42px !important;
+            height: 42px !important;
+        }
+
+        .topbar {
+            top: 12px;
+            border-radius: var(--ui-radius-lg) !important;
+            padding: 0.82rem 1rem !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent) !important;
+            background: color-mix(in srgb, var(--ab-panel-bg) 90%, transparent) !important;
+            box-shadow: var(--ui-shadow-sm) !important;
+            -webkit-backdrop-filter: blur(18px);
+            backdrop-filter: blur(18px);
+        }
+        .topbar .h5 {
+            font-size: 1.05rem;
+            letter-spacing: -0.01em;
+        }
+        .topbar .user-pill {
+            border-radius: 999px !important;
+            padding: 0.4rem 0.75rem !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 76%, transparent) !important;
+            background: color-mix(in srgb, var(--ab-card) 88%, transparent) !important;
+        }
+        .theme-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.24rem;
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+            background: color-mix(in srgb, var(--ab-card) 90%, transparent);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        }
+        .theme-btn {
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--ab-muted);
+            border-radius: 999px;
+            min-height: 30px;
+            padding: 0.28rem 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.38rem;
+            font-size: 0.74rem;
+            font-weight: 680;
+            letter-spacing: 0.01em;
+            transition: all .16s ease;
+        }
+        .theme-btn:hover {
+            color: var(--ab-ink);
+            background: color-mix(in srgb, var(--ab-hover-bg) 62%, transparent);
+        }
+        .theme-btn.active {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--ab-accent) 86%, #f97316 14%), color-mix(in srgb, var(--ab-accent-2) 84%, #fb923c 16%));
+            box-shadow: 0 6px 16px color-mix(in srgb, var(--ab-accent) 30%, transparent);
+        }
+        .theme-btn .swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+            flex-shrink: 0;
+        }
+        .theme-btn .swatch-light { background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-color: #cbd5e1; }
+        .theme-btn .swatch-dark { background: linear-gradient(135deg, #1e293b, #0f172a); border-color: #334155; }
+        .theme-btn .swatch-sand { background: linear-gradient(135deg, #fb923c, #f59e0b); border-color: #fbbf24; }
+        .theme-btn .swatch-ocean { background: linear-gradient(135deg, #0ea5e9, #06b6d4); border-color: #22d3ee; }
+        .theme-btn-label {
+            display: none;
+        }
+        .theme-switch-compact .theme-btn {
+            min-width: 30px;
+            justify-content: center;
+            padding-inline: 0.36rem;
+        }
+        .theme-switch-compact .theme-btn-label {
+            display: none !important;
+        }
+        @media (min-width: 1280px) {
+            .theme-btn-label {
+                display: inline;
+            }
+        }
+        .theme-chip {
+            border-radius: 999px;
+            font-weight: 650;
+            font-size: 0.78rem;
+        }
+
+        .card,
+        .saas-table-card,
+        .table-responsive {
+            border-radius: var(--ui-radius-lg) !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 84%, transparent) !important;
+            box-shadow: var(--ui-shadow-sm) !important;
+            overflow: hidden;
+        }
+        .card:hover,
+        .saas-table-card:hover {
+            box-shadow: var(--ui-shadow-md) !important;
+        }
+        .section-title .icon,
+        .metric-icon {
+            border-radius: 14px !important;
+            box-shadow: 0 6px 16px color-mix(in srgb, var(--ab-accent) 24%, transparent);
+        }
+        .metric-card {
+            border-radius: var(--ui-radius-lg) !important;
+            min-height: 100%;
+        }
+        .saas-hero-card {
+            border-radius: var(--ui-radius-lg) !important;
+            box-shadow: var(--ui-shadow-sm);
+        }
+        .saas-kpi-grid {
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 0.95rem;
+        }
+        .saas-stat-card {
+            border-radius: 20px;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+            box-shadow: var(--ui-shadow-sm);
+            padding: 1rem;
+            background: color-mix(in srgb, var(--ab-card) 95%, #ffffff 5%);
+        }
+        html[data-theme='dark'] .saas-stat-card {
+            background: color-mix(in srgb, var(--ab-card) 95%, #12223a 5%);
+        }
+        .saas-stat-value {
+            letter-spacing: -0.02em;
+            font-size: clamp(1.45rem, 1.2rem + 0.8vw, 2.05rem);
+            line-height: 1.05;
+            margin-top: 0.28rem;
+        }
+
+        .btn {
+            border-radius: 12px !important;
+            font-weight: 640;
+            letter-spacing: 0.01em;
+            transition: transform .14s ease, box-shadow .18s ease, filter .16s ease;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-primary {
+            color: #fff !important;
+            border: 0 !important;
+            box-shadow: 0 10px 22px color-mix(in srgb, var(--ab-accent) 30%, transparent) !important;
+        }
+        .btn-outline-primary {
+            border-width: 1px !important;
+            background: color-mix(in srgb, var(--ab-card) 93%, #ffffff 7%) !important;
+        }
+        .btn-outline-primary:hover {
+            color: #fff !important;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: var(--ui-radius-sm) !important;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent) !important;
+            background: color-mix(in srgb, var(--ab-input-bg) 96%, #ffffff 4%) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: color-mix(in srgb, var(--ab-accent) 62%, var(--ab-border) 38%) !important;
+            box-shadow: var(--ab-ring) !important;
+        }
+        .input-xl {
+            min-height: 49px;
+            font-weight: 540;
+        }
+        .form-label {
+            font-weight: 620;
+            font-size: 0.82rem;
+            letter-spacing: 0.01em;
+            margin-bottom: 0.42rem;
+        }
+
+        .table-responsive {
+            padding: 0.15rem 0.3rem 0.3rem;
+            background: color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%) !important;
+        }
+        .table {
+            margin-bottom: 0 !important;
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--ab-ink);
+            --bs-table-hover-bg: color-mix(in srgb, var(--ab-hover-bg) 58%, transparent);
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: color-mix(in srgb, var(--ab-soft-bg) 78%, var(--ab-card) 22%);
+            border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+            font-size: 0.73rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .table tbody td {
+            border-color: color-mix(in srgb, var(--ab-border) 68%, transparent);
+            font-size: 0.91rem;
+            font-weight: 520;
+            vertical-align: middle;
+        }
+        .table tbody tr {
+            transition: background-color .14s ease;
+        }
+        .table tbody tr:hover {
+            background: color-mix(in srgb, var(--ab-hover-bg) 54%, transparent);
+        }
+        .badge,
+        .tag,
+        .stat-chip,
+        .turno-pill {
+            border-radius: 999px;
+            font-weight: 630;
+        }
+
+        .mobile-nav {
+            border-radius: var(--ui-radius-md) !important;
+            padding: 0.6rem 0.75rem;
+        }
+        .offcanvas .nav-link {
+            border-radius: 12px;
+            font-weight: 620;
+        }
+        .offcanvas .nav-link:hover {
+            background: color-mix(in srgb, var(--ab-hover-bg) 58%, transparent);
+        }
+
+        @media (max-width: 1400px) {
+            .app-shell {
+                grid-template-columns: 280px minmax(0, 1fr);
+                padding: 12px;
+            }
+        }
+        @media (max-width: 1200px) {
+            .app-content {
+                gap: 0.9rem;
+            }
+            .saas-kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+            }
+        }
+        @media (max-width: 992px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            .app-main {
+                gap: 0.75rem;
+            }
+            .topbar {
+                border-radius: 16px !important;
+                padding: 0.65rem 0.7rem !important;
+            }
+            .card,
+            .saas-table-card,
+            .table-responsive,
+            .mobile-nav {
+                border-radius: 16px !important;
+            }
+            .topbar-actions {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.55rem !important;
+                flex-wrap: nowrap;
+            }
+            .topbar-theme,
+            .topbar-runtime {
+                display: none !important;
+            }
+            .topbar .user-pill.desktop-only {
+                display: flex !important;
+                flex: 0 1 auto;
+                min-width: 0;
+                width: auto !important;
+                max-width: min(72vw, 320px);
+                margin-right: 0.25rem;
+                justify-content: flex-start;
+            }
+            .topbar .user-pill.desktop-only .fw-semibold {
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 170px;
+            }
+            .topbar .topbar-logout {
+                flex: 0 0 auto;
+            }
+        }
+        @media (max-width: 576px) {
+            .app-shell {
+                padding: 8px;
+            }
+            .saas-kpi-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.68rem;
+            }
+            .saas-stat-card {
+                padding: 0.8rem;
+                border-radius: 16px;
+            }
+            .saas-stat-value {
+                font-size: 1.2rem;
+            }
+            .table thead th {
+                font-size: 0.66rem;
+            }
+            .table tbody td {
+                font-size: 0.82rem;
+            }
+        }
+
+        /* Guided Tutorial (first use per page) */
+        .tour-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;
+            pointer-events: none;
+        }
+        .tour-overlay.is-open {
+            pointer-events: auto;
+        }
+        .tour-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 14, 24, 0.38);
+            backdrop-filter: blur(0.8px);
+            pointer-events: auto;
+        }
+        .tour-highlight {
+            position: fixed;
+            border-radius: 14px;
+            border: 2px solid color-mix(in srgb, var(--ab-accent) 78%, #ffffff 22%);
+            box-shadow:
+                0 0 0 9999px rgba(7, 11, 19, 0.34),
+                0 0 0 8px rgba(255, 255, 255, 0.12),
+                0 18px 40px rgba(0, 0, 0, 0.32);
+            transition: all .2s ease;
+            pointer-events: none;
+        }
+        .tour-highlight.is-hidden {
+            opacity: 0;
+            width: 0 !important;
+            height: 0 !important;
+            border-width: 0;
+        }
+        .tour-popover {
+            position: fixed;
+            width: min(380px, calc(100vw - 24px));
+            max-width: calc(100vw - 16px);
+            max-height: min(82vh, 560px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            border-radius: 16px;
+            border: 1px solid color-mix(in srgb, var(--ab-border) 76%, transparent);
+            background: color-mix(in srgb, var(--ab-card) 95%, #ffffff 5%);
+            color: var(--ab-ink);
+            box-shadow: 0 26px 56px rgba(0, 0, 0, 0.26);
+            padding: 0.95rem 1rem;
+            pointer-events: auto;
+            z-index: 2147483002;
+        }
+        html[data-theme='dark'] .tour-popover {
+            background: color-mix(in srgb, var(--ab-card) 94%, #111827 6%);
+            border-color: color-mix(in srgb, var(--ab-border) 82%, transparent);
+        }
+        .tour-kicker {
+            font-size: 0.7rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--ab-muted);
+            margin-bottom: 0.3rem;
+        }
+        .tour-title {
+            font-size: 1rem;
+            font-weight: 750;
+            margin-bottom: 0.35rem;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .tour-text {
+            font-size: 0.9rem;
+            color: var(--ab-muted);
+            line-height: 1.45;
+            margin-bottom: 0.7rem;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        .tour-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            border-top: 1px solid color-mix(in srgb, var(--ab-border) 74%, transparent);
+            padding-top: 0.55rem;
+        }
+        .tour-progress {
+            font-size: 0.78rem;
+            color: var(--ab-muted);
+            font-weight: 650;
+            flex: 1 1 auto;
+            min-width: 120px;
+        }
+        .tour-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            row-gap: 0.35rem;
+        }
+        .tour-actions .btn {
+            min-width: 82px;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+        @media (max-width: 576px) {
+            .tour-popover {
+                width: calc(100vw - 16px);
+                max-height: calc(100vh - 16px);
+                border-radius: 14px;
+                padding: 0.85rem 0.88rem;
+            }
+            .tour-title {
+                font-size: 0.96rem;
+            }
+            .tour-text {
+                font-size: 0.84rem;
+            }
+            .tour-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .tour-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+            .tour-actions .btn {
+                flex: 1 1 120px;
+            }
+        }
+
+        /* Button contrast safety */
+        .btn-outline-primary,
+        .btn-outline-primary:visited {
+            color: #c2410c !important;
+            border-color: #fb923c !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+        }
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus,
+        .btn-outline-primary:active,
+        .btn-check:checked + .btn-outline-primary {
+            color: #fff !important;
+            border-color: #f97316 !important;
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important;
+        }
+        .btn-outline-secondary,
+        .btn-outline-secondary:visited,
+        .btn-outline-dark,
+        .btn-outline-dark:visited {
+            color: var(--ab-ink) !important;
+            border-color: var(--ab-border) !important;
+            background: transparent !important;
+        }
+        .btn-outline-secondary:hover,
+        .btn-outline-secondary:focus,
+        .btn-outline-secondary:active,
+        .btn-outline-dark:hover,
+        .btn-outline-dark:focus,
+        .btn-outline-dark:active {
+            color: var(--ab-ink) !important;
+            border-color: color-mix(in srgb, var(--ab-border) 55%, #94a3b8 45%) !important;
+            background: color-mix(in srgb, var(--ab-soft-bg) 88%, transparent) !important;
+        }
+        html[data-theme='dark'] .btn-outline-primary,
+        html[data-theme='dark'] .btn-outline-primary:visited {
+            color: #fdba74 !important;
+            border-color: #fb923c !important;
+            background: rgba(251, 146, 60, 0.09) !important;
+        }
+        html[data-theme='dark'] .btn-outline-primary:hover,
+        html[data-theme='dark'] .btn-outline-primary:focus,
+        html[data-theme='dark'] .btn-outline-primary:active,
+        html[data-theme='dark'] .btn-check:checked + .btn-outline-primary {
+            color: #fff !important;
+            border-color: #fb923c !important;
+            background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+        }
+
+        /* Final responsive hardening (mobile + popups + footer) */
+        body.tour-open,
+        body.confirm-modal-open {
+            overflow: hidden;
+            touch-action: none;
+        }
+        .app-shell,
+        .app-main,
+        .app-content,
+        .card,
+        .saas-table-card,
+        .saas-hero-card,
+        .table-responsive {
+            min-width: 0;
+        }
+        .app-main > footer {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .app-main > footer a {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .tour-popover {
+            box-sizing: border-box;
+        }
+        @media (max-width: 992px) {
+            .app-main {
+                padding: 12px !important;
+            }
+            .topbar {
+                gap: 0.65rem !important;
+            }
+            .topbar .user-pill.desktop-only {
+                max-width: 100%;
+            }
+            .saas-page,
+            .saas-grid-top,
+            .saas-hero-card,
+            .saas-table-card,
+            .saas-mini-card,
+            .saas-kpi-grid {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .saas-page .row {
+                --bs-gutter-x: 0.85rem;
+                margin-left: 0;
+                margin-right: 0;
+            }
+            .saas-page .row > [class*="col-"] {
+                min-width: 0;
+                padding-left: calc(var(--bs-gutter-x) * 0.5);
+                padding-right: calc(var(--bs-gutter-x) * 0.5);
+            }
+            .saas-toolbar .btn,
+            .saas-chip-row .btn {
+                max-width: 100%;
+            }
+            .saas-toolbar .btn {
+                flex: 1 1 100%;
+            }
+        }
+        @media (max-width: 576px) {
+            .app-main {
+                padding: 10px !important;
+            }
+            .topbar {
+                margin-bottom: 12px !important;
+            }
+            .topbar-actions {
+                gap: 0.45rem !important;
+            }
+            .topbar .user-pill.desktop-only {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-right: 0;
+            }
+            .topbar .user-pill.desktop-only .fw-semibold {
+                max-width: 100%;
+            }
+            .topbar .topbar-logout {
+                margin-left: auto;
+            }
+            .app-main > footer {
+                margin-top: 0.85rem !important;
+                font-size: 0.76rem;
+                line-height: 1.35;
+            }
+            .app-confirm-wrap {
+                padding: 10px;
+            }
+            .app-confirm-card {
+                width: 100%;
+                max-width: 420px;
+                max-height: calc(100vh - 20px);
+                border-radius: 16px;
+            }
+            .app-confirm-actions {
+                flex-direction: column-reverse;
+                align-items: stretch;
+                justify-content: flex-start;
+            }
+            .app-confirm-actions .btn {
+                width: 100%;
+            }
+            .tour-popover {
+                width: calc(100vw - 20px);
+                max-width: calc(100vw - 20px);
+                max-height: calc(100vh - 24px);
+                border-radius: 14px;
+            }
+            .tour-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+            .tour-actions .btn {
+                flex: 1 1 calc(50% - 0.2rem);
+                min-width: 0;
+            }
+            .tag {
+                max-width: 100%;
+            }
+
+            /* Evita estouro horizontal em páginas com grids/rows de dashboard/relatórios */
+            .saas-page,
+            .saas-grid-top,
+            .saas-hero-card,
+            .saas-table-card,
+            .saas-mini-card,
+            .saas-kpi-grid {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .saas-page .row {
+                --bs-gutter-x: 0.85rem;
+                margin-left: 0;
+                margin-right: 0;
+            }
+            .saas-page .row > [class*="col-"] {
+                min-width: 0;
+                padding-left: calc(var(--bs-gutter-x) * 0.5);
+                padding-right: calc(var(--bs-gutter-x) * 0.5);
+            }
+            .saas-toolbar .btn,
+            .saas-chip-row .btn {
+                max-width: 100%;
+            }
+        }
+
+        /* Hotfix final: mobile/tablet overflow + button contrast consistency */
+        @media (max-width: 992px) {
+            .app-content,
+            .app-content > * {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .app-content .row {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                --bs-gutter-x: 0.8rem;
+            }
+            .app-content .row > [class*="col-"] {
+                min-width: 0;
+                max-width: 100%;
+                padding-left: calc(var(--bs-gutter-x) * 0.5);
+                padding-right: calc(var(--bs-gutter-x) * 0.5);
+            }
+            .app-content .card,
+            .app-content .saas-page,
+            .app-content .saas-hero-card,
+            .app-content .saas-table-card,
+            .app-content .section-block {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .app-content .table-responsive,
+            .app-content .saas-table-scroll {
+                max-width: 100%;
+                overflow-x: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-content .saas-toolbar .btn {
+                flex: 1 1 100%;
+            }
+            .app-content .table thead th,
+            .app-content .table tbody td {
+                word-break: break-word;
+            }
+        }
+
+        .logout-inline-form {
+            margin: 0;
+            display: inline;
+        }
+        .logout-inline-form .logout-link-btn {
+            width: 100%;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            cursor: pointer;
+            font: inherit;
+        }
+        .topbar-actions .logout-inline-form {
+            display: inline-flex;
+            align-items: center;
+        }
     </style>
 </head>
-<body>
+<body data-route="<?= h((string)$currentRoute) ?>" data-role="<?= h((string)$currentRole) ?>" data-user-id="<?= (int)$currentUserId ?>">
 <div class="app-shell">
     <?php if ($user): ?>
         <?php
@@ -1693,11 +2852,7 @@ $user = Auth::user();
             <div class="sidebar-menu">
                 <nav class="nav flex-column">
                 <?php if (in_array($user['perfil'], ['hostess'], true)): ?>
-                    <?php if ($isHostessTematicoOnly): ?>
-                        <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Registro Temático</a>
-                    <?php else: ?>
-                        <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
-                    <?php endif; ?>
+                    <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
                 <?php endif; ?>
                 <?php if ($user['perfil'] === 'hostess'): ?>
                     <a class="nav-link" href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
@@ -1709,9 +2864,7 @@ $user = Auth::user();
                     <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true) || $canTematicasReserva): ?>
                         <a class="nav-link" href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
                     <?php endif; ?>
-                    <?php if (!($user['perfil'] === 'hostess' && $isHostessTematicoOnly)): ?>
-                        <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
-                    <?php endif; ?>
+                    <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
                     <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                         <a class="nav-link" href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
                     <?php endif; ?>
@@ -1721,6 +2874,7 @@ $user = Auth::user();
                     <a class="nav-link" href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
                     <a class="nav-link" href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
                     <a class="nav-link" href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
+                    <a class="nav-link" href="/?r=lgpd/index"><i class="bi bi-shield-lock"></i> LGPD</a>
                     <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true)): ?>
                         <a class="nav-link" href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
                     <?php endif; ?>
@@ -1746,9 +2900,29 @@ $user = Auth::user();
             <div class="mobile-nav">
                 <div class="brand"><?= h($appName) ?></div>
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm theme-toggle js-theme-toggle" type="button" title="Alternar tema">
-                        <i class="bi bi-moon-stars-fill"></i>
-                    </button>
+                    <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
+                        <button class="theme-btn js-theme-option" type="button" data-theme="light" aria-label="Tema claro">
+                            <span class="swatch swatch-light"></span>
+                            <span class="theme-btn-label">Claro</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="dark" aria-label="Tema escuro">
+                            <span class="swatch swatch-dark"></span>
+                            <span class="theme-btn-label">Escuro</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="sand" aria-label="Tema areia">
+                            <span class="swatch swatch-sand"></span>
+                            <span class="theme-btn-label">Areia</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="ocean" aria-label="Tema oceano">
+                            <span class="swatch swatch-ocean"></span>
+                            <span class="theme-btn-label">Oceano</span>
+                        </button>
+                    </div>
+                    <?php if ($showGuidedTutorial): ?>
+                        <button class="btn btn-sm btn-outline-primary js-open-tour" type="button" title="Abrir tutorial">
+                            <i class="bi bi-mortarboard"></i>
+                        </button>
+                    <?php endif; ?>
                     <button class="btn btn-sm menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
                         <i class="bi bi-list"></i> Menu
                     </button>
@@ -1777,11 +2951,7 @@ $user = Auth::user();
                     <?php endif; ?>
                     <div class="nav flex-column gap-1">
                         <?php if (in_array($user['perfil'], ['hostess'], true)): ?>
-                            <?php if ($isHostessTematicoOnly): ?>
-                                <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Registro Temático</a>
-                            <?php else: ?>
-                                <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
-                            <?php endif; ?>
+                            <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
                         <?php endif; ?>
                         <?php if ($user['perfil'] === 'hostess'): ?>
                             <a class="nav-link" href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
@@ -1793,9 +2963,7 @@ $user = Auth::user();
                             <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true) || $canTematicasReserva): ?>
                                 <a class="nav-link" href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
                             <?php endif; ?>
-                            <?php if (!($user['perfil'] === 'hostess' && $isHostessTematicoOnly)): ?>
-                                <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
-                            <?php endif; ?>
+                            <a class="nav-link" href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
                             <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                                 <a class="nav-link" href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
                             <?php endif; ?>
@@ -1805,6 +2973,7 @@ $user = Auth::user();
                             <a class="nav-link" href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
                             <a class="nav-link" href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
                             <a class="nav-link" href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
+                            <a class="nav-link" href="/?r=lgpd/index"><i class="bi bi-shield-lock"></i> LGPD</a>
                             <?php if (in_array($user['perfil'], ['admin', 'supervisor'], true)): ?>
                                 <a class="nav-link" href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
                             <?php endif; ?>
@@ -1820,7 +2989,10 @@ $user = Auth::user();
                                 <a class="nav-link" href="/?r=usuarios/index"><i class="bi bi-people"></i> Usuários</a>
                             <?php endif; ?>
                         <?php endif; ?>
-                        <a class="nav-link text-danger" href="/?r=auth/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                        <form method="post" action="/?r=auth/logout" class="logout-inline-form">
+                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                            <button class="nav-link text-danger logout-link-btn" type="submit"><i class="bi bi-box-arrow-right"></i> Sair</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -1829,24 +3001,51 @@ $user = Auth::user();
                     <div class="text-muted small">Grand Oca Maragogi Resort</div>
                     <div class="h5 mb-0"><?= h($appName) ?> <span class="text-muted small">v<?= h($appVersion) ?></span></div>
                 </div>
-                <div class="d-flex align-items-center gap-3">
-                    <button class="btn btn-sm theme-toggle js-theme-toggle" type="button" title="Alternar tema">
-                        <i class="bi bi-moon-stars-fill me-1"></i>
+                <div class="d-flex align-items-center gap-3 topbar-actions">
+                    <div class="theme-chip js-theme-label topbar-theme">
+                        <i class="bi bi-palette2"></i>
                         Tema
-                    </button>
-                    <a class="btn btn-outline-dark btn-sm" href="/?r=auth/logout">
-                        <i class="bi bi-box-arrow-right me-1"></i>
-                        Sair
-                    </a>
+                    </div>
+                    <div class="theme-switch topbar-theme" role="group" aria-label="Selecionar tema">
+                        <button class="theme-btn js-theme-option" type="button" data-theme="light" aria-label="Tema claro">
+                            <span class="swatch swatch-light"></span>
+                            <span class="theme-btn-label">Claro</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="dark" aria-label="Tema escuro">
+                            <span class="swatch swatch-dark"></span>
+                            <span class="theme-btn-label">Escuro</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="sand" aria-label="Tema areia">
+                            <span class="swatch swatch-sand"></span>
+                            <span class="theme-btn-label">Areia</span>
+                        </button>
+                        <button class="theme-btn js-theme-option" type="button" data-theme="ocean" aria-label="Tema oceano">
+                            <span class="swatch swatch-ocean"></span>
+                            <span class="theme-btn-label">Oceano</span>
+                        </button>
+                    </div>
+                    <?php if ($showGuidedTutorial): ?>
+                        <button class="btn btn-outline-primary btn-sm js-open-tour topbar-theme" type="button">
+                            <i class="bi bi-mortarboard me-1"></i>
+                            Tutorial
+                        </button>
+                    <?php endif; ?>
+                    <form method="post" action="/?r=auth/logout" class="logout-inline-form">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <button class="btn btn-outline-dark btn-sm topbar-logout" type="submit">
+                            <i class="bi bi-box-arrow-right me-1"></i>
+                            Sair
+                        </button>
+                    </form>
                     <?php if ($activeShift): ?>
-                        <div class="turno-pill">
+                        <div class="turno-pill topbar-runtime">
                             <i class="bi bi-clock-history"></i>
                             Turno: <?= h($activeShift['restaurante']) ?> - <?= h($activeShift['operacao']) ?>
                         </div>
-                        <div class="stat-chip"><i class="bi bi-shop-window"></i><?= h($activeShift['restaurante']) ?></div>
-                        <div class="stat-chip"><i class="bi bi-collection"></i><?= h($activeShift['operacao']) ?></div>
+                        <div class="stat-chip topbar-runtime"><i class="bi bi-shop-window"></i><?= h($activeShift['restaurante']) ?></div>
+                        <div class="stat-chip topbar-runtime"><i class="bi bi-collection"></i><?= h($activeShift['operacao']) ?></div>
                         <?php if (!empty($activeShift['porta'])): ?>
-                            <div class="stat-chip"><i class="bi bi-door-open"></i><?= h($activeShift['porta']) ?></div>
+                            <div class="stat-chip topbar-runtime"><i class="bi bi-door-open"></i><?= h($activeShift['porta']) ?></div>
                         <?php endif; ?>
                     <?php endif; ?>
                     <div class="user-pill desktop-only">

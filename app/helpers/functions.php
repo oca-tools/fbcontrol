@@ -85,6 +85,58 @@ function h(string $value): string
     return htmlspecialchars(normalize_mojibake($value), ENT_QUOTES, 'UTF-8');
 }
 
+function sanitize_date_param(?string $value, string $default = ''): string
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return $default;
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return $default;
+    }
+    $ts = strtotime($value);
+    if ($ts === false) {
+        return $default;
+    }
+    return date('Y-m-d', $ts);
+}
+
+function sanitize_int_param($value, int $min = 1): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+    if (!is_numeric($value)) {
+        return '';
+    }
+    $intValue = (int)$value;
+    if ($intValue < $min) {
+        return '';
+    }
+    return (string)$intValue;
+}
+
+function sanitize_enum_param(?string $value, array $allowed, string $default = ''): string
+{
+    $value = trim(mb_strtolower((string)$value, 'UTF-8'));
+    if ($value === '') {
+        return $default;
+    }
+    return in_array($value, $allowed, true) ? $value : $default;
+}
+
+function sanitize_uh_param(?string $value): string
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+    if (!preg_match('/^\d{1,6}$/', $value)) {
+        return '';
+    }
+    return $value;
+}
+
 function json_response(array $data, int $status = 200): void
 {
     http_response_code($status);

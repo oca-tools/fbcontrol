@@ -1,20 +1,42 @@
 <?php
 class RelatoriosController extends Controller
 {
+    private const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+
+    private function buildFilters(bool $defaultDate = false): array
+    {
+        return [
+            'data' => sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
+            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
+            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
+            'uh_numero' => sanitize_uh_param($_GET['uh_numero'] ?? ''),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
+            'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
+        ];
+    }
+
+    private function buildExportType(): string
+    {
+        $type = strtolower(trim((string)($_GET['type'] ?? 'csv')));
+        return $type === 'xlsx' ? 'xlsx' : 'csv';
+    }
+
+    private function auditExport(string $exportName, array $filters, string $type, int $rows): void
+    {
+        (new SecurityLogModel())->log('export_' . $exportName, (int)(Auth::user()['id'] ?? 0), [
+            'type' => $type,
+            'rows' => $rows,
+            'filters' => $filters,
+        ]);
+    }
+
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $filters = [
-            'data' => $_GET['data'] ?? date('Y-m-d'),
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'uh_numero' => trim($_GET['uh_numero'] ?? ''),
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-        ];
+        $filters = $this->buildFilters(true);
 
         $restaurantModel = new RestaurantModel();
         $operationModel = new OperationModel();
@@ -112,15 +134,7 @@ class RelatoriosController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'uh_numero' => trim($_GET['uh_numero'] ?? ''),
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-        ];
+        $filters = $this->buildFilters(false);
 
         $accessModel = new AccessModel();
         $colabModel = new CollaboratorMealModel();
@@ -130,7 +144,8 @@ class RelatoriosController extends Controller
         $colabRows = $colabModel->listByFilters($filters);
         $voucherRows = $voucherModel->listByFilters($filters);
 
-        $type = $_GET['type'] ?? 'csv';
+        $type = $this->buildExportType();
+        $this->auditExport('relatorios', $filters, $type, count($rows) + count($colabRows) + count($voucherRows));
         if ($type === 'xlsx') {
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="relatorio_acessos.xls"');
@@ -206,15 +221,13 @@ class RelatoriosController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $data = $_GET['data'] ?? '';
-        if ($data === '') {
-            $data = date('Y-m-d');
-        }
+        $data = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
 
         $accessModel = new AccessModel();
         $rows = $accessModel->dailyMap($data);
 
-        $type = $_GET['type'] ?? 'csv';
+        $type = $this->buildExportType();
+        $this->auditExport('mapa', ['data' => $data], $type, count($rows));
         if ($type === 'xlsx') {
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="mapa_diario_uh.xls"');
@@ -244,18 +257,11 @@ class RelatoriosController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'uh_numero' => trim($_GET['uh_numero'] ?? ''),
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
-            'status' => $_GET['status'] ?? '',
-        ];
+        $filters = $this->buildFilters(false);
 
         $rows = (new AccessModel())->reportList($filters);
-        $type = $_GET['type'] ?? 'csv';
+        $type = $this->buildExportType();
+        $this->auditExport('bi', $filters, $type, count($rows));
         if ($type === 'xlsx') {
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="base_bi.xls"');
@@ -287,15 +293,16 @@ class RelatoriosController extends Controller
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
+            'data' => sanitize_date_param($_GET['data'] ?? ''),
+            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
+            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
         $rows = (new CollaboratorMealModel())->listByFilters($filters);
-        $type = $_GET['type'] ?? 'csv';
+        $type = $this->buildExportType();
+        $this->auditExport('colaboradores', $filters, $type, count($rows));
         if ($type === 'xlsx') {
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="colaboradores_refeicoes.xls"');
@@ -325,15 +332,16 @@ class RelatoriosController extends Controller
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $filters = [
-            'data' => $_GET['data'] ?? '',
-            'data_inicio' => $_GET['data_inicio'] ?? '',
-            'data_fim' => $_GET['data_fim'] ?? '',
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'operacao_id' => $_GET['operacao_id'] ?? '',
+            'data' => sanitize_date_param($_GET['data'] ?? ''),
+            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
+            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
         $rows = (new VoucherModel())->listByFilters($filters);
-        $type = $_GET['type'] ?? 'csv';
+        $type = $this->buildExportType();
+        $this->auditExport('vouchers', $filters, $type, count($rows));
         if ($type === 'xlsx') {
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="vouchers_registrados.xls"');

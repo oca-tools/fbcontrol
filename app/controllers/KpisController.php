@@ -1,6 +1,8 @@
 <?php
 class KpisController extends Controller
 {
+    private const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+
     private function normalizeDate(string $value): string
     {
         $value = trim($value);
@@ -20,9 +22,9 @@ class KpisController extends Controller
             'data' => $this->normalizeDate((string)($_GET['data'] ?? '')),
             'data_inicio' => $this->normalizeDate((string)($_GET['data_inicio'] ?? '')),
             'data_fim' => $this->normalizeDate((string)($_GET['data_fim'] ?? '')),
-            'restaurante_id' => trim((string)($_GET['restaurante_id'] ?? '')),
-            'operacao_id' => trim((string)($_GET['operacao_id'] ?? '')),
-            'status' => trim((string)($_GET['status'] ?? '')),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
+            'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
         ];
     }
 
@@ -200,7 +202,13 @@ class KpisController extends Controller
         foreach ($map as $input => $key) {
             $value = trim((string)($_POST[$input] ?? ''));
             if ($value !== '') {
-                $params[$key] = $value;
+                if (in_array($key, ['data', 'data_inicio', 'data_fim'], true)) {
+                    $params[$key] = $this->normalizeDate($value);
+                } elseif (in_array($key, ['restaurante_id', 'operacao_id'], true)) {
+                    $params[$key] = sanitize_int_param($value);
+                } elseif ($key === 'status') {
+                    $params[$key] = sanitize_enum_param($value, self::STATUS_FILTERS);
+                }
             }
         }
 
@@ -214,6 +222,10 @@ class KpisController extends Controller
 
         $filters = $this->readFilters();
         $rows = (new AccessModel())->kpiDailyTrend($filters);
+        (new SecurityLogModel())->log('export_kpis_tendencia', (int)(Auth::user()['id'] ?? 0), [
+            'rows' => count($rows),
+            'filters' => $filters,
+        ]);
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="kpis_tendencia.csv"');
         $out = fopen('php://output', 'w');

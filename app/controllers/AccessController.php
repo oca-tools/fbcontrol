@@ -1,6 +1,8 @@
-<?php
+﻿<?php
 class AccessController extends Controller
 {
+    private const RESERVA_STATUS_FINAIS = ['Finalizada', 'Nao compareceu', 'Cancelada'];
+
     private function isTematicoRestaurantName(string $name): bool
     {
         $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
@@ -9,6 +11,45 @@ class AccessController extends Controller
             || strpos($name, "ix'u") !== false
             || strpos($name, 'ixu') !== false
             || strpos($name, 'ix') !== false;
+    }
+
+    private function isTematicoOperationName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        $name = strtr($name, [
+            'á' => 'a',
+            'à' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'é' => 'e',
+            'ê' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+        ]);
+        return strpos($name, 'tematico') !== false;
+    }
+
+    private function isLaBrasaRestaurantName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        return strpos($name, 'la brasa') !== false;
+    }
+
+    private function isTematicoShift(array $shift): bool
+    {
+        $restaurante = (string)($shift['restaurante'] ?? '');
+        $operacao = (string)($shift['operacao'] ?? '');
+        if (!$this->isTematicoRestaurantName($restaurante)) {
+            return false;
+        }
+        if ($this->isLaBrasaRestaurantName($restaurante)) {
+            return $this->isTematicoOperationName($operacao);
+        }
+        return true;
     }
 
     private function isHostessTematicoOnlyUser(?array $user): bool
@@ -38,16 +79,8 @@ class AccessController extends Controller
 
     private function redirectIfTematicoOnlyHostess(?array $user = null): bool
     {
-        $user = $user ?? Auth::user();
-        if (!$this->isHostessTematicoOnlyUser($user)) {
-            return false;
-        }
-
-        if (!isset($_SESSION['flash'])) {
-            set_flash('info', 'Para restaurantes temáticos, utilize a tela de Operação Temática.');
-        }
-        $this->redirect('/?r=reservasTematicas/operacao');
-        return true;
+        // Fluxo v2: hostess de tematico tambem opera pelo modulo Registro.
+        return false;
     }
 
     private function autoCloseTimeoutShiftsForCurrentUser(): int
@@ -97,13 +130,19 @@ class AccessController extends Controller
                 ? $userRestaurantModel->byUser($user['id'])
                 : $restaurantModel->all();
 
+            $allowedOpsByRest = [];
+            if ($user['perfil'] === 'hostess') {
+                $allowedOpsByRest = (new UserRestaurantOperationModel())->operationsByUser((int)$user['id']);
+            }
+
             $restOps = [];
             foreach ($restaurantes as $rest) {
                 $ops = $opModel->byRestaurant((int)$rest['id']);
-                if (stripos($rest['nome'], 'La Brasa') !== false) {
-                    $ops = array_filter($ops, static function ($op) {
-                        $name = mb_strtolower($op['operacao'] ?? '', 'UTF-8');
-                        return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;
+                $restId = (int)$rest['id'];
+                if (!empty($allowedOpsByRest[$restId])) {
+                    $allowed = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restId])));
+                    $ops = array_filter($ops, static function (array $op) use ($allowed): bool {
+                        return in_array((int)($op['operacao_id'] ?? 0), $allowed, true);
                     });
                 }
                 $restOps[$rest['id']] = array_values($ops);
@@ -144,6 +183,49 @@ class AccessController extends Controller
                     $toleranceAlert = 'Atenção: faltam ' . $minsToEnd . ' min para o fim do turno (tolerância ativa).';
                 }
             }
+        }
+
+        if ($this->isTematicoShift($shift)) {
+            $dateRef = trim((string)($_GET['data'] ?? date('Y-m-d')));
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateRef)) {
+                $dateRef = date('Y-m-d');
+            }
+            $search = normalize_mojibake(trim((string)($_GET['q'] ?? '')));
+            $status = normalize_mojibake(trim((string)($_GET['status'] ?? '')));
+
+            $autoNoShowCount = $this->applyTematicaAutoNoShow((int)$shift['restaurante_id'], $dateRef, (int)$user['id']);
+            if ($autoNoShowCount > 0 && !isset($_SESSION['flash'])) {
+                set_flash('warning', $autoNoShowCount . ' reserva(s) foram marcadas como Não compareceu automaticamente.');
+            }
+
+            $reservaModel = new ReservaTematicaModel();
+            $reservas = $reservaModel->listByFilters([
+                'data' => $dateRef,
+                'restaurante_id' => (int)$shift['restaurante_id'],
+                'turno_id' => '',
+                'uh_numero' => '',
+                'titular' => $search,
+                'status' => $status,
+                'order' => 'status',
+            ]);
+            $canCancelTematico = $this->canCancelTematicoShift($shift, (int)$user['id']);
+
+            $this->view('access/tematica', [
+                'turno' => $shift,
+                'restOp' => $restOp,
+                'tolerance_alert' => $toleranceAlert,
+                'reservas' => $reservas,
+                'filters' => [
+                    'data' => $dateRef,
+                    'q' => $search,
+                    'status' => $status,
+                ],
+                'can_cancel' => $canCancelTematico,
+                'flash' => get_flash(),
+                'allow_hostess_tutorial' => $allowHostessTutorial,
+                'show_hostess_tutorial' => $showHostessTutorial,
+            ]);
+            return;
         }
 
         $accessModel = new AccessModel();
@@ -200,13 +282,19 @@ class AccessController extends Controller
             ? $userRestaurantModel->byUser($user['id'])
             : $restaurantModel->all();
 
+        $allowedOpsByRest = [];
+        if ($user['perfil'] === 'hostess') {
+            $allowedOpsByRest = (new UserRestaurantOperationModel())->operationsByUser((int)$user['id']);
+        }
+
         $restOps = [];
         foreach ($restaurantes as $rest) {
             $ops = $opModel->byRestaurant((int)$rest['id']);
-            if (stripos($rest['nome'], 'La Brasa') !== false) {
-                $ops = array_filter($ops, static function ($op) {
-                    $name = mb_strtolower($op['operacao'] ?? '', 'UTF-8');
-                    return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;
+            $restId = (int)$rest['id'];
+            if (!empty($allowedOpsByRest[$restId])) {
+                $allowed = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restId])));
+                $ops = array_filter($ops, static function (array $op) use ($allowed): bool {
+                    return in_array((int)($op['operacao_id'] ?? 0), $allowed, true);
                 });
             }
             $restOps[$rest['id']] = array_values($ops);
@@ -228,6 +316,28 @@ class AccessController extends Controller
             $this->redirect('/?r=access/index');
         }
 
+        if (($user['perfil'] ?? '') === 'hostess') {
+            $allowedRestaurantIds = array_values(array_unique(array_map(static fn($r) => (int)($r['id'] ?? 0), $restaurantes)));
+            if (!in_array($restauranteId, $allowedRestaurantIds, true)) {
+                set_flash('danger', 'Restaurante não autorizado para este usuário.');
+                $this->redirect('/?r=access/index');
+            }
+
+            $allowedOps = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restauranteId] ?? [])));
+            if (!empty($allowedOps) && !in_array($operacaoId, $allowedOps, true)) {
+                set_flash('danger', 'Operação não autorizada para este usuário.');
+                $this->redirect('/?r=access/index');
+            }
+        }
+
+        if ($portaId > 0) {
+            $doorIds = array_values(array_unique(array_map(static fn($d) => (int)($d['id'] ?? 0), $doorsByRestaurant[$restauranteId] ?? [])));
+            if (!in_array($portaId, $doorIds, true)) {
+                set_flash('danger', 'Porta inválida para o restaurante selecionado.');
+                $this->redirect('/?r=access/index');
+            }
+        }
+
         $restOp = $opModel->findByRestaurantOperation($restauranteId, $operacaoId);
         if (!$restOp) {
             set_flash('danger', 'Operação inválida para este restaurante.');
@@ -236,28 +346,22 @@ class AccessController extends Controller
         $outsideHorario = $this->isOutsideHorario($restOp);
 
         $rest = $restaurantModel->find($restauranteId);
-        $opInfo = (new OperationModel())->find($operacaoId);
-        if ($rest && stripos($rest['nome'], 'La Brasa') !== false && $opInfo) {
-            $opName = mb_strtolower($opInfo['nome'], 'UTF-8');
-            if (strpos($opName, 'almoço') === false && strpos($opName, 'almoco') === false) {
-                set_flash('danger', 'No La Brasa o registro é permitido apenas para almoço.');
-                $this->redirect('/?r=access/index');
-            }
-        }
         if ($rest && (int)$rest['seleciona_porta_no_turno'] === 1 && $portaId <= 0) {
             set_flash('danger', 'Selecione a porta.');
             $this->redirect('/?r=access/index');
         }
 
-        if (!$confirmStart && !($outsideHorario && $confirmEarly)) {
-            set_flash('warning', 'Confirme o checklist para iniciar o turno.');
+        if ($outsideHorario && !$confirmEarly) {
+            if (!isset($_SESSION['flash'])) {
+                set_flash('warning', 'Turno fora do horário. Confirme se deseja continuar.');
+            }
             $this->view('access/index', [
                 'mode' => 'start',
                 'restaurantes' => $restaurantes,
                 'restOps' => $restOps,
                 'doorsByRestaurant' => $doorsByRestaurant,
                 'flash' => get_flash(),
-                'need_confirm' => false,
+                'need_confirm' => true,
                 'preselect' => [
                     'restaurante_id' => $restauranteId,
                     'operacao_id' => $operacaoId,
@@ -267,14 +371,15 @@ class AccessController extends Controller
             return;
         }
 
-        if ($outsideHorario && !$confirmEarly) {
+        if (!$confirmStart) {
+            set_flash('warning', 'Confirme o checklist para iniciar o turno.');
             $this->view('access/index', [
                 'mode' => 'start',
                 'restaurantes' => $restaurantes,
                 'restOps' => $restOps,
                 'doorsByRestaurant' => $doorsByRestaurant,
                 'flash' => get_flash(),
-                'need_confirm' => true,
+                'need_confirm' => false,
                 'preselect' => [
                     'restaurante_id' => $restauranteId,
                     'operacao_id' => $operacaoId,
@@ -315,6 +420,10 @@ class AccessController extends Controller
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
         if (!$shift) {
             set_flash('danger', 'Inicie um turno para registrar acessos.');
+            $this->redirect('/?r=access/index');
+        }
+        if ($this->isTematicoShift($shift)) {
+            set_flash('info', 'Neste turno temático, confirme as reservas na tela de operação temática do Registro.');
             $this->redirect('/?r=access/index');
         }
 
@@ -407,6 +516,119 @@ class AccessController extends Controller
         }
 
         $this->redirect('/?r=access/index');
+    }
+
+    public function register_tematica(): void
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/?r=access/index');
+        }
+
+        if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+            set_flash('danger', 'Token inválido.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $shift = (new ShiftModel())->getActiveByUser((int)Auth::user()['id']);
+        if (!$shift) {
+            set_flash('danger', 'Inicie um turno para operar reservas temáticas.');
+            $this->redirect('/?r=access/index');
+        }
+        if (!$this->isTematicoShift($shift)) {
+            set_flash('danger', 'Este turno não é temático.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $reservaId = (int)($_POST['reserva_id'] ?? 0);
+        $acao = normalize_mojibake(trim((string)($_POST['acao_tematica'] ?? '')));
+        $dateRef = trim((string)($_POST['data_ref'] ?? date('Y-m-d')));
+        $query = normalize_mojibake(trim((string)($_POST['q'] ?? '')));
+        $statusFilter = normalize_mojibake(trim((string)($_POST['status'] ?? '')));
+
+        if ($reservaId <= 0 || !in_array($acao, ['confirmar', 'cancelar'], true)) {
+            set_flash('danger', 'Selecione uma reserva e a ação desejada.');
+            $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+        }
+
+        $reservaModel = new ReservaTematicaModel();
+        $logModel = new ReservaTematicaLogModel();
+        $before = $reservaModel->find($reservaId);
+        if (!$before) {
+            set_flash('danger', 'Reserva não encontrada.');
+            $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+        }
+        if ((int)($before['restaurante_id'] ?? 0) !== (int)$shift['restaurante_id']) {
+            set_flash('danger', 'Reserva fora do restaurante do turno ativo.');
+            $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+        }
+        if (($before['data_reserva'] ?? '') !== $dateRef) {
+            set_flash('warning', 'Reserva fora da data selecionada.');
+            $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+        }
+
+        $statusAtual = $this->normalizeReservaStatus((string)($before['status'] ?? ''));
+        if (in_array($statusAtual, self::RESERVA_STATUS_FINAIS, true)) {
+            set_flash('warning', 'Essa reserva já está em status definitivo.');
+            $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+        }
+
+        $paxReservado = (int)($before['pax'] ?? 0);
+        $paxReal = $paxReservado;
+        $obs = normalize_mojibake(trim((string)($_POST['observacao_operacao'] ?? '')));
+        $novoStatus = 'Finalizada';
+
+        if ($acao === 'cancelar') {
+            $novoStatus = 'Nao compareceu';
+            $paxReal = 0;
+            $prefixo = 'No-show manual em operação temática.';
+            $obs = $obs !== '' ? ($prefixo . ' ' . $obs) : $prefixo;
+        } else {
+            $paxRealRaw = trim((string)($_POST['pax_real'] ?? ''));
+            if ($paxRealRaw !== '') {
+                if (!ctype_digit($paxRealRaw)) {
+                    set_flash('warning', 'PAX real inválido.');
+                    $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+                }
+                $paxReal = (int)$paxRealRaw;
+                if ($paxReal < 0 || $paxReal > $paxReservado) {
+                    set_flash('warning', 'PAX real deve estar entre 0 e ' . $paxReservado . '.');
+                    $this->redirect('/?r=access/index&data=' . urlencode($dateRef));
+                }
+            }
+            if ($paxReal < $paxReservado) {
+                $prefixo = 'No-show parcial: reservado ' . $paxReservado . ', real ' . $paxReal . '.';
+                $obs = $obs !== '' ? ($prefixo . ' ' . $obs) : $prefixo;
+            }
+        }
+
+        $reservaModel->updateOperacao($reservaId, $novoStatus, $obs, (int)Auth::user()['id'], $paxReal);
+        $after = $reservaModel->find($reservaId) ?? [];
+        $logModel->log(
+            $reservaId,
+            'status',
+            (int)Auth::user()['id'],
+            $before,
+            $after,
+            $acao === 'cancelar' ? 'No-show manual em turno temático.' : 'Confirmação de entrada em turno temático.'
+        );
+
+        if ($acao === 'cancelar') {
+            set_flash('warning', 'Reserva marcada como Não compareceu.');
+        } else {
+            set_flash('success', 'Reserva confirmada e finalizada.');
+        }
+
+        $url = '/?r=access/index&data=' . urlencode($dateRef);
+        if ($query !== '') {
+            $url .= '&q=' . urlencode($query);
+        }
+        if ($statusFilter !== '') {
+            $url .= '&status=' . urlencode($statusFilter);
+        }
+        $this->redirect($url);
     }
 
     public function correct_last(): void
@@ -536,12 +758,12 @@ class AccessController extends Controller
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
 
-        $nomeHospede = trim($_POST['nome_hospede'] ?? '');
-        $dataEstadia = trim($_POST['data_estadia'] ?? '');
-        $numeroReserva = trim($_POST['numero_reserva'] ?? '');
-        $servico = trim($_POST['servico_upselling'] ?? '');
-        $assinatura = trim($_POST['assinatura'] ?? '');
-        $dataVenda = trim($_POST['data_venda'] ?? '');
+        $nomeHospede = trim(strip_tags((string)($_POST['nome_hospede'] ?? '')));
+        $dataEstadia = trim((string)($_POST['data_estadia'] ?? ''));
+        $numeroReserva = trim(strip_tags((string)($_POST['numero_reserva'] ?? '')));
+        $servico = trim(strip_tags((string)($_POST['servico_upselling'] ?? '')));
+        $assinatura = trim(strip_tags((string)($_POST['assinatura'] ?? '')));
+        $dataVenda = trim((string)($_POST['data_venda'] ?? ''));
 
         if ($nomeHospede === '' || $dataEstadia === '' || $numeroReserva === '' || $servico === '' || $assinatura === '' || $dataVenda === '') {
             set_flash('danger', 'Preencha todos os campos do voucher.');
@@ -597,6 +819,11 @@ class AccessController extends Controller
 
         $restauranteId = (int)($_POST['restaurante_id'] ?? ($shift['restaurante_id'] ?? 0));
         $operacaoId = (int)($_POST['operacao_id'] ?? ($shift['operacao_id'] ?? 0));
+        $user = Auth::user();
+        if (($user['perfil'] ?? '') === 'hostess') {
+            $restauranteId = (int)($shift['restaurante_id'] ?? 0);
+            $operacaoId = (int)($shift['operacao_id'] ?? 0);
+        }
         if ($restauranteId <= 0 || $operacaoId <= 0) {
             set_flash('danger', 'Selecione restaurante e operação para o voucher.');
             $this->redirect('/?r=vouchers/index');
@@ -618,6 +845,75 @@ class AccessController extends Controller
 
         set_flash('success', 'Voucher registrado com sucesso.');
         $this->redirect('/?r=vouchers/index');
+    }
+
+    private function normalizeReservaStatus(string $status): string
+    {
+        $status = trim(normalize_mojibake($status));
+        $map = [
+            'Nao compareceu' => 'Nao compareceu',
+            'Não compareceu' => 'Nao compareceu',
+            'Não compareceu' => 'Nao compareceu',
+            'Não compareceu' => 'Nao compareceu',
+            'Divergencia' => 'Divergencia',
+            'Divergência' => 'Divergencia',
+            'Divergência' => 'Divergencia',
+            'Divergência' => 'Divergencia',
+            'Conferida' => 'Reservada',
+            'Em atendimento' => 'Reservada',
+        ];
+        return $map[$status] ?? $status;
+    }
+
+    private function applyTematicaAutoNoShow(int $restauranteId, string $dateRef, int $userId): int
+    {
+        if ($restauranteId <= 0 || $userId <= 0) {
+            return 0;
+        }
+
+        $reservaModel = new ReservaTematicaModel();
+        $logModel = new ReservaTematicaLogModel();
+        $agora = date('Y-m-d H:i:s');
+        $candidatas = $reservaModel->findAutoNoShowCandidates($agora, $dateRef, $restauranteId);
+        $processed = 0;
+
+        foreach ($candidatas as $cand) {
+            $id = (int)($cand['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+            $before = $reservaModel->find($id);
+            if (!$before) {
+                continue;
+            }
+            $statusAtual = $this->normalizeReservaStatus((string)($before['status'] ?? ''));
+            if ($statusAtual !== 'Reservada') {
+                continue;
+            }
+
+            $obsAtual = trim((string)($before['observacao_operacao'] ?? ''));
+            $obsAuto = 'No-show automático por expiração da tolerância da reserva.';
+            if ($obsAtual !== '') {
+                $obsAuto .= ' ' . $obsAtual;
+            }
+
+            $reservaModel->updateOperacao($id, 'Nao compareceu', $obsAuto, $userId, 0);
+            $after = $reservaModel->find($id) ?? [];
+            $logModel->log($id, 'auto_no_show', $userId, $before, $after, 'Aplicado automaticamente pela configuração de tolerância.');
+            $processed++;
+        }
+
+        return $processed;
+    }
+
+    private function canCancelTematicoShift(array $shift, int $userId): bool
+    {
+        $startedAt = (string)($shift['inicio_em'] ?? '');
+        if ($startedAt === '' || $userId <= 0) {
+            return true;
+        }
+        $manualUpdates = (new ReservaTematicaLogModel())->countManualByUserSince($userId, $startedAt);
+        return $manualUpdates === 0;
     }
 
     private function isOutsideHorario(array $restOp): bool
@@ -646,3 +942,6 @@ class AccessController extends Controller
         return in_array($normalized, ['não compareceu', 'nao compareceu'], true);
     }
 }
+
+
+

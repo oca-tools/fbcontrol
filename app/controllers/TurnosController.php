@@ -1,6 +1,55 @@
 <?php
 class TurnosController extends Controller
 {
+    private function isTematicoRestaurantName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        return strpos($name, 'giardino') !== false
+            || strpos($name, 'la brasa') !== false
+            || strpos($name, "ix'u") !== false
+            || strpos($name, 'ixu') !== false
+            || strpos($name, 'ix') !== false;
+    }
+
+    private function isTematicoOperationName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        $name = strtr($name, [
+            'á' => 'a',
+            'à' => 'a',
+            'â' => 'a',
+            'ã' => 'a',
+            'é' => 'e',
+            'ê' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ô' => 'o',
+            'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+        ]);
+        return strpos($name, 'tematico') !== false;
+    }
+
+    private function isLaBrasaRestaurantName(string $name): bool
+    {
+        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
+        return strpos($name, 'la brasa') !== false;
+    }
+
+    private function isTematicoShift(array $shift): bool
+    {
+        $restaurante = (string)($shift['restaurante'] ?? '');
+        $operacao = (string)($shift['operacao'] ?? '');
+        if (!$this->isTematicoRestaurantName($restaurante)) {
+            return false;
+        }
+        if ($this->isLaBrasaRestaurantName($restaurante)) {
+            return $this->isTematicoOperationName($operacao);
+        }
+        return true;
+    }
+
     private function autoCloseTimeoutShiftsForCurrentUser(): void
     {
         $user = Auth::user();
@@ -39,11 +88,16 @@ class TurnosController extends Controller
             $ops = $opModel->byRestaurant((int)$rest['id']);
             if (stripos($rest['nome'], 'La Brasa') !== false) {
                 $ops = array_filter($ops, static function ($op) {
-                    $name = mb_strtolower($op['operacao'] ?? '', 'UTF-8');
+                    $name = mb_strtolower((string)($op['operacao'] ?? ''), 'UTF-8');
                     return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;
                 });
             }
             $restOps[$rest['id']] = array_values($ops);
+        }
+
+        $allowedOpsByRest = [];
+        if (($user['perfil'] ?? '') === 'hostess') {
+            $allowedOpsByRest = (new UserRestaurantOperationModel())->operationsByUser((int)$user['id']);
         }
 
         $doorsByRestaurant = [];
@@ -68,6 +122,28 @@ class TurnosController extends Controller
                 $this->redirect('/?r=turnos/start');
             }
 
+            if (($user['perfil'] ?? '') === 'hostess') {
+                $allowedRestaurantIds = array_values(array_unique(array_map(static fn($r) => (int)($r['id'] ?? 0), $restaurantes)));
+                if (!in_array($restauranteId, $allowedRestaurantIds, true)) {
+                    set_flash('danger', 'Restaurante não autorizado para este usuário.');
+                    $this->redirect('/?r=turnos/start');
+                }
+
+                $allowedOps = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restauranteId] ?? [])));
+                if (!empty($allowedOps) && !in_array($operacaoId, $allowedOps, true)) {
+                    set_flash('danger', 'Operação não autorizada para este usuário.');
+                    $this->redirect('/?r=turnos/start');
+                }
+            }
+
+            if ($portaId > 0) {
+                $doorIds = array_values(array_unique(array_map(static fn($d) => (int)($d['id'] ?? 0), $doorsByRestaurant[$restauranteId] ?? [])));
+                if (!in_array($portaId, $doorIds, true)) {
+                    set_flash('danger', 'Porta inválida para o restaurante selecionado.');
+                    $this->redirect('/?r=turnos/start');
+                }
+            }
+
             $restOp = $opModel->findByRestaurantOperation($restauranteId, $operacaoId);
             if (!$restOp) {
                 set_flash('danger', 'Operação inválida para este restaurante.');
@@ -77,8 +153,8 @@ class TurnosController extends Controller
 
             $rest = $restaurantModel->find($restauranteId);
             $opInfo = (new OperationModel())->find($operacaoId);
-            if ($rest && stripos($rest['nome'], 'La Brasa') !== false && $opInfo) {
-                $opName = mb_strtolower($opInfo['nome'], 'UTF-8');
+            if ($rest && stripos((string)$rest['nome'], 'La Brasa') !== false && $opInfo) {
+                $opName = mb_strtolower((string)($opInfo['nome'] ?? ''), 'UTF-8');
                 if (strpos($opName, 'almoço') === false && strpos($opName, 'almoco') === false) {
                     set_flash('danger', 'No La Brasa o registro é permitido apenas para almoço.');
                     $this->redirect('/?r=turnos/start');
@@ -89,14 +165,16 @@ class TurnosController extends Controller
                 $this->redirect('/?r=turnos/start');
             }
 
-            if (!$confirmStart && !($outsideHorario && $confirmEarly)) {
-                set_flash('warning', 'Confirme o checklist para iniciar o turno.');
+            if ($outsideHorario && !$confirmEarly) {
+                if (!isset($_SESSION['flash'])) {
+                    set_flash('warning', 'Turno fora do horário. Confirme se deseja continuar.');
+                }
                 $this->view('turnos/start', [
                     'restaurantes' => $restaurantes,
                     'restOps' => $restOps,
                     'doorsByRestaurant' => $doorsByRestaurant,
                     'flash' => get_flash(),
-                    'need_confirm' => false,
+                    'need_confirm' => true,
                     'preselect' => [
                         'restaurante_id' => $restauranteId,
                         'operacao_id' => $operacaoId,
@@ -106,13 +184,14 @@ class TurnosController extends Controller
                 return;
             }
 
-            if ($outsideHorario && !$confirmEarly) {
+            if (!$confirmStart) {
+                set_flash('warning', 'Confirme o checklist para iniciar o turno.');
                 $this->view('turnos/start', [
                     'restaurantes' => $restaurantes,
                     'restOps' => $restOps,
                     'doorsByRestaurant' => $doorsByRestaurant,
                     'flash' => get_flash(),
-                    'need_confirm' => true,
+                    'need_confirm' => false,
                     'preselect' => [
                         'restaurante_id' => $restauranteId,
                         'operacao_id' => $operacaoId,
@@ -172,10 +251,10 @@ class TurnosController extends Controller
                 if ($now < $end) {
                     $diffMin = (int)ceil(($end->getTimestamp() - $now->getTimestamp()) / 60);
                     $tol = (int)$restOp['tolerancia_min'];
-            $msg = 'Ainda não é possível encerrar o turno. Faltam ' . $diffMin . ' min para o fim.';
-            if ($tol > 0) {
-                $msg .= ' Tolerância: ' . $tol . ' min antes do fim.';
-            }
+                    $msg = 'Ainda não é possível encerrar o turno. Faltam ' . $diffMin . ' min para o fim.';
+                    if ($tol > 0) {
+                        $msg .= ' Tolerância: ' . $tol . ' min antes do fim.';
+                    }
                     set_flash('warning', $msg);
                     $this->redirect('/?r=access/index');
                 }
@@ -219,6 +298,18 @@ class TurnosController extends Controller
             $this->redirect('/?r=access/index');
         }
 
+        if ($this->isTematicoShift($shift)) {
+            $manual = (new ReservaTematicaLogModel())->countManualByUserSince((int)Auth::user()['id'], (string)($shift['inicio_em'] ?? ''));
+            if ($manual > 0) {
+                set_flash('warning', 'Não é possível cancelar o turno após confirmar reservas temáticas.');
+                $this->redirect('/?r=access/index');
+            }
+
+            $shiftModel->end((int)$shift['id'], Auth::user()['id']);
+            set_flash('success', 'Turno cancelado com sucesso.');
+            $this->redirect('/?r=access/index');
+        }
+
         $accessModel = new AccessModel();
         $count = $accessModel->countByTurno((int)$shift['id']);
         if ($count > 0) {
@@ -251,4 +342,3 @@ class TurnosController extends Controller
         return $now < $start || $now > $end;
     }
 }
-
