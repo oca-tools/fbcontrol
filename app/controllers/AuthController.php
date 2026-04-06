@@ -174,7 +174,7 @@ class AuthController extends Controller
                 'email' => mb_strtolower($email, 'UTF-8'),
                 'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
             ]);
-            set_flash('danger', 'Credenciais invÃ¡lidas.');
+            set_flash('danger', 'Credenciais inválidas.');
             $this->redirect('/?r=auth/login');
         }
 

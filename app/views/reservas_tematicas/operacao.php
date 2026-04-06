@@ -12,9 +12,9 @@ $statusOptions = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Div
 $statusLabels = [
     'Reservada' => 'Reservada',
     'Finalizada' => 'Finalizada',
-    'Nao compareceu' => 'NÃ£o compareceu',
+    'Nao compareceu' => 'Não compareceu',
     'Cancelada' => 'Cancelada',
-    'Divergencia' => 'DivergÃªncia',
+    'Divergencia' => 'Divergência',
     'Excedente' => 'Excedente',
 ];
 
@@ -22,11 +22,11 @@ $normalizeStatus = static function (?string $status): string {
     $status = normalize_mojibake(trim((string)$status));
     $map = [
         'Nao compareceu' => 'Nao compareceu',
-        'NÃ£o compareceu' => 'Nao compareceu',
-        'NÃ£o compareceu' => 'Nao compareceu',
+        'Não compareceu' => 'Nao compareceu',
+        'Não compareceu' => 'Nao compareceu',
         'Divergencia' => 'Divergencia',
-        'DivergÃªncia' => 'Divergencia',
-        'DivergÃªncia' => 'Divergencia',
+        'Divergência' => 'Divergencia',
+        'Divergência' => 'Divergencia',
         'Conferida' => 'Reservada',
         'Em atendimento' => 'Reservada',
     ];
@@ -184,9 +184,9 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="section-title">
             <div class="icon"><i class="bi bi-printer"></i></div>
             <div>
-                <div class="text-uppercase text-muted small">Reservas TemÃ¡ticas</div>
-                <h3 class="fw-bold mb-1">Ambiente de ConferÃªncia e ImpressÃ£o</h3>
-                <div class="text-muted">Consulta operacional para cozinha e lideranÃ§a, com confirmaÃ§Ã£o rÃ¡pida de entrada, no-show e cancelamento.</div>
+                <div class="text-uppercase text-muted small">Reservas Temáticas</div>
+                <h3 class="fw-bold mb-1">Ambiente de Conferência e Impressão</h3>
+                <div class="text-muted">Consulta operacional para cozinha e liderança, com confirmação rápida de entrada, no-show e cancelamento.</div>
             </div>
         </div>
         <span class="badge badge-soft">Jornada 2</span>
@@ -218,7 +218,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     </div>
     <div class="col-6 col-md-2">
         <div class="saas-stat-card">
-            <div class="text-muted small">NÃ£o compareceu</div>
+            <div class="text-muted small">Não compareceu</div>
             <div class="saas-stat-value status-danger"><?= (int)($summary['nao_compareceu'] ?? 0) ?></div>
         </div>
     </div>
@@ -241,7 +241,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="icon"><i class="bi bi-funnel"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Filtros operacionais</div>
-            <h5 class="fw-bold mb-0">Selecione perÃ­odo e restaurante</h5>
+            <h5 class="fw-bold mb-0">Selecione período e restaurante</h5>
         </div>
     </div>
 
@@ -298,7 +298,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="col-12 col-md-2">
             <label class="form-label">Ordenar por</label>
             <select class="form-select input-xl" name="order">
-                <option value="">HorÃ¡rio</option>
+                <option value="">Horário</option>
                 <option value="status" <?= ($filters['order'] ?? '') === 'status' ? 'selected' : '' ?>>Status</option>
             </select>
         </div>
@@ -316,7 +316,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-file-earmark-break"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">ImpressÃ£o para cozinha</div>
+            <div class="text-uppercase text-muted small">Impressão para cozinha</div>
             <h5 class="fw-bold mb-0">Reservas com status Reservada por restaurante</h5>
         </div>
     </div>
@@ -341,7 +341,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <?php endif; ?>
     </div>
     <div class="text-muted small mt-2">
-        Esta Ã¡rea imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio Ã  cozinha.
+        Esta área imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio à cozinha.
     </div>
 </div>
 
@@ -349,15 +349,15 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-list-ul"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">VisualizaÃ§Ã£o rÃ¡pida</div>
+            <div class="text-uppercase text-muted small">Visualização rápida</div>
             <h5 class="fw-bold mb-0">Nome | UH | PAX | Turno | Status</h5>
         </div>
     </div>
     <div class="row g-2 mb-3">
         <div class="col-12 col-md-5">
-            <label class="form-label mb-1">Busca instantÃ¢nea</label>
+            <label class="form-label mb-1">Busca instantânea</label>
             <input type="text" class="form-control" id="quickLocalFilter" placeholder="Digite nome, UH, turno ou status...">
-            <div class="text-muted small mt-1">Filtra esta lista sem atualizar a pÃ¡gina.</div>
+            <div class="text-muted small mt-1">Filtra esta lista sem atualizar a página.</div>
         </div>
     </div>
     <div class="table-responsive">
@@ -369,7 +369,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <th>PAX</th>
                     <th>Turno</th>
                     <th>Status</th>
-                    <th>AÃ§Ãµes</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -410,8 +410,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                                         <input type="hidden" name="action" value="quick_status">
                                         <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
                                         <input type="hidden" name="quick_action" value="nao_compareceu">
-                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Marcar como nÃ£o compareceu?" data-confirm-title="No-show" data-confirm-type="danger">
-                                            NÃ£o compareceu
+                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Marcar como não compareceu?" data-confirm-title="No-show" data-confirm-type="danger">
+                                            Não compareceu
                                         </button>
                                     </form>
                                     <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
@@ -429,7 +429,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservasOrdenadas)): ?>
-                    <tr><td colspan="6" class="text-muted">Nenhuma reserva encontrada para este perÃ­odo.</td></tr>
+                    <tr><td colspan="6" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -439,8 +439,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-clipboard-check"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">ConferÃªncia</div>
-            <h5 class="fw-bold mb-0">Base detalhada do perÃ­odo selecionado</h5>
+            <div class="text-uppercase text-muted small">Conferência</div>
+            <h5 class="fw-bold mb-0">Base detalhada do período selecionado</h5>
         </div>
     </div>
     <div class="table-responsive">
@@ -453,8 +453,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <th>PAX real</th>
                     <th>Restaurante</th>
                     <th>Turno</th>
-                    <th>ObservaÃ§Ã£o original</th>
-                    <th>ObservaÃ§Ã£o operacional</th>
+                    <th>Observação original</th>
+                    <th>Observação operacional</th>
                 </tr>
             </thead>
             <tbody>
@@ -482,7 +482,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
-                    <tr><td colspan="8" class="text-muted">Nenhuma reserva encontrada para este perÃ­odo.</td></tr>
+                    <tr><td colspan="8" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
