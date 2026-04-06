@@ -161,6 +161,41 @@ class ReservasTematicasController extends Controller
             'titular' => $_GET['titular'] ?? '',
         ];
 
+        $buildAvailability = function (string $date) use ($restaurantes, $turnos, $configModel, $reservaModel): array {
+            $availability = [];
+            foreach ($restaurantes as $rest) {
+                $restId = (int)$rest['id'];
+                $turnoCaps = $configModel->turnosConfig($restId);
+                foreach ($turnos as $turno) {
+                    $capacidade = 0;
+                    foreach ($turnoCaps as $cfg) {
+                        if ((int)$cfg['turno_id'] === (int)$turno['id']) {
+                            $capacidade = (int)$cfg['capacidade'];
+                            break;
+                        }
+                    }
+                    $sum = $reservaModel->sumPax($restId, $date, (int)$turno['id']);
+                    $availability[$restId][(int)$turno['id']] = [
+                        'capacidade' => $capacidade,
+                        'reservado' => $sum,
+                        'restante' => max(0, $capacidade - $sum),
+                    ];
+                }
+            }
+            return $availability;
+        };
+
+        if (($_GET['ajax'] ?? '') === 'availability') {
+            $dateAjax = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'ok' => true,
+                'date' => $dateAjax,
+                'availability' => $buildAvailability($dateAjax),
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
                 set_flash('danger', 'Token inválido.');
@@ -173,12 +208,51 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
+            $parseChdAges = static function (string $raw, int $qtd): array {
+                $raw = trim($raw);
+                if ($qtd <= 0) {
+                    return [];
+                }
+                if ($raw === '') {
+                    throw new RuntimeException('Informe as idades das crianças (CHD).');
+                }
+                $ages = [];
+                foreach ((preg_split('/[,\s;]+/', $raw) ?: []) as $part) {
+                    $part = trim($part);
+                    if ($part === '') {
+                        continue;
+                    }
+                    if (!ctype_digit($part)) {
+                        throw new RuntimeException('Idade de CHD inválida.');
+                    }
+                    $age = (int)$part;
+                    if ($age < 0 || $age > 17) {
+                        throw new RuntimeException('As idades de CHD devem estar entre 0 e 17.');
+                    }
+                    $ages[] = $age;
+                }
+                if (count($ages) !== $qtd) {
+                    throw new RuntimeException('Quantidade de idades diferente da quantidade de CHD.');
+                }
+                return $ages;
+            };
+
             $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
             $dataReserva = $_POST['data_reserva'] ?? date('Y-m-d');
             $turnoId = (int)($_POST['turno_id'] ?? 0);
             $uhNumero = trim($_POST['uh_numero'] ?? '');
             $titularNome = normalize_mojibake(trim($_POST['titular_nome'] ?? ''));
-            $pax = (int)($_POST['pax'] ?? 0);
+            $paxAdulto = (int)($_POST['pax_adulto'] ?? ($_POST['pax'] ?? 0));
+            $qtdChd = max(0, (int)($_POST['qtd_chd'] ?? 0));
+            $chdIdadesRaw = trim((string)($_POST['chd_idades'] ?? ''));
+            $chdIdades = [];
+            try {
+                $chdIdades = $parseChdAges($chdIdadesRaw, $qtdChd);
+            } catch (RuntimeException $e) {
+                set_flash('warning', $e->getMessage());
+                $this->redirect('/?r=reservasTematicas/reservas');
+            }
+            $pax = $paxAdulto + $qtdChd;
             $obs = trim($_POST['observacao_reserva'] ?? '');
             $tags = $_POST['observacao_tags'] ?? [];
             $excedenteChecked = (int)($_POST['excedente'] ?? 0) === 1;
@@ -193,33 +267,179 @@ class ReservasTematicasController extends Controller
                 set_flash('danger', 'Selecione o turno.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
-            if ($uhNumero === '') {
-                set_flash('danger', 'Informe a UH.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-            $uh = $unitModel->findByNumero($uhNumero);
-            if (!$uh) {
-                set_flash('danger', 'UH inválida.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-            if ($titularNome === '') {
-                set_flash('danger', 'Informe o titular da reserva.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-            if ($pax <= 0) {
-                set_flash('danger', 'Quantidade de PAX inválida.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-            $maxPax = $unitModel->maxPaxForNumero($uhNumero);
-            if ($maxPax && $pax > $maxPax) {
-                set_flash('danger', 'PAX acima do limite da UH.');
-                $this->redirect('/?r=reservasTematicas/reservas');
+            $uh = null;
+            if ($action !== 'create_batch') {
+                if ($uhNumero === '') {
+                    set_flash('danger', 'Informe a UH.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                $uh = $unitModel->findByNumero($uhNumero);
+                if (!$uh) {
+                    set_flash('danger', 'UH inválida.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                if ($titularNome === '') {
+                    set_flash('danger', 'Informe o titular da reserva.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                if ($paxAdulto <= 0) {
+                    set_flash('danger', 'Quantidade de PAX adulto inválida.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                $maxPax = $unitModel->maxPaxForNumero($uhNumero);
+                if ($maxPax && $pax > $maxPax) {
+                    set_flash('danger', 'PAX acima do limite da UH.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
             }
 
             $tagsText = '';
             if (is_array($tags)) {
                 $cleanTags = array_filter(array_map('trim', $tags));
                 $tagsText = implode(', ', $cleanTags);
+            }
+
+            if ($action === 'create_batch') {
+                $batchUhs = $_POST['batch_uh_numero'] ?? [];
+                $batchTitulares = $_POST['batch_titular_nome'] ?? [];
+                $batchAdultos = $_POST['batch_pax_adulto'] ?? [];
+                $batchQtdChd = $_POST['batch_qtd_chd'] ?? [];
+                $batchIdades = $_POST['batch_chd_idades'] ?? [];
+                $grupoResponsavel = normalize_mojibake(trim((string)($_POST['grupo_responsavel'] ?? '')));
+
+                $batchItems = [];
+                $batchTotal = 0;
+                $seenBatchUhs = [];
+                foreach ($batchUhs as $idx => $uhRaw) {
+                    $uhNumeroItem = trim((string)$uhRaw);
+                    if ($uhNumeroItem === '') {
+                        continue;
+                    }
+                    $uhKey = mb_strtolower($uhNumeroItem, 'UTF-8');
+                    if (isset($seenBatchUhs[$uhKey])) {
+                        set_flash('warning', 'UH duplicada no lote: ' . $uhNumeroItem);
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+                    $seenBatchUhs[$uhKey] = true;
+
+                    $titularItem = normalize_mojibake(trim((string)($batchTitulares[$idx] ?? '')));
+                    $adultosItem = (int)($batchAdultos[$idx] ?? 0);
+                    $qtdChdItem = max(0, (int)($batchQtdChd[$idx] ?? 0));
+                    if ($titularItem === '' || $adultosItem <= 0) {
+                        set_flash('warning', 'Preencha titular e PAX adulto em todas as UHs do lote.');
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+
+                    try {
+                        $idadesItem = $parseChdAges((string)($batchIdades[$idx] ?? ''), $qtdChdItem);
+                    } catch (RuntimeException $e) {
+                        set_flash('warning', $e->getMessage());
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+
+                    $uhItem = $unitModel->findByNumero($uhNumeroItem);
+                    if (!$uhItem) {
+                        set_flash('danger', 'UH inválida: ' . $uhNumeroItem);
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+                    $paxItem = $adultosItem + $qtdChdItem;
+                    $maxPaxItem = $unitModel->maxPaxForNumero($uhNumeroItem);
+                    if ($maxPaxItem && $paxItem > $maxPaxItem) {
+                        set_flash('danger', 'PAX acima do limite da UH ' . $uhNumeroItem . '.');
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+                    if ($reservaModel->findDuplicateId((int)$uhItem['id'], $dataReserva, $turnoId, $restauranteId)) {
+                        set_flash('warning', 'Já existe reserva para UH ' . $uhNumeroItem . ' neste turno.');
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+
+                    $batchItems[] = [
+                        'uh_id' => (int)$uhItem['id'],
+                        'titular_nome' => $titularItem,
+                        'pax_adulto' => $adultosItem,
+                        'qtd_chd' => $qtdChdItem,
+                        'pax_chd' => $qtdChdItem,
+                        'pax' => $paxItem,
+                        'idades' => $idadesItem,
+                    ];
+                    $batchTotal += $paxItem;
+                }
+
+                if (empty($batchItems)) {
+                    set_flash('warning', 'Adicione ao menos uma UH no lote.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+
+                $capacidadeTurnoBatch = 0;
+                foreach ($configModel->turnosConfig($restauranteId) as $cfg) {
+                    if ((int)$cfg['turno_id'] === $turnoId) {
+                        $capacidadeTurnoBatch = (int)$cfg['capacidade'];
+                        break;
+                    }
+                }
+                $sumBatch = $reservaModel->sumPax($restauranteId, $dataReserva, $turnoId);
+                $excedeBatch = ($capacidadeTurnoBatch > 0) && (($sumBatch + $batchTotal) > $capacidadeTurnoBatch);
+                $isPrivileged = in_array($user['perfil'], ['admin', 'supervisor'], true);
+                if (($excedeBatch || $capacidadeTurnoBatch <= 0 || $excedenteChecked) && !$isPrivileged) {
+                    set_flash('danger', 'Capacidade do turno atingida.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                $isExcedenteBatch = false;
+                if ($isPrivileged && ($excedeBatch || $capacidadeTurnoBatch <= 0 || $excedenteChecked)) {
+                    if ($excedenteMotivo === '') {
+                        set_flash('warning', 'Informe o motivo do excedente.');
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+                    $isExcedenteBatch = true;
+                }
+
+                $db = Database::getInstance();
+                $db->beginTransaction();
+                try {
+                    $grupoId = $reservaModel->createGroup([
+                        'restaurante_id' => $restauranteId,
+                        'data_reserva' => $dataReserva,
+                        'turno_id' => $turnoId,
+                        'responsavel_nome' => $grupoResponsavel !== '' ? $grupoResponsavel : ($batchItems[0]['titular_nome'] ?? null),
+                        'observacao_grupo' => $obs !== '' ? $obs : null,
+                    ], (int)$user['id']);
+
+                    foreach ($batchItems as $item) {
+                        $payload = [
+                            'restaurante_id' => $restauranteId,
+                            'data_reserva' => $dataReserva,
+                            'turno_id' => $turnoId,
+                            'uh_id' => $item['uh_id'],
+                            'grupo_id' => $grupoId > 0 ? $grupoId : null,
+                            'titular_nome' => $item['titular_nome'],
+                            'pax' => $item['pax'],
+                            'pax_adulto' => $item['pax_adulto'],
+                            'pax_chd' => $item['pax_chd'],
+                            'qtd_chd' => $item['qtd_chd'],
+                            'observacao_reserva' => $obs,
+                            'observacao_tags' => $tagsText,
+                            'status' => 'Reservada',
+                            'excedente' => $isExcedenteBatch ? 1 : 0,
+                            'excedente_motivo' => $isExcedenteBatch ? $excedenteMotivo : null,
+                            'excedente_autor_id' => $isExcedenteBatch ? (int)$user['id'] : null,
+                            'excedente_em' => $isExcedenteBatch ? date('Y-m-d H:i:s') : null,
+                        ];
+                        $newId = $reservaModel->create($payload, (int)$user['id']);
+                        $reservaModel->replaceChdAges($newId, $item['idades']);
+                        $logModel->log($newId, 'create', (int)$user['id'], [], $reservaModel->find($newId) ?? []);
+                    }
+
+                    $db->commit();
+                } catch (Throwable $e) {
+                    if ($db->inTransaction()) {
+                        $db->rollBack();
+                    }
+                    set_flash('danger', 'Falha ao registrar lote de reservas.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+
+                set_flash($isExcedenteBatch ? 'warning' : 'success', 'Lote de reservas registrado com sucesso.');
+                $this->redirect('/?r=reservasTematicas/reservas');
             }
 
             if ($action === 'update') {
@@ -258,6 +478,9 @@ class ReservasTematicasController extends Controller
                     'uh_id' => $uh['id'],
                     'titular_nome' => $titularNome,
                     'pax' => $pax,
+                    'pax_adulto' => $paxAdulto,
+                    'pax_chd' => $qtdChd,
+                    'qtd_chd' => $qtdChd,
                     'observacao_reserva' => $obs,
                     'observacao_tags' => $tagsText,
                     'status' => 'Reservada',
@@ -302,6 +525,7 @@ class ReservasTematicasController extends Controller
 
                 $before = $current;
                 $reservaModel->update($id, $dataUpdate, (int)$user['id']);
+                $reservaModel->replaceChdAges($id, $chdIdades);
                 $after = $reservaModel->find($id) ?? [];
                 $logModel->log($id, 'update', (int)$user['id'], $before, $after);
 
@@ -340,6 +564,9 @@ class ReservasTematicasController extends Controller
                 'uh_id' => $uh['id'],
                 'titular_nome' => $titularNome,
                 'pax' => $pax,
+                'pax_adulto' => $paxAdulto,
+                'pax_chd' => $qtdChd,
+                'qtd_chd' => $qtdChd,
                 'observacao_reserva' => $obs,
                 'observacao_tags' => $tagsText,
                 'status' => 'Reservada',
@@ -380,6 +607,7 @@ class ReservasTematicasController extends Controller
             }
 
             $id = $reservaModel->create($dataInsert, (int)$user['id']);
+            $reservaModel->replaceChdAges($id, $chdIdades);
             $logModel->log($id, 'create', (int)$user['id'], [], $reservaModel->find($id) ?? []);
 
             if (!empty($dataInsert['excedente'])) {
@@ -390,41 +618,23 @@ class ReservasTematicasController extends Controller
             $this->redirect('/?r=reservasTematicas/reservas');
         }
 
-        $reservas = $reservaModel->listByFilters($filters);
-
-        $availability = [];
-        foreach ($restaurantes as $rest) {
-            $restId = (int)$rest['id'];
-            $turnoCaps = $configModel->turnosConfig($restId);
-            foreach ($turnos as $turno) {
-                $capacidade = 0;
-                foreach ($turnoCaps as $cfg) {
-                    if ((int)$cfg['turno_id'] === (int)$turno['id']) {
-                        $capacidade = (int)$cfg['capacidade'];
-                        break;
-                    }
-                }
-                $sum = $reservaModel->sumPax($restId, $filters['data'], (int)$turno['id']);
-                $availability[$restId][(int)$turno['id']] = [
-                    'capacidade' => $capacidade,
-                    'reservado' => $sum,
-                    'restante' => max(0, $capacidade - $sum),
-                ];
-            }
-        }
+        $availability = $buildAvailability((string)($filters['data'] ?? date('Y-m-d')));
 
         $editId = (int)($_GET['edit'] ?? 0);
         $editItem = $editId > 0 ? $reservaModel->find($editId) : null;
         if ($editItem) {
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
             $editItem['uh_numero'] = $uhRow['numero'] ?? '';
+            $agesMap = $reservaModel->getChdAgesMap([$editId]);
+            $editItem['chd_idades'] = isset($agesMap[$editId]) ? implode(',', $agesMap[$editId]) : '';
+            $editItem['qtd_chd'] = (int)($editItem['qtd_chd'] ?? 0);
+            $editItem['pax_adulto'] = (int)($editItem['pax_adulto'] ?? max(0, (int)($editItem['pax'] ?? 0) - (int)$editItem['qtd_chd']));
         }
 
         $this->view('reservas_tematicas/reservas', [
             'restaurantes' => $restaurantes,
             'turnos' => $turnos,
             'periodos' => $periodos,
-            'reservas' => $reservas,
             'availability' => $availability,
             'filters' => $filters,
             'flash' => get_flash(),
@@ -461,6 +671,7 @@ class ReservasTematicasController extends Controller
             'turno_id' => $_GET['turno_id'] ?? '',
             'uh_numero' => $_GET['uh_numero'] ?? '',
             'titular' => $_GET['titular'] ?? '',
+            'q' => $_GET['q'] ?? '',
             'status' => $_GET['status'] ?? '',
             'order' => $_GET['order'] ?? '',
         ];
@@ -469,14 +680,6 @@ class ReservasTematicasController extends Controller
             if (empty($filters['restaurante_id']) || !in_array((int)$filters['restaurante_id'], $allowedIds, true)) {
                 $filters['restaurante_id'] = (string)$allowedIds[0];
             }
-        }
-
-        $this->runAutoNoShow($reservaModel, $logModel, (int)($user['id'] ?? 0), $filters);
-
-        // A tela de operacao virou modo somente conferencia/impressao.
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            set_flash('info', 'Esta tela é apenas para conferência e impressão. Para confirmar ou cancelar reservas, use o módulo Registro com turno temático ativo.');
-            $this->redirect('/?r=reservasTematicas/operacao');
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -499,6 +702,22 @@ class ReservasTematicasController extends Controller
                 }
                 set_flash('success', 'Turno encerrado.');
                 $this->redirect('/?r=reservasTematicas/operacao&restaurante_id=' . $restauranteId . '&turno_id=' . $turnoId . '&data=' . $data);
+            }
+
+            if ($action === 'quick_status') {
+                $quick = normalize_mojibake(trim((string)($_POST['quick_action'] ?? '')));
+                if ($quick === 'finalizar') {
+                    $_POST['status'] = 'Finalizada';
+                } elseif ($quick === 'nao_compareceu') {
+                    $_POST['status'] = 'Nao compareceu';
+                } elseif ($quick === 'cancelar') {
+                    $_POST['status'] = 'Cancelada';
+                } else {
+                    set_flash('warning', 'Ação rápida inválida.');
+                    $this->redirect('/?r=reservasTematicas/operacao');
+                }
+                $_POST['confirm_final'] = '1';
+                $action = 'update_status';
             }
 
             if ($action === 'update_status') {
@@ -781,6 +1000,7 @@ class ReservasTematicasController extends Controller
             'turno_id' => $_GET['turno_id'] ?? '',
             'uh_numero' => $_GET['uh_numero'] ?? '',
             'titular' => $_GET['titular'] ?? '',
+            'q' => $_GET['q'] ?? '',
             'status' => $_GET['status'] ?? '',
             'order' => $_GET['order'] ?? '',
         ];

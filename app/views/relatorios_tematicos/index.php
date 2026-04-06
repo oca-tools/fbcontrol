@@ -140,11 +140,11 @@ $statuses = [
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-check-circle"></i></div>
                 <div>
-                    <div class="text-muted small">PAX reservadas</div>
-                    <div class="display-6 fw-bold"><?= (int)($summary['pax_reservadas'] ?? 0) ?></div>
+                    <div class="text-muted small">PAX adulto (reservada)</div>
+                    <div class="display-6 fw-bold"><?= (int)($summary['pax_adulto_reservadas'] ?? 0) ?></div>
                 </div>
             </div>
-            <span class="stat-chip mt-3"><i class="bi bi-graph-up"></i>Base da reserva</span>
+            <span class="stat-chip mt-3"><i class="bi bi-graph-up"></i>Total geral <?= (int)($summary['pax_reservadas'] ?? 0) ?></span>
         </div>
     </div>
     <div class="col-12 col-md-6 col-lg-3">
@@ -164,12 +164,20 @@ $statuses = [
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-person-x"></i></div>
                 <div>
-                    <div class="text-muted small">PAX não comparecidas</div>
-                    <div class="display-6 fw-bold status-danger"><?= (int)($summary['pax_nao_comparecidas'] ?? 0) ?></div>
+                    <div class="text-muted small">PAX CHD (reservada)</div>
+                    <div class="display-6 fw-bold"><?= (int)($summary['pax_chd_reservadas'] ?? 0) ?></div>
                 </div>
             </div>
-            <span class="stat-chip mt-3"><i class="bi bi-exclamation-triangle"></i>Faltante</span>
+            <span class="stat-chip mt-3"><i class="bi bi-people"></i>Qtd CHD <?= (int)($summary['qtd_chd_reservadas'] ?? 0) ?></span>
         </div>
+    </div>
+</div>
+
+<div class="card p-3 mb-4">
+    <div class="d-flex flex-wrap gap-3">
+        <span class="stat-chip"><i class="bi bi-diagram-3"></i>Grupos: <?= (int)($summary['total_grupos'] ?? 0) ?></span>
+        <span class="stat-chip"><i class="bi bi-list-check"></i>Itens: <?= (int)($summary['total_reservas'] ?? 0) ?></span>
+        <span class="stat-chip"><i class="bi bi-person-x"></i>PAX não comparecidas: <?= (int)($summary['pax_nao_comparecidas'] ?? 0) ?></span>
     </div>
 </div>
 
@@ -189,9 +197,12 @@ $statuses = [
                         <tr>
                             <th>Restaurante</th>
                             <th>Total</th>
+                            <th>Grupos</th>
                             <th>Finalizadas</th>
                             <th>No-show</th>
                             <th>Canceladas</th>
+                            <th>PAX adulto</th>
+                            <th>PAX CHD</th>
                             <th>PAX reservadas</th>
                             <th>PAX comparecidas</th>
                             <th>PAX faltantes</th>
@@ -202,16 +213,19 @@ $statuses = [
                             <tr>
                                 <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                                 <td><?= (int)$row['total'] ?></td>
+                                <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
                                 <td><?= (int)$row['finalizadas'] ?></td>
                                 <td><?= (int)$row['no_shows'] ?></td>
                                 <td><?= (int)$row['canceladas'] ?></td>
+                                <td><?= (int)($row['pax_adulto_reservadas'] ?? 0) ?></td>
+                                <td><?= (int)($row['pax_chd_reservadas'] ?? 0) ?></td>
                                 <td><?= (int)$row['pax_reservadas'] ?></td>
                                 <td><?= (int)$row['pax_comparecidas'] ?></td>
                                 <td><?= max(0, (int)$row['pax_reservadas'] - (int)$row['pax_comparecidas']) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($byRestaurant)): ?>
-                            <tr><td colspan="8" class="text-muted">Sem dados.</td></tr>
+                            <tr><td colspan="11" class="text-muted">Sem dados.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -233,9 +247,12 @@ $statuses = [
                         <tr>
                             <th>Turno</th>
                             <th>Total</th>
+                            <th>Grupos</th>
                             <th>Finalizadas</th>
                             <th>No-show</th>
                             <th>Canceladas</th>
+                            <th>PAX adulto</th>
+                            <th>PAX CHD</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -243,9 +260,12 @@ $statuses = [
                             <tr>
                                 <td><span class="tag badge-soft"><?= h($row['turno']) ?></span></td>
                                 <td><?= (int)$row['total'] ?></td>
+                                <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
                                 <td><?= (int)$row['finalizadas'] ?></td>
                                 <td><?= (int)$row['no_shows'] ?></td>
                                 <td><?= (int)$row['canceladas'] ?></td>
+                                <td><?= (int)($row['pax_adulto_reservadas'] ?? 0) ?></td>
+                                <td><?= (int)($row['pax_chd_reservadas'] ?? 0) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($byTurno)): ?>
@@ -272,9 +292,12 @@ $statuses = [
                 <tr>
                     <th>Data</th>
                     <th>Total</th>
+                    <th>Grupos</th>
                     <th>Finalizadas</th>
                     <th>No-show</th>
                     <th>Canceladas</th>
+                    <th>PAX adulto</th>
+                    <th>PAX CHD</th>
                     <th>PAX reservadas</th>
                     <th>PAX comparecidas</th>
                     <th>PAX faltantes</th>
@@ -285,16 +308,19 @@ $statuses = [
                     <tr>
                         <td><?= h($row['data']) ?></td>
                         <td><?= (int)$row['total'] ?></td>
+                        <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
                         <td><?= (int)$row['finalizadas'] ?></td>
                         <td><?= (int)$row['no_shows'] ?></td>
                         <td><?= (int)$row['canceladas'] ?></td>
+                        <td><?= (int)($row['pax_adulto_reservadas'] ?? 0) ?></td>
+                        <td><?= (int)($row['pax_chd_reservadas'] ?? 0) ?></td>
                         <td><?= (int)$row['pax_reservadas'] ?></td>
                         <td><?= (int)$row['pax_comparecidas'] ?></td>
                         <td><?= max(0, (int)$row['pax_reservadas'] - (int)$row['pax_comparecidas']) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($byDay)): ?>
-                    <tr><td colspan="8" class="text-muted">Sem dados.</td></tr>
+                    <tr><td colspan="11" class="text-muted">Sem dados.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -316,7 +342,10 @@ $statuses = [
                     <th>Data</th>
                     <th>Restaurante</th>
                     <th>Turno</th>
+                    <th>Grupo</th>
                     <th>UH</th>
+                    <th>PAX adulto</th>
+                    <th>PAX CHD</th>
                     <th>PAX reservada</th>
                     <th>PAX real</th>
                     <th>Status</th>
@@ -329,7 +358,10 @@ $statuses = [
                         <td><?= h($row['data_reserva']) ?></td>
                         <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                         <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
+                        <td><?= h((string)($row['grupo_id'] ?? '-')) ?></td>
                         <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                        <td><?= h((string)($row['pax_adulto_calc'] ?? '-')) ?></td>
+                        <td><?= h((string)($row['pax_chd_calc'] ?? '-')) ?></td>
                         <td><?= h($row['pax']) ?></td>
                         <td><?= h($row['pax_real'] ?? '-') ?></td>
                         <td><span class="badge badge-soft"><?= h($row['status']) ?></span></td>
@@ -337,7 +369,7 @@ $statuses = [
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($list)): ?>
-                    <tr><td colspan="8" class="text-muted">Sem reservas para o filtro atual.</td></tr>
+                    <tr><td colspan="11" class="text-muted">Sem reservas para o filtro atual.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

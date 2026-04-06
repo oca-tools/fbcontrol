@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $turnos = $this->data['turnos'] ?? [];
@@ -12,9 +12,9 @@ $statusOptions = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Div
 $statusLabels = [
     'Reservada' => 'Reservada',
     'Finalizada' => 'Finalizada',
-    'Nao compareceu' => 'Não compareceu',
+    'Nao compareceu' => 'NÃ£o compareceu',
     'Cancelada' => 'Cancelada',
-    'Divergencia' => 'Divergência',
+    'Divergencia' => 'DivergÃªncia',
     'Excedente' => 'Excedente',
 ];
 
@@ -22,11 +22,11 @@ $normalizeStatus = static function (?string $status): string {
     $status = normalize_mojibake(trim((string)$status));
     $map = [
         'Nao compareceu' => 'Nao compareceu',
-        'Não compareceu' => 'Nao compareceu',
-        'Não compareceu' => 'Nao compareceu',
+        'NÃ£o compareceu' => 'Nao compareceu',
+        'NÃ£o compareceu' => 'Nao compareceu',
         'Divergencia' => 'Divergencia',
-        'Divergência' => 'Divergencia',
-        'Divergência' => 'Divergencia',
+        'DivergÃªncia' => 'Divergencia',
+        'DivergÃªncia' => 'Divergencia',
         'Conferida' => 'Reservada',
         'Em atendimento' => 'Reservada',
     ];
@@ -184,9 +184,9 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="section-title">
             <div class="icon"><i class="bi bi-printer"></i></div>
             <div>
-                <div class="text-uppercase text-muted small">Reservas Temáticas</div>
-                <h3 class="fw-bold mb-1">Ambiente de Conferência e Impressão</h3>
-                <div class="text-muted">Consulta operacional para cozinha e liderança. Alterações de status são feitas no módulo Registro.</div>
+                <div class="text-uppercase text-muted small">Reservas TemÃ¡ticas</div>
+                <h3 class="fw-bold mb-1">Ambiente de ConferÃªncia e ImpressÃ£o</h3>
+                <div class="text-muted">Consulta operacional para cozinha e lideranÃ§a, com confirmaÃ§Ã£o rÃ¡pida de entrada, no-show e cancelamento.</div>
             </div>
         </div>
         <span class="badge badge-soft">Jornada 2</span>
@@ -218,7 +218,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     </div>
     <div class="col-6 col-md-2">
         <div class="saas-stat-card">
-            <div class="text-muted small">Não compareceu</div>
+            <div class="text-muted small">NÃ£o compareceu</div>
             <div class="saas-stat-value status-danger"><?= (int)($summary['nao_compareceu'] ?? 0) ?></div>
         </div>
     </div>
@@ -241,7 +241,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="icon"><i class="bi bi-funnel"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Filtros operacionais</div>
-            <h5 class="fw-bold mb-0">Selecione período e restaurante</h5>
+            <h5 class="fw-bold mb-0">Selecione perÃ­odo e restaurante</h5>
         </div>
     </div>
 
@@ -281,8 +281,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             </select>
         </div>
         <div class="col-12 col-md-2">
-            <label class="form-label">UH</label>
-            <input type="text" class="form-control input-xl" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>">
+            <label class="form-label">Busca</label>
+            <input type="text" class="form-control input-xl" name="q" value="<?= h($filters['q'] ?? '') ?>" placeholder="UH ou titular">
         </div>
         <div class="col-12 col-md-2">
             <label class="form-label">Status</label>
@@ -298,14 +298,14 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="col-12 col-md-2">
             <label class="form-label">Ordenar por</label>
             <select class="form-select input-xl" name="order">
-                <option value="">Horário</option>
+                <option value="">HorÃ¡rio</option>
                 <option value="status" <?= ($filters['order'] ?? '') === 'status' ? 'selected' : '' ?>>Status</option>
             </select>
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
             <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/operacao">Remover filtro</a>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&order=<?= h($filters['order']) ?>" target="_blank">
+            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&order=<?= h($filters['order']) ?>&q=<?= h($filters['q'] ?? '') ?>" target="_blank">
                 <i class="bi bi-printer"></i> Imprimir lista
             </a>
         </div>
@@ -316,7 +316,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-file-earmark-break"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">Impressão para cozinha</div>
+            <div class="text-uppercase text-muted small">ImpressÃ£o para cozinha</div>
             <h5 class="fw-bold mb-0">Reservas com status Reservada por restaurante</h5>
         </div>
     </div>
@@ -341,7 +341,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <?php endif; ?>
     </div>
     <div class="text-muted small mt-2">
-        Esta área imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio à cozinha.
+        Esta Ã¡rea imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio Ã  cozinha.
     </div>
 </div>
 
@@ -349,8 +349,15 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-list-ul"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">Visualização rápida</div>
+            <div class="text-uppercase text-muted small">VisualizaÃ§Ã£o rÃ¡pida</div>
             <h5 class="fw-bold mb-0">Nome | UH | PAX | Turno | Status</h5>
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-5">
+            <label class="form-label mb-1">Busca instantÃ¢nea</label>
+            <input type="text" class="form-control" id="quickLocalFilter" placeholder="Digite nome, UH, turno ou status...">
+            <div class="text-muted small mt-1">Filtra esta lista sem atualizar a pÃ¡gina.</div>
         </div>
     </div>
     <div class="table-responsive">
@@ -362,33 +369,78 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <th>PAX</th>
                     <th>Turno</th>
                     <th>Status</th>
+                    <th>AÃ§Ãµes</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($reservasOrdenadas as $item): ?>
                     <?php $status = $normalizeStatus((string)($item['status'] ?? '')); ?>
-                    <tr>
+                    <?php $isFinal = in_array($status, ['Finalizada', 'Nao compareceu', 'Cancelada'], true); ?>
+                    <?php
+                        $searchRow = mb_strtolower(trim(implode(' ', [
+                            (string)($item['titular_nome'] ?? ''),
+                            (string)($item['uh_numero'] ?? ''),
+                            (string)($item['turno_hora'] ?? ''),
+                            (string)$labelStatus($status),
+                            (string)($item['restaurante'] ?? ''),
+                        ])), 'UTF-8');
+                    ?>
+                    <tr class="js-quick-row" data-search="<?= h($searchRow) ?>">
                         <td><?= h($item['titular_nome'] ?? '-') ?></td>
                         <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></td>
                         <td><?= h((string)($item['pax'] ?? 0)) ?></td>
                         <td><span class="tag badge-soft"><?= h($item['turno_hora'] ?? '-') ?></span></td>
                         <td><span class="badge badge-soft"><?= h($labelStatus($status)) ?></span></td>
+                        <td>
+                            <?php if ($isFinal): ?>
+                                <span class="text-muted small">Definitivo</span>
+                            <?php else: ?>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                        <input type="hidden" name="action" value="quick_status">
+                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="quick_action" value="finalizar">
+                                        <button class="btn btn-sm btn-primary" data-confirm="Confirmar reserva como finalizada?" data-confirm-title="Confirmar entrada">
+                                            Confirmar
+                                        </button>
+                                    </form>
+                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                        <input type="hidden" name="action" value="quick_status">
+                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="quick_action" value="nao_compareceu">
+                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Marcar como nÃ£o compareceu?" data-confirm-title="No-show" data-confirm-type="danger">
+                                            NÃ£o compareceu
+                                        </button>
+                                    </form>
+                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                        <input type="hidden" name="action" value="quick_status">
+                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="quick_action" value="cancelar">
+                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Cancelar esta reserva?" data-confirm-title="Cancelar reserva" data-confirm-type="danger">
+                                            Cancelar
+                                        </button>
+                                    </form>
+                                </div>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservasOrdenadas)): ?>
-                    <tr><td colspan="5" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
+                    <tr><td colspan="6" class="text-muted">Nenhuma reserva encontrada para este perÃ­odo.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 </div>
-
 <div class="section-block">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-clipboard-check"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">Conferência</div>
-            <h5 class="fw-bold mb-0">Base detalhada do período selecionado</h5>
+            <div class="text-uppercase text-muted small">ConferÃªncia</div>
+            <h5 class="fw-bold mb-0">Base detalhada do perÃ­odo selecionado</h5>
         </div>
     </div>
     <div class="table-responsive">
@@ -401,8 +453,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <th>PAX real</th>
                     <th>Restaurante</th>
                     <th>Turno</th>
-                    <th>Observação original</th>
-                    <th>Observação operacional</th>
+                    <th>ObservaÃ§Ã£o original</th>
+                    <th>ObservaÃ§Ã£o operacional</th>
                 </tr>
             </thead>
             <tbody>
@@ -430,12 +482,35 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
-                    <tr><td colspan="8" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
+                    <tr><td colspan="8" class="text-muted">Nenhuma reserva encontrada para este perÃ­odo.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 </div>
 </div>
+
+<script>
+(() => {
+    const input = document.getElementById('quickLocalFilter');
+    if (!input) return;
+    const rows = Array.from(document.querySelectorAll('.js-quick-row'));
+    const normalize = (value) => (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    input.addEventListener('input', () => {
+        const term = normalize(input.value);
+        rows.forEach((row) => {
+            const haystack = normalize(row.getAttribute('data-search'));
+            row.style.display = (!term || haystack.includes(term)) ? '' : 'none';
+        });
+    });
+})();
+</script>
+
 
 

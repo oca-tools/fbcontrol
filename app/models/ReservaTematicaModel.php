@@ -3,6 +3,12 @@ class ReservaTematicaModel extends Model
 {
     private ?bool $hasPaxRealColumnCache = null;
     private ?bool $hasTitularNomeColumnCache = null;
+    private ?bool $hasGrupoIdColumnCache = null;
+    private ?bool $hasPaxAdultoColumnCache = null;
+    private ?bool $hasPaxChdColumnCache = null;
+    private ?bool $hasQtdChdColumnCache = null;
+    private ?bool $hasGruposTableCache = null;
+    private ?bool $hasChdTableCache = null;
     private const STATUS_NO_SHOW_VARIANTS = ['Nao compareceu', 'Não compareceu', 'Não compareceu', 'Não compareceu'];
     private const STATUS_DIVERGENCIA_VARIANTS = ['Divergencia', 'Divergência', 'Divergência', 'Divergência'];
 
@@ -32,6 +38,128 @@ class ReservaTematicaModel extends Model
             $this->hasTitularNomeColumnCache = false;
         }
         return $this->hasTitularNomeColumnCache;
+    }
+
+    private function hasGrupoIdColumn(): bool
+    {
+        if ($this->hasGrupoIdColumnCache !== null) {
+            return $this->hasGrupoIdColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas LIKE 'grupo_id'");
+            $this->hasGrupoIdColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasGrupoIdColumnCache = false;
+        }
+        return $this->hasGrupoIdColumnCache;
+    }
+
+    private function hasPaxAdultoColumn(): bool
+    {
+        if ($this->hasPaxAdultoColumnCache !== null) {
+            return $this->hasPaxAdultoColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas LIKE 'pax_adulto'");
+            $this->hasPaxAdultoColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasPaxAdultoColumnCache = false;
+        }
+        return $this->hasPaxAdultoColumnCache;
+    }
+
+    private function hasPaxChdColumn(): bool
+    {
+        if ($this->hasPaxChdColumnCache !== null) {
+            return $this->hasPaxChdColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas LIKE 'pax_chd'");
+            $this->hasPaxChdColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasPaxChdColumnCache = false;
+        }
+        return $this->hasPaxChdColumnCache;
+    }
+
+    private function hasQtdChdColumn(): bool
+    {
+        if ($this->hasQtdChdColumnCache !== null) {
+            return $this->hasQtdChdColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas LIKE 'qtd_chd'");
+            $this->hasQtdChdColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasQtdChdColumnCache = false;
+        }
+        return $this->hasQtdChdColumnCache;
+    }
+
+    private function hasGruposTable(): bool
+    {
+        if ($this->hasGruposTableCache !== null) {
+            return $this->hasGruposTableCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW TABLES LIKE 'reservas_tematicas_grupos'");
+            $this->hasGruposTableCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasGruposTableCache = false;
+        }
+        return $this->hasGruposTableCache;
+    }
+
+    private function hasChdTable(): bool
+    {
+        if ($this->hasChdTableCache !== null) {
+            return $this->hasChdTableCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW TABLES LIKE 'reservas_tematicas_chd'");
+            $this->hasChdTableCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasChdTableCache = false;
+        }
+        return $this->hasChdTableCache;
+    }
+
+    private function paxAdultoExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasPaxAdultoColumn()) {
+            return "COALESCE({$alias}.pax_adulto, 0)";
+        }
+        if ($this->hasQtdChdColumn()) {
+            return "GREATEST(COALESCE({$alias}.pax, 0) - COALESCE({$alias}.qtd_chd, 0), 0)";
+        }
+        return "COALESCE({$alias}.pax, 0)";
+    }
+
+    private function paxChdExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasPaxChdColumn()) {
+            return "COALESCE({$alias}.pax_chd, 0)";
+        }
+        if ($this->hasQtdChdColumn()) {
+            return "COALESCE({$alias}.qtd_chd, 0)";
+        }
+        return "0";
+    }
+
+    private function qtdChdExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasQtdChdColumn()) {
+            return "COALESCE({$alias}.qtd_chd, 0)";
+        }
+        return "0";
+    }
+
+    private function grupoKeyExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasGrupoIdColumn()) {
+            return "COALESCE({$alias}.grupo_id, -{$alias}.id)";
+        }
+        return "-{$alias}.id";
     }
 
     private function paxComparecidaExpr(string $alias = 'rsv'): string
@@ -102,6 +230,92 @@ class ReservaTematicaModel extends Model
         $params[':status'] = $statusNorm;
     }
 
+    public function createGroup(array $data, int $userId): int
+    {
+        if (!$this->hasGruposTable()) {
+            return 0;
+        }
+
+        $stmt = $this->db->prepare("
+            INSERT INTO reservas_tematicas_grupos
+            (restaurante_id, data_reserva, turno_id, responsavel_nome, observacao_grupo, usuario_id, criado_em)
+            VALUES (:restaurante_id, :data_reserva, :turno_id, :responsavel_nome, :observacao_grupo, :usuario_id, NOW())
+        ");
+        $stmt->execute([
+            ':restaurante_id' => (int)($data['restaurante_id'] ?? 0),
+            ':data_reserva' => (string)($data['data_reserva'] ?? ''),
+            ':turno_id' => (int)($data['turno_id'] ?? 0),
+            ':responsavel_nome' => $data['responsavel_nome'] ?? null,
+            ':observacao_grupo' => $data['observacao_grupo'] ?? null,
+            ':usuario_id' => $userId,
+        ]);
+        return (int)$this->db->lastInsertId();
+    }
+
+    public function replaceChdAges(int $reservaId, array $idades): void
+    {
+        if (!$this->hasChdTable()) {
+            return;
+        }
+        $del = $this->db->prepare("DELETE FROM reservas_tematicas_chd WHERE reserva_id = :reserva_id");
+        $del->execute([':reserva_id' => $reservaId]);
+
+        if (empty($idades)) {
+            return;
+        }
+
+        $ins = $this->db->prepare("
+            INSERT INTO reservas_tematicas_chd (reserva_id, idade, criado_em)
+            VALUES (:reserva_id, :idade, NOW())
+        ");
+        foreach ($idades as $idade) {
+            $ins->execute([
+                ':reserva_id' => $reservaId,
+                ':idade' => (int)$idade,
+            ]);
+        }
+    }
+
+    public function getChdAgesMap(array $reservaIds): array
+    {
+        if (!$this->hasChdTable()) {
+            return [];
+        }
+        $reservaIds = array_values(array_filter(array_map('intval', $reservaIds), static fn($v) => $v > 0));
+        if (empty($reservaIds)) {
+            return [];
+        }
+
+        $placeholders = [];
+        $params = [];
+        foreach ($reservaIds as $idx => $id) {
+            $key = ':id_' . $idx;
+            $placeholders[] = $key;
+            $params[$key] = $id;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT reserva_id, idade
+            FROM reservas_tematicas_chd
+            WHERE reserva_id IN (" . implode(', ', $placeholders) . ")
+            ORDER BY reserva_id, id
+        ");
+        $stmt->execute($params);
+
+        $map = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $rid = (int)($row['reserva_id'] ?? 0);
+            if ($rid <= 0) {
+                continue;
+            }
+            if (!isset($map[$rid])) {
+                $map[$rid] = [];
+            }
+            $map[$rid][] = (int)($row['idade'] ?? 0);
+        }
+        return $map;
+    }
+
     public function create(array $data, int $userId): int
     {
         $columns = [
@@ -125,6 +339,27 @@ class ReservaTematicaModel extends Model
             ':uh_id' => $data['uh_id'],
             ':pax' => $data['pax'],
         ];
+
+        if ($this->hasGrupoIdColumn()) {
+            $columns[] = 'grupo_id';
+            $values[] = ':grupo_id';
+            $params[':grupo_id'] = $data['grupo_id'] ?? null;
+        }
+        if ($this->hasPaxAdultoColumn()) {
+            $columns[] = 'pax_adulto';
+            $values[] = ':pax_adulto';
+            $params[':pax_adulto'] = (int)($data['pax_adulto'] ?? $data['pax'] ?? 0);
+        }
+        if ($this->hasPaxChdColumn()) {
+            $columns[] = 'pax_chd';
+            $values[] = ':pax_chd';
+            $params[':pax_chd'] = (int)($data['pax_chd'] ?? 0);
+        }
+        if ($this->hasQtdChdColumn()) {
+            $columns[] = 'qtd_chd';
+            $values[] = ':qtd_chd';
+            $params[':qtd_chd'] = (int)($data['qtd_chd'] ?? ($data['pax_chd'] ?? 0));
+        }
 
         if ($this->hasPaxRealColumn()) {
             $columns[] = 'pax_real';
@@ -195,6 +430,23 @@ class ReservaTematicaModel extends Model
             ':uh_id' => $data['uh_id'],
             ':pax' => $data['pax'],
         ];
+
+        if ($this->hasGrupoIdColumn()) {
+            $sets[] = 'grupo_id = :grupo_id';
+            $params[':grupo_id'] = $data['grupo_id'] ?? null;
+        }
+        if ($this->hasPaxAdultoColumn()) {
+            $sets[] = 'pax_adulto = :pax_adulto';
+            $params[':pax_adulto'] = (int)($data['pax_adulto'] ?? $data['pax'] ?? 0);
+        }
+        if ($this->hasPaxChdColumn()) {
+            $sets[] = 'pax_chd = :pax_chd';
+            $params[':pax_chd'] = (int)($data['pax_chd'] ?? 0);
+        }
+        if ($this->hasQtdChdColumn()) {
+            $sets[] = 'qtd_chd = :qtd_chd';
+            $params[':qtd_chd'] = (int)($data['qtd_chd'] ?? ($data['pax_chd'] ?? 0));
+        }
 
         if ($this->hasPaxRealColumn()) {
             $sets[] = 'pax_real = :pax_real';
@@ -289,6 +541,17 @@ class ReservaTematicaModel extends Model
     {
         $where = "WHERE 1=1";
         $params = [];
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $qtdChdExpr = $this->qtdChdExpr('rsv');
+        $selectGroupFields = $this->hasGrupoIdColumn() ? "rsv.grupo_id," : "NULL AS grupo_id,";
+        $joinGroup = "";
+        if ($this->hasGruposTable() && $this->hasGrupoIdColumn()) {
+            $joinGroup = "LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id";
+            $selectGroupFields .= " grp.responsavel_nome AS grupo_responsavel,";
+        } else {
+            $selectGroupFields .= " NULL AS grupo_responsavel,";
+        }
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -323,6 +586,14 @@ class ReservaTematicaModel extends Model
             $where .= " AND rsv.titular_nome LIKE :titular";
             $params[':titular'] = '%' . $filters['titular'] . '%';
         }
+        if (!empty($filters['q'])) {
+            $where .= " AND (uh.numero LIKE :q OR COALESCE(r.nome, '') LIKE :q OR COALESCE(rsv.observacao_reserva, '') LIKE :q";
+            if ($this->hasTitularNomeColumn()) {
+                $where .= " OR COALESCE(rsv.titular_nome, '') LIKE :q";
+            }
+            $where .= ")";
+            $params[':q'] = '%' . $filters['q'] . '%';
+        }
         $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $order = "ORDER BY rsv.data_reserva DESC, t.ordem, t.hora, r.nome";
@@ -330,12 +601,22 @@ class ReservaTematicaModel extends Model
             $order = "ORDER BY rsv.status, t.ordem, t.hora, uh.numero";
         }
         $stmt = $this->db->prepare("
-            SELECT rsv.*, r.nome AS restaurante, t.hora AS turno_hora, uh.numero AS uh_numero, u.nome AS usuario
+            SELECT
+                rsv.*,
+                {$selectGroupFields}
+                {$adultExpr} AS pax_adulto_calc,
+                {$chdExpr} AS pax_chd_calc,
+                {$qtdChdExpr} AS qtd_chd_calc,
+                r.nome AS restaurante,
+                t.hora AS turno_hora,
+                uh.numero AS uh_numero,
+                u.nome AS usuario
             FROM reservas_tematicas rsv
             JOIN restaurantes r ON r.id = rsv.restaurante_id
             JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
             JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
             JOIN usuarios u ON u.id = rsv.usuario_id
+            {$joinGroup}
             $where
             $order
         ");
@@ -349,6 +630,10 @@ class ReservaTematicaModel extends Model
         $params = [];
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $qtdChdExpr = $this->qtdChdExpr('rsv');
+        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -384,7 +669,11 @@ class ReservaTematicaModel extends Model
                 SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
                 SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
                 SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
+                SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$qtdChdExpr} ELSE 0 END) AS qtd_chd_reservadas,
                 SUM({$paxComparecidaExpr}) AS pax_comparecidas
+                ,COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
             FROM reservas_tematicas rsv
             $where
         ");
@@ -396,8 +685,12 @@ class ReservaTematicaModel extends Model
             'no_shows' => (int)($row['no_shows'] ?? 0),
             'canceladas' => (int)($row['canceladas'] ?? 0),
             'pax_reservadas' => (int)($row['pax_reservadas'] ?? 0),
+            'pax_adulto_reservadas' => (int)($row['pax_adulto_reservadas'] ?? 0),
+            'pax_chd_reservadas' => (int)($row['pax_chd_reservadas'] ?? 0),
+            'qtd_chd_reservadas' => (int)($row['qtd_chd_reservadas'] ?? 0),
             'pax_comparecidas' => (int)($row['pax_comparecidas'] ?? 0),
             'pax_nao_comparecidas' => max(0, (int)($row['pax_reservadas'] ?? 0) - (int)($row['pax_comparecidas'] ?? 0)),
+            'total_grupos' => (int)($row['total_grupos'] ?? 0),
         ];
     }
 
@@ -407,6 +700,9 @@ class ReservaTematicaModel extends Model
         $params = [];
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -438,7 +734,10 @@ class ReservaTematicaModel extends Model
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
             FROM reservas_tematicas rsv
             JOIN restaurantes r ON r.id = rsv.restaurante_id
             $where
@@ -455,6 +754,9 @@ class ReservaTematicaModel extends Model
         $params = [];
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -486,7 +788,10 @@ class ReservaTematicaModel extends Model
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
             FROM reservas_tematicas rsv
             JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
             $where
@@ -503,6 +808,9 @@ class ReservaTematicaModel extends Model
         $params = [];
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -538,7 +846,10 @@ class ReservaTematicaModel extends Model
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
             FROM reservas_tematicas rsv
             $where
             GROUP BY rsv.data_reserva

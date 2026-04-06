@@ -193,11 +193,6 @@ class AccessController extends Controller
             $search = normalize_mojibake(trim((string)($_GET['q'] ?? '')));
             $status = normalize_mojibake(trim((string)($_GET['status'] ?? '')));
 
-            $autoNoShowCount = $this->applyTematicaAutoNoShow((int)$shift['restaurante_id'], $dateRef, (int)$user['id']);
-            if ($autoNoShowCount > 0 && !isset($_SESSION['flash'])) {
-                set_flash('warning', $autoNoShowCount . ' reserva(s) foram marcadas como Não compareceu automaticamente.');
-            }
-
             $reservaModel = new ReservaTematicaModel();
             $reservas = $reservaModel->listByFilters([
                 'data' => $dateRef,
@@ -429,6 +424,8 @@ class AccessController extends Controller
 
         $uhNumero = trim($_POST['uh_numero'] ?? '');
         $pax = (int)($_POST['pax'] ?? 0);
+        $unitModel = new UnitModel();
+        $unitRef = $unitModel->findByNumero($uhNumero);
 
         if ($shift['exige_pax'] == 0) {
             $pax = max(1, $pax);
@@ -439,8 +436,13 @@ class AccessController extends Controller
             $this->redirect('/?r=access/index');
         }
 
+        if (!$unitRef) {
+            set_flash('danger', 'UH inválida. Verifique o número do apartamento.');
+            $this->redirect('/?r=access/index');
+        }
+        $uhNumero = (string)($unitRef['numero'] ?? $uhNumero);
+
         if ($shift['exige_pax'] == 1) {
-            $unitModel = new UnitModel();
             $maxPax = $unitModel->maxPaxForNumero($uhNumero);
             if ($maxPax !== null && $pax > $maxPax) {
                 set_flash('danger', 'PAX excede o limite da UH. Máximo permitido: ' . $maxPax . '.');
@@ -450,7 +452,6 @@ class AccessController extends Controller
 
         $accessModel = new AccessModel();
         if ($shift['exige_pax'] == 1) {
-            $unitModel = new UnitModel();
             $maxPax = $unitModel->maxPaxForNumero($uhNumero);
             if ($maxPax !== null) {
                 $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');

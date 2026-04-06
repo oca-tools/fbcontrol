@@ -3,7 +3,6 @@ $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $turnos = $this->data['turnos'] ?? [];
 $periodos = $this->data['periodos'] ?? [];
-$reservas = $this->data['reservas'] ?? [];
 $availability = $this->data['availability'] ?? [];
 $filters = $this->data['filters'] ?? [];
 $canReserve = $this->data['can_reserve'] ?? false;
@@ -20,18 +19,18 @@ $tagsPadrao = [
     'VIP',
     'Restrição alimentar',
 ];
-$statusMap = [
-    'Reservada' => 'badge-warning',
-    'Finalizada' => 'badge-success',
-    'Nao compareceu' => 'badge-danger',
-    'Cancelada' => 'badge-danger',
-    'Divergencia' => 'badge-danger',
-    'Excedente' => 'badge-warning',
-];
 $selectedTags = [];
 if ($editItem && !empty($editItem['observacao_tags'])) {
     $selectedTags = array_map('trim', explode(',', $editItem['observacao_tags']));
 }
+$availabilityDate = $filters['data'] ?? date('Y-m-d');
+$quickDates = [
+    ['label' => 'Hoje', 'date' => date('Y-m-d')],
+    ['label' => 'Amanhã', 'date' => date('Y-m-d', strtotime('+1 day'))],
+    ['label' => '+2 dias', 'date' => date('Y-m-d', strtotime('+2 day'))],
+    ['label' => '+3 dias', 'date' => date('Y-m-d', strtotime('+3 day'))],
+    ['label' => '+7 dias', 'date' => date('Y-m-d', strtotime('+7 day'))],
+];
 ?>
 
 <div class="card card-soft p-4 mb-4">
@@ -81,7 +80,7 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
 
             <form method="post" action="/?r=reservasTematicas/reservas">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <input type="hidden" name="action" value="<?= $editItem ? 'update' : 'create' ?>">
+                <input type="hidden" name="action" id="reservaActionInput" value="<?= $editItem ? 'update' : 'create' ?>">
                 <?php if ($editItem): ?>
                     <input type="hidden" name="id" value="<?= (int)$editItem['id'] ?>">
                 <?php endif; ?>
@@ -113,9 +112,19 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                     <input type="text" class="form-control input-xl" name="titular_nome" value="<?= h($editItem['titular_nome'] ?? '') ?>" placeholder="Nome e sobrenome" required>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Quantidade de PAX</label>
-                    <input type="number" class="form-control input-xl text-center" min="1" name="pax" value="<?= h($editItem['pax'] ?? 1) ?>" required>
+                <div class="row g-2 mb-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">PAX adulto</label>
+                        <input type="number" class="form-control input-xl text-center" min="1" name="pax_adulto" value="<?= h($editItem['pax_adulto'] ?? 1) ?>" required>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Qtd CHD</label>
+                        <input type="number" class="form-control input-xl text-center" min="0" name="qtd_chd" value="<?= h($editItem['qtd_chd'] ?? 0) ?>">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Idades CHD</label>
+                        <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3,7">
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -147,6 +156,27 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                     <label class="form-label">Observações</label>
                     <textarea class="form-control" name="observacao_reserva" rows="3" placeholder="Observações gerais..."><?= h($editItem['observacao_reserva'] ?? '') ?></textarea>
                 </div>
+                <?php if (!$editItem): ?>
+                    <div class="card border-0 bg-light-subtle p-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <div>
+                                <div class="text-uppercase text-muted small">Reserva em lote</div>
+                                <div class="fw-semibold">Múltiplas UHs no mesmo atendimento</div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleBatch">Ativar lote</button>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Responsável do grupo</label>
+                            <input type="text" class="form-control" name="grupo_responsavel" placeholder="Nome de quem solicitou o lote">
+                        </div>
+                        <div id="batchContainer" class="d-none">
+                            <div id="batchRows"></div>
+                            <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAddBatchRow">
+                                <i class="bi bi-plus-circle me-1"></i>Adicionar UH
+                            </button>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <?php if (in_array(($user['perfil'] ?? ''), ['admin', 'supervisor'], true)): ?>
                     <div class="mb-3">
@@ -174,9 +204,28 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                 <div>
                     <div class="text-uppercase text-muted small">Disponibilidade</div>
                     <h5 class="fw-bold mb-0">Capacidade por restaurante e turno</h5>
+                    <div class="text-muted small mt-1" id="availabilityDateLabel">Data: <?= h(date('d/m/Y', strtotime($availabilityDate))) ?></div>
                 </div>
                 <span class="badge badge-soft">Atualizado</span>
             </div>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <?php foreach ($quickDates as $quick): ?>
+                    <?php $isActive = ($availabilityDate === $quick['date']); ?>
+                    <button
+                        type="button"
+                        class="btn <?= $isActive ? 'btn-primary' : 'btn-outline-primary' ?> btn-sm js-quick-date"
+                        data-date="<?= h($quick['date']) ?>"
+                    >
+                        <?= h($quick['label']) ?>
+                    </button>
+                <?php endforeach; ?>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="date" class="form-control form-control-sm" id="availabilityDateInput" value="<?= h($availabilityDate) ?>">
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="btnAvailabilityGo">Ir</button>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-sm align-middle">
                     <thead>
@@ -196,9 +245,9 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
                                         $info = $availability[$rest['id']][$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0];
                                         $status = $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
                                     ?>
-                                    <td>
-                                        <span class="badge <?= $status ?>"><?= (int)$info['restante'] ?></span>
-                                        <div class="text-muted small"><?= (int)$info['reservado'] ?>/<?= (int)$info['capacidade'] ?></div>
+                                    <td data-rest-id="<?= (int)$rest['id'] ?>" data-turno-id="<?= (int)$turno['id'] ?>">
+                                        <span class="badge <?= $status ?> js-availability-restante"><?= (int)$info['restante'] ?></span>
+                                        <div class="text-muted small js-availability-rc"><?= (int)$info['reservado'] ?>/<?= (int)$info['capacidade'] ?></div>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
@@ -210,113 +259,135 @@ if ($editItem && !empty($editItem['observacao_tags'])) {
     </div>
 </div>
 
-<div class="card p-4 mt-4">
-    <div class="section-title mb-3">
-        <div class="icon"><i class="bi bi-list-check"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Reservas do dia</div>
-            <h5 class="fw-bold mb-0">Listagem e filtros</h5>
-        </div>
-    </div>
+<script>
+(() => {
+    const dateLabel = document.getElementById('availabilityDateLabel');
+    const dateInput = document.getElementById('availabilityDateInput');
+    const goBtn = document.getElementById('btnAvailabilityGo');
+    const quickBtns = Array.from(document.querySelectorAll('.js-quick-date'));
 
-    <form class="row g-3 align-items-end" method="get" action="/">
-        <input type="hidden" name="r" value="reservasTematicas/reservas">
-        <div class="col-12 col-md-3">
-            <label class="form-label">Data</label>
-            <input type="date" class="form-control input-xl" name="data" value="<?= h($filters['data'] ?? '') ?>">
-        </div>
-        <div class="col-12 col-md-3">
-            <label class="form-label">Restaurante</label>
-            <select class="form-select input-xl" name="restaurante_id">
-                <option value="">Todos</option>
-                <?php foreach ($restaurantes as $rest): ?>
-                    <option value="<?= (int)$rest['id'] ?>" <?= ($filters['restaurante_id'] ?? '') == $rest['id'] ? 'selected' : '' ?>>
-                        <?= h($rest['nome']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-12 col-md-3">
-            <label class="form-label">Turno</label>
-            <select class="form-select input-xl" name="turno_id">
-                <option value="">Todos</option>
-                <?php foreach ($turnos as $turno): ?>
-                    <option value="<?= (int)$turno['id'] ?>" <?= ($filters['turno_id'] ?? '') == $turno['id'] ? 'selected' : '' ?>>
-                        <?= h($turno['hora']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-12 col-md-3">
-            <label class="form-label">UH</label>
-            <input type="text" class="form-control input-xl" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>">
-        </div>
-        <div class="col-12 col-md-3">
-            <label class="form-label">Titular</label>
-            <input type="text" class="form-control input-xl" name="titular" value="<?= h($filters['titular'] ?? '') ?>" placeholder="Nome do titular">
-        </div>
-        <div class="col-12 d-flex flex-wrap gap-2">
-            <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-                    <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/reservas">Remover filtro</a>
-        </div>
-    </form>
+    const fmtBr = (iso) => {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '--/--/----';
+        const [y,m,d] = iso.split('-');
+        return `${d}/${m}/${y}`;
+    };
 
-    <div class="table-responsive mt-4">
-        <table class="table table-sm align-middle">
-            <thead>
-                <tr>
-                    <th>Status</th>
-                    <th>Data</th>
-                    <th>Turno</th>
-                    <th>UH</th>
-                    <th>Titular</th>
-                    <th>PAX</th>
-                    <th>Restaurante</th>
-                    <th>Observações</th>
-                    <th>Excedente</th>
-                    <th>Usuário</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($reservas as $row): ?>
-                    <?php $statusClass = $statusMap[normalize_mojibake((string)($row['status'] ?? ''))] ?? 'badge-soft'; ?>
-                    <tr>
-                        <td>
-                            <span class="badge <?= h($statusClass) ?>"><?= h($row['status']) ?></span>
-                            <?php if (!empty($row['observacao_tags'])): ?>
-                                <div class="text-muted small"><?= h($row['observacao_tags']) ?></div>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h($row['data_reserva']) ?></td>
-                        <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
-                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
-                        <td><?= h($row['titular_nome'] ?? '-') ?></td>
-                        <td><?= h($row['pax']) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
-                        <td><?= h($row['observacao_reserva'] ?? '-') ?></td>
-                        <td>
-                            <?php if (!empty($row['excedente'])): ?>
-                                <span class="badge badge-warning">Excedente</span>
-                            <?php else: ?>
-                                <span class="text-muted">-</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h($row['usuario']) ?></td>
-                        <td>
-                            <?php if ($isHostess && !$canReserve): ?>
-                                <button class="btn btn-outline-primary btn-sm" disabled>Editar</button>
-                            <?php else: ?>
-                                <a class="btn btn-outline-primary btn-sm" href="/?r=reservasTematicas/reservas&edit=<?= (int)$row['id'] ?>">Editar</a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (empty($reservas)): ?>
-                    <tr><td colspan="11" class="text-muted">Nenhuma reserva encontrada.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+    const paintAvailability = (payload) => {
+        const data = payload?.availability || {};
+        document.querySelectorAll('td[data-rest-id][data-turno-id]').forEach((cell) => {
+            const restId = cell.getAttribute('data-rest-id');
+            const turnoId = cell.getAttribute('data-turno-id');
+            const info = data?.[restId]?.[turnoId] || { capacidade: 0, reservado: 0, restante: 0 };
+            const badge = cell.querySelector('.js-availability-restante');
+            const rc = cell.querySelector('.js-availability-rc');
+            if (badge) {
+                badge.textContent = String(parseInt(info.restante || 0, 10));
+                badge.classList.remove('badge-success', 'badge-danger');
+                badge.classList.add((parseInt(info.restante || 0, 10) > 0) ? 'badge-success' : 'badge-danger');
+            }
+            if (rc) {
+                rc.textContent = `${parseInt(info.reservado || 0, 10)}/${parseInt(info.capacidade || 0, 10)}`;
+            }
+        });
+    };
 
+    const setQuickActive = (date) => {
+        quickBtns.forEach((btn) => {
+            const isActive = btn.dataset.date === date;
+            btn.classList.toggle('btn-primary', isActive);
+            btn.classList.toggle('btn-outline-primary', !isActive);
+        });
+    };
+
+    const loadAvailability = async (date) => {
+        if (!date) return;
+        const url = `/?r=reservasTematicas/reservas&ajax=availability&data=${encodeURIComponent(date)}`;
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (!payload?.ok) return;
+        paintAvailability(payload);
+        if (dateLabel) dateLabel.textContent = `Data: ${fmtBr(payload.date || date)}`;
+        if (dateInput) dateInput.value = payload.date || date;
+        setQuickActive(payload.date || date);
+    };
+
+    quickBtns.forEach((btn) => btn.addEventListener('click', () => loadAvailability(btn.dataset.date || '')));
+    goBtn?.addEventListener('click', () => loadAvailability(dateInput?.value || ''));
+
+    const toggleBatchBtn = document.getElementById('btnToggleBatch');
+    const batchContainer = document.getElementById('batchContainer');
+    const addBatchRowBtn = document.getElementById('btnAddBatchRow');
+    const batchRows = document.getElementById('batchRows');
+    const actionInput = document.getElementById('reservaActionInput');
+    const singleFields = [
+        document.querySelector('input[name=\"uh_numero\"]'),
+        document.querySelector('input[name=\"titular_nome\"]'),
+        document.querySelector('input[name=\"pax_adulto\"]')
+    ];
+
+    const batchTemplate = () => {
+        const wrap = document.createElement('div');
+        wrap.className = 'border rounded-3 p-2 mb-2';
+        wrap.innerHTML = `
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-2"><label class="form-label">UH</label><input class="form-control" name="batch_uh_numero[]" inputmode="numeric" required></div>
+                <div class="col-12 col-md-3"><label class="form-label">Titular</label><input class="form-control" name="batch_titular_nome[]" required></div>
+                <div class="col-12 col-md-2"><label class="form-label">Adulto</label><input type="number" class="form-control" min="1" name="batch_pax_adulto[]" value="1" required></div>
+                <div class="col-12 col-md-2"><label class="form-label">Qtd CHD</label><input type="number" class="form-control" min="0" name="batch_qtd_chd[]" value="0"></div>
+                <div class="col-12 col-md-2"><label class="form-label">Idades CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="3,7"></div>
+                <div class="col-12 col-md-1 d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row">X</button></div>
+            </div>
+        `;
+        wrap.querySelector('.js-remove-batch-row')?.addEventListener('click', () => wrap.remove());
+        return wrap;
+    };
+
+    const setBatchEnabled = (enabled) => {
+        if (!batchRows) return;
+        batchRows.querySelectorAll('input').forEach((input) => {
+            input.disabled = !enabled;
+        });
+    };
+
+    toggleBatchBtn?.addEventListener('click', () => {
+        if (!batchContainer || !actionInput) return;
+        const active = !batchContainer.classList.contains('d-none');
+        if (active) {
+            batchContainer.classList.add('d-none');
+            actionInput.value = 'create';
+            toggleBatchBtn.textContent = 'Ativar lote';
+            setBatchEnabled(false);
+            singleFields.forEach((el) => {
+                if (!el) return;
+                el.disabled = false;
+                el.required = true;
+            });
+        } else {
+            batchContainer.classList.remove('d-none');
+            actionInput.value = 'create_batch';
+            toggleBatchBtn.textContent = 'Desativar lote';
+            setBatchEnabled(true);
+            singleFields.forEach((el) => {
+                if (!el) return;
+                el.disabled = true;
+                el.required = false;
+            });
+            if (batchRows && batchRows.children.length === 0) {
+                batchRows.appendChild(batchTemplate());
+            }
+        }
+    });
+
+    addBatchRowBtn?.addEventListener('click', () => {
+        if (!batchRows) return;
+        const node = batchTemplate();
+        if (batchContainer && !batchContainer.classList.contains('d-none')) {
+            node.querySelectorAll('input').forEach((input) => (input.disabled = false));
+        } else {
+            node.querySelectorAll('input').forEach((input) => (input.disabled = true));
+        }
+        batchRows.appendChild(node);
+    });
+})();
+</script>
