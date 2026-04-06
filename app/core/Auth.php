@@ -2,6 +2,20 @@
 class Auth
 {
     private static ?bool $sessionRegistryAvailable = null;
+    private static ?bool $sessionBindingEnabled = null;
+
+    private static function isSessionBindingEnabled(): bool
+    {
+        if (self::$sessionBindingEnabled !== null) {
+            return self::$sessionBindingEnabled;
+        }
+
+        // Em ambiente com proxy/CDN (ex.: Cloudflare), o binding estrito pode causar falso logout.
+        // Padrao: desabilitado, habilite com APP_ENFORCE_SESSION_BINDING=1 se desejar comportamento estrito.
+        $raw = strtolower(trim((string)(getenv('APP_ENFORCE_SESSION_BINDING') ?: '0')));
+        self::$sessionBindingEnabled = in_array($raw, ['1', 'true', 'yes', 'on'], true);
+        return self::$sessionBindingEnabled;
+    }
 
     private static function clientIp(): string
     {
@@ -146,7 +160,11 @@ class Auth
         ];
         $_SESSION['last_activity_at'] = time();
         $_SESSION['logged_in_at'] = time();
-        $_SESSION['session_fingerprint'] = self::sessionFingerprint();
+        if (self::isSessionBindingEnabled()) {
+            $_SESSION['session_fingerprint'] = self::sessionFingerprint();
+        } else {
+            unset($_SESSION['session_fingerprint']);
+        }
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         self::upsertSessionRegistry((int)$user['id']);
     }
@@ -214,6 +232,9 @@ class Auth
 
     public static function enforceSessionBinding(): void
     {
+        if (!self::isSessionBindingEnabled()) {
+            return;
+        }
         if (!self::check()) {
             return;
         }
