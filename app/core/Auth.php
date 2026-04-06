@@ -3,6 +3,7 @@ class Auth
 {
     private static ?bool $sessionRegistryAvailable = null;
     private static ?bool $sessionBindingEnabled = null;
+    private static ?bool $singleSessionEnabled = null;
 
     private static function isSessionBindingEnabled(): bool
     {
@@ -15,6 +16,19 @@ class Auth
         $raw = strtolower(trim((string)(getenv('APP_ENFORCE_SESSION_BINDING') ?: '0')));
         self::$sessionBindingEnabled = in_array($raw, ['1', 'true', 'yes', 'on'], true);
         return self::$sessionBindingEnabled;
+    }
+
+    private static function isSingleSessionEnabled(): bool
+    {
+        if (self::$singleSessionEnabled !== null) {
+            return self::$singleSessionEnabled;
+        }
+
+        // Em operacao real (hostess/supervisao) e comum o mesmo usuario circular por mais de um dispositivo.
+        // Padrao: desabilitado para evitar falso logout. Habilite com APP_ENFORCE_SINGLE_SESSION=1.
+        $raw = strtolower(trim((string)(getenv('APP_ENFORCE_SINGLE_SESSION') ?: '0')));
+        self::$singleSessionEnabled = in_array($raw, ['1', 'true', 'yes', 'on'], true);
+        return self::$singleSessionEnabled;
     }
 
     private static function clientIp(): string
@@ -82,6 +96,9 @@ class Auth
 
     private static function upsertSessionRegistry(int $userId): void
     {
+        if (!self::isSingleSessionEnabled()) {
+            return;
+        }
         if (!self::sessionRegistryAvailable()) {
             return;
         }
@@ -111,6 +128,9 @@ class Auth
 
     private static function clearSessionRegistry(): void
     {
+        if (!self::isSingleSessionEnabled()) {
+            return;
+        }
         if (!self::sessionRegistryAvailable() || !isset($_SESSION['user']['id'])) {
             return;
         }
@@ -184,6 +204,9 @@ class Auth
 
     public static function enforceSingleSession(): void
     {
+        if (!self::isSingleSessionEnabled()) {
+            return;
+        }
         if (!self::check() || !self::sessionRegistryAvailable()) {
             return;
         }
