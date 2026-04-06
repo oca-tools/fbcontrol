@@ -17,6 +17,18 @@ ini_set('session.use_strict_mode', '1');
 ini_set('session.cookie_httponly', '1');
 $bootTimeoutMin = max(30, (int)(getenv('APP_SESSION_TIMEOUT_MIN') ?: 30));
 ini_set('session.gc_maxlifetime', (string)(($bootTimeoutMin * 60) + 300));
+$sessionPathRaw = (string)ini_get('session.save_path');
+$sessionPathParts = explode(';', $sessionPathRaw);
+$sessionPath = trim((string)end($sessionPathParts));
+if ($sessionPath === '' || !is_dir($sessionPath) || !is_writable($sessionPath)) {
+    $fallbackPath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ocafbcontrol_sessions';
+    if (!is_dir($fallbackPath)) {
+        @mkdir($fallbackPath, 0777, true);
+    }
+    if (is_dir($fallbackPath) && is_writable($fallbackPath)) {
+        ini_set('session.save_path', $fallbackPath);
+    }
+}
 $sessionName = getenv('APP_SESSION_NAME') ?: 'OCA_FBCONTROL_SESSID';
 session_name($sessionName);
 session_set_cookie_params([
