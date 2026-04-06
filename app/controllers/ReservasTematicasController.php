@@ -284,6 +284,10 @@ class ReservasTematicasController extends Controller
             $turnoId = (int)($_POST['turno_id'] ?? 0);
             $uhNumero = trim($_POST['uh_numero'] ?? '');
             $titularNome = normalize_mojibake(trim($_POST['titular_nome'] ?? ''));
+            $grupoNome = normalize_mojibake(trim((string)($_POST['grupo_nome'] ?? '')));
+            if (mb_strlen($grupoNome, 'UTF-8') > 120) {
+                $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
+            }
             $paxAdulto = (int)($_POST['pax_adulto'] ?? ($_POST['pax'] ?? 0));
             $qtdChd = max(0, (int)($_POST['qtd_chd'] ?? 0));
             $chdIdadesRaw = trim((string)($_POST['chd_idades'] ?? ''));
@@ -348,6 +352,7 @@ class ReservasTematicasController extends Controller
                 $batchQtdChd = $_POST['batch_qtd_chd'] ?? [];
                 $batchIdades = $_POST['batch_chd_idades'] ?? [];
                 $grupoResponsavel = normalize_mojibake(trim((string)($_POST['grupo_responsavel'] ?? '')));
+                $grupoNomeBatch = $grupoNome !== '' ? $grupoNome : ($grupoResponsavel !== '' ? $grupoResponsavel : null);
 
                 $batchItems = [];
                 $batchTotal = 0;
@@ -453,6 +458,7 @@ class ReservasTematicasController extends Controller
                             'turno_id' => $turnoId,
                             'uh_id' => $item['uh_id'],
                             'grupo_id' => $grupoId > 0 ? $grupoId : null,
+                            'grupo_nome' => $grupoNomeBatch,
                             'titular_nome' => $item['titular_nome'],
                             'pax' => $item['pax'],
                             'pax_adulto' => $item['pax_adulto'],
@@ -518,6 +524,7 @@ class ReservasTematicasController extends Controller
                     'data_reserva' => $dataReserva,
                     'turno_id' => $turnoId,
                     'uh_id' => $uh['id'],
+                    'grupo_nome' => $grupoNome !== '' ? $grupoNome : null,
                     'titular_nome' => $titularNome,
                     'pax' => $pax,
                     'pax_adulto' => $paxAdulto,
@@ -604,6 +611,7 @@ class ReservasTematicasController extends Controller
                 'data_reserva' => $dataReserva,
                 'turno_id' => $turnoId,
                 'uh_id' => $uh['id'],
+                'grupo_nome' => $grupoNome !== '' ? $grupoNome : null,
                 'titular_nome' => $titularNome,
                 'pax' => $pax,
                 'pax_adulto' => $paxAdulto,

@@ -7,6 +7,10 @@ class RelatoriosTematicosController extends Controller
         if (mb_strlen($status, 'UTF-8') > 40) {
             $status = mb_substr($status, 0, 40, 'UTF-8');
         }
+        $grupoNome = normalize_mojibake(trim((string)($_GET['grupo_nome'] ?? '')));
+        if (mb_strlen($grupoNome, 'UTF-8') > 120) {
+            $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
+        }
 
         return [
             'data' => sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
@@ -15,6 +19,7 @@ class RelatoriosTematicosController extends Controller
             'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
             'turno_id' => sanitize_int_param($_GET['turno_id'] ?? ''),
             'status' => $status,
+            'grupo_nome' => $grupoNome,
             'restaurante_ids' => array_map(fn($r) => (int)$r['id'], $tematicos),
         ];
     }
@@ -120,7 +125,7 @@ class RelatoriosTematicosController extends Controller
         }
         $out = fopen('php://output', 'w');
         fputcsv($out, [
-            'data_reserva','turno','restaurante','grupo_id','responsavel_grupo','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status','excedente',
+            'data_reserva','turno','restaurante','lote_id','grupo_nome','responsavel_lote','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status','excedente',
             'obs_reserva','tags','obs_operacao','usuario','criado_em'
         ]);
         foreach ($rows as $r) {
@@ -129,9 +134,10 @@ class RelatoriosTematicosController extends Controller
                 $r['turno_hora'],
                 $r['restaurante'],
                 $r['grupo_id'] ?? '',
+                $r['grupo_nome_display'] ?? $r['grupo_nome'] ?? '',
                 $r['grupo_responsavel'] ?? '',
                 $r['uh_numero'],
-                $r['titular_nome'] ?? '',
+                $r['titular_nome_display'] ?? $r['titular_nome'] ?? '',
                 $r['pax_adulto_calc'] ?? '',
                 $r['pax_chd_calc'] ?? '',
                 $r['qtd_chd_calc'] ?? '',

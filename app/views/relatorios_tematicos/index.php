@@ -34,10 +34,10 @@ $statuses = [
 
 <div class="card p-4 mb-4">
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
@@ -87,6 +87,10 @@ $statuses = [
                     </option>
                 <?php endforeach; ?>
             </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">Grupo (nome)</label>
+            <input type="text" class="form-control input-xl" name="grupo_nome" value="<?= h($filters['grupo_nome'] ?? '') ?>" placeholder="Ex: Famtour, Família, Evento...">
         </div>
         <div class="col-12 d-flex flex-wrap gap-2">
             <button class="btn btn-outline-primary" type="button" data-range="1">Ontem</button>
@@ -175,7 +179,8 @@ $statuses = [
 
 <div class="card p-3 mb-4">
     <div class="d-flex flex-wrap gap-3">
-        <span class="stat-chip"><i class="bi bi-diagram-3"></i>Grupos: <?= (int)($summary['total_grupos'] ?? 0) ?></span>
+        <span class="stat-chip"><i class="bi bi-diagram-3"></i>Lotes técnicos: <?= (int)($summary['total_lotes'] ?? $summary['total_grupos'] ?? 0) ?></span>
+        <span class="stat-chip"><i class="bi bi-people"></i>Grupos nomeados: <?= (int)($summary['total_grupos_nomeados'] ?? 0) ?></span>
         <span class="stat-chip"><i class="bi bi-list-check"></i>Itens: <?= (int)($summary['total_reservas'] ?? 0) ?></span>
         <span class="stat-chip"><i class="bi bi-person-x"></i>PAX não comparecidas: <?= (int)($summary['pax_nao_comparecidas'] ?? 0) ?></span>
     </div>
@@ -197,7 +202,8 @@ $statuses = [
                         <tr>
                             <th>Restaurante</th>
                             <th>Total</th>
-                            <th>Grupos</th>
+                            <th>Lotes</th>
+                            <th>Grupos nomeados</th>
                             <th>Finalizadas</th>
                             <th>No-show</th>
                             <th>Canceladas</th>
@@ -208,12 +214,13 @@ $statuses = [
                             <th>PAX faltantes</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="rtByRestaurantBody" class="js-rt-paginated-body" data-page-size="8">
                         <?php foreach ($byRestaurant as $row): ?>
                             <tr>
                                 <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                                 <td><?= (int)$row['total'] ?></td>
-                                <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
+                                <td><?= (int)($row['total_lotes'] ?? $row['total_grupos'] ?? 0) ?></td>
+                                <td><?= (int)($row['total_grupos_nomeados'] ?? 0) ?></td>
                                 <td><?= (int)$row['finalizadas'] ?></td>
                                 <td><?= (int)$row['no_shows'] ?></td>
                                 <td><?= (int)$row['canceladas'] ?></td>
@@ -225,11 +232,12 @@ $statuses = [
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($byRestaurant)): ?>
-                            <tr><td colspan="11" class="text-muted">Sem dados.</td></tr>
+                            <tr><td colspan="12" class="text-muted">Sem dados.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+            <div id="rtByRestaurantPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
         </div>
     </div>
     <div class="col-12 col-lg-6">
@@ -247,7 +255,8 @@ $statuses = [
                         <tr>
                             <th>Turno</th>
                             <th>Total</th>
-                            <th>Grupos</th>
+                            <th>Lotes</th>
+                            <th>Grupos nomeados</th>
                             <th>Finalizadas</th>
                             <th>No-show</th>
                             <th>Canceladas</th>
@@ -255,12 +264,13 @@ $statuses = [
                             <th>PAX CHD</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="rtByTurnoBody" class="js-rt-paginated-body" data-page-size="8">
                         <?php foreach ($byTurno as $row): ?>
                             <tr>
                                 <td><span class="tag badge-soft"><?= h($row['turno']) ?></span></td>
                                 <td><?= (int)$row['total'] ?></td>
-                                <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
+                                <td><?= (int)($row['total_lotes'] ?? $row['total_grupos'] ?? 0) ?></td>
+                                <td><?= (int)($row['total_grupos_nomeados'] ?? 0) ?></td>
                                 <td><?= (int)$row['finalizadas'] ?></td>
                                 <td><?= (int)$row['no_shows'] ?></td>
                                 <td><?= (int)$row['canceladas'] ?></td>
@@ -269,11 +279,12 @@ $statuses = [
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($byTurno)): ?>
-                            <tr><td colspan="8" class="text-muted">Sem dados.</td></tr>
+                            <tr><td colspan="9" class="text-muted">Sem dados.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+            <div id="rtByTurnoPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
         </div>
     </div>
 </div>
@@ -292,7 +303,8 @@ $statuses = [
                 <tr>
                     <th>Data</th>
                     <th>Total</th>
-                    <th>Grupos</th>
+                    <th>Lotes</th>
+                    <th>Grupos nomeados</th>
                     <th>Finalizadas</th>
                     <th>No-show</th>
                     <th>Canceladas</th>
@@ -303,12 +315,13 @@ $statuses = [
                     <th>PAX faltantes</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="rtByDayBody" class="js-rt-paginated-body" data-page-size="10">
                 <?php foreach ($byDay as $row): ?>
                     <tr>
                         <td><?= h($row['data']) ?></td>
                         <td><?= (int)$row['total'] ?></td>
-                        <td><?= (int)($row['total_grupos'] ?? 0) ?></td>
+                        <td><?= (int)($row['total_lotes'] ?? $row['total_grupos'] ?? 0) ?></td>
+                        <td><?= (int)($row['total_grupos_nomeados'] ?? 0) ?></td>
                         <td><?= (int)$row['finalizadas'] ?></td>
                         <td><?= (int)$row['no_shows'] ?></td>
                         <td><?= (int)$row['canceladas'] ?></td>
@@ -320,11 +333,12 @@ $statuses = [
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($byDay)): ?>
-                    <tr><td colspan="11" class="text-muted">Sem dados.</td></tr>
+                    <tr><td colspan="12" class="text-muted">Sem dados.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <div id="rtByDayPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
 </div>
 
 <div class="card p-4">
@@ -333,6 +347,30 @@ $statuses = [
         <div>
             <div class="text-uppercase text-muted small">Base detalhada</div>
             <h5 class="fw-bold mb-0">Reservas temáticas</h5>
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-6">
+            <label class="form-label mb-1">Filtro da tabela</label>
+            <input type="text" class="form-control" id="rtDetailFilter" placeholder="Nome, UH, grupo, restaurante, turno, status...">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Status</label>
+            <select class="form-select" id="rtDetailStatus">
+                <option value="">Todos</option>
+                <?php foreach ($statuses as $status): ?>
+                    <option value="<?= h($status) ?>"><?= h($status) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Restaurante</label>
+            <select class="form-select" id="rtDetailRestaurant">
+                <option value="">Todos</option>
+                <?php foreach ($restaurantes as $rest): ?>
+                    <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
     </div>
     <div class="table-responsive">
@@ -344,6 +382,7 @@ $statuses = [
                     <th>Turno</th>
                     <th>Grupo</th>
                     <th>UH</th>
+                    <th>Titular</th>
                     <th>PAX adulto</th>
                     <th>PAX CHD</th>
                     <th>PAX reservada</th>
@@ -352,14 +391,44 @@ $statuses = [
                     <th>Observação</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="rtDetailBody" class="js-rt-paginated-body" data-page-size="12">
                 <?php foreach ($list as $row): ?>
-                    <tr>
+                    <?php
+                        $grupoDisplay = normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? $row['grupo_responsavel'] ?? ''));
+                        if (trim($grupoDisplay) === '' || $grupoDisplay === '-') {
+                            $grupoDisplay = '-';
+                        }
+                        $titularDisplay = normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '-'));
+                        $searchStr = mb_strtolower(trim(implode(' ', [
+                            (string)($row['data_reserva'] ?? ''),
+                            normalize_mojibake((string)($row['restaurante'] ?? '')),
+                            (string)($row['turno_hora'] ?? ''),
+                            (string)$grupoDisplay,
+                            (string)($row['uh_numero'] ?? ''),
+                            (string)$titularDisplay,
+                            (string)($row['status'] ?? ''),
+                            normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
+                        ])), 'UTF-8');
+                    ?>
+                    <tr class="js-rt-detail-row"
+                        data-search="<?= h($searchStr) ?>"
+                        data-status="<?= h((string)($row['status'] ?? '')) ?>"
+                        data-rest="<?= h(mb_strtolower(normalize_mojibake((string)($row['restaurante'] ?? '')), 'UTF-8')) ?>">
                         <td><?= h($row['data_reserva']) ?></td>
                         <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
                         <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
-                        <td><?= h((string)($row['grupo_id'] ?? '-')) ?></td>
+                        <td>
+                            <?php if ($grupoDisplay !== '-'): ?>
+                                <div><?= h($grupoDisplay) ?></div>
+                            <?php else: ?>
+                                <span class="text-muted">-</span>
+                            <?php endif; ?>
+                            <?php if (!empty($row['grupo_id'])): ?>
+                                <div class="text-muted small">Lote #<?= (int)$row['grupo_id'] ?></div>
+                            <?php endif; ?>
+                        </td>
                         <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                        <td><?= h($titularDisplay) ?></td>
                         <td><?= h((string)($row['pax_adulto_calc'] ?? '-')) ?></td>
                         <td><?= h((string)($row['pax_chd_calc'] ?? '-')) ?></td>
                         <td><?= h($row['pax']) ?></td>
@@ -369,11 +438,108 @@ $statuses = [
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($list)): ?>
-                    <tr><td colspan="11" class="text-muted">Sem reservas para o filtro atual.</td></tr>
+                    <tr><td colspan="12" class="text-muted">Sem reservas para o filtro atual.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <div id="rtDetailPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
 </div>
 
 
+<script>
+(() => {
+    const normalize = (value) => (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    const renderPager = (container, totalPages, currentPage, onSelect) => {
+        if (!container) return;
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-outline-primary'}`;
+            btn.textContent = String(i);
+            btn.addEventListener('click', () => onSelect(i));
+            container.appendChild(btn);
+        }
+    };
+
+    const paginateRows = (rows, page, pageSize) => {
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+        const current = Math.min(Math.max(1, page), totalPages);
+        const start = (current - 1) * pageSize;
+        const end = start + pageSize;
+        rows.forEach((row, idx) => {
+            row.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        return { totalPages, current };
+    };
+
+    const simpleTables = [
+        ['rtByRestaurantBody', 'rtByRestaurantPagination'],
+        ['rtByTurnoBody', 'rtByTurnoPagination'],
+        ['rtByDayBody', 'rtByDayPagination'],
+    ];
+    simpleTables.forEach(([bodyId, pagerId]) => {
+        const body = document.getElementById(bodyId);
+        const pager = document.getElementById(pagerId);
+        if (!body) return;
+        const allRows = Array.from(body.querySelectorAll('tr')).filter((tr) => !tr.querySelector('td[colspan]'));
+        if (allRows.length === 0) return;
+        let page = 1;
+        const pageSize = parseInt(body.getAttribute('data-page-size') || '10', 10) || 10;
+        const paint = () => {
+            const result = paginateRows(allRows, page, pageSize);
+            page = result.current;
+            renderPager(pager, result.totalPages, page, (next) => {
+                page = next;
+                paint();
+            });
+        };
+        paint();
+    });
+
+    const detailBody = document.getElementById('rtDetailBody');
+    const detailPager = document.getElementById('rtDetailPagination');
+    if (detailBody) {
+        const detailRows = Array.from(detailBody.querySelectorAll('tr.js-rt-detail-row'));
+        const input = document.getElementById('rtDetailFilter');
+        const status = document.getElementById('rtDetailStatus');
+        const rest = document.getElementById('rtDetailRestaurant');
+        let page = 1;
+        const pageSize = parseInt(detailBody.getAttribute('data-page-size') || '12', 10) || 12;
+
+        const apply = (resetPage = true) => {
+            if (resetPage) page = 1;
+            const term = normalize(input?.value || '');
+            const st = (status?.value || '').trim();
+            const rs = normalize(rest?.value || '');
+            const filtered = detailRows.filter((row) => {
+                const okTerm = !term || normalize(row.dataset.search || '').includes(term);
+                const okStatus = !st || (row.dataset.status || '') === st;
+                const okRest = !rs || normalize(row.dataset.rest || '') === rs;
+                return okTerm && okStatus && okRest;
+            });
+            detailRows.forEach((row) => { row.style.display = 'none'; });
+            filtered.forEach((row) => detailBody.appendChild(row));
+            const result = paginateRows(filtered, page, pageSize);
+            page = result.current;
+            renderPager(detailPager, result.totalPages, page, (next) => {
+                page = next;
+                apply(false);
+            });
+        };
+
+        input?.addEventListener('input', () => apply(true));
+        status?.addEventListener('change', () => apply(true));
+        rest?.addEventListener('change', () => apply(true));
+        apply(true);
+    }
+})();
+</script>

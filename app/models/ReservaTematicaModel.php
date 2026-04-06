@@ -7,6 +7,7 @@ class ReservaTematicaModel extends Model
     private ?bool $hasPaxAdultoColumnCache = null;
     private ?bool $hasPaxChdColumnCache = null;
     private ?bool $hasQtdChdColumnCache = null;
+    private ?bool $hasGrupoNomeColumnCache = null;
     private ?bool $hasGruposTableCache = null;
     private ?bool $hasChdTableCache = null;
     private const STATUS_NO_SHOW_VARIANTS = ['Nao compareceu', 'Não compareceu', 'Não compareceu', 'Não compareceu'];
@@ -96,6 +97,20 @@ class ReservaTematicaModel extends Model
         return $this->hasQtdChdColumnCache;
     }
 
+    private function hasGrupoNomeColumn(): bool
+    {
+        if ($this->hasGrupoNomeColumnCache !== null) {
+            return $this->hasGrupoNomeColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas LIKE 'grupo_nome'");
+            $this->hasGrupoNomeColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasGrupoNomeColumnCache = false;
+        }
+        return $this->hasGrupoNomeColumnCache;
+    }
+
     private function hasGruposTable(): bool
     {
         if ($this->hasGruposTableCache !== null) {
@@ -160,6 +175,22 @@ class ReservaTematicaModel extends Model
             return "COALESCE({$alias}.grupo_id, -{$alias}.id)";
         }
         return "-{$alias}.id";
+    }
+
+    private function grupoLoteCountExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasGrupoIdColumn()) {
+            return "COUNT(DISTINCT CASE WHEN {$alias}.grupo_id IS NOT NULL THEN {$alias}.grupo_id END)";
+        }
+        return "0";
+    }
+
+    private function grupoNomeCountExpr(string $alias = 'rsv'): string
+    {
+        if ($this->hasGrupoNomeColumn()) {
+            return "COUNT(DISTINCT CASE WHEN NULLIF(TRIM({$alias}.grupo_nome), '') IS NOT NULL THEN LOWER(TRIM({$alias}.grupo_nome)) END)";
+        }
+        return "0";
     }
 
     private function paxComparecidaExpr(string $alias = 'rsv'): string
@@ -371,6 +402,11 @@ class ReservaTematicaModel extends Model
             $values[] = ':titular_nome';
             $params[':titular_nome'] = $data['titular_nome'] ?? null;
         }
+        if ($this->hasGrupoNomeColumn()) {
+            $columns[] = 'grupo_nome';
+            $values[] = ':grupo_nome';
+            $params[':grupo_nome'] = $data['grupo_nome'] ?? null;
+        }
 
         $columns = array_merge($columns, [
             'observacao_reserva',
@@ -455,6 +491,10 @@ class ReservaTematicaModel extends Model
         if ($this->hasTitularNomeColumn()) {
             $sets[] = 'titular_nome = :titular_nome';
             $params[':titular_nome'] = $data['titular_nome'] ?? null;
+        }
+        if ($this->hasGrupoNomeColumn()) {
+            $sets[] = 'grupo_nome = :grupo_nome';
+            $params[':grupo_nome'] = $data['grupo_nome'] ?? null;
         }
 
         $sets = array_merge($sets, [
@@ -585,12 +625,20 @@ class ReservaTematicaModel extends Model
         $chdExpr = $this->paxChdExpr('rsv');
         $qtdChdExpr = $this->qtdChdExpr('rsv');
         $hasTitular = $this->hasTitularNomeColumn();
+        $hasGrupoNome = $this->hasGrupoNomeColumn();
         $hasGroupTable = $this->hasGruposTable() && $this->hasGrupoIdColumn();
         $selectGroupFields = $this->hasGrupoIdColumn() ? "rsv.grupo_id," : "NULL AS grupo_id,";
         $joinGroup = "";
         if ($hasGroupTable) {
             $joinGroup = "LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id";
             $selectGroupFields .= " grp.responsavel_nome AS grupo_responsavel,";
+            if ($hasGrupoNome) {
+                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
+            } else {
+                $selectGroupFields .= " NULL AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
+            }
             if ($hasTitular) {
                 $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
             } else {
@@ -598,6 +646,13 @@ class ReservaTematicaModel extends Model
             }
         } else {
             $selectGroupFields .= " NULL AS grupo_responsavel,";
+            if ($hasGrupoNome) {
+                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '-') AS grupo_nome_display,";
+            } else {
+                $selectGroupFields .= " NULL AS grupo_nome,";
+                $selectGroupFields .= " '-' AS grupo_nome_display,";
+            }
             if ($hasTitular) {
                 $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '-') AS titular_nome_display,";
             } else {
@@ -646,6 +701,18 @@ class ReservaTematicaModel extends Model
             $where .= " AND {$titularWhereExpr} LIKE :titular";
             $params[':titular'] = '%' . $filters['titular'] . '%';
         }
+        if (!empty($filters['grupo_nome'])) {
+            $grupoExpr = $hasGrupoNome
+                ? "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '')"
+                : "''";
+            if ($hasGroupTable) {
+                $grupoExpr = $hasGrupoNome
+                    ? "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')"
+                    : "COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '')";
+            }
+            $where .= " AND {$grupoExpr} LIKE :grupo_nome";
+            $params[':grupo_nome'] = '%' . $filters['grupo_nome'] . '%';
+        }
         if (!empty($filters['q'])) {
             $where .= " AND (uh.numero LIKE :q OR COALESCE(r.nome, '') LIKE :q OR COALESCE(rsv.observacao_reserva, '') LIKE :q";
             $titularSearchExpr = $hasTitular
@@ -657,6 +724,13 @@ class ReservaTematicaModel extends Model
                     : "COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '')";
             }
             $where .= " OR {$titularSearchExpr} LIKE :q";
+            if ($hasGrupoNome) {
+                $grupoSearchExpr = "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '')";
+                if ($hasGroupTable) {
+                    $grupoSearchExpr = "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')";
+                }
+                $where .= " OR {$grupoSearchExpr} LIKE :q";
+            }
             $where .= ")";
             $params[':q'] = '%' . $filters['q'] . '%';
         }
@@ -699,7 +773,8 @@ class ReservaTematicaModel extends Model
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
         $qtdChdExpr = $this->qtdChdExpr('rsv');
-        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
+        $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
+        $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -739,7 +814,8 @@ class ReservaTematicaModel extends Model
                 SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
                 SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$qtdChdExpr} ELSE 0 END) AS qtd_chd_reservadas,
                 SUM({$paxComparecidaExpr}) AS pax_comparecidas
-                ,COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
+                ,{$grupoLoteExpr} AS total_lotes
+                ,{$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
             $where
         ");
@@ -756,7 +832,9 @@ class ReservaTematicaModel extends Model
             'qtd_chd_reservadas' => (int)($row['qtd_chd_reservadas'] ?? 0),
             'pax_comparecidas' => (int)($row['pax_comparecidas'] ?? 0),
             'pax_nao_comparecidas' => max(0, (int)($row['pax_reservadas'] ?? 0) - (int)($row['pax_comparecidas'] ?? 0)),
-            'total_grupos' => (int)($row['total_grupos'] ?? 0),
+            'total_lotes' => (int)($row['total_lotes'] ?? 0),
+            'total_grupos_nomeados' => (int)($row['total_grupos_nomeados'] ?? 0),
+            'total_grupos' => (int)($row['total_lotes'] ?? 0),
         ];
     }
 
@@ -768,7 +846,8 @@ class ReservaTematicaModel extends Model
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
-        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
+        $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
+        $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -798,12 +877,13 @@ class ReservaTematicaModel extends Model
                    COUNT(*) AS total,
                    SUM(CASE WHEN rsv.status = 'Finalizada' THEN 1 ELSE 0 END) AS finalizadas,
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
-                   SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
-                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
+                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                    SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                    {$grupoLoteExpr} AS total_lotes,
+                    {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
             JOIN restaurantes r ON r.id = rsv.restaurante_id
             $where
@@ -822,7 +902,8 @@ class ReservaTematicaModel extends Model
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
-        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
+        $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
+        $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -852,12 +933,13 @@ class ReservaTematicaModel extends Model
                    COUNT(*) AS total,
                    SUM(CASE WHEN rsv.status = 'Finalizada' THEN 1 ELSE 0 END) AS finalizadas,
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
-                   SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
-                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
+                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                    SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                    {$grupoLoteExpr} AS total_lotes,
+                    {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
             JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
             $where
@@ -876,7 +958,8 @@ class ReservaTematicaModel extends Model
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
-        $grupoKeyExpr = $this->grupoKeyExpr('rsv');
+        $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
+        $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -910,12 +993,13 @@ class ReservaTematicaModel extends Model
                    COUNT(*) AS total,
                    SUM(CASE WHEN rsv.status = 'Finalizada' THEN 1 ELSE 0 END) AS finalizadas,
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
-                   SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
-                   SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
-                   SUM({$paxComparecidaExpr}) AS pax_comparecidas,
-                   COUNT(DISTINCT {$grupoKeyExpr}) AS total_grupos
+                    SUM(CASE WHEN rsv.status = 'Cancelada' THEN 1 ELSE 0 END) AS canceladas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN rsv.pax ELSE 0 END) AS pax_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$adultExpr} ELSE 0 END) AS pax_adulto_reservadas,
+                    SUM(CASE WHEN rsv.status <> 'Cancelada' THEN {$chdExpr} ELSE 0 END) AS pax_chd_reservadas,
+                    SUM({$paxComparecidaExpr}) AS pax_comparecidas,
+                    {$grupoLoteExpr} AS total_lotes,
+                    {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
             $where
             GROUP BY rsv.data_reserva

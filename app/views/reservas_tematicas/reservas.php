@@ -109,6 +109,12 @@ $quickDates = [
                     <input type="text" class="form-control input-xl" name="titular_nome" value="<?= h($editItem['titular_nome'] ?? '') ?>" placeholder="Nome e sobrenome" required>
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label">Grupo (opcional)</label>
+                    <input type="text" class="form-control input-xl" name="grupo_nome" value="<?= h($editItem['grupo_nome'] ?? '') ?>" maxlength="120" placeholder="Ex: Famtour ABAV, Família Silva, Evento XYZ">
+                    <div class="text-muted small mt-1">Use para identificar grupos comerciais/famílias, separado do conceito de lote técnico.</div>
+                </div>
+
                 <div class="row g-2 mb-3">
                     <div class="col-12 col-md-4">
                         <label class="form-label">PAX adulto</label>
