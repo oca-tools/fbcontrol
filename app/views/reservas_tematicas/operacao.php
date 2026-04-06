@@ -23,7 +23,6 @@ $normalizeStatus = static function (?string $status): string {
     $map = [
         'Nao compareceu' => 'Nao compareceu',
         'Não compareceu' => 'Nao compareceu',
-        'Não compareceu' => 'Nao compareceu',
         'Divergencia' => 'Divergencia',
         'Divergência' => 'Divergencia',
         'Divergência' => 'Divergencia',
@@ -378,15 +377,15 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <?php $isFinal = in_array($status, ['Finalizada', 'Nao compareceu', 'Cancelada'], true); ?>
                     <?php
                         $searchRow = mb_strtolower(trim(implode(' ', [
-                            (string)($item['titular_nome'] ?? ''),
+                            normalize_mojibake((string)($item['titular_nome'] ?? '')),
                             (string)($item['uh_numero'] ?? ''),
                             (string)($item['turno_hora'] ?? ''),
                             (string)$labelStatus($status),
-                            (string)($item['restaurante'] ?? ''),
+                            normalize_mojibake((string)($item['restaurante'] ?? '')),
                         ])), 'UTF-8');
                     ?>
                     <tr class="js-quick-row" data-search="<?= h($searchRow) ?>">
-                        <td><?= h($item['titular_nome'] ?? '-') ?></td>
+                        <td><?= h(normalize_mojibake((string)($item['titular_nome'] ?? '-'))) ?></td>
                         <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></td>
                         <td><?= h((string)($item['pax'] ?? 0)) ?></td>
                         <td><span class="tag badge-soft"><?= h($item['turno_hora'] ?? '-') ?></span></td>
@@ -470,15 +469,15 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                         <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
                         <td><?= h((string)($row['pax'] ?? 0)) ?></td>
                         <td><?= h((string)($row['pax_real'] ?? '-')) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
+                        <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h(normalize_mojibake((string)$row['restaurante'])) ?></span></td>
                         <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
                         <td>
-                            <?= h($row['observacao_reserva'] ?? '-') ?>
+                            <?= h(normalize_mojibake((string)($row['observacao_reserva'] ?? '-'))) ?>
                             <?php if (!empty($row['observacao_tags'])): ?>
-                                <div class="text-muted small"><?= h($row['observacao_tags']) ?></div>
+                                <div class="text-muted small"><?= h(normalize_mojibake((string)$row['observacao_tags'])) ?></div>
                             <?php endif; ?>
                         </td>
-                        <td><?= h($row['observacao_operacao'] ?? '-') ?></td>
+                        <td><?= h(normalize_mojibake((string)($row['observacao_operacao'] ?? '-'))) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
@@ -511,6 +510,5 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     });
 })();
 </script>
-
 
 
