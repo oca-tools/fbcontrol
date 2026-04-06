@@ -3,6 +3,7 @@ class UnitModel extends Model
 {
     private function normalizeNumeroInput(string $numero): string
     {
+        $numero = preg_replace('/\s+/u', '', $numero) ?? $numero;
         $numero = trim($numero);
         if ($numero === '') {
             return '';
@@ -26,7 +27,7 @@ class UnitModel extends Model
                 OR TRIM(numero) = :numero_b
                 OR (
                     :numero_int_a IS NOT NULL
-                    AND TRIM(numero) REGEXP '^[0-9]+$'
+                    AND TRIM(numero) REGEXP '^[0-9]+([\\.,]0+)?$'
                     AND CAST(TRIM(numero) AS UNSIGNED) = :numero_int_b
                 )
             )
