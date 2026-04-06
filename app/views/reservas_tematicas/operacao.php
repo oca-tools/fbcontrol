@@ -165,7 +165,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             min-width: 0;
             max-width: 100%;
         }
-        .tematic-operacao-page .section-block .d-flex.flex-wrap.gap-2 > .btn {
+    .tematic-operacao-page .section-block .d-flex.flex-wrap.gap-2 > .btn {
             flex: 1 1 100%;
             min-width: 0;
             justify-content: center;
@@ -174,6 +174,12 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             max-width: 100%;
             overflow-x: auto;
         }
+    }
+    .tematic-operacao-page .js-row-clickable {
+        cursor: pointer;
+    }
+    .tematic-operacao-page .js-row-clickable:hover {
+        background: rgba(249, 115, 22, 0.08);
     }
 </style>
 
@@ -237,82 +243,6 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
 
 <div class="section-block mb-4">
     <div class="section-title mb-3">
-        <div class="icon"><i class="bi bi-funnel"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Filtros operacionais</div>
-            <h5 class="fw-bold mb-0">Selecione período e restaurante</h5>
-        </div>
-    </div>
-
-    <form class="row g-3 align-items-end" method="get" action="/">
-        <input type="hidden" name="r" value="reservasTematicas/operacao">
-        <div class="col-12 col-md-3">
-            <label class="form-label">Data</label>
-            <input type="date" class="form-control input-xl" name="data" value="<?= h($filters['data'] ?? '') ?>">
-        </div>
-        <div class="col-12 col-md-3">
-            <label class="form-label">Restaurante</label>
-            <?php if ($restrictedRestaurant): ?>
-                <input type="hidden" name="restaurante_id" value="<?= h($restrictedRestaurant['id']) ?>">
-                <div class="form-control input-xl d-flex align-items-center gap-2">
-                    <span class="tag <?= restaurant_badge_class($restrictedRestaurant['nome']) ?>"><?= h($restrictedRestaurant['nome']) ?></span>
-                </div>
-            <?php else: ?>
-                <select class="form-select input-xl" name="restaurante_id">
-                    <option value="">Todos</option>
-                    <?php foreach ($restaurantes as $rest): ?>
-                        <option value="<?= (int)$rest['id'] ?>" <?= ($filters['restaurante_id'] ?? '') == $rest['id'] ? 'selected' : '' ?>>
-                            <?= h($rest['nome']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            <?php endif; ?>
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Turno</label>
-            <select class="form-select input-xl" name="turno_id">
-                <option value="">Todos</option>
-                <?php foreach ($turnos as $turno): ?>
-                    <option value="<?= (int)$turno['id'] ?>" <?= ($filters['turno_id'] ?? '') == $turno['id'] ? 'selected' : '' ?>>
-                        <?= h($turno['hora']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Busca</label>
-            <input type="text" class="form-control input-xl" name="q" value="<?= h($filters['q'] ?? '') ?>" placeholder="UH ou titular">
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Status</label>
-            <select class="form-select input-xl" name="status">
-                <option value="">Todos</option>
-                <?php foreach ($statusOptions as $status): ?>
-                    <option value="<?= h($status) ?>" <?= $normalizeStatus($filters['status'] ?? '') === $status ? 'selected' : '' ?>>
-                        <?= h($labelStatus($status)) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label">Ordenar por</label>
-            <select class="form-select input-xl" name="order">
-                <option value="">Horário</option>
-                <option value="status" <?= ($filters['order'] ?? '') === 'status' ? 'selected' : '' ?>>Status</option>
-            </select>
-        </div>
-        <div class="col-12 d-flex flex-wrap gap-2">
-            <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-            <a class="btn btn-primary btn-xl" href="/?r=reservasTematicas/operacao">Remover filtro</a>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&order=<?= h($filters['order']) ?>&q=<?= h($filters['q'] ?? '') ?>" target="_blank">
-                <i class="bi bi-printer"></i> Imprimir lista
-            </a>
-        </div>
-    </form>
-</div>
-
-<div class="section-block mb-4">
-    <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-file-earmark-break"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Impressão para cozinha</div>
@@ -349,82 +279,140 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="icon"><i class="bi bi-list-ul"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Visualização rápida</div>
-            <h5 class="fw-bold mb-0">Nome | UH | PAX | Turno | Status</h5>
+            <h5 class="fw-bold mb-0">Nome | UH | PAX | Turno | Restaurante | Status</h5>
         </div>
     </div>
+
+    <form class="row g-2 mb-3" method="get" action="/">
+        <input type="hidden" name="r" value="reservasTematicas/operacao">
+        <div class="col-12 col-md-3">
+            <label class="form-label mb-1">Data da operação</label>
+            <input type="date" class="form-control" name="data" value="<?= h($filters['data'] ?? date('Y-m-d')) ?>">
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label mb-1">Restaurante</label>
+            <?php if ($restrictedRestaurant): ?>
+                <input type="hidden" name="restaurante_id" value="<?= h($restrictedRestaurant['id']) ?>">
+                <div class="form-control d-flex align-items-center">
+                    <?= h($restrictedRestaurant['nome']) ?>
+                </div>
+            <?php else: ?>
+                <select class="form-select" name="restaurante_id">
+                    <option value="">Todos</option>
+                    <?php foreach ($restaurantes as $rest): ?>
+                        <option value="<?= (int)$rest['id'] ?>" <?= ((string)($filters['restaurante_id'] ?? '') === (string)$rest['id']) ? 'selected' : '' ?>>
+                            <?= h($rest['nome']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label mb-1">Turno</label>
+            <select class="form-select" name="turno_id">
+                <option value="">Todos</option>
+                <?php foreach ($turnos as $turno): ?>
+                    <option value="<?= (int)$turno['id'] ?>" <?= ((string)($filters['turno_id'] ?? '') === (string)$turno['id']) ? 'selected' : '' ?>>
+                        <?= h($turno['hora']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex align-items-end gap-2">
+            <button class="btn btn-primary btn-xl w-100">Atualizar contexto</button>
+            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/operacao">Hoje</a>
+        </div>
+    </form>
+
     <div class="row g-2 mb-3">
-        <div class="col-12 col-md-5">
-            <label class="form-label mb-1">Busca instantânea</label>
-            <input type="text" class="form-control" id="quickLocalFilter" placeholder="Digite nome, UH, turno ou status...">
-            <div class="text-muted small mt-1">Filtra esta lista sem atualizar a página.</div>
+        <div class="col-12 col-md-4">
+            <label class="form-label mb-1">Filtro da tabela rápida</label>
+            <input type="text" class="form-control" id="quickLocalFilter" placeholder="Digite nome, UH, turno, restaurante ou status">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Status</label>
+            <select class="form-select" id="quickStatusFilter">
+                <option value="">Todos</option>
+                <?php foreach ($statusOptions as $status): ?>
+                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Restaurante</label>
+            <select class="form-select" id="quickRestaurantFilter">
+                <option value="">Todos</option>
+                <?php foreach ($restaurantes as $rest): ?>
+                    <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12 col-md-2">
+            <label class="form-label mb-1">Ordenação</label>
+            <select class="form-select" id="quickSort">
+                <option value="restaurante">Restaurante (A-Z)</option>
+                <option value="nome">Nome (A-Z)</option>
+                <option value="turno">Turno</option>
+                <option value="status">Status</option>
+            </select>
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" id="quickTable">
             <thead>
                 <tr>
                     <th>Nome</th>
                     <th>UH</th>
                     <th>PAX</th>
                     <th>Turno</th>
+                    <th>Restaurante</th>
                     <th>Status</th>
-                    <th>Ações</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="quickTableBody">
                 <?php foreach ($reservasOrdenadas as $item): ?>
                     <?php $status = $normalizeStatus((string)($item['status'] ?? '')); ?>
-                    <?php $isFinal = in_array($status, ['Finalizada', 'Nao compareceu', 'Cancelada'], true); ?>
+                    <?php
+                        $titularDisplay = normalize_mojibake((string)($item['titular_nome_display'] ?? $item['titular_nome'] ?? '-'));
+                        $restDisplay = normalize_mojibake((string)($item['restaurante'] ?? ''));
+                        $statusDisplay = $labelStatus($status);
+                    ?>
                     <?php
                         $searchRow = mb_strtolower(trim(implode(' ', [
-                            normalize_mojibake((string)($item['titular_nome'] ?? '')),
+                            $titularDisplay,
                             (string)($item['uh_numero'] ?? ''),
                             (string)($item['turno_hora'] ?? ''),
-                            (string)$labelStatus($status),
-                            normalize_mojibake((string)($item['restaurante'] ?? '')),
+                            (string)$statusDisplay,
+                            $restDisplay,
                         ])), 'UTF-8');
                     ?>
-                    <tr class="js-quick-row" data-search="<?= h($searchRow) ?>">
-                        <td><?= h(normalize_mojibake((string)($item['titular_nome'] ?? '-'))) ?></td>
+                    <tr
+                        class="js-quick-row js-open-reserva"
+                        data-search="<?= h($searchRow) ?>"
+                        data-status="<?= h($status) ?>"
+                        data-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
+                        data-sort-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
+                        data-sort-nome="<?= h(mb_strtolower($titularDisplay, 'UTF-8')) ?>"
+                        data-sort-turno="<?= h((string)($item['turno_hora'] ?? '')) ?>"
+                        data-sort-status="<?= h(mb_strtolower((string)$statusDisplay, 'UTF-8')) ?>"
+                        data-id="<?= (int)($item['id'] ?? 0) ?>"
+                        data-titular="<?= h($titularDisplay) ?>"
+                        data-uh="<?= h((string)($item['uh_numero'] ?? '')) ?>"
+                        data-pax="<?= h((string)($item['pax'] ?? 0)) ?>"
+                        data-pax-real="<?= h((string)($item['pax_real'] ?? '')) ?>"
+                        data-restaurante-id="<?= (int)($item['restaurante_id'] ?? 0) ?>"
+                        data-restaurante-nome="<?= h($restDisplay) ?>"
+                        data-turno-id="<?= (int)($item['turno_id'] ?? 0) ?>"
+                        data-turno-hora="<?= h((string)($item['turno_hora'] ?? '')) ?>"
+                        data-status-atual="<?= h($status) ?>"
+                        data-obs-operacao="<?= h(normalize_mojibake((string)($item['observacao_operacao'] ?? ''))) ?>"
+                    >
+                        <td><?= h($titularDisplay) ?></td>
                         <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></td>
                         <td><?= h((string)($item['pax'] ?? 0)) ?></td>
                         <td><span class="tag badge-soft"><?= h($item['turno_hora'] ?? '-') ?></span></td>
-                        <td><span class="badge badge-soft"><?= h($labelStatus($status)) ?></span></td>
-                        <td>
-                            <?php if ($isFinal): ?>
-                                <span class="text-muted small">Definitivo</span>
-                            <?php else: ?>
-                                <div class="d-flex flex-wrap gap-1">
-                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                        <input type="hidden" name="action" value="quick_status">
-                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                                        <input type="hidden" name="quick_action" value="finalizar">
-                                        <button class="btn btn-sm btn-primary" data-confirm="Confirmar reserva como finalizada?" data-confirm-title="Confirmar entrada">
-                                            Confirmar
-                                        </button>
-                                    </form>
-                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                        <input type="hidden" name="action" value="quick_status">
-                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                                        <input type="hidden" name="quick_action" value="nao_compareceu">
-                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Marcar como não compareceu?" data-confirm-title="No-show" data-confirm-type="danger">
-                                            Não compareceu
-                                        </button>
-                                    </form>
-                                    <form method="post" action="/?r=reservasTematicas/operacao" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                        <input type="hidden" name="action" value="quick_status">
-                                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                                        <input type="hidden" name="quick_action" value="cancelar">
-                                        <button class="btn btn-sm btn-outline-primary" data-confirm="Cancelar esta reserva?" data-confirm-title="Cancelar reserva" data-confirm-type="danger">
-                                            Cancelar
-                                        </button>
-                                    </form>
-                                </div>
-                            <?php endif; ?>
-                        </td>
+                        <td><span class="tag <?= restaurant_badge_class($restDisplay) ?>"><?= h($restDisplay) ?></span></td>
+                        <td><span class="badge badge-soft"><?= h($statusDisplay) ?></span></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservasOrdenadas)): ?>
@@ -433,6 +421,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             </tbody>
         </table>
     </div>
+    <div id="quickPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
+    <div class="text-muted small mt-2">Clique em uma linha para abrir detalhes e editar restaurante, turno e status.</div>
 </div>
 <div class="section-block">
     <div class="section-title mb-3">
@@ -442,11 +432,36 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             <h5 class="fw-bold mb-0">Base detalhada do período selecionado</h5>
         </div>
     </div>
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-6">
+            <label class="form-label mb-1">Filtro da base detalhada</label>
+            <input type="text" class="form-control" id="detailedLocalFilter" placeholder="Nome, UH, observações, turno ou status">
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Status</label>
+            <select class="form-select" id="detailedStatusFilter">
+                <option value="">Todos</option>
+                <?php foreach ($statusOptions as $status): ?>
+                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Restaurante</label>
+            <select class="form-select" id="detailedRestaurantFilter">
+                <option value="">Todos</option>
+                <?php foreach ($restaurantes as $rest): ?>
+                    <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+    </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" id="detailedTable">
             <thead>
                 <tr>
                     <th>Status</th>
+                    <th>Nome</th>
                     <th>UH</th>
                     <th>PAX reservada</th>
                     <th>PAX real</th>
@@ -456,20 +471,34 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     <th>Observação operacional</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="detailedTableBody">
                 <?php foreach ($reservas as $row): ?>
                     <?php $rowStatus = $normalizeStatus((string)($row['status'] ?? '')); ?>
-                    <tr>
+                    <?php
+                        $rowTitular = normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '-'));
+                        $rowRest = normalize_mojibake((string)($row['restaurante'] ?? ''));
+                        $rowSearch = mb_strtolower(trim(implode(' ', [
+                            (string)$rowTitular,
+                            (string)($row['uh_numero'] ?? ''),
+                            (string)($row['turno_hora'] ?? ''),
+                            (string)$labelStatus($rowStatus),
+                            (string)$rowRest,
+                            normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
+                            normalize_mojibake((string)($row['observacao_operacao'] ?? '')),
+                        ])), 'UTF-8');
+                    ?>
+                    <tr class="js-detailed-row" data-search="<?= h($rowSearch) ?>" data-status="<?= h($rowStatus) ?>" data-rest="<?= h(mb_strtolower($rowRest, 'UTF-8')) ?>">
                         <td>
                             <span class="badge badge-soft"><?= h($labelStatus($rowStatus)) ?></span>
                             <?php if (!empty($row['excedente'])): ?>
                                 <span class="badge badge-warning">Excedente</span>
                             <?php endif; ?>
                         </td>
+                        <td><?= h($rowTitular) ?></td>
                         <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
                         <td><?= h((string)($row['pax'] ?? 0)) ?></td>
                         <td><?= h((string)($row['pax_real'] ?? '-')) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h(normalize_mojibake((string)$row['restaurante'])) ?></span></td>
+                        <td><span class="tag <?= restaurant_badge_class($rowRest) ?>"><?= h($rowRest) ?></span></td>
                         <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
                         <td>
                             <?= h(normalize_mojibake((string)($row['observacao_reserva'] ?? '-'))) ?>
@@ -481,34 +510,271 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($reservas)): ?>
-                    <tr><td colspan="8" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
+                    <tr><td colspan="9" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
+    <div id="detailedPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
 </div>
+</div>
+
+<div class="modal fade" id="reservaDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" action="/?r=reservasTematicas/operacao" id="reservaDetailForm">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="action" value="update_detail">
+                <input type="hidden" name="id" id="modalReservaId" value="">
+                <input type="hidden" name="confirm_final" id="modalConfirmFinal" value="0">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes da reserva</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Titular</label>
+                            <input class="form-control" id="modalTitular" readonly>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">UH</label>
+                            <input class="form-control" id="modalUh" readonly>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">PAX reservada</label>
+                            <input class="form-control" id="modalPax" readonly>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">PAX real</label>
+                            <input class="form-control" type="number" min="0" name="pax_real" id="modalPaxReal">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status" id="modalStatus" required>
+                                <?php foreach ($statusOptions as $status): ?>
+                                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Restaurante</label>
+                            <select class="form-select" name="restaurante_id" id="modalRestaurante" required>
+                                <?php foreach ($restaurantes as $rest): ?>
+                                    <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Turno</label>
+                            <select class="form-select" name="turno_id" id="modalTurno" required>
+                                <?php foreach ($turnos as $turno): ?>
+                                    <option value="<?= (int)$turno['id'] ?>"><?= h($turno['hora']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Observação operacional</label>
+                        <textarea class="form-control" name="observacao_operacao" id="modalObsOperacao" rows="3"></textarea>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Justificativa (obrigatória em turno encerrado)</label>
+                        <input class="form-control" type="text" name="justificativa" id="modalJustificativa" placeholder="Descreva o motivo da alteração">
+                    </div>
+                </div>
+                <div class="modal-footer d-flex flex-wrap gap-2 justify-content-between">
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-primary" data-final-status="Finalizada">Finalizar</button>
+                        <button type="button" class="btn btn-outline-primary" data-final-status="Nao compareceu">Não compareceu</button>
+                        <button type="button" class="btn btn-outline-primary" data-final-status="Cancelada">Cancelar</button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="submit" class="btn btn-primary">Salvar alterações</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
 (() => {
-    const input = document.getElementById('quickLocalFilter');
-    if (!input) return;
-    const rows = Array.from(document.querySelectorAll('.js-quick-row'));
     const normalize = (value) => (value || '')
         .toString()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim();
+    const paginateRows = (rows, container, page = 1, perPage = 12) => {
+        const total = rows.length;
+        const pages = Math.max(1, Math.ceil(total / perPage));
+        const current = Math.min(Math.max(1, page), pages);
+        const start = (current - 1) * perPage;
+        const end = start + perPage;
+        rows.forEach((row, idx) => {
+            row.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        if (!container) return current;
+        container.innerHTML = '';
+        if (pages <= 1) return current;
+        for (let i = 1; i <= pages; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn btn-sm ${i === current ? 'btn-primary' : 'btn-outline-primary'} js-page-btn`;
+            btn.dataset.page = String(i);
+            btn.textContent = String(i);
+            container.appendChild(btn);
+        }
+        return current;
+    };
 
-    input.addEventListener('input', () => {
-        const term = normalize(input.value);
-        rows.forEach((row) => {
-            const haystack = normalize(row.getAttribute('data-search'));
-            row.style.display = (!term || haystack.includes(term)) ? '' : 'none';
+    const quickRows = Array.from(document.querySelectorAll('.js-quick-row'));
+    const quickInput = document.getElementById('quickLocalFilter');
+    const quickStatus = document.getElementById('quickStatusFilter');
+    const quickRestaurant = document.getElementById('quickRestaurantFilter');
+    const quickSort = document.getElementById('quickSort');
+    const quickPagination = document.getElementById('quickPagination');
+    const quickBody = document.getElementById('quickTableBody');
+    let quickPage = 1;
+
+    const applyQuickFilters = (resetPage = true) => {
+        if (resetPage) quickPage = 1;
+        const term = normalize(quickInput?.value || '');
+        const status = (quickStatus?.value || '').trim();
+        const rest = normalize(quickRestaurant?.value || '');
+        const sort = quickSort?.value || 'restaurante';
+
+        let filtered = quickRows.filter((row) => {
+            const okTerm = !term || normalize(row.dataset.search || '').includes(term);
+            const okStatus = !status || (row.dataset.status || '') === status;
+            const okRest = !rest || normalize(row.dataset.rest || '') === rest;
+            return okTerm && okStatus && okRest;
+        });
+
+        const sortKeyMap = {
+            restaurante: 'sortRest',
+            nome: 'sortNome',
+            turno: 'sortTurno',
+            status: 'sortStatus',
+        };
+        const dsKey = sortKeyMap[sort] || 'sortRest';
+        filtered.sort((a, b) => {
+            const av = normalize(a.dataset[dsKey] || '');
+            const bv = normalize(b.dataset[dsKey] || '');
+            return av.localeCompare(bv, 'pt-BR');
+        });
+
+        if (quickBody) {
+            quickRows.forEach((row) => { row.style.display = 'none'; });
+            filtered.forEach((row) => quickBody.appendChild(row));
+        }
+        quickPage = paginateRows(filtered, quickPagination, quickPage, 10);
+    };
+
+    quickInput?.addEventListener('input', () => applyQuickFilters(true));
+    quickStatus?.addEventListener('change', () => applyQuickFilters(true));
+    quickRestaurant?.addEventListener('change', () => applyQuickFilters(true));
+    quickSort?.addEventListener('change', () => applyQuickFilters(true));
+    quickPagination?.addEventListener('click', (event) => {
+        const btn = event.target.closest('.js-page-btn');
+        if (!btn) return;
+        quickPage = parseInt(btn.dataset.page || '1', 10) || 1;
+        applyQuickFilters(false);
+    });
+
+    const detailedRows = Array.from(document.querySelectorAll('.js-detailed-row'));
+    const detailedInput = document.getElementById('detailedLocalFilter');
+    const detailedStatus = document.getElementById('detailedStatusFilter');
+    const detailedRestaurant = document.getElementById('detailedRestaurantFilter');
+    const detailedPagination = document.getElementById('detailedPagination');
+    const detailedBody = document.getElementById('detailedTableBody');
+    let detailedPage = 1;
+
+    const applyDetailedFilters = (resetPage = true) => {
+        if (resetPage) detailedPage = 1;
+        const term = normalize(detailedInput?.value || '');
+        const status = (detailedStatus?.value || '').trim();
+        const rest = normalize(detailedRestaurant?.value || '');
+
+        const filtered = detailedRows.filter((row) => {
+            const okTerm = !term || normalize(row.dataset.search || '').includes(term);
+            const okStatus = !status || (row.dataset.status || '') === status;
+            const okRest = !rest || normalize(row.dataset.rest || '') === rest;
+            return okTerm && okStatus && okRest;
+        });
+
+        if (detailedBody) {
+            detailedRows.forEach((row) => { row.style.display = 'none'; });
+            filtered.forEach((row) => detailedBody.appendChild(row));
+        }
+        detailedPage = paginateRows(filtered, detailedPagination, detailedPage, 12);
+    };
+
+    detailedInput?.addEventListener('input', () => applyDetailedFilters(true));
+    detailedStatus?.addEventListener('change', () => applyDetailedFilters(true));
+    detailedRestaurant?.addEventListener('change', () => applyDetailedFilters(true));
+    detailedPagination?.addEventListener('click', (event) => {
+        const btn = event.target.closest('.js-page-btn');
+        if (!btn) return;
+        detailedPage = parseInt(btn.dataset.page || '1', 10) || 1;
+        applyDetailedFilters(false);
+    });
+
+    const modalEl = document.getElementById('reservaDetailModal');
+    const modal = modalEl && window.bootstrap ? new window.bootstrap.Modal(modalEl) : null;
+    const modalId = document.getElementById('modalReservaId');
+    const modalTitular = document.getElementById('modalTitular');
+    const modalUh = document.getElementById('modalUh');
+    const modalPax = document.getElementById('modalPax');
+    const modalPaxReal = document.getElementById('modalPaxReal');
+    const modalStatus = document.getElementById('modalStatus');
+    const modalRest = document.getElementById('modalRestaurante');
+    const modalTurno = document.getElementById('modalTurno');
+    const modalObs = document.getElementById('modalObsOperacao');
+    const modalConfirmFinal = document.getElementById('modalConfirmFinal');
+    const detailForm = document.getElementById('reservaDetailForm');
+
+    document.querySelectorAll('.js-open-reserva').forEach((row) => {
+        row.classList.add('js-row-clickable');
+        row.addEventListener('click', () => {
+            if (!modal) return;
+            modalId.value = row.dataset.id || '';
+            modalTitular.value = row.dataset.titular || '-';
+            modalUh.value = row.dataset.uh || '-';
+            modalPax.value = row.dataset.pax || '0';
+            modalPaxReal.value = row.dataset.paxReal || '';
+            modalStatus.value = row.dataset.statusAtual || 'Reservada';
+            modalRest.value = row.dataset.restauranteId || '';
+            modalTurno.value = row.dataset.turnoId || '';
+            modalObs.value = row.dataset.obsOperacao || '';
+            modalConfirmFinal.value = '0';
+            modal.show();
         });
     });
+
+    detailForm?.addEventListener('submit', () => {
+        const status = modalStatus?.value || '';
+        if (['Finalizada', 'Nao compareceu', 'Cancelada'].includes(status)) {
+            modalConfirmFinal.value = '1';
+        } else {
+            modalConfirmFinal.value = '0';
+        }
+    });
+
+    document.querySelectorAll('[data-final-status]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const finalStatus = btn.getAttribute('data-final-status') || 'Finalizada';
+            if (modalStatus) modalStatus.value = finalStatus;
+            if (modalConfirmFinal) modalConfirmFinal.value = '1';
+            detailForm?.requestSubmit();
+        });
+    });
+
+    applyQuickFilters(true);
+    applyDetailedFilters(true);
 })();
 </script>
-
-

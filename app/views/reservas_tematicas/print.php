@@ -3,6 +3,10 @@ $reservas = $this->data['reservas'] ?? [];
 $filters = $this->data['filters'] ?? [];
 $tipo = $this->data['tipo'] ?? 'detalhada';
 $colspan = $tipo === 'detalhada' ? 8 : 6;
+$totalPax = 0;
+foreach ($reservas as $r) {
+    $totalPax += (int)($r['pax'] ?? 0);
+}
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -62,6 +66,12 @@ $colspan = $tipo === 'detalhada' ? 8 : 6;
             <?php endforeach; ?>
             <?php if (empty($reservas)): ?>
                 <tr><td colspan="<?= (int)$colspan ?>">Nenhuma reserva encontrada.</td></tr>
+            <?php else: ?>
+                <tr>
+                    <td colspan="<?= (int)($colspan - 3) ?>" style="font-weight:700;">Total de PAX</td>
+                    <td style="font-weight:700;"><?= (int)$totalPax ?></td>
+                    <td colspan="2"></td>
+                </tr>
             <?php endif; ?>
         </tbody>
     </table>

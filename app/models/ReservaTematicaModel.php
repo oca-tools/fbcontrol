@@ -529,6 +529,46 @@ class ReservaTematicaModel extends Model
         }
     }
 
+    public function updateDetalhesOperacao(int $id, array $data, int $userId): void
+    {
+        $status = (string)($data['status'] ?? 'Reservada');
+        $observacao = $data['observacao_operacao'] ?? null;
+        $restauranteId = (int)($data['restaurante_id'] ?? 0);
+        $turnoId = (int)($data['turno_id'] ?? 0);
+        $paxReal = $data['pax_real'] ?? null;
+
+        $set = "
+            restaurante_id = :restaurante_id,
+            turno_id = :turno_id,
+            status = :status,
+            observacao_operacao = :obs_operacao,
+            atualizado_por = :atualizado_por,
+            atualizado_em = NOW()
+        ";
+        $params = [
+            ':restaurante_id' => $restauranteId,
+            ':turno_id' => $turnoId,
+            ':status' => $status,
+            ':obs_operacao' => $observacao,
+            ':atualizado_por' => $userId,
+            ':id' => $id,
+        ];
+
+        if ($this->hasPaxRealColumn()) {
+            $set .= ",
+                pax_real = CASE
+                    WHEN :pax_check IS NULL THEN pax_real
+                    ELSE :pax_value
+                END
+            ";
+            $params[':pax_check'] = $paxReal;
+            $params[':pax_value'] = $paxReal;
+        }
+
+        $stmt = $this->db->prepare("UPDATE reservas_tematicas SET {$set} WHERE id = :id");
+        $stmt->execute($params);
+    }
+
     public function find(int $id): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM reservas_tematicas WHERE id = :id");
@@ -544,13 +584,25 @@ class ReservaTematicaModel extends Model
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
         $qtdChdExpr = $this->qtdChdExpr('rsv');
+        $hasTitular = $this->hasTitularNomeColumn();
+        $hasGroupTable = $this->hasGruposTable() && $this->hasGrupoIdColumn();
         $selectGroupFields = $this->hasGrupoIdColumn() ? "rsv.grupo_id," : "NULL AS grupo_id,";
         $joinGroup = "";
-        if ($this->hasGruposTable() && $this->hasGrupoIdColumn()) {
+        if ($hasGroupTable) {
             $joinGroup = "LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id";
             $selectGroupFields .= " grp.responsavel_nome AS grupo_responsavel,";
+            if ($hasTitular) {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
+            } else {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
+            }
         } else {
             $selectGroupFields .= " NULL AS grupo_responsavel,";
+            if ($hasTitular) {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '-') AS titular_nome_display,";
+            } else {
+                $selectGroupFields .= " '-' AS titular_nome_display,";
+            }
         }
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
@@ -582,15 +634,29 @@ class ReservaTematicaModel extends Model
             $where .= " AND uh.numero = :uh";
             $params[':uh'] = $filters['uh_numero'];
         }
-        if (!empty($filters['titular']) && $this->hasTitularNomeColumn()) {
-            $where .= " AND rsv.titular_nome LIKE :titular";
+        if (!empty($filters['titular'])) {
+            $titularWhereExpr = $hasTitular
+                ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '')"
+                : "''";
+            if ($hasGroupTable) {
+                $titularWhereExpr = $hasTitular
+                    ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')"
+                    : "COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '')";
+            }
+            $where .= " AND {$titularWhereExpr} LIKE :titular";
             $params[':titular'] = '%' . $filters['titular'] . '%';
         }
         if (!empty($filters['q'])) {
             $where .= " AND (uh.numero LIKE :q OR COALESCE(r.nome, '') LIKE :q OR COALESCE(rsv.observacao_reserva, '') LIKE :q";
-            if ($this->hasTitularNomeColumn()) {
-                $where .= " OR COALESCE(rsv.titular_nome, '') LIKE :q";
+            $titularSearchExpr = $hasTitular
+                ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '')"
+                : "''";
+            if ($hasGroupTable) {
+                $titularSearchExpr = $hasTitular
+                    ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')"
+                    : "COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '')";
             }
+            $where .= " OR {$titularSearchExpr} LIKE :q";
             $where .= ")";
             $params[':q'] = '%' . $filters['q'] . '%';
         }

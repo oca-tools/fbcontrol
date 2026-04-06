@@ -27,9 +27,6 @@ $availabilityDate = $filters['data'] ?? date('Y-m-d');
 $quickDates = [
     ['label' => 'Hoje', 'date' => date('Y-m-d')],
     ['label' => 'Amanhã', 'date' => date('Y-m-d', strtotime('+1 day'))],
-    ['label' => '+2 dias', 'date' => date('Y-m-d', strtotime('+2 day'))],
-    ['label' => '+3 dias', 'date' => date('Y-m-d', strtotime('+3 day'))],
-    ['label' => '+7 dias', 'date' => date('Y-m-d', strtotime('+7 day'))],
 ];
 ?>
 
@@ -245,8 +242,13 @@ $quickDates = [
                                         $info = $availability[$rest['id']][$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0];
                                         $status = $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
                                     ?>
-                                    <td data-rest-id="<?= (int)$rest['id'] ?>" data-turno-id="<?= (int)$turno['id'] ?>">
-                                        <span class="badge <?= $status ?> js-availability-restante"><?= (int)$info['restante'] ?></span>
+                                    <td
+                                        data-rest-id="<?= (int)$rest['id'] ?>"
+                                        data-turno-id="<?= (int)$turno['id'] ?>"
+                                        data-rest-nome="<?= h($rest['nome']) ?>"
+                                        data-turno-hora="<?= h($turno['hora']) ?>"
+                                    >
+                                        <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver o resumo do turno"><?= (int)$info['restante'] ?></span>
                                         <div class="text-muted small js-availability-rc"><?= (int)$info['reservado'] ?>/<?= (int)$info['capacidade'] ?></div>
                                     </td>
                                 <?php endforeach; ?>
@@ -265,19 +267,46 @@ $quickDates = [
     const dateInput = document.getElementById('availabilityDateInput');
     const goBtn = document.getElementById('btnAvailabilityGo');
     const quickBtns = Array.from(document.querySelectorAll('.js-quick-date'));
+    const reservaDateInput = document.querySelector('input[name="data_reserva"]');
+    const restauranteSelect = document.querySelector('select[name="restaurante_id"]');
+    const turnoSelect = document.querySelector('select[name="turno_id"]');
+    const excedenteCheckbox = document.getElementById('excedente');
+    const availabilityCache = {};
 
     const fmtBr = (iso) => {
         if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '--/--/----';
         const [y,m,d] = iso.split('-');
         return `${d}/${m}/${y}`;
     };
+    const escapeHtml = (value) => (value ?? '')
+        .toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    const statusLabel = (status) => {
+        const map = {
+            Reservada: 'Reservada',
+            Finalizada: 'Finalizada',
+            'Nao compareceu': 'Não compareceu',
+            Cancelada: 'Cancelada',
+            Divergencia: 'Divergência',
+            Excedente: 'Excedente'
+        };
+        return map[status] || status;
+    };
 
     const paintAvailability = (payload) => {
         const data = payload?.availability || {};
+        availabilityCache[payload?.date || ''] = data;
         document.querySelectorAll('td[data-rest-id][data-turno-id]').forEach((cell) => {
             const restId = cell.getAttribute('data-rest-id');
             const turnoId = cell.getAttribute('data-turno-id');
             const info = data?.[restId]?.[turnoId] || { capacidade: 0, reservado: 0, restante: 0 };
+            cell.dataset.restante = String(parseInt(info.restante || 0, 10));
+            cell.dataset.reservado = String(parseInt(info.reservado || 0, 10));
+            cell.dataset.capacidade = String(parseInt(info.capacidade || 0, 10));
             const badge = cell.querySelector('.js-availability-restante');
             const rc = cell.querySelector('.js-availability-rc');
             if (badge) {
@@ -299,21 +328,132 @@ $quickDates = [
         });
     };
 
-    const loadAvailability = async (date) => {
+    const fetchAvailability = async (date) => {
         if (!date) return;
+        if (availabilityCache[date]) {
+            return { ok: true, date, availability: availabilityCache[date] };
+        }
         const url = `/?r=reservasTematicas/reservas&ajax=availability&data=${encodeURIComponent(date)}`;
         const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        if (!res.ok) return;
+        if (!res.ok) return null;
         const payload = await res.json();
+        if (!payload?.ok) return null;
+        return payload;
+    };
+
+    const applyTurnoAvailability = async () => {
+        if (!restauranteSelect || !turnoSelect || !reservaDateInput) return;
+        const restId = restauranteSelect.value;
+        const date = reservaDateInput.value || dateInput?.value || '';
+        if (!restId || !date) {
+            Array.from(turnoSelect.options).forEach((opt) => {
+                if (!opt.value) return;
+                opt.hidden = false;
+                opt.disabled = false;
+            });
+            return;
+        }
+        const payload = await fetchAvailability(date);
+        if (!payload?.ok) return;
+        const availability = payload.availability || {};
+        const byTurno = availability?.[restId] || {};
+        const canUseExcedente = !!(excedenteCheckbox && excedenteCheckbox.checked);
+        let selectedBlocked = false;
+
+        Array.from(turnoSelect.options).forEach((opt) => {
+            if (!opt.value) return;
+            const info = byTurno?.[opt.value] || { capacidade: 0, restante: 0 };
+            const capacidade = parseInt(info.capacidade || 0, 10);
+            const restante = parseInt(info.restante || 0, 10);
+            const lotado = capacidade > 0 && restante <= 0;
+            const blocked = lotado && !canUseExcedente;
+            opt.hidden = blocked;
+            opt.disabled = blocked;
+            if (blocked && opt.selected) {
+                selectedBlocked = true;
+            }
+        });
+
+        if (selectedBlocked) {
+            turnoSelect.value = '';
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'info',
+                    title: 'Turno lotado',
+                    text: 'Esse turno está lotado para a data e restaurante selecionados.'
+                });
+            }
+        }
+    };
+
+    const loadAvailability = async (date) => {
+        if (!date) return;
+        const payload = await fetchAvailability(date);
         if (!payload?.ok) return;
         paintAvailability(payload);
         if (dateLabel) dateLabel.textContent = `Data: ${fmtBr(payload.date || date)}`;
         if (dateInput) dateInput.value = payload.date || date;
         setQuickActive(payload.date || date);
+        if (reservaDateInput && !reservaDateInput.value) {
+            reservaDateInput.value = payload.date || date;
+        }
+        await applyTurnoAvailability();
     };
 
     quickBtns.forEach((btn) => btn.addEventListener('click', () => loadAvailability(btn.dataset.date || '')));
     goBtn?.addEventListener('click', () => loadAvailability(dateInput?.value || ''));
+    reservaDateInput?.addEventListener('change', applyTurnoAvailability);
+    restauranteSelect?.addEventListener('change', applyTurnoAvailability);
+    excedenteCheckbox?.addEventListener('change', applyTurnoAvailability);
+
+    document.querySelectorAll('.js-availability-restante').forEach((badge) => {
+        badge.addEventListener('click', async (event) => {
+            const cell = event.currentTarget.closest('td[data-rest-id][data-turno-id]');
+            if (!cell) return;
+            const restId = cell.getAttribute('data-rest-id');
+            const turnoId = cell.getAttribute('data-turno-id');
+            const restNome = cell.getAttribute('data-rest-nome') || 'Restaurante';
+            const turnoHora = cell.getAttribute('data-turno-hora') || '--:--';
+            const date = dateInput?.value || reservaDateInput?.value || '';
+            if (!date) return;
+
+            const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            const payload = await res.json();
+            if (!payload?.ok) return;
+
+            const rows = (payload.items || []).map((item) => `
+                <tr>
+                    <td>${escapeHtml(item.uh_numero || '-')}</td>
+                    <td>${escapeHtml(item.titular_nome || '-')}</td>
+                    <td>${escapeHtml(String(item.pax ?? 0))}</td>
+                    <td>${escapeHtml(statusLabel(item.status || ''))}</td>
+                </tr>
+            `).join('');
+            const html = `
+                <div class="text-start">
+                    <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-2">
+                            <thead><tr><th>UH</th><th>Titular</th><th>PAX</th><th>Status</th></tr></thead>
+                            <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                    <div class="fw-semibold">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))}</div>
+                </div>
+            `;
+
+            if (window.Swal) {
+                window.Swal.fire({
+                    title: `Resumo do turno`,
+                    html,
+                    width: 860,
+                    confirmButtonText: 'Fechar'
+                });
+            }
+        });
+    });
 
     const toggleBatchBtn = document.getElementById('btnToggleBatch');
     const batchContainer = document.getElementById('batchContainer');
@@ -389,5 +529,7 @@ $quickDates = [
         }
         batchRows.appendChild(node);
     });
+
+    applyTurnoAvailability();
 })();
 </script>
