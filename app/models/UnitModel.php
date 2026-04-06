@@ -27,8 +27,7 @@ class UnitModel extends Model
                 OR TRIM(numero) = :numero_b
                 OR (
                     :numero_int_a IS NOT NULL
-                    AND TRIM(numero) REGEXP '^[0-9]+([\\.,]0+)?$'
-                    AND CAST(TRIM(numero) AS UNSIGNED) = :numero_int_b
+                    AND CAST(REPLACE(TRIM(numero), ',', '.') AS UNSIGNED) = :numero_int_b
                 )
             )
             ORDER BY
@@ -104,6 +103,18 @@ class UnitModel extends Model
         }
 
         // Garante UHs técnicas para operação (Não Informado / Day Use).
+        // Auto-reparo: UHs operacionais podem nao existir em bases antigas.
+        if (!$anyStatus && ctype_digit($numero)) {
+            $num = (int)$numero;
+            if ($this->isCoreOperationalUnit($num)) {
+                $stmtCreate = $this->db->prepare("
+                    INSERT INTO unidades_habitacionais (numero, ativo, criado_em)
+                    VALUES (:numero, 1, NOW())
+                ");
+                $stmtCreate->execute([':numero' => (string)$num]);
+                return $this->findByNumeroFlexible((string)$num, false);
+            }
+        }
         if (in_array($numero, ['998', '999'], true)) {
             $this->ensureTechnicalUnit($numero);
             return $this->findByNumeroFlexible($numero, false);
