@@ -3,10 +3,31 @@ class Auth
 {
     private static ?bool $sessionRegistryAvailable = null;
 
+    private static function clientIp(): string
+    {
+        $candidates = [
+            (string)($_SERVER['HTTP_CF_CONNECTING_IP'] ?? ''),
+            (string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''),
+            (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+        ];
+
+        foreach ($candidates as $rawValue) {
+            if ($rawValue === '') {
+                continue;
+            }
+            $first = trim(explode(',', $rawValue)[0] ?? '');
+            if (filter_var($first, FILTER_VALIDATE_IP)) {
+                return $first;
+            }
+        }
+
+        return '';
+    }
+
     private static function sessionFingerprint(): string
     {
         $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-        $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+        $ip = self::clientIp();
 
         $ipPrefix = $ip;
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
@@ -66,7 +87,7 @@ class Auth
                 ':usuario_id' => $userId,
                 ':session_id' => session_id(),
                 ':token' => self::sessionToken(),
-                ':ip' => substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45),
+                ':ip' => substr(self::clientIp(), 0, 45),
                 ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
             ]);
         } catch (Throwable $e) {
