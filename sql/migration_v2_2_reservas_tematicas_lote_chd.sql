@@ -15,11 +15,65 @@ CREATE TABLE IF NOT EXISTS reservas_tematicas_grupos (
     CONSTRAINT fk_res_tem_grupo_user FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE reservas_tematicas
-    ADD COLUMN IF NOT EXISTS grupo_id INT NULL AFTER id,
-    ADD COLUMN IF NOT EXISTS pax_adulto INT NOT NULL DEFAULT 0 AFTER pax,
-    ADD COLUMN IF NOT EXISTS pax_chd INT NOT NULL DEFAULT 0 AFTER pax_adulto,
-    ADD COLUMN IF NOT EXISTS qtd_chd INT NOT NULL DEFAULT 0 AFTER pax_chd;
+SET @has_col_grupo_id := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'reservas_tematicas'
+      AND column_name = 'grupo_id'
+);
+SET @sql_col_grupo_id := IF(@has_col_grupo_id = 0,
+    'ALTER TABLE reservas_tematicas ADD COLUMN grupo_id INT NULL AFTER id',
+    'SELECT 1'
+);
+PREPARE st_col_grupo_id FROM @sql_col_grupo_id;
+EXECUTE st_col_grupo_id;
+DEALLOCATE PREPARE st_col_grupo_id;
+
+SET @has_col_pax_adulto := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'reservas_tematicas'
+      AND column_name = 'pax_adulto'
+);
+SET @sql_col_pax_adulto := IF(@has_col_pax_adulto = 0,
+    'ALTER TABLE reservas_tematicas ADD COLUMN pax_adulto INT NOT NULL DEFAULT 0 AFTER pax',
+    'SELECT 1'
+);
+PREPARE st_col_pax_adulto FROM @sql_col_pax_adulto;
+EXECUTE st_col_pax_adulto;
+DEALLOCATE PREPARE st_col_pax_adulto;
+
+SET @has_col_pax_chd := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'reservas_tematicas'
+      AND column_name = 'pax_chd'
+);
+SET @sql_col_pax_chd := IF(@has_col_pax_chd = 0,
+    'ALTER TABLE reservas_tematicas ADD COLUMN pax_chd INT NOT NULL DEFAULT 0 AFTER pax_adulto',
+    'SELECT 1'
+);
+PREPARE st_col_pax_chd FROM @sql_col_pax_chd;
+EXECUTE st_col_pax_chd;
+DEALLOCATE PREPARE st_col_pax_chd;
+
+SET @has_col_qtd_chd := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'reservas_tematicas'
+      AND column_name = 'qtd_chd'
+);
+SET @sql_col_qtd_chd := IF(@has_col_qtd_chd = 0,
+    'ALTER TABLE reservas_tematicas ADD COLUMN qtd_chd INT NOT NULL DEFAULT 0 AFTER pax_chd',
+    'SELECT 1'
+);
+PREPARE st_col_qtd_chd FROM @sql_col_qtd_chd;
+EXECUTE st_col_qtd_chd;
+DEALLOCATE PREPARE st_col_qtd_chd;
 
 UPDATE reservas_tematicas
 SET pax_adulto = CASE WHEN pax > 0 THEN pax ELSE 0 END
