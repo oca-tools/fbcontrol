@@ -73,8 +73,15 @@ require __DIR__ . '/../app/core/Auth.php';
 if (Auth::check()) {
     $timeout = max(30, (int)($config['app']['session_timeout_min'] ?? 30));
     Auth::enforceIdleTimeout($timeout);
-    Auth::enforceSessionBinding();
-    Auth::enforceSingleSession();
+    $strictSessionGuards = in_array(
+        strtolower((string)(getenv('APP_ENABLE_STRICT_SESSION_GUARDS') ?: '0')),
+        ['1', 'true', 'yes', 'on'],
+        true
+    );
+    if ($strictSessionGuards) {
+        Auth::enforceSessionBinding();
+        Auth::enforceSingleSession();
+    }
     header('Cache-Control: private, no-store, no-cache, must-revalidate');
     header('Pragma: no-cache');
 }
