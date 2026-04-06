@@ -567,7 +567,7 @@ CREATE TABLE `usuarios` (
   `criado_em` datetime NOT NULL,
   `foto_path` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`)
+  KEY `idx_usuarios_email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

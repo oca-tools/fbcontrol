@@ -3,10 +3,32 @@ class UserModel extends Model
 {
     public function findByEmail(string $email): ?array
     {
-        $stmt = $this->db->prepare("SELECT * FROM usuarios WHERE email = :email AND ativo = 1 LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM usuarios WHERE email = :email AND ativo = 1 ORDER BY id DESC LIMIT 1");
         $stmt->execute([':email' => $email]);
         $user = $stmt->fetch();
         return $user ?: null;
+    }
+
+    public function authenticateByEmailAndPassword(string $email, string $plainPassword): array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM usuarios WHERE email = :email AND ativo = 1 ORDER BY id DESC");
+        $stmt->execute([':email' => $email]);
+        $rows = $stmt->fetchAll();
+
+        $matches = [];
+        foreach ($rows as $row) {
+            if (password_verify($plainPassword, (string)$row['senha'])) {
+                $matches[] = $row;
+            }
+        }
+
+        if (count($matches) === 1) {
+            return ['status' => 'ok', 'user' => $matches[0]];
+        }
+        if (count($matches) > 1) {
+            return ['status' => 'ambiguous', 'user' => null];
+        }
+        return ['status' => 'invalid', 'user' => null];
     }
 
     public function emailExists(string $email, ?int $excludeId = null): bool
@@ -22,6 +44,27 @@ class UserModel extends Model
             $stmt->execute([':email' => $email]);
         }
         return (bool)$stmt->fetch();
+    }
+
+    public function emailPasswordExists(string $email, string $plainPassword, ?int $excludeId = null): bool
+    {
+        if ($excludeId) {
+            $stmt = $this->db->prepare("SELECT id, senha FROM usuarios WHERE email = :email AND id <> :id");
+            $stmt->execute([
+                ':email' => $email,
+                ':id' => $excludeId,
+            ]);
+        } else {
+            $stmt = $this->db->prepare("SELECT id, senha FROM usuarios WHERE email = :email");
+            $stmt->execute([':email' => $email]);
+        }
+
+        foreach ($stmt->fetchAll() as $row) {
+            if (password_verify($plainPassword, (string)($row['senha'] ?? ''))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function all(): array

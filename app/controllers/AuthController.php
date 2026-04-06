@@ -145,9 +145,11 @@ class AuthController extends Controller
             }
 
             $userModel = new UserModel();
-            $user = $userModel->findByEmail($email);
+            $authResult = $userModel->authenticateByEmailAndPassword($email, $senha);
+            $status = (string)($authResult['status'] ?? 'invalid');
+            $user = $authResult['user'] ?? null;
 
-            if ($user && password_verify($senha, (string)$user['senha'])) {
+            if ($status === 'ok' && is_array($user)) {
                 $this->clearThrottle($email);
                 Auth::login($user);
                 (new SecurityLogModel())->log('auth_login_success', (int)$user['id'], [
@@ -155,6 +157,15 @@ class AuthController extends Controller
                     'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
                 ]);
                 $this->redirect('/?r=home');
+            }
+
+            if ($status === 'ambiguous') {
+                (new SecurityLogModel())->log('auth_login_ambiguous', null, [
+                    'email' => mb_strtolower($email, 'UTF-8'),
+                    'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                ]);
+                set_flash('danger', 'Conflito de credenciais para este e-mail. Contate o administrador.');
+                $this->redirect('/?r=auth/login');
             }
 
             $this->registerFail($email);

@@ -54,8 +54,8 @@ class UsuariosController extends Controller
         }
 
         $model = new UserModel();
-        if ($model->emailExists($email)) {
-            set_flash('danger', 'Este e-mail já está cadastrado.');
+        if ($model->emailPasswordExists($email, $senha)) {
+            set_flash('danger', 'Ja existe um usuario com este e-mail e esta senha.');
             $this->redirect('/?r=usuarios/index');
         }
 
@@ -113,8 +113,8 @@ class UsuariosController extends Controller
         }
 
         $model = new UserModel();
-        if ($model->emailExists($email, $id)) {
-            set_flash('danger', 'Este e-mail já está cadastrado para outro usuário.');
+        if ($senha !== '' && $model->emailPasswordExists($email, $senha, $id)) {
+            set_flash('danger', 'Ja existe outro usuario com este e-mail e esta senha.');
             $this->redirect('/?r=usuarios/index');
         }
 
