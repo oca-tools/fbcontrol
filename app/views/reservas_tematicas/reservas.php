@@ -60,6 +60,57 @@ $quickDates = [
     </div>
 </div>
 
+<style>
+.availability-vertical-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.availability-restaurant-card {
+    border: 1px solid var(--border-soft, rgba(15, 23, 42, 0.08));
+    border-radius: 1rem;
+    padding: 0.95rem;
+    background: var(--card-surface, rgba(255, 255, 255, 0.75));
+}
+
+.availability-turnos-grid {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    margin-top: 0.7rem;
+}
+
+.availability-turno-tile {
+    border: 1px solid var(--border-soft, rgba(15, 23, 42, 0.08));
+    border-radius: 0.85rem;
+    padding: 0.6rem;
+    background: var(--surface-muted, rgba(248, 250, 252, 0.85));
+    text-align: center;
+}
+
+.availability-turno-time {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text-muted, #6b7280);
+}
+
+.availability-turno-values {
+    margin-top: 0.45rem;
+}
+
+.availability-turno-values .badge {
+    font-size: 0.95rem;
+    min-width: 42px;
+}
+
+.availability-turno-ratio {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-muted, #6b7280);
+}
+</style>
+
 <div class="row g-4">
     <div class="col-12 col-lg-5">
         <div class="card p-4">
@@ -229,39 +280,33 @@ $quickDates = [
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Restaurante</th>
+            <div class="availability-vertical-grid">
+                <?php foreach ($restaurantes as $rest): ?>
+                    <div class="availability-restaurant-card">
+                        <span class="tag <?= restaurant_badge_class($rest['nome']) ?>"><?= h($rest['nome']) ?></span>
+                        <div class="availability-turnos-grid">
                             <?php foreach ($turnos as $turno): ?>
-                                <th><?= h($turno['hora']) ?></th>
-                            <?php endforeach; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($restaurantes as $rest): ?>
-                            <tr>
-                                <td><span class="tag <?= restaurant_badge_class($rest['nome']) ?>"><?= h($rest['nome']) ?></span></td>
-                                <?php foreach ($turnos as $turno): ?>
-                                    <?php
-                                        $info = $availability[$rest['id']][$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0];
-                                        $status = $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
-                                    ?>
-                                    <td
-                                        data-rest-id="<?= (int)$rest['id'] ?>"
-                                        data-turno-id="<?= (int)$turno['id'] ?>"
-                                        data-rest-nome="<?= h($rest['nome']) ?>"
-                                        data-turno-hora="<?= h($turno['hora']) ?>"
-                                    >
+                                <?php
+                                    $info = $availability[$rest['id']][$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0];
+                                    $status = $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
+                                ?>
+                                <div
+                                    class="availability-turno-tile js-availability-cell"
+                                    data-rest-id="<?= (int)$rest['id'] ?>"
+                                    data-turno-id="<?= (int)$turno['id'] ?>"
+                                    data-rest-nome="<?= h($rest['nome']) ?>"
+                                    data-turno-hora="<?= h($turno['hora']) ?>"
+                                >
+                                    <div class="availability-turno-time"><?= h($turno['hora']) ?></div>
+                                    <div class="availability-turno-values">
                                         <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver os detalhes do turno"><?= (int)$info['restante'] ?></span>
-                                        <div class="text-muted small js-availability-rc"><span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno"><?= (int)$info['reservado'] ?></span>/<?= (int)$info['capacidade'] ?></div>
-                                    </td>
-                                <?php endforeach; ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                                    </div>
+                                    <div class="availability-turno-ratio js-availability-rc"><span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno"><?= (int)$info['reservado'] ?></span>/<?= (int)$info['capacidade'] ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
     </div>
@@ -294,7 +339,7 @@ $quickDates = [
     const paintAvailability = (payload) => {
         const data = payload?.availability || {};
         availabilityCache[payload?.date || ''] = data;
-        document.querySelectorAll('td[data-rest-id][data-turno-id]').forEach((cell) => {
+        document.querySelectorAll('.js-availability-cell[data-rest-id][data-turno-id]').forEach((cell) => {
             const restId = cell.getAttribute('data-rest-id');
             const turnoId = cell.getAttribute('data-turno-id');
             const info = data?.[restId]?.[turnoId] || { capacidade: 0, reservado: 0, restante: 0 };
@@ -446,7 +491,7 @@ $quickDates = [
     };
 
     const openAvailabilityDetail = async (triggerEl) => {
-        const cell = triggerEl?.closest('td[data-rest-id][data-turno-id]');
+        const cell = triggerEl?.closest('.js-availability-cell[data-rest-id][data-turno-id]');
         if (!cell) return;
         const restId = cell.getAttribute('data-rest-id');
         const turnoId = cell.getAttribute('data-turno-id');
