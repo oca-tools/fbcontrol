@@ -8,9 +8,19 @@ WHERE TABLE_SCHEMA = @db_name
   AND TABLE_NAME = 'reservas_tematicas'
   AND COLUMN_NAME = 'grupo_nome';
 
+SELECT COUNT(*) INTO @has_titular_nome_col
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = @db_name
+  AND TABLE_NAME = 'reservas_tematicas'
+  AND COLUMN_NAME = 'titular_nome';
+
 SET @sql := IF(
   @has_grupo_nome_col = 0,
-  'ALTER TABLE reservas_tematicas ADD COLUMN grupo_nome VARCHAR(120) NULL AFTER titular_nome',
+  IF(
+    @has_titular_nome_col > 0,
+    'ALTER TABLE reservas_tematicas ADD COLUMN grupo_nome VARCHAR(120) NULL AFTER titular_nome',
+    'ALTER TABLE reservas_tematicas ADD COLUMN grupo_nome VARCHAR(120) NULL'
+  ),
   'SELECT 1'
 );
 PREPARE stmt FROM @sql;
@@ -37,8 +47,20 @@ FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = @db_name
   AND TABLE_NAME = 'reservas_tematicas_grupos';
 
+SELECT COUNT(*) INTO @has_grupo_id_col
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = @db_name
+  AND TABLE_NAME = 'reservas_tematicas'
+  AND COLUMN_NAME = 'grupo_id';
+
+SELECT COUNT(*) INTO @has_responsavel_nome_col
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = @db_name
+  AND TABLE_NAME = 'reservas_tematicas_grupos'
+  AND COLUMN_NAME = 'responsavel_nome';
+
 SET @sql := IF(
-  @has_grupos_table > 0,
+  @has_grupos_table > 0 AND @has_grupo_id_col > 0 AND @has_responsavel_nome_col > 0,
   'UPDATE reservas_tematicas rsv
      LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id
      SET rsv.grupo_nome = COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''''), NULLIF(TRIM(grp.responsavel_nome), ''''))

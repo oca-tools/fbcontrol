@@ -267,6 +267,23 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
     window.addEventListener('resize', syncCompact, { passive: true });
 })();
 
+// Garante rolagem horizontal para tabelas que vieram sem wrapper responsivo.
+(function () {
+    const tables = Array.from(document.querySelectorAll('table.table'));
+    if (!tables.length) return;
+
+    tables.forEach((table) => {
+        if (!table || table.dataset.noAutoWrap === '1') return;
+        if (table.classList.contains('table-editor')) return;
+        if (table.closest('.table-responsive, .saas-table-scroll, .js-no-auto-wrap')) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-responsive auto-table-wrap';
+        table.parentNode.insertBefore(wrapper, table);
+        wrapper.appendChild(table);
+    });
+})();
+
 // Indicacao visual de rolagem lateral em tabelas responsivas.
 (function () {
     const wrappers = Array.from(document.querySelectorAll('.table-responsive'));
@@ -324,6 +341,127 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
         }
         th.dataset.iconized = '1';
         th.innerHTML = '<span class="d-inline-flex align-items-center gap-1"><i class="bi ' + iconClass + '"></i><span>' + th.innerHTML + '</span></span>';
+    });
+})();
+
+// Paginacao automatica para tabelas de listagem (dashboard, relatorios e modulos operacionais).
+(function () {
+    const body = document.body;
+    if (!body) return;
+
+    const route = String(body.dataset.route || '').toLowerCase();
+    if (route.endsWith('/print') || route.includes('/print')) return;
+
+    const hasManualPagerNear = (table) => {
+        const wrapper = table.closest('.table-responsive') || table.parentElement;
+        if (!wrapper) return false;
+        let next = wrapper.nextElementSibling;
+        let guard = 0;
+        while (next && guard < 3) {
+            const id = String(next.id || '').toLowerCase();
+            const cls = String(next.className || '').toLowerCase();
+            if (id.includes('pagination') || cls.includes('pagination')) {
+                return true;
+            }
+            next = next.nextElementSibling;
+            guard += 1;
+        }
+        return false;
+    };
+
+    const createPager = (table, pageSize, pagerId) => {
+        const tbody = table.tBodies && table.tBodies[0] ? table.tBodies[0] : null;
+        if (!tbody) return;
+
+        const rows = Array.from(tbody.rows).filter((row) => !row.classList.contains('js-no-auto-pagination'));
+        if (rows.length <= pageSize) return;
+
+        const pager = document.createElement('div');
+        pager.className = 'auto-table-pagination d-flex flex-wrap align-items-center gap-2 mt-2';
+        pager.id = pagerId;
+
+        const range = document.createElement('span');
+        range.className = 'text-muted small me-1';
+        pager.appendChild(range);
+
+        const nav = document.createElement('div');
+        nav.className = 'd-flex flex-wrap gap-2';
+        pager.appendChild(nav);
+
+        const wrapper = table.closest('.table-responsive') || table;
+        wrapper.insertAdjacentElement('afterend', pager);
+
+        let currentPage = 1;
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+
+        const render = () => {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            rows.forEach((row, idx) => {
+                row.style.display = (idx >= start && idx < end) ? '' : 'none';
+            });
+
+            range.textContent = `Mostrando ${Math.min(rows.length, start + 1)}-${Math.min(rows.length, end)} de ${rows.length}`;
+
+            nav.innerHTML = '';
+            const maxButtons = 7;
+            const pages = [];
+            for (let p = 1; p <= totalPages; p++) {
+                if (
+                    p === 1 ||
+                    p === totalPages ||
+                    (p >= currentPage - 1 && p <= currentPage + 1) ||
+                    (currentPage <= 3 && p <= 4) ||
+                    (currentPage >= totalPages - 2 && p >= totalPages - 3)
+                ) {
+                    pages.push(p);
+                }
+            }
+            const uniquePages = Array.from(new Set(pages)).sort((a, b) => a - b);
+            let last = 0;
+            uniquePages.forEach((p) => {
+                if (p - last > 1) {
+                    const dots = document.createElement('span');
+                    dots.className = 'text-muted small px-1';
+                    dots.textContent = '...';
+                    nav.appendChild(dots);
+                }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `btn btn-sm ${p === currentPage ? 'btn-primary' : 'btn-outline-primary'}`;
+                btn.textContent = String(p);
+                btn.addEventListener('click', () => {
+                    currentPage = p;
+                    render();
+                });
+                nav.appendChild(btn);
+                last = p;
+            });
+
+            if (uniquePages.length > maxButtons) {
+                nav.style.maxWidth = '100%';
+            }
+        };
+
+        render();
+    };
+
+    const tableNodes = Array.from(document.querySelectorAll('table.table'));
+    const defaultPageSize = window.matchMedia('(max-width: 768px)').matches ? 8 : 12;
+    let autoIndex = 0;
+
+    tableNodes.forEach((table) => {
+        if (!table || table.dataset.noAutoPagination === '1') return;
+        if (table.closest('.js-no-auto-pagination')) return;
+        if (hasManualPagerNear(table)) return;
+
+        const tbody = table.tBodies && table.tBodies[0] ? table.tBodies[0] : null;
+        if (!tbody) return;
+        if (tbody.rows.length <= defaultPageSize) return;
+
+        autoIndex += 1;
+        const pageSize = Math.max(5, parseInt(table.dataset.pageSize || String(defaultPageSize), 10) || defaultPageSize);
+        createPager(table, pageSize, `autoTablePagination${autoIndex}`);
     });
 })();
 
