@@ -725,7 +725,14 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     });
 
     const modalEl = document.getElementById('reservaDetailModal');
-    const modal = modalEl && window.bootstrap ? new window.bootstrap.Modal(modalEl) : null;
+    let modal = null;
+    const getModal = () => {
+        if (!modalEl) return null;
+        if (!modal && window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+            modal = new window.bootstrap.Modal(modalEl);
+        }
+        return modal;
+    };
     const modalId = document.getElementById('modalReservaId');
     const modalTitular = document.getElementById('modalTitular');
     const modalUh = document.getElementById('modalUh');
@@ -741,7 +748,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     document.querySelectorAll('.js-open-reserva').forEach((row) => {
         row.classList.add('js-row-clickable');
         row.addEventListener('click', () => {
-            if (!modal) return;
+            const modalInstance = getModal();
+            if (!modalInstance) return;
             modalId.value = row.dataset.id || '';
             modalTitular.value = row.dataset.titular || '-';
             modalUh.value = row.dataset.uh || '-';
@@ -752,7 +760,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             modalTurno.value = row.dataset.turnoId || '';
             modalObs.value = row.dataset.obsOperacao || '';
             modalConfirmFinal.value = '0';
-            modal.show();
+            modalInstance.show();
         });
     });
 
