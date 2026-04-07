@@ -97,6 +97,17 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         justify-content: center;
         gap: 0.45rem;
     }
+    .tematic-operacao-page .context-actions .context-btn {
+        min-height: 38px;
+        padding: 0.46rem 0.9rem;
+        font-size: 0.9rem;
+        line-height: 1.15;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .context-actions .context-today {
+        min-width: 82px;
+        justify-content: center;
+    }
     .tematic-operacao-page .btn-primary,
     .tematic-operacao-page .btn-primary:link,
     .tematic-operacao-page .btn-primary:visited {
@@ -318,9 +329,9 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-12 col-md-3 d-flex align-items-end gap-2">
-            <button class="btn btn-primary btn-xl w-100">Atualizar contexto</button>
-            <a class="btn btn-outline-primary btn-xl" href="/?r=reservasTematicas/operacao">Hoje</a>
+        <div class="col-12 col-md-3 d-flex align-items-end gap-2 context-actions">
+            <button class="btn btn-primary w-100 context-btn">Atualizar contexto</button>
+            <a class="btn btn-outline-primary context-btn context-today" href="/?r=reservasTematicas/operacao">Hoje</a>
         </div>
     </form>
 

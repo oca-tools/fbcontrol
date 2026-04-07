@@ -213,6 +213,12 @@ class ReservasTematicasController extends Controller
                 'turno_id' => $turnoId,
                 'order' => 'status',
             ]);
+            $availabilityMap = $buildAvailability($dateAjax);
+            $availabilityInfo = $availabilityMap[$restauranteId][$turnoId] ?? [
+                'capacidade' => 0,
+                'reservado' => 0,
+                'restante' => 0,
+            ];
             $items = [];
             $totalPax = 0;
             $totalChd = 0;
@@ -236,6 +242,9 @@ class ReservasTematicasController extends Controller
             json_response([
                 'ok' => true,
                 'date' => $dateAjax,
+                'capacidade' => (int)($availabilityInfo['capacidade'] ?? 0),
+                'reservado' => (int)($availabilityInfo['reservado'] ?? 0),
+                'restante' => (int)($availabilityInfo['restante'] ?? 0),
                 'count' => count($items),
                 'total_pax' => $totalPax,
                 'total_chd' => $totalChd,

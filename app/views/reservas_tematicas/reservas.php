@@ -470,9 +470,9 @@ $quickDates = [
                     <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
                 </tr>
             `).join('');
-            const restante = parseInt(cell.dataset.restante || '0', 10);
-            const reservado = parseInt(cell.dataset.reservado || '0', 10);
-            const capacidade = parseInt(cell.dataset.capacidade || '0', 10);
+        const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
+        const reservado = parseInt(String(payload.reservado ?? cell.dataset.reservado ?? '0'), 10) || 0;
+        const capacidade = parseInt(String(payload.capacidade ?? cell.dataset.capacidade ?? '0'), 10) || 0;
             const html = `
                 <div class="text-start">
                     <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
