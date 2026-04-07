@@ -197,8 +197,8 @@ class DailyReportEmailModel extends Model
         $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diário A&B - {data}'));
         $subject = str_replace('{data}', date('d/m/Y', strtotime($dateRef)), $subjectTpl);
         $subject = $this->sanitizeHeaderValue($subject, 'Resumo diário A&B');
-        $html = $this->buildHtml($dateRef, $metrics);
-        $text = $this->buildText($dateRef, $metrics);
+        $html = $this->normalizeEmailContent($this->buildHtml($dateRef, $metrics));
+        $text = $this->normalizeEmailContent($this->buildText($dateRef, $metrics));
 
         $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'OCA FBControl'), 'OCA FBControl');
         $fromEmailRaw = trim((string)($config['remetente_email'] ?? ''));
@@ -620,7 +620,7 @@ class DailyReportEmailModel extends Model
 
     private function normalizeMetricLabel(string $label): string
     {
-        $cleanLabel = normalize_mojibake($label);
+        $cleanLabel = $this->normalizeEmailContent($label);
         $cleanLabel = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $cleanLabel) ?? $cleanLabel;
         $cleanLabel = preg_replace('/\s+/u', ' ', trim($cleanLabel)) ?? trim($cleanLabel);
         return $cleanLabel;
@@ -628,14 +628,30 @@ class DailyReportEmailModel extends Model
 
     private function sanitizeHeaderValue(string $value, string $fallback = ''): string
     {
-        $clean = trim(str_replace(["\r", "\n"], '', $value));
-        return $clean !== '' ? $clean : $fallback;
+        $clean = $this->normalizeEmailContent($value);
+        $clean = trim(str_replace(["\r", "\n"], '', $clean));
+        if ($clean !== '') {
+            return $clean;
+        }
+        return $this->normalizeEmailContent($fallback);
     }
 
     private function sanitizeEmail(string $email): string
     {
         $clean = trim(str_replace(["\r", "\n"], '', $email));
         return filter_var($clean, FILTER_VALIDATE_EMAIL) ? $clean : '';
+    }
+
+    private function normalizeEmailContent(string $value): string
+    {
+        $normalized = str_replace("\xEF\xBB\xBF", '', $value);
+        if (!mb_check_encoding($normalized, 'UTF-8')) {
+            $converted = @mb_convert_encoding($normalized, 'UTF-8', 'Windows-1252,ISO-8859-1,UTF-8');
+            if (is_string($converted) && $converted !== '') {
+                $normalized = $converted;
+            }
+        }
+        return normalize_mojibake($normalized);
     }
 }
 

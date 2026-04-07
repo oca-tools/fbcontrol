@@ -5,6 +5,10 @@ declare(strict_types=1);
 
 $config = require __DIR__ . '/../../config/config.php';
 date_default_timezone_set($config['app']['timezone'] ?? 'America/Sao_Paulo');
+ini_set('default_charset', 'UTF-8');
+if (function_exists('mb_internal_encoding')) {
+    mb_internal_encoding('UTF-8');
+}
 
 require __DIR__ . '/../helpers/functions.php';
 require __DIR__ . '/../core/Database.php';
@@ -37,4 +41,3 @@ if ($model->wasSent($dateRef)) {
 
 $result = $model->sendDailyReport(false, $dateRef);
 echo '[' . date('Y-m-d H:i:s') . '] ' . ($result['message'] ?? 'sem mensagem') . "\n";
-
