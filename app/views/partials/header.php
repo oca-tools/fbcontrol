@@ -2877,15 +2877,58 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
             .mobile-nav .menu-btn {
                 min-width: 78px;
             }
+            .offcanvas .offcanvas-body .mobile-theme-panel {
+                border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+                background: color-mix(in srgb, var(--ab-soft-bg) 70%, var(--ab-card) 30%);
+                border-radius: 14px;
+                padding: 0.65rem;
+            }
+            .offcanvas .offcanvas-body .mobile-theme-panel .text-muted.small {
+                font-size: 0.72rem !important;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                margin-bottom: 0.45rem !important;
+            }
             .offcanvas .offcanvas-body .theme-switch-compact {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 0.45rem;
+                gap: 0.5rem;
+                border: 0;
+                background: transparent;
+                box-shadow: none;
+                padding: 0;
             }
             .offcanvas .offcanvas-body .theme-switch-compact .theme-btn {
                 width: 100%;
                 justify-content: flex-start;
-                min-height: 40px;
+                min-height: 42px;
+                border-radius: 12px;
+                border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+                background: color-mix(in srgb, var(--ab-card) 88%, transparent);
+                padding: 0.48rem 0.6rem;
+                color: var(--ab-ink);
+                position: relative;
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact .theme-btn .theme-btn-label {
+                display: inline !important;
+                font-size: 0.8rem;
+                font-weight: 700;
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact .theme-btn.active {
+                color: var(--ab-ink);
+                border-color: color-mix(in srgb, var(--ab-accent) 62%, var(--ab-border) 38%);
+                background: color-mix(in srgb, var(--ab-hover-bg) 55%, var(--ab-card) 45%);
+                box-shadow: 0 0 0 1px color-mix(in srgb, var(--ab-accent) 24%, transparent);
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact .theme-btn.active::after {
+                content: "✓";
+                margin-left: auto;
+                font-size: 0.82rem;
+                font-weight: 800;
+                color: color-mix(in srgb, var(--ab-accent) 80%, #ffffff 20%);
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact .theme-btn:hover {
+                background: color-mix(in srgb, var(--ab-hover-bg) 45%, var(--ab-card) 55%);
             }
             .offcanvas .offcanvas-body .nav-link {
                 min-height: 42px;
@@ -3132,7 +3175,7 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
                             </div>
                         </div>
                     <?php endif; ?>
-                    <div class="mb-3">
+                    <div class="mb-3 mobile-theme-panel">
                         <div class="text-muted small mb-2">Tema visual</div>
                         <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
                             <button class="theme-btn js-theme-option" type="button" data-theme="light" aria-label="Tema claro">
