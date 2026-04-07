@@ -267,6 +267,23 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
     window.addEventListener('resize', syncCompact, { passive: true });
 })();
 
+// Modo simplificado para perfis operacionais no mobile/tablet.
+(function () {
+    const root = document.body;
+    if (!root) return;
+    const role = (root.getAttribute('data-role') || '').toLowerCase();
+    const simpleRoles = ['hostess', 'supervisor', 'gerente'];
+
+    function syncSimpleMode() {
+        const isMobile = window.matchMedia('(max-width: 992px)').matches;
+        const enabled = isMobile && simpleRoles.includes(role);
+        root.classList.toggle('mobile-beginner', enabled);
+    }
+
+    syncSimpleMode();
+    window.addEventListener('resize', syncSimpleMode, { passive: true });
+})();
+
 // Garante rolagem horizontal para tabelas que vieram sem wrapper responsivo.
 (function () {
     const tables = Array.from(document.querySelectorAll('table.table'));

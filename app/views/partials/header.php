@@ -2824,6 +2824,111 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
         [data-theme='dark'] .auto-table-wrap::-webkit-scrollbar-track {
             background: color-mix(in srgb, #0f1a2c 70%, var(--ab-soft-bg) 30%);
         }
+        @media (hover: none) {
+            .card:hover,
+            .metric-card:hover,
+            .btn:hover {
+                transform: none !important;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .topbar {
+                display: none !important;
+            }
+            .mobile-nav {
+                display: flex !important;
+                position: sticky;
+                top: 8px;
+                z-index: 55;
+                margin-bottom: 12px;
+                padding: 0.55rem 0.72rem;
+            }
+            .mobile-nav .brand {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                line-height: 1.1;
+                min-width: 0;
+            }
+            .mobile-nav .brand-main {
+                font-size: 0.96rem;
+                font-weight: 700;
+                color: var(--ab-ink);
+                max-width: 48vw;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .mobile-nav .brand-sub {
+                margin-top: 2px;
+                font-size: 0.7rem;
+                color: var(--ab-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+            .mobile-nav .theme-switch-compact {
+                display: none !important;
+            }
+            .mobile-nav .btn {
+                min-height: 38px;
+                padding: 0.38rem 0.58rem;
+            }
+            .mobile-nav .menu-btn {
+                min-width: 78px;
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.45rem;
+            }
+            .offcanvas .offcanvas-body .theme-switch-compact .theme-btn {
+                width: 100%;
+                justify-content: flex-start;
+                min-height: 40px;
+            }
+            .offcanvas .offcanvas-body .nav-link {
+                min-height: 42px;
+                display: flex;
+                align-items: center;
+                gap: 0.55rem;
+            }
+            body.mobile-beginner .text-uppercase.text-muted.small {
+                font-size: 0.62rem !important;
+                letter-spacing: 0.03em;
+            }
+            body.mobile-beginner .badge-soft {
+                display: none !important;
+            }
+            body.mobile-beginner .card,
+            body.mobile-beginner .section-block,
+            body.mobile-beginner .saas-table-card {
+                border-radius: 14px !important;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
+            }
+            body.mobile-beginner .btn {
+                min-height: 42px;
+                font-size: 0.9rem;
+            }
+            body.mobile-beginner .table thead th {
+                font-size: 0.64rem;
+            }
+            body.mobile-beginner .table tbody td {
+                font-size: 0.8rem;
+            }
+        }
+        @media (max-width: 576px) {
+            .mobile-nav .brand-main {
+                max-width: 42vw;
+                font-size: 0.92rem;
+            }
+            .mobile-nav .brand-sub {
+                font-size: 0.66rem;
+            }
+            .mobile-nav .menu-btn {
+                min-width: 70px;
+            }
+        }
 
         .logout-inline-form {
             margin: 0;
@@ -2985,31 +3090,22 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
     <div class="app-main">
         <?php if ($user): ?>
             <div class="mobile-nav">
-                <div class="brand"><?= h($appName) ?></div>
+                <div class="brand">
+                    <span class="brand-main"><?= h($appName) ?></span>
+                    <span class="brand-sub"><?= h($perfilLabel ?? ucfirst((string)($user['perfil'] ?? ''))) ?></span>
+                </div>
                 <div class="d-flex align-items-center gap-2">
-                    <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
-                        <button class="theme-btn js-theme-option" type="button" data-theme="light" aria-label="Tema claro">
-                            <span class="swatch swatch-light"></span>
-                            <span class="theme-btn-label">Claro</span>
-                        </button>
-                        <button class="theme-btn js-theme-option" type="button" data-theme="dark" aria-label="Tema escuro">
-                            <span class="swatch swatch-dark"></span>
-                            <span class="theme-btn-label">Escuro</span>
-                        </button>
-                        <button class="theme-btn js-theme-option" type="button" data-theme="sand" aria-label="Tema areia">
-                            <span class="swatch swatch-sand"></span>
-                            <span class="theme-btn-label">Areia</span>
-                        </button>
-                        <button class="theme-btn js-theme-option" type="button" data-theme="ocean" aria-label="Tema oceano">
-                            <span class="swatch swatch-ocean"></span>
-                            <span class="theme-btn-label">Oceano</span>
-                        </button>
-                    </div>
                     <?php if ($showGuidedTutorial): ?>
                         <button class="btn btn-sm btn-outline-primary js-open-tour" type="button" title="Abrir tutorial">
                             <i class="bi bi-mortarboard"></i>
                         </button>
                     <?php endif; ?>
+                    <form method="post" action="/?r=auth/logout" class="logout-inline-form d-inline-flex">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <button class="btn btn-sm btn-outline-dark" type="submit" aria-label="Sair">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </form>
                     <button class="btn btn-sm menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
                         <i class="bi bi-list"></i> Menu
                     </button>
@@ -3036,6 +3132,27 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
                             </div>
                         </div>
                     <?php endif; ?>
+                    <div class="mb-3">
+                        <div class="text-muted small mb-2">Tema visual</div>
+                        <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
+                            <button class="theme-btn js-theme-option" type="button" data-theme="light" aria-label="Tema claro">
+                                <span class="swatch swatch-light"></span>
+                                <span class="theme-btn-label">Claro</span>
+                            </button>
+                            <button class="theme-btn js-theme-option" type="button" data-theme="dark" aria-label="Tema escuro">
+                                <span class="swatch swatch-dark"></span>
+                                <span class="theme-btn-label">Escuro</span>
+                            </button>
+                            <button class="theme-btn js-theme-option" type="button" data-theme="sand" aria-label="Tema areia">
+                                <span class="swatch swatch-sand"></span>
+                                <span class="theme-btn-label">Areia</span>
+                            </button>
+                            <button class="theme-btn js-theme-option" type="button" data-theme="ocean" aria-label="Tema oceano">
+                                <span class="swatch swatch-ocean"></span>
+                                <span class="theme-btn-label">Oceano</span>
+                            </button>
+                        </div>
+                    </div>
                     <div class="nav flex-column gap-1">
                         <?php if (in_array($user['perfil'], ['hostess'], true)): ?>
                             <a class="nav-link" href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
