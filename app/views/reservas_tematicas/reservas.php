@@ -400,6 +400,51 @@ $quickDates = [
     restauranteSelect?.addEventListener('change', applyTurnoAvailability);
     excedenteCheckbox?.addEventListener('change', applyTurnoAvailability);
 
+    const showTurnoPopup = (html) => {
+        if (window.Swal) {
+            window.Swal.fire({
+                title: 'Detalhes do turno',
+                html,
+                width: 920,
+                confirmButtonText: 'Fechar'
+            });
+            return;
+        }
+
+        if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+            let modalEl = document.getElementById('availabilityDetailModal');
+            if (!modalEl) {
+                modalEl = document.createElement('div');
+                modalEl.id = 'availabilityDetailModal';
+                modalEl.className = 'modal fade';
+                modalEl.tabIndex = -1;
+                modalEl.innerHTML = `
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Detalhes do turno</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body" id="availabilityDetailModalBody"></div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modalEl);
+            }
+            const bodyEl = modalEl.querySelector('#availabilityDetailModalBody');
+            if (bodyEl) bodyEl.innerHTML = html;
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            return;
+        }
+
+        const textFallback = document.createElement('div');
+        textFallback.innerHTML = html;
+        window.alert(textFallback.textContent || 'Detalhes do turno');
+    };
+
     const openAvailabilityDetail = async (triggerEl) => {
         const cell = triggerEl?.closest('td[data-rest-id][data-turno-id]');
         if (!cell) return;
@@ -410,49 +455,52 @@ $quickDates = [
         const date = dateInput?.value || reservaDateInput?.value || '';
         if (!date) return;
 
-        const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
-        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        if (!res.ok) return;
-        const payload = await res.json();
-        if (!payload?.ok) return;
+        try {
+            const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) throw new Error('Falha ao buscar detalhes do turno.');
+            const payload = await res.json();
+            if (!payload?.ok) throw new Error(payload?.message || 'Não foi possível carregar os detalhes.');
 
-        const rows = (payload.items || []).map((item) => `
-            <tr>
-                <td>${escapeHtml(item.titular_nome || '-')}</td>
-                <td>${escapeHtml(item.uh_numero || '-')}</td>
-                <td>${escapeHtml(String(item.pax ?? 0))}</td>
-                <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
-            </tr>
-        `).join('');
-        const restante = parseInt(cell.dataset.restante || '0', 10);
-        const reservado = parseInt(cell.dataset.reservado || '0', 10);
-        const capacidade = parseInt(cell.dataset.capacidade || '0', 10);
-        const html = `
-            <div class="text-start">
-                <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-2">
-                        <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th></tr></thead>
-                        <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
-                    </table>
+            const rows = (payload.items || []).map((item) => `
+                <tr>
+                    <td>${escapeHtml(item.titular_nome || '-')}</td>
+                    <td>${escapeHtml(item.uh_numero || '-')}</td>
+                    <td>${escapeHtml(String(item.pax ?? 0))}</td>
+                    <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
+                </tr>
+            `).join('');
+            const restante = parseInt(cell.dataset.restante || '0', 10);
+            const reservado = parseInt(cell.dataset.reservado || '0', 10);
+            const capacidade = parseInt(cell.dataset.capacidade || '0', 10);
+            const html = `
+                <div class="text-start">
+                    <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-2">
+                            <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th></tr></thead>
+                            <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                    <div class="fw-semibold">Disponíveis: ${escapeHtml(String(restante))} · Preenchidas: ${escapeHtml(String(reservado))}/${escapeHtml(String(capacidade))}</div>
+                    <div class="small text-muted">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))} · Total CHD: ${escapeHtml(String(payload.total_chd || 0))}</div>
                 </div>
-                <div class="fw-semibold">Disponíveis: ${escapeHtml(String(restante))} · Preenchidas: ${escapeHtml(String(reservado))}/${escapeHtml(String(capacidade))}</div>
-                <div class="small text-muted">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))} · Total CHD: ${escapeHtml(String(payload.total_chd || 0))}</div>
-            </div>
-        `;
-
-        if (window.Swal) {
-            window.Swal.fire({
-                title: 'Detalhes do turno',
-                html,
-                width: 920,
-                confirmButtonText: 'Fechar'
-            });
+            `;
+            showTurnoPopup(html);
+        } catch (err) {
+            const msg = err?.message || 'Erro ao carregar detalhes.';
+            if (window.Swal) {
+                window.Swal.fire({ icon: 'error', title: 'Não foi possível abrir', text: msg });
+            } else {
+                window.alert(msg);
+            }
         }
     };
 
     document.addEventListener('click', (event) => {
-        const trigger = event.target.closest('.js-availability-restante, .js-availability-reservado');
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target) return;
+        const trigger = target.closest('.js-availability-restante, .js-availability-reservado');
         if (!trigger) return;
         openAvailabilityDetail(trigger);
     });
