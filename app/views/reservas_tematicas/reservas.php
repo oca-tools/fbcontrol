@@ -254,8 +254,8 @@ $quickDates = [
                                         data-rest-nome="<?= h($rest['nome']) ?>"
                                         data-turno-hora="<?= h($turno['hora']) ?>"
                                     >
-                                        <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver o resumo do turno"><?= (int)$info['restante'] ?></span>
-                                        <div class="text-muted small js-availability-rc"><?= (int)$info['reservado'] ?>/<?= (int)$info['capacidade'] ?></div>
+                                        <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver os detalhes do turno"><?= (int)$info['restante'] ?></span>
+                                        <div class="text-muted small js-availability-rc"><span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno"><?= (int)$info['reservado'] ?></span>/<?= (int)$info['capacidade'] ?></div>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
@@ -291,18 +291,6 @@ $quickDates = [
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-    const statusLabel = (status) => {
-        const map = {
-            Reservada: 'Reservada',
-            Finalizada: 'Finalizada',
-            'Nao compareceu': 'Não compareceu',
-            Cancelada: 'Cancelada',
-            Divergencia: 'Divergência',
-            Excedente: 'Excedente'
-        };
-        return map[status] || status;
-    };
-
     const paintAvailability = (payload) => {
         const data = payload?.availability || {};
         availabilityCache[payload?.date || ''] = data;
@@ -321,7 +309,7 @@ $quickDates = [
                 badge.classList.add((parseInt(info.restante || 0, 10) > 0) ? 'badge-success' : 'badge-danger');
             }
             if (rc) {
-                rc.textContent = `${parseInt(info.reservado || 0, 10)}/${parseInt(info.capacidade || 0, 10)}`;
+                rc.innerHTML = `<span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${parseInt(info.reservado || 0, 10)}</span>/${parseInt(info.capacidade || 0, 10)}`;
             }
         });
     };
@@ -412,55 +400,62 @@ $quickDates = [
     restauranteSelect?.addEventListener('change', applyTurnoAvailability);
     excedenteCheckbox?.addEventListener('change', applyTurnoAvailability);
 
-    document.querySelectorAll('.js-availability-restante').forEach((badge) => {
-        badge.addEventListener('click', async (event) => {
-            const cell = event.currentTarget.closest('td[data-rest-id][data-turno-id]');
-            if (!cell) return;
-            const restId = cell.getAttribute('data-rest-id');
-            const turnoId = cell.getAttribute('data-turno-id');
-            const restNome = cell.getAttribute('data-rest-nome') || 'Restaurante';
-            const turnoHora = cell.getAttribute('data-turno-hora') || '--:--';
-            const date = dateInput?.value || reservaDateInput?.value || '';
-            if (!date) return;
+    const openAvailabilityDetail = async (triggerEl) => {
+        const cell = triggerEl?.closest('td[data-rest-id][data-turno-id]');
+        if (!cell) return;
+        const restId = cell.getAttribute('data-rest-id');
+        const turnoId = cell.getAttribute('data-turno-id');
+        const restNome = cell.getAttribute('data-rest-nome') || 'Restaurante';
+        const turnoHora = cell.getAttribute('data-turno-hora') || '--:--';
+        const date = dateInput?.value || reservaDateInput?.value || '';
+        if (!date) return;
 
-            const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
-            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            if (!res.ok) return;
-            const payload = await res.json();
-            if (!payload?.ok) return;
+        const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (!payload?.ok) return;
 
-            const rows = (payload.items || []).map((item) => `
-                <tr>
-                    <td>${escapeHtml(item.uh_numero || '-')}</td>
-                    <td>${escapeHtml(item.titular_nome || '-')}</td>
-                    <td>${escapeHtml(String(item.pax ?? 0))}</td>
-                    <td>${escapeHtml(statusLabel(item.status || ''))}</td>
-                </tr>
-            `).join('');
-            const html = `
-                <div class="text-start">
-                    <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-2">
-                            <thead><tr><th>UH</th><th>Titular</th><th>PAX</th><th>Status</th></tr></thead>
-                            <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
-                        </table>
-                    </div>
-                    <div class="fw-semibold">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))}</div>
+        const rows = (payload.items || []).map((item) => `
+            <tr>
+                <td>${escapeHtml(item.titular_nome || '-')}</td>
+                <td>${escapeHtml(item.uh_numero || '-')}</td>
+                <td>${escapeHtml(String(item.pax ?? 0))}</td>
+                <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
+            </tr>
+        `).join('');
+        const restante = parseInt(cell.dataset.restante || '0', 10);
+        const reservado = parseInt(cell.dataset.reservado || '0', 10);
+        const capacidade = parseInt(cell.dataset.capacidade || '0', 10);
+        const html = `
+            <div class="text-start">
+                <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-2">
+                        <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
+                    </table>
                 </div>
-            `;
+                <div class="fw-semibold">Disponíveis: ${escapeHtml(String(restante))} · Preenchidas: ${escapeHtml(String(reservado))}/${escapeHtml(String(capacidade))}</div>
+                <div class="small text-muted">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))} · Total CHD: ${escapeHtml(String(payload.total_chd || 0))}</div>
+            </div>
+        `;
 
-            if (window.Swal) {
-                window.Swal.fire({
-                    title: `Resumo do turno`,
-                    html,
-                    width: 860,
-                    confirmButtonText: 'Fechar'
-                });
-            }
-        });
+        if (window.Swal) {
+            window.Swal.fire({
+                title: 'Detalhes do turno',
+                html,
+                width: 920,
+                confirmButtonText: 'Fechar'
+            });
+        }
+    };
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('.js-availability-restante, .js-availability-reservado');
+        if (!trigger) return;
+        openAvailabilityDetail(trigger);
     });
-
     const toggleBatchBtn = document.getElementById('btnToggleBatch');
     const batchContainer = document.getElementById('batchContainer');
     const addBatchRowBtn = document.getElementById('btnAddBatchRow');

@@ -215,14 +215,18 @@ class ReservasTematicasController extends Controller
             ]);
             $items = [];
             $totalPax = 0;
+            $totalChd = 0;
             foreach ($rows as $row) {
                 $pax = (int)($row['pax'] ?? 0);
+                $qtdChd = max((int)($row['qtd_chd_calc'] ?? 0), (int)($row['pax_chd_calc'] ?? 0));
                 $totalPax += $pax;
+                $totalChd += $qtdChd;
                 $items[] = [
                     'id' => (int)($row['id'] ?? 0),
                     'uh_numero' => (string)($row['uh_numero'] ?? ''),
                     'titular_nome' => normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')),
                     'pax' => $pax,
+                    'qtd_chd' => $qtdChd,
                     'status' => $this->normalizeReservaStatus((string)($row['status'] ?? '')),
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
@@ -234,6 +238,7 @@ class ReservasTematicasController extends Controller
                 'date' => $dateAjax,
                 'count' => count($items),
                 'total_pax' => $totalPax,
+                'total_chd' => $totalChd,
                 'items' => $items,
             ]);
         }
