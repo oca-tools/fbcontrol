@@ -134,6 +134,12 @@ class ReservasTematicasController extends Controller
         return false;
     }
 
+    private function isDuplicateAllowedUh(?string $uhNumero): bool
+    {
+        $uhNumero = trim((string)$uhNumero);
+        return in_array($uhNumero, ['998', '999'], true);
+    }
+
     public function reservas(): void
     {
         $this->requireReservaAccess();
@@ -211,6 +217,7 @@ class ReservasTematicasController extends Controller
                 'data' => $dateAjax,
                 'restaurante_id' => $restauranteId,
                 'turno_id' => $turnoId,
+                'status' => 'Reservada',
                 'order' => 'status',
             ]);
             $availabilityMap = $buildAvailability($dateAjax);
@@ -236,6 +243,7 @@ class ReservasTematicasController extends Controller
                     'status' => $this->normalizeReservaStatus((string)($row['status'] ?? '')),
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
+                    'edit_url' => '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0),
                 ];
             }
 
@@ -264,13 +272,10 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
-            $parseChdAges = static function (string $raw, int $qtd): array {
+            $parseChdAges = static function (string $raw): array {
                 $raw = trim($raw);
-                if ($qtd <= 0) {
-                    return [];
-                }
                 if ($raw === '') {
-                    throw new RuntimeException('Informe as idades das crianças (CHD).');
+                    return [];
                 }
                 $ages = [];
                 foreach ((preg_split('/[,\s;]+/', $raw) ?: []) as $part) {
@@ -287,9 +292,6 @@ class ReservasTematicasController extends Controller
                     }
                     $ages[] = $age;
                 }
-                if (count($ages) !== $qtd) {
-                    throw new RuntimeException('Quantidade de idades diferente da quantidade de CHD.');
-                }
                 return $ages;
             };
 
@@ -302,17 +304,25 @@ class ReservasTematicasController extends Controller
             if (mb_strlen($grupoNome, 'UTF-8') > 120) {
                 $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
             }
-            $paxAdulto = (int)($_POST['pax_adulto'] ?? ($_POST['pax'] ?? 0));
-            $qtdChd = max(0, (int)($_POST['qtd_chd'] ?? 0));
+            $pax = (int)($_POST['pax'] ?? 0);
             $chdIdadesRaw = trim((string)($_POST['chd_idades'] ?? ''));
             $chdIdades = [];
             try {
-                $chdIdades = $parseChdAges($chdIdadesRaw, $qtdChd);
+                $chdIdades = $parseChdAges($chdIdadesRaw);
             } catch (RuntimeException $e) {
                 set_flash('warning', $e->getMessage());
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
-            $pax = $paxAdulto + $qtdChd;
+            $qtdChd = count($chdIdades);
+            if ($pax <= 0) {
+                set_flash('danger', 'Quantidade de PAX inválida.');
+                $this->redirect('/?r=reservasTematicas/reservas');
+            }
+            if ($qtdChd > $pax) {
+                set_flash('warning', 'As idades de CHD não podem exceder a quantidade total de PAX.');
+                $this->redirect('/?r=reservasTematicas/reservas');
+            }
+            $paxAdulto = max(0, $pax - $qtdChd);
             $obs = trim($_POST['observacao_reserva'] ?? '');
             $tags = $_POST['observacao_tags'] ?? [];
             $excedenteChecked = (int)($_POST['excedente'] ?? 0) === 1;
@@ -342,10 +352,6 @@ class ReservasTematicasController extends Controller
                     set_flash('danger', 'Informe o titular da reserva.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
-                if ($paxAdulto <= 0) {
-                    set_flash('danger', 'Quantidade de PAX adulto inválida.');
-                    $this->redirect('/?r=reservasTematicas/reservas');
-                }
                 $maxPax = $unitModel->maxPaxForNumero($uhNumero);
                 if ($maxPax && $pax > $maxPax) {
                     set_flash('danger', 'PAX acima do limite da UH.');
@@ -362,8 +368,7 @@ class ReservasTematicasController extends Controller
             if ($action === 'create_batch') {
                 $batchUhs = $_POST['batch_uh_numero'] ?? [];
                 $batchTitulares = $_POST['batch_titular_nome'] ?? [];
-                $batchAdultos = $_POST['batch_pax_adulto'] ?? [];
-                $batchQtdChd = $_POST['batch_qtd_chd'] ?? [];
+                $batchPax = $_POST['batch_pax'] ?? [];
                 $batchIdades = $_POST['batch_chd_idades'] ?? [];
                 $grupoResponsavel = normalize_mojibake(trim((string)($_POST['grupo_responsavel'] ?? '')));
                 $grupoNomeBatch = $grupoNome !== '' ? $grupoNome : ($grupoResponsavel !== '' ? $grupoResponsavel : null);
@@ -384,32 +389,36 @@ class ReservasTematicasController extends Controller
                     $seenBatchUhs[$uhKey] = true;
 
                     $titularItem = normalize_mojibake(trim((string)($batchTitulares[$idx] ?? '')));
-                    $adultosItem = (int)($batchAdultos[$idx] ?? 0);
-                    $qtdChdItem = max(0, (int)($batchQtdChd[$idx] ?? 0));
-                    if ($titularItem === '' || $adultosItem <= 0) {
-                        set_flash('warning', 'Preencha titular e PAX adulto em todas as UHs do lote.');
+                    $paxItem = (int)($batchPax[$idx] ?? 0);
+                    if ($titularItem === '' || $paxItem <= 0) {
+                        set_flash('warning', 'Preencha titular e quantidade de PAX em todas as UHs do lote.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
 
                     try {
-                        $idadesItem = $parseChdAges((string)($batchIdades[$idx] ?? ''), $qtdChdItem);
+                        $idadesItem = $parseChdAges((string)($batchIdades[$idx] ?? ''));
                     } catch (RuntimeException $e) {
                         set_flash('warning', $e->getMessage());
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
+                    $qtdChdItem = count($idadesItem);
+                    if ($qtdChdItem > $paxItem) {
+                        set_flash('warning', 'As idades de CHD não podem exceder o total de PAX na UH ' . $uhNumeroItem . '.');
+                        $this->redirect('/?r=reservasTematicas/reservas');
+                    }
+                    $adultosItem = max(0, $paxItem - $qtdChdItem);
 
                     $uhItem = $unitModel->findByNumero($uhNumeroItem);
                     if (!$uhItem) {
                         set_flash('danger', 'UH inválida: ' . $uhNumeroItem);
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
-                    $paxItem = $adultosItem + $qtdChdItem;
                     $maxPaxItem = $unitModel->maxPaxForNumero($uhNumeroItem);
                     if ($maxPaxItem && $paxItem > $maxPaxItem) {
                         set_flash('danger', 'PAX acima do limite da UH ' . $uhNumeroItem . '.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
-                    if ($reservaModel->findDuplicateId((int)$uhItem['id'], $dataReserva, $turnoId, $restauranteId)) {
+                    if (!$this->isDuplicateAllowedUh($uhNumeroItem) && $reservaModel->findDuplicateId((int)$uhItem['id'], $dataReserva, $turnoId, $restauranteId)) {
                         set_flash('warning', 'Já existe reserva para UH ' . $uhNumeroItem . ' neste turno.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
@@ -512,7 +521,10 @@ class ReservasTematicasController extends Controller
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
 
-                $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
+                $duplicateId = null;
+                if (!$this->isDuplicateAllowedUh($uhNumero)) {
+                    $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
+                }
                 if ($duplicateId && (int)$duplicateId !== (int)$current['id']) {
                     set_flash('warning', 'Já existe reserva para esta UH neste turno.');
                     $this->redirect('/?r=reservasTematicas/reservas');
@@ -600,7 +612,10 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
-            $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
+            $duplicateId = null;
+            if (!$this->isDuplicateAllowedUh($uhNumero)) {
+                $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
+            }
             if ($duplicateId) {
                 set_flash('warning', 'Já existe reserva para esta UH neste turno.');
                 $this->redirect('/?r=reservasTematicas/reservas');

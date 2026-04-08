@@ -109,6 +109,31 @@ $quickDates = [
     font-size: 0.8rem;
     color: var(--text-muted, #6b7280);
 }
+
+.batch-rows {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.batch-row-wrap {
+    border: 1px solid var(--ab-border);
+    border-radius: 0.8rem;
+    padding: 0.55rem;
+    overflow-x: auto;
+}
+
+.batch-row-grid {
+    display: grid;
+    grid-template-columns: 96px minmax(150px, 1.3fr) 112px minmax(140px, 1fr) 44px;
+    gap: 0.5rem;
+    align-items: end;
+    min-width: 560px;
+}
+
+.batch-row-grid .form-label {
+    font-size: 0.76rem;
+    margin-bottom: 0.2rem;
+}
 </style>
 
 <div class="row g-4">
@@ -167,17 +192,13 @@ $quickDates = [
                 </div>
 
                 <div class="row g-2 mb-3">
-                    <div class="col-12 col-md-4">
-                        <label class="form-label">PAX adulto</label>
-                        <input type="number" class="form-control input-xl text-center" min="1" name="pax_adulto" value="<?= h($editItem['pax_adulto'] ?? 1) ?>" required>
+                    <div class="col-12 col-md-5">
+                        <label class="form-label">Qtd PAX</label>
+                        <input type="number" class="form-control input-xl text-center" min="1" name="pax" value="<?= h($editItem['pax'] ?? 1) ?>" required>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label">Qtd CHD</label>
-                        <input type="number" class="form-control input-xl text-center" min="0" name="qtd_chd" value="<?= h($editItem['qtd_chd'] ?? 0) ?>">
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label">Idades CHD</label>
-                        <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3,7">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label">Idades CHD (opcional)</label>
+                        <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3, 7">
                     </div>
                 </div>
 
@@ -224,7 +245,7 @@ $quickDates = [
                             <input type="text" class="form-control" name="grupo_responsavel" placeholder="Nome de quem solicitou o lote">
                         </div>
                         <div id="batchContainer" class="d-none">
-                            <div id="batchRows"></div>
+                        <div id="batchRows" class="batch-rows"></div>
                             <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAddBatchRow">
                                 <i class="bi bi-plus-circle me-1"></i>Adicionar UH
                             </button>
@@ -513,6 +534,9 @@ $quickDates = [
                     <td>${escapeHtml(item.uh_numero || '-')}</td>
                     <td>${escapeHtml(String(item.pax ?? 0))}</td>
                     <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
+                    <td class="text-end">
+                        <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url || '#')}">Editar</a>
+                    </td>
                 </tr>
             `).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
@@ -523,8 +547,8 @@ $quickDates = [
                     <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-2">
-                            <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th></tr></thead>
-                            <tbody>${rows || '<tr><td colspan="4" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
+                            <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th><th></th></tr></thead>
+                            <tbody>${rows || '<tr><td colspan="5" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
                         </table>
                     </div>
                     <div class="fw-semibold">Disponíveis: ${escapeHtml(String(restante))} · Preenchidas: ${escapeHtml(String(reservado))}/${escapeHtml(String(capacidade))}</div>
@@ -557,20 +581,19 @@ $quickDates = [
     const singleFields = [
         document.querySelector('input[name=\"uh_numero\"]'),
         document.querySelector('input[name=\"titular_nome\"]'),
-        document.querySelector('input[name=\"pax_adulto\"]')
+        document.querySelector('input[name=\"pax\"]')
     ];
 
     const batchTemplate = () => {
         const wrap = document.createElement('div');
-        wrap.className = 'border rounded-3 p-2 mb-2';
+        wrap.className = 'batch-row-wrap';
         wrap.innerHTML = `
-            <div class="row g-2 align-items-end">
-                <div class="col-12 col-md-2"><label class="form-label">UH</label><input class="form-control" name="batch_uh_numero[]" inputmode="numeric" required></div>
-                <div class="col-12 col-md-3"><label class="form-label">Titular</label><input class="form-control" name="batch_titular_nome[]" required></div>
-                <div class="col-12 col-md-2"><label class="form-label">Adulto</label><input type="number" class="form-control" min="1" name="batch_pax_adulto[]" value="1" required></div>
-                <div class="col-12 col-md-2"><label class="form-label">Qtd CHD</label><input type="number" class="form-control" min="0" name="batch_qtd_chd[]" value="0"></div>
-                <div class="col-12 col-md-2"><label class="form-label">Idades CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="3,7"></div>
-                <div class="col-12 col-md-1 d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row">X</button></div>
+            <div class="batch-row-grid">
+                <div><label class="form-label">UH</label><input class="form-control" name="batch_uh_numero[]" inputmode="numeric" required></div>
+                <div><label class="form-label">Titular</label><input class="form-control" name="batch_titular_nome[]" required></div>
+                <div><label class="form-label">Qtd PAX</label><input type="number" class="form-control" min="1" name="batch_pax[]" value="1" required></div>
+                <div><label class="form-label">Idades CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="Ex: 3,7"></div>
+                <div class="d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row">X</button></div>
             </div>
         `;
         wrap.querySelector('.js-remove-batch-row')?.addEventListener('click', () => wrap.remove());

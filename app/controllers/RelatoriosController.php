@@ -71,14 +71,10 @@ class RelatoriosController extends Controller
         }
         $dailyMapPaged = array_slice($dailyMap, ($mapPage - 1) * $perPageMap, $perPageMap);
 
-        $perPageBi = 20;
-        $biPage = max(1, (int)($_GET['bi_page'] ?? 1));
+        $biPage = 1;
         $biTotal = count($list);
-        $biTotalPages = max(1, (int)ceil($biTotal / $perPageBi));
-        if ($biPage > $biTotalPages) {
-            $biPage = $biTotalPages;
-        }
-        $listPaged = array_slice($list, ($biPage - 1) * $perPageBi, $perPageBi);
+        $biTotalPages = 1;
+        $listPaged = $list;
 
         $perPageColab = 20;
         $colabPage = max(1, (int)($_GET['colab_page'] ?? 1));
