@@ -314,14 +314,6 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
             $qtdChd = count($chdIdades);
-            if ($pax <= 0) {
-                set_flash('danger', 'Quantidade de PAX inválida.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-            if ($qtdChd > $pax) {
-                set_flash('warning', 'As idades de CHD não podem exceder a quantidade total de PAX.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
             $paxAdulto = max(0, $pax - $qtdChd);
             $obs = trim($_POST['observacao_reserva'] ?? '');
             $tags = $_POST['observacao_tags'] ?? [];
@@ -339,6 +331,15 @@ class ReservasTematicasController extends Controller
             }
             $uh = null;
             if ($action !== 'create_batch') {
+                if ($pax <= 0) {
+                    set_flash('danger', 'Quantidade de PAX inválida.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                if ($qtdChd > $pax) {
+                    set_flash('warning', 'As idades de CHD não podem exceder a quantidade total de PAX.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
+                $paxAdulto = max(0, $pax - $qtdChd);
                 if ($uhNumero === '') {
                     set_flash('danger', 'Informe a UH.');
                     $this->redirect('/?r=reservasTematicas/reservas');
