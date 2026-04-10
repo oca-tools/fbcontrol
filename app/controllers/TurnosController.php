@@ -263,10 +263,21 @@ class TurnosController extends Controller
 
         $shiftModel->end((int)$shift['id'], Auth::user()['id']);
         $summary = $shiftModel->summary((int)$shift['id']);
+        $isTematico = $this->isTematicoShift($shift);
+        $tematicaSummary = null;
+        if ($isTematico) {
+            $dataRef = date('Y-m-d', strtotime((string)($shift['inicio_em'] ?? 'now')));
+            $tematicaSummary = (new ReservaTematicaModel())->summary([
+                'data' => $dataRef,
+                'restaurante_id' => (int)($shift['restaurante_id'] ?? 0),
+            ]);
+        }
 
         $this->view('turnos/summary', [
             'turno' => $shift,
             'summary' => $summary,
+            'is_tematica' => $isTematico,
+            'tematica_summary' => $tematicaSummary,
         ]);
     }
 

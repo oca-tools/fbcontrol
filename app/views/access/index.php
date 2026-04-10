@@ -12,6 +12,7 @@ $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 $canCancel = $this->data['can_cancel'] ?? false;
 $lastEditableAccess = $this->data['last_editable_access'] ?? null;
+$tematicaConflict = $this->data['tematica_conflict'] ?? null;
 // Tutorial legado desativado: agora usamos o tutorial guiado global por página/perfil.
 $allowHostessTutorial = false;
 $showHostessTutorial = false;
@@ -511,6 +512,35 @@ $showHostessTutorial = false;
                     </div>
                 <?php endif; ?>
 
+                <?php if (!empty($tematicaConflict)): ?>
+                    <div class="alert alert-warning">
+                        <div class="fw-semibold mb-1">Reserva temática encontrada para UH <?= h($tematicaConflict['uh_numero'] ?? '') ?>.</div>
+                        <div class="small mb-2">
+                            Restaurante: <strong><?= h($tematicaConflict['restaurante'] ?? '-') ?></strong>
+                            <?php if (!empty($tematicaConflict['turno_hora'])): ?>
+                                às <strong><?= h($tematicaConflict['turno_hora']) ?></strong>
+                            <?php endif; ?>
+                            | PAX reservado: <strong><?= (int)($tematicaConflict['pax_reservado'] ?? 0) ?></strong>
+                        </div>
+                        <form method="post" action="/?r=access/register" class="d-flex gap-2 align-items-end flex-wrap mb-0">
+                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                            <input type="hidden" name="uh_numero" value="<?= h((string)($tematicaConflict['uh_numero'] ?? '')) ?>">
+                            <input type="hidden" name="pax" value="<?= (int)($tematicaConflict['pax_sugerido'] ?? 1) ?>">
+                            <input type="hidden" name="tematica_reserva_id" value="<?= (int)($tematicaConflict['reserva_id'] ?? 0) ?>">
+                            <button type="submit" name="tematica_action" value="cancelar" class="btn btn-outline-danger btn-sm">
+                                Cancelar reserva temática e registrar buffet
+                            </button>
+                            <div class="input-group input-group-sm" style="width: 240px;">
+                                <span class="input-group-text">PAX real</span>
+                                <input type="number" min="0" max="<?= (int)($tematicaConflict['pax_reservado'] ?? 0) ?>" class="form-control" name="tematica_pax_real" value="<?= max(0, ((int)($tematicaConflict['pax_reservado'] ?? 0) - (int)($tematicaConflict['pax_sugerido'] ?? 0))) ?>">
+                                <button type="submit" name="tematica_action" value="pax_real" class="btn btn-primary">
+                                    Confirmar parcial
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                <?php endif; ?>
+
                 <form method="post" action="/?r=access/register">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <div class="mb-3">
@@ -975,8 +1005,6 @@ $showHostessTutorial = false;
     });
     </script>
 <?php endif; ?>
-
-
 
 
 

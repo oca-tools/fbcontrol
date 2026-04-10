@@ -1361,8 +1361,17 @@ class ReservaTematicaModel extends Model
 
     public function findTematicaByUhDate(string $uhNumero, string $data): ?array
     {
+        $paxRealExpr = $this->hasPaxRealColumn() ? "COALESCE(rsv.pax_real, rsv.pax)" : "rsv.pax";
         $stmt = $this->db->prepare("
-            SELECT rsv.id, r.nome AS restaurante, t.hora AS turno_hora, rsv.status
+            SELECT
+                rsv.id,
+                rsv.restaurante_id,
+                rsv.turno_id,
+                r.nome AS restaurante,
+                t.hora AS turno_hora,
+                rsv.status,
+                rsv.pax,
+                {$paxRealExpr} AS pax_real_atual
             FROM reservas_tematicas rsv
             JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
             JOIN restaurantes r ON r.id = rsv.restaurante_id

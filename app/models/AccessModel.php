@@ -15,7 +15,15 @@ class AccessModel extends Model
         }
 
         $restOp = $restOpModel->findByRestaurantOperation((int)$data['restaurante_id'], (int)$data['operacao_id']);
-        $alertaDuplicidade = $this->checkDuplicidade((int)$uh['id'], (int)$data['operacao_id']);
+        $isTechnicalUh = in_array((string)($uh['numero'] ?? ''), ['998', '999'], true);
+        $alertaDuplicidade = $isTechnicalUh
+            ? false
+            : $this->checkDuplicidade(
+                (int)$uh['id'],
+                (int)$data['restaurante_id'],
+                (int)$data['operacao_id'],
+                (int)$data['pax']
+            );
         $foraDoHorario = $this->checkForaHorario($restOp);
 
         $stmt = $this->db->prepare("
@@ -62,18 +70,22 @@ class AccessModel extends Model
         return (int)($row['total_pax'] ?? 0);
     }
 
-    private function checkDuplicidade(int $uhId, int $operacaoId): bool
+    private function checkDuplicidade(int $uhId, int $restauranteId, int $operacaoId, int $pax): bool
     {
         $stmt = $this->db->prepare("
             SELECT COUNT(*) AS total
             FROM acessos
             WHERE uh_id = :uh_id
+              AND restaurante_id = :restaurante_id
               AND operacao_id = :operacao_id
+              AND pax = :pax
               AND criado_em >= (NOW() - INTERVAL 10 MINUTE)
         ");
         $stmt->execute([
             ':uh_id' => $uhId,
+            ':restaurante_id' => $restauranteId,
             ':operacao_id' => $operacaoId,
+            ':pax' => $pax,
         ]);
         $row = $stmt->fetch();
         return ($row['total'] ?? 0) > 0;
@@ -124,6 +136,7 @@ class AccessModel extends Model
             WHERE ax.uh_id = {$alias}.uh_id
               AND ax.operacao_id = {$alias}.operacao_id
               AND DATE(ax.criado_em) = DATE({$alias}.criado_em)
+              AND ax.pax <> {$alias}.pax
               AND ax.id <> {$alias}.id
         )";
     }
@@ -639,10 +652,9 @@ class AccessModel extends Model
             JOIN operacoes o ON o.id = a.operacao_id
             JOIN restaurantes r ON r.id = a.restaurante_id
             WHERE DATE(a.criado_em) = :data
+              AND uh.numero NOT IN ('998', '999')
             GROUP BY uh.numero
-            ORDER BY
-                CASE WHEN uh.numero IN ('998', '999') THEN 0 ELSE 1 END,
-                CAST(uh.numero AS UNSIGNED)
+            ORDER BY CAST(uh.numero AS UNSIGNED)
         ");
         $stmt->execute([':data' => $data]);
         return $stmt->fetchAll();

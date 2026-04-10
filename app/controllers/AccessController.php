@@ -2,6 +2,7 @@
 class AccessController extends Controller
 {
     private const RESERVA_STATUS_FINAIS = ['Finalizada', 'Nao compareceu', 'Cancelada'];
+    private const TEMATICA_CONFLICT_KEY = 'access_tematica_conflict';
 
     private function isTematicoRestaurantName(string $name): bool
     {
@@ -94,6 +95,23 @@ class AccessController extends Controller
         $closed += (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
         $closed += (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
         return $closed;
+    }
+
+    private function saveTematicaConflict(array $payload): void
+    {
+        $_SESSION[self::TEMATICA_CONFLICT_KEY] = $payload;
+    }
+
+    private function pullTematicaConflict(): ?array
+    {
+        $payload = $_SESSION[self::TEMATICA_CONFLICT_KEY] ?? null;
+        unset($_SESSION[self::TEMATICA_CONFLICT_KEY]);
+        return is_array($payload) ? $payload : null;
+    }
+
+    private function clearTematicaConflict(): void
+    {
+        unset($_SESSION[self::TEMATICA_CONFLICT_KEY]);
     }
 
     public function index(): void
@@ -234,6 +252,7 @@ class AccessController extends Controller
             'tolerance_alert' => $toleranceAlert,
             'recentes' => $accessModel->listRecent(10),
             'flash' => get_flash(),
+            'tematica_conflict' => $this->pullTematicaConflict(),
             'is_corais' => ($shift['restaurante'] ?? '') === 'Restaurante Corais',
             'is_corais_jantar' => (($shift['restaurante'] ?? '') === 'Restaurante Corais') && (stripos($shift['operacao'] ?? '', 'Jantar') !== false),
             'can_cancel' => $canCancel,
@@ -472,6 +491,9 @@ class AccessController extends Controller
             $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
             $tematica = $tematicaModel->findTematicaByUhDate($uhNumero, $today);
             if ($tematica) {
+                $reservaTematicaId = (int)($tematica['id'] ?? 0);
+                $paxReservadoTematica = (int)($tematica['pax'] ?? 0);
+                $tematicaAction = normalize_mojibake(trim((string)($_POST['tematica_action'] ?? '')));
                 $confirmNoShow = (int)($_POST['confirm_no_show'] ?? 0) === 1;
                 if ($this->isNoShowStatus((string)($tematica['status'] ?? ''))) {
                     if (!$confirmNoShow) {
@@ -481,16 +503,77 @@ class AccessController extends Controller
                     }
                     $coraisNoShowAllowed = true;
                 } else {
-                    $mensagem = 'Atenção: UH ' . $uhNumero . ' possui reserva no ' . $tematica['restaurante'];
-                    if (!empty($tematica['turno_hora'])) {
-                        $mensagem .= ' às ' . $tematica['turno_hora'];
+                    $this->clearTematicaConflict();
+                    if ($tematicaAction === 'cancelar' || $tematicaAction === 'pax_real') {
+                        $postedReservaId = (int)($_POST['tematica_reserva_id'] ?? 0);
+                        if ($postedReservaId !== $reservaTematicaId) {
+                            set_flash('warning', 'A reserva temática mudou. Revise antes de continuar.');
+                            $this->redirect('/?r=access/index');
+                        }
+
+                        $before = $tematicaModel->find($reservaTematicaId) ?? [];
+                        $logModel = new ReservaTematicaLogModel();
+                        if ($tematicaAction === 'cancelar') {
+                            $obs = 'Cancelada no buffet Corais durante registro de entrada da UH ' . $uhNumero . '.';
+                            $tematicaModel->updateOperacao($reservaTematicaId, 'Nao compareceu', $obs, (int)Auth::user()['id'], 0);
+                            $after = $tematicaModel->find($reservaTematicaId) ?? [];
+                            $logModel->log(
+                                $reservaTematicaId,
+                                'status',
+                                (int)Auth::user()['id'],
+                                $before,
+                                $after,
+                                'No-show manual a partir do alerta no buffet Corais.'
+                            );
+                        } else {
+                            $paxReal = (int)($_POST['tematica_pax_real'] ?? -1);
+                            if ($paxReservadoTematica <= 0 || $paxReal < 0 || $paxReal > $paxReservadoTematica) {
+                                set_flash('warning', 'PAX real inválido para ajuste da reserva temática.');
+                                $this->redirect('/?r=access/index');
+                            }
+                            $paxRestanteBuffet = max(0, $paxReservadoTematica - $paxReal);
+                            if ($paxRestanteBuffet <= 0) {
+                                set_flash('warning', 'Todos os PAX já foram para o temático. Não registre no buffet.');
+                                $this->redirect('/?r=access/index');
+                            }
+                            if ($pax > $paxRestanteBuffet) {
+                                set_flash('warning', 'PAX do buffet excede o restante após PAX real do temático (máx. ' . $paxRestanteBuffet . ').');
+                                $this->redirect('/?r=access/index');
+                            }
+
+                            $obs = 'Ajuste no buffet Corais: PAX real no temático=' . $paxReal . ', PAX no buffet=' . $pax . '.';
+                            $tematicaModel->updateOperacao($reservaTematicaId, 'Finalizada', $obs, (int)Auth::user()['id'], $paxReal);
+                            $after = $tematicaModel->find($reservaTematicaId) ?? [];
+                            $logModel->log(
+                                $reservaTematicaId,
+                                'status',
+                                (int)Auth::user()['id'],
+                                $before,
+                                $after,
+                                'Ajuste de PAX real confirmado a partir do alerta no buffet Corais.'
+                            );
+                        }
+                    } else {
+                        $mensagem = 'Atenção: UH ' . $uhNumero . ' possui reserva no ' . $tematica['restaurante'];
+                        if (!empty($tematica['turno_hora'])) {
+                            $mensagem .= ' às ' . $tematica['turno_hora'];
+                        }
+                        $mensagem .= '. Escolha uma ação antes de registrar no buffet.';
+                        $this->saveTematicaConflict([
+                            'reserva_id' => $reservaTematicaId,
+                            'uh_numero' => $uhNumero,
+                            'turno_hora' => (string)($tematica['turno_hora'] ?? ''),
+                            'restaurante' => (string)($tematica['restaurante'] ?? ''),
+                            'pax_reservado' => $paxReservadoTematica,
+                            'pax_sugerido' => $pax,
+                        ]);
+                        set_flash('warning', $mensagem);
+                        $this->redirect('/?r=access/index');
                     }
-                    $mensagem .= '. Não é permitido registrar no buffet.';
-                    set_flash('danger', $mensagem);
-                    $this->redirect('/?r=access/index');
                 }
             }
         }
+        $this->clearTematicaConflict();
         $result = $accessModel->register([
             'uh_numero' => $uhNumero,
             'pax' => $pax,
