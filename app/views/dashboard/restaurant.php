@@ -31,24 +31,24 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div>
                 <div class="saas-label">Painel Operacional</div>
                 <h3 class="saas-title mb-1">Dashboard do Restaurante</h3>
-                <p class="saas-subtitle mb-2">Visao tatico-estrategica com foco no restaurante selecionado.</p>
+                <p class="saas-subtitle mb-2">Visão tático-estratégica com foco no restaurante selecionado.</p>
                 <span class="tag <?= restaurant_badge_class($restaurante['nome'] ?? '') ?>"><?= h($restaurante['nome'] ?? 'Restaurante') ?></span>
             </div>
-            <a class="btn btn-outline-primary" href="/?r=dashboard/index">
+            <a class="btn btn-outline-primary" href="/?r=dashboard/index" data-ajax-link data-ajax-target=".app-content">
                 <i class="bi bi-arrow-left me-1"></i>Voltar ao geral
             </a>
         </div>
 
-        <form class="row g-3 saas-filter-grid" method="get" action="/">
+        <form class="row g-3 saas-filter-grid" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
             <input type="hidden" name="r" value="dashboard/restaurant">
             <input type="hidden" name="id" value="<?= (int)($filters['restaurante_id'] ?? 0) ?>">
 
             <div class="col-12 col-md-4">
-                <label class="form-label">Data unica</label>
+                <label class="form-label">Data única</label>
                 <input type="date" class="form-control input-xl" name="data" value="<?= h($filters['data'] ?? '') ?>">
             </div>
             <div class="col-12 col-md-4">
-                <label class="form-label">Data inicio</label>
+                <label class="form-label">Data início</label>
                 <input type="date" class="form-control input-xl" name="data_inicio" value="<?= h($filters['data_inicio'] ?? '') ?>">
             </div>
             <div class="col-12 col-md-4">
@@ -58,7 +58,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
 
             <?php if ($showOperacaoFilter): ?>
                 <div class="col-12 col-md-4">
-                    <label class="form-label">Operacao</label>
+                    <label class="form-label">Operação</label>
                     <select class="form-select input-xl" name="operacao_id">
                         <option value="">Todas</option>
                         <?php foreach ($operacoes as $item): ?>
@@ -76,19 +76,19 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                     <option value="">Todos</option>
                     <option value="ok" <?= ($filters['status'] ?? '') === 'ok' ? 'selected' : '' ?>>OK</option>
                     <option value="duplicado" <?= ($filters['status'] ?? '') === 'duplicado' ? 'selected' : '' ?>>Duplicado</option>
-                    <option value="fora_horario" <?= ($filters['status'] ?? '') === 'fora_horario' ? 'selected' : '' ?>>Fora do horario</option>
-                    <option value="multiplo" <?= ($filters['status'] ?? '') === 'multiplo' ? 'selected' : '' ?>>Multiplo acesso</option>
-                    <option value="nao_informado" <?= ($filters['status'] ?? '') === 'nao_informado' ? 'selected' : '' ?>>Nao informado</option>
+                    <option value="fora_horario" <?= ($filters['status'] ?? '') === 'fora_horario' ? 'selected' : '' ?>>Fora do horário</option>
+                    <option value="multiplo" <?= ($filters['status'] ?? '') === 'multiplo' ? 'selected' : '' ?>>Múltiplo acesso</option>
+                    <option value="nao_informado" <?= ($filters['status'] ?? '') === 'nao_informado' ? 'selected' : '' ?>>Não informado</option>
                     <option value="day_use" <?= ($filters['status'] ?? '') === 'day_use' ? 'selected' : '' ?>>Day use</option>
                 </select>
             </div>
 
             <div class="col-12 saas-toolbar">
                 <button class="btn btn-outline-primary" type="button" data-range="1">Ontem</button>
-                <button class="btn btn-outline-primary" type="button" data-range="7">Ultimos 7 dias</button>
-                <button class="btn btn-outline-primary" type="button" data-range="30">Ultimos 30 dias</button>
+                <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
+                <button class="btn btn-outline-primary" type="button" data-range="30">Últimos 30 dias</button>
                 <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-                <a class="btn btn-primary btn-xl" href="/?r=dashboard/restaurant&id=<?= (int)($filters['restaurante_id'] ?? 0) ?>">Remover filtro</a>
+                <a class="btn btn-primary btn-xl" href="/?r=dashboard/restaurant&id=<?= (int)($filters['restaurante_id'] ?? 0) ?>" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
             </div>
         </form>
     </section>
@@ -98,7 +98,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="saas-stat-card">
                 <div class="small text-muted">Reservas</div>
                 <div class="saas-stat-value"><?= (int)($tematicoStats['total_reservas'] ?? 0) ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-calendar2-check"></i>Total no periodo</span>
+                <span class="stat-chip mt-2"><i class="bi bi-calendar2-check"></i>Total no período</span>
             </div>
             <div class="saas-stat-card">
                 <div class="small text-muted">PAX reservadas</div>
@@ -118,12 +118,12 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="saas-stat-card">
                 <div class="small text-muted">Finalizadas</div>
                 <div class="saas-stat-value status-success"><?= (int)($tematicoStats['finalizadas'] ?? 0) ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-patch-check"></i>Reserva concluida</span>
+                <span class="stat-chip mt-2"><i class="bi bi-patch-check"></i>Reserva concluída</span>
             </div>
             <div class="saas-stat-card">
                 <div class="small text-muted">No-show</div>
                 <div class="saas-stat-value status-danger"><?= (int)($tematicoStats['no_shows'] ?? 0) ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-exclamation-triangle"></i>Ausencias</span>
+                <span class="stat-chip mt-2"><i class="bi bi-exclamation-triangle"></i>Ausências</span>
             </div>
             <div class="saas-stat-card">
                 <div class="small text-muted">Canceladas</div>
@@ -141,7 +141,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="col-12 col-xl-6">
                 <div class="saas-table-card h-100">
                     <div class="saas-table-head">
-                        <h5>Distribuicao por turno</h5>
+                        <h5>Distribuição por turno</h5>
                         <span class="badge badge-soft">Capacidade</span>
                     </div>
                     <div class="saas-table-scroll">
@@ -168,7 +168,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($tematicoTurnos)): ?>
-                                    <tr><td colspan="6" class="text-muted">Sem dados para o periodo.</td></tr>
+                                    <tr><td colspan="6" class="text-muted">Sem dados para o período.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -179,7 +179,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="col-12 col-xl-6">
                 <div class="saas-table-card h-100">
                     <div class="saas-table-head">
-                        <h5>Ultimas reservas</h5>
+                        <h5>Últimas reservas</h5>
                         <span class="badge badge-soft">Monitoramento</span>
                     </div>
                     <div class="saas-table-scroll">
@@ -205,7 +205,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                             <?php if (mb_stripos($statusTxt, 'finaliz', 0, 'UTF-8') !== false): ?>
                                                 <span class="badge badge-success">Finalizada</span>
                                             <?php elseif (mb_stripos($statusTxt, 'compareceu', 0, 'UTF-8') !== false): ?>
-                                                <span class="badge badge-danger">Nao compareceu</span>
+                                                <span class="badge badge-danger">Não compareceu</span>
                                             <?php elseif (mb_stripos($statusTxt, 'cancel', 0, 'UTF-8') !== false): ?>
                                                 <span class="badge badge-warning">Cancelada</span>
                                             <?php else: ?>
@@ -215,7 +215,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($tematicoRecentes)): ?>
-                                    <tr><td colspan="5" class="text-muted">Sem reservas no periodo.</td></tr>
+                                    <tr><td colspan="5" class="text-muted">Sem reservas no período.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -228,12 +228,12 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="saas-stat-card">
                 <div class="small text-muted">PAX do restaurante</div>
                 <div class="saas-stat-value"><?= $totalPax ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-people"></i>Consumo no periodo</span>
+                <span class="stat-chip mt-2"><i class="bi bi-people"></i>Consumo no período</span>
             </div>
             <div class="saas-stat-card">
                 <div class="small text-muted">Registros</div>
                 <div class="saas-stat-value"><?= $totalAcessos ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-journal-check"></i>Lancamentos</span>
+                <span class="stat-chip mt-2"><i class="bi bi-journal-check"></i>Lançamentos</span>
             </div>
             <div class="saas-stat-card">
                 <div class="small text-muted">Duplicados</div>
@@ -241,17 +241,17 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                 <span class="stat-chip mt-2"><i class="bi bi-exclamation-circle"></i><?= $dupPercent ?>% do total</span>
             </div>
             <div class="saas-stat-card">
-                <div class="small text-muted">Fora do horario</div>
+                <div class="small text-muted">Fora do horário</div>
                 <div class="saas-stat-value status-danger"><?= $foraHorario ?></div>
                 <span class="stat-chip mt-2"><i class="bi bi-clock-history"></i><?= $foraPercent ?>% do total</span>
             </div>
             <div class="saas-stat-card">
-                <div class="small text-muted">Multiplo acesso</div>
+                <div class="small text-muted">Múltiplo acesso</div>
                 <div class="saas-stat-value"><?= $multiplos ?></div>
-                <span class="stat-chip mt-2"><i class="bi bi-arrow-repeat"></i>Repetencia de UH</span>
+                <span class="stat-chip mt-2"><i class="bi bi-arrow-repeat"></i>Repetência de UH</span>
             </div>
             <div class="saas-stat-card">
-                <div class="small text-muted">Nao informado</div>
+                <div class="small text-muted">Não informado</div>
                 <div class="saas-stat-value"><?= (int)($stats['nao_informado_acessos'] ?? 0) ?></div>
                 <span class="stat-chip mt-2"><i class="bi bi-question-circle"></i>PAX <?= (int)($stats['nao_informado_pax'] ?? 0) ?></span>
             </div>
@@ -271,12 +271,12 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="col-12 col-xl-6">
                 <div class="saas-table-card h-100">
                     <div class="saas-table-head">
-                        <h5>Total de PAX por operacao</h5>
-                        <span class="badge badge-soft">Distribuicao</span>
+                        <h5>Total de PAX por operação</h5>
+                        <span class="badge badge-soft">Distribuição</span>
                     </div>
                     <div class="saas-table-scroll">
                         <table class="table table-sm mb-0">
-                            <thead><tr><th>Operacao</th><th>Total</th></tr></thead>
+                            <thead><tr><th>Operação</th><th>Total</th></tr></thead>
                             <tbody>
                                 <?php foreach ($stats['totais_operacao'] ?? [] as $row): ?>
                                     <tr>
@@ -295,7 +295,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             <div class="col-12 col-xl-6">
                 <div class="saas-table-card h-100">
                     <div class="saas-table-head">
-                        <h5>Fluxo por horario</h5>
+                        <h5>Fluxo por horário</h5>
                         <span class="badge badge-soft">Picos</span>
                     </div>
                     <div class="saas-table-scroll">
@@ -320,7 +320,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
 
         <div class="saas-table-card mt-3">
             <div class="saas-table-head">
-                <h5>Ultimos acessos do restaurante</h5>
+                <h5>Últimos acessos do restaurante</h5>
                 <span class="badge badge-soft">Alertas ativos: <?= $alertasAtivos ?></span>
             </div>
             <div class="saas-table-scroll">
@@ -330,9 +330,9 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             <th>Status</th>
                             <th>UH</th>
                             <th>PAX</th>
-                            <th>Operacao</th>
-                            <th>Usuario</th>
-                            <th>Horario</th>
+                            <th>Operação</th>
+                            <th>Usuário</th>
+                            <th>Horário</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -345,9 +345,9 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                     <?php if (strpos($statusNorm, 'duplic') !== false): ?>
                                         <span class="badge badge-warning">Duplicado</span>
                                     <?php elseif (strpos($statusNorm, 'fora') !== false): ?>
-                                        <span class="badge badge-danger">Fora do horario</span>
+                                        <span class="badge badge-danger">Fora do horário</span>
                                     <?php elseif (strpos($statusNorm, 'multip') !== false || !empty($item['multiplo_acesso'])): ?>
-                                        <span class="badge badge-soft">Multiplo acesso</span>
+                                        <span class="badge badge-soft">Múltiplo acesso</span>
                                     <?php else: ?>
                                         <span class="badge badge-success">OK</span>
                                     <?php endif; ?>
@@ -360,7 +360,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($recentes)): ?>
-                            <tr><td colspan="6" class="text-muted">Sem registros para o periodo.</td></tr>
+                            <tr><td colspan="6" class="text-muted">Sem registros para o período.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

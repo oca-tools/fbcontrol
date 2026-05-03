@@ -41,7 +41,7 @@ class DailyReportEmailModel extends Model
             'ativo' => 0,
             'hora_envio' => '23:00:00',
             'assunto' => 'Resumo diário A&B - {data}',
-            'remetente_nome' => 'OCA FBControl',
+                'remetente_nome' => 'FBControl',
             'remetente_email' => '',
         ];
     }
@@ -200,7 +200,7 @@ class DailyReportEmailModel extends Model
         $html = $this->normalizeEmailContent($this->buildHtml($dateRef, $metrics));
         $text = $this->normalizeEmailContent($this->buildText($dateRef, $metrics));
 
-        $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'OCA FBControl'), 'OCA FBControl');
+        $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'FBControl'), 'FBControl');
         $fromEmailRaw = trim((string)($config['remetente_email'] ?? ''));
         if ($fromEmailRaw === '') {
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -505,7 +505,7 @@ class DailyReportEmailModel extends Model
             . '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #fed7aa;border-radius:14px;overflow:hidden;">'
             . '<tr><td style="padding:18px 20px;background:linear-gradient(90deg,#f97316,#fb923c);color:#ffffff;">'
             . '<div style="font-size:12px;opacity:.95;letter-spacing:.3px;text-transform:uppercase;">Relatório diário</div>'
-            . '<div style="font-size:22px;font-weight:700;line-height:1.3;">OCA FBControl</div>'
+            . '<div style="font-size:22px;font-weight:700;line-height:1.3;">FBControl</div>'
             . '<div style="font-size:13px;opacity:.95;">Data de referência: ' . date('d/m/Y', strtotime($dateRef)) . '</div>'
             . '</td></tr>'
             . '<tr><td style="padding:14px 20px 8px 20px;color:#475569;font-size:13px;">Indicadores operacionais de A&amp;B para acompanhamento gerencial.</td></tr>'
@@ -518,7 +518,7 @@ class DailyReportEmailModel extends Model
             . '<tbody>' . $rows . '</tbody>'
             . '</table>'
             . '</td></tr>'
-            . '<tr><td style="padding:0 20px 18px 20px;font-size:12px;color:#94a3b8;">Gerado automaticamente pelo OCA FBControl.</td></tr>'
+            . '<tr><td style="padding:0 20px 18px 20px;font-size:12px;color:#94a3b8;">Gerado automaticamente pelo FBControl.</td></tr>'
             . '</table>'
             . '</body></html>';
     }
@@ -654,5 +654,4 @@ class DailyReportEmailModel extends Model
         return normalize_mojibake($normalized);
     }
 }
-
 

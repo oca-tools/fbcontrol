@@ -3,10 +3,10 @@ class ShiftModel extends Model
 {
     public function findExpiredActive(int $graceMinutes = 10, ?int $userId = null): array
     {
+        $graceMinutes = max(0, $graceMinutes);
+        $idleMinutes = 30;
         $whereUser = '';
-        $params = [
-            ':grace_min' => max(0, $graceMinutes),
-        ];
+        $params = [];
         if ($userId !== null) {
             $whereUser = ' AND t.usuario_id = :user_id';
             $params[':user_id'] = $userId;
@@ -15,7 +15,46 @@ class ShiftModel extends Model
         $sql = "
             SELECT
                 t.id,
-                t.usuario_id
+                t.usuario_id,
+                CASE
+                    WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM acessos a
+                            WHERE a.turno_id = t.id
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM reservas_tematicas_logs rtl
+                            WHERE rtl.usuario_id = t.usuario_id
+                              AND rtl.acao = 'status'
+                              AND rtl.criado_em >= t.inicio_em
+                        )
+                        AND DATE_ADD(t.inicio_em, INTERVAL {$idleMinutes} MINUTE) <= NOW()
+                        THEN DATE_ADD(t.inicio_em, INTERVAL {$idleMinutes} MINUTE)
+                    WHEN DATE_ADD(
+                            DATE_ADD(
+                                CASE
+                                    WHEN ro.hora_fim < ro.hora_inicio
+                                        THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), ro.hora_fim), INTERVAL 1 DAY)
+                                    ELSE TIMESTAMP(DATE(t.inicio_em), ro.hora_fim)
+                                END,
+                                INTERVAL ro.tolerancia_min MINUTE
+                            ),
+                            INTERVAL {$graceMinutes} MINUTE
+                        ) <= NOW()
+                        THEN DATE_ADD(
+                            DATE_ADD(
+                                CASE
+                                    WHEN ro.hora_fim < ro.hora_inicio
+                                        THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), ro.hora_fim), INTERVAL 1 DAY)
+                                    ELSE TIMESTAMP(DATE(t.inicio_em), ro.hora_fim)
+                                END,
+                                INTERVAL ro.tolerancia_min MINUTE
+                            ),
+                            INTERVAL {$graceMinutes} MINUTE
+                        )
+                    ELSE NULL
+                END AS auto_fim_em
             FROM turnos t
             JOIN restaurante_operacoes ro
                 ON ro.restaurante_id = t.restaurante_id
@@ -23,22 +62,7 @@ class ShiftModel extends Model
                AND ro.ativo = 1
             WHERE t.fim_em IS NULL
               {$whereUser}
-              AND EXISTS (
-                    SELECT 1
-                    FROM acessos a
-                    WHERE a.turno_id = t.id
-              )
-              AND NOW() >= DATE_ADD(
-                    DATE_ADD(
-                        CASE
-                            WHEN ro.hora_fim < ro.hora_inicio
-                                THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), ro.hora_fim), INTERVAL 1 DAY)
-                            ELSE TIMESTAMP(DATE(t.inicio_em), ro.hora_fim)
-                        END,
-                        INTERVAL ro.tolerancia_min MINUTE
-                    ),
-                    INTERVAL :grace_min MINUTE
-              )
+            HAVING auto_fim_em IS NOT NULL
         ";
 
         $stmt = $this->db->prepare($sql);
@@ -55,7 +79,12 @@ class ShiftModel extends Model
 
         $closed = 0;
         foreach ($expired as $row) {
-            $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            $autoFimEm = (string)($row['auto_fim_em'] ?? '');
+            if ($autoFimEm !== '') {
+                $this->endAt((int)$row['id'], (int)$row['usuario_id'], $autoFimEm, 'auto_close_timeout');
+            } else {
+                $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            }
             $closed++;
         }
         return $closed;
@@ -100,6 +129,18 @@ class ShiftModel extends Model
         $before = $this->find($turnoId) ?? [];
         $stmt = $this->db->prepare("UPDATE turnos SET fim_em = NOW() WHERE id = :id");
         $stmt->execute([':id' => $turnoId]);
+        $after = $this->find($turnoId) ?? [];
+        $this->audit($auditAction, $userId, $before, $after, 'turnos', $turnoId);
+    }
+
+    public function endAt(int $turnoId, int $userId, string $fimEm, string $auditAction = 'update'): void
+    {
+        $before = $this->find($turnoId) ?? [];
+        $stmt = $this->db->prepare("UPDATE turnos SET fim_em = :fim_em WHERE id = :id");
+        $stmt->execute([
+            ':fim_em' => $fimEm,
+            ':id' => $turnoId,
+        ]);
         $after = $this->find($turnoId) ?? [];
         $this->audit($auditAction, $userId, $before, $after, 'turnos', $turnoId);
     }
@@ -162,7 +203,46 @@ class ShiftModel extends Model
                 r.nome AS restaurante,
                 o.nome AS operacao,
                 COALESCE(a.total_acessos, 0) AS total_acessos,
-                COALESCE(a.total_pax, 0) AS total_pax
+                COALESCE(a.total_pax, 0) AS total_pax,
+                CASE
+                    WHEN LOWER(r.nome) LIKE '%giardino%'
+                      OR LOWER(r.nome) LIKE '%ix%'
+                      OR (LOWER(r.nome) LIKE '%la brasa%' AND LOWER(o.nome) LIKE '%tem%')
+                    THEN 1
+                    ELSE 0
+                END AS is_tematica,
+                (
+                    SELECT COUNT(DISTINCT rsv.id)
+                    FROM reservas_tematicas rsv
+                    WHERE rsv.restaurante_id = t.restaurante_id
+                      AND rsv.data_reserva = DATE(t.inicio_em)
+                      AND rsv.status = 'Finalizada'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM reservas_tematicas_logs rtl
+                          WHERE rtl.reserva_id = rsv.id
+                            AND rtl.usuario_id = t.usuario_id
+                            AND rtl.acao = 'status'
+                            AND rtl.criado_em >= t.inicio_em
+                            AND (t.fim_em IS NULL OR rtl.criado_em <= t.fim_em)
+                      )
+                ) AS reservas_conferidas,
+                (
+                    SELECT COALESCE(SUM(COALESCE(rsv.pax_real, rsv.pax)), 0)
+                    FROM reservas_tematicas rsv
+                    WHERE rsv.restaurante_id = t.restaurante_id
+                      AND rsv.data_reserva = DATE(t.inicio_em)
+                      AND rsv.status = 'Finalizada'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM reservas_tematicas_logs rtl
+                          WHERE rtl.reserva_id = rsv.id
+                            AND rtl.usuario_id = t.usuario_id
+                            AND rtl.acao = 'status'
+                            AND rtl.criado_em >= t.inicio_em
+                            AND (t.fim_em IS NULL OR rtl.criado_em <= t.fim_em)
+                      )
+                ) AS pax_registradas
             FROM turnos t
             JOIN restaurantes r ON r.id = t.restaurante_id
             JOIN operacoes o ON o.id = t.operacao_id
@@ -188,10 +268,28 @@ class ShiftModel extends Model
             FROM turnos t
             WHERE t.usuario_id = :user_id
               AND t.fim_em IS NOT NULL
-              AND EXISTS (
-                  SELECT 1
-                  FROM acessos a
-                  WHERE a.turno_id = t.id
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM acessos a
+                      WHERE a.turno_id = t.id
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM reservas_tematicas rsv
+                      WHERE rsv.restaurante_id = t.restaurante_id
+                        AND rsv.data_reserva = DATE(t.inicio_em)
+                        AND rsv.status = 'Finalizada'
+                        AND EXISTS (
+                            SELECT 1
+                            FROM reservas_tematicas_logs rtl
+                            WHERE rtl.reserva_id = rsv.id
+                              AND rtl.usuario_id = t.usuario_id
+                              AND rtl.acao = 'status'
+                              AND rtl.criado_em >= t.inicio_em
+                              AND rtl.criado_em <= t.fim_em
+                        )
+                  )
               )
         ");
         $stmt->execute([':user_id' => $userId]);

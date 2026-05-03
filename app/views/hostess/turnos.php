@@ -74,8 +74,8 @@ $user = Auth::user();
                     <th>Operação</th>
                     <th>Início</th>
                     <th>Fim</th>
-                    <th>Total PAX</th>
-                    <th>Acessos</th>
+                    <th>PAX</th>
+                    <th>Registros</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -83,16 +83,27 @@ $user = Auth::user();
                 <?php foreach ($turnos as $turno): ?>
                     <?php
                     $isEncerrado = !empty($turno['fim_em']);
+                    $isTematica = (int)($turno['is_tematica'] ?? 0) === 1;
                     $totalAcessos = (int)($turno['total_acessos'] ?? 0);
-                    $isCancelado = $isEncerrado && $totalAcessos === 0;
+                    $reservasConferidas = (int)($turno['reservas_conferidas'] ?? 0);
+                    $paxRegistradas = (int)($turno['pax_registradas'] ?? 0);
+                    $displayPax = $isTematica ? $paxRegistradas : (int)($turno['total_pax'] ?? 0);
+                    $displayRegistros = $isTematica ? $reservasConferidas : $totalAcessos;
+                    $isCancelado = $isEncerrado && $displayRegistros === 0;
                     ?>
                     <tr>
                         <td><span class="tag <?= restaurant_badge_class($turno['restaurante']) ?>"><?= h($turno['restaurante']) ?></span></td>
                         <td><span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></td>
                         <td><?= h($turno['inicio_em']) ?></td>
                         <td><?= h($turno['fim_em'] ?? '-') ?></td>
-                        <td><?= (int)$turno['total_pax'] ?></td>
-                        <td><?= $totalAcessos ?></td>
+                        <td>
+                            <div class="fw-semibold"><?= $displayPax ?></div>
+                            <div class="text-muted small"><?= $isTematica ? 'PAX registradas' : 'Total PAX' ?></div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold"><?= $displayRegistros ?></div>
+                            <div class="text-muted small"><?= $isTematica ? 'Reservas conferidas' : 'Acessos' ?></div>
+                        </td>
                         <td>
                             <?php if ($isCancelado): ?>
                                 <span class="badge badge-danger">Cancelado</span>
@@ -111,4 +122,3 @@ $user = Auth::user();
         </table>
     </div>
 </div>
-

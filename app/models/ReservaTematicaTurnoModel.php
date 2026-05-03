@@ -64,8 +64,8 @@ class ReservaTematicaTurnoModel extends Model
     {
         $refs = $this->referenceCounters($id);
 
-        // Se já existe histórico operacional, mantém histórico e apenas inativa.
-        if ($refs['reservas'] > 0 || $refs['fechamentos'] > 0) {
+        // Reservas/grupos são histórico operacional real. Fechamentos acidentais não devem impedir exclusão.
+        if ($refs['reservas'] > 0 || $refs['grupos'] > 0) {
             $stmt = $this->db->prepare("
                 UPDATE reservas_tematicas_turnos
                 SET ativo = 0
@@ -81,6 +81,14 @@ class ReservaTematicaTurnoModel extends Model
             $stmtCfg = $this->db->prepare("DELETE FROM reservas_tematicas_config_turnos WHERE turno_id = :id");
             $stmtCfg->execute([':id' => $id]);
 
+            if ($this->tableExists('reservas_tematicas_capacidades_datas')) {
+                $stmtDateCfg = $this->db->prepare("DELETE FROM reservas_tematicas_capacidades_datas WHERE turno_id = :id");
+                $stmtDateCfg->execute([':id' => $id]);
+            }
+
+            $stmtFechamentos = $this->db->prepare("DELETE FROM reservas_tematicas_fechamentos WHERE turno_id = :id");
+            $stmtFechamentos->execute([':id' => $id]);
+
             $stmtTurno = $this->db->prepare("DELETE FROM reservas_tematicas_turnos WHERE id = :id");
             $stmtTurno->execute([':id' => $id]);
 
@@ -89,6 +97,15 @@ class ReservaTematicaTurnoModel extends Model
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
+            }
+            if ($e instanceof PDOException && (string)$e->getCode() === '23000') {
+                $stmt = $this->db->prepare("
+                    UPDATE reservas_tematicas_turnos
+                    SET ativo = 0
+                    WHERE id = :id
+                ");
+                $stmt->execute([':id' => $id]);
+                return ['result' => 'inactivated', 'refs' => $refs];
             }
             throw $e;
         }
@@ -99,6 +116,7 @@ class ReservaTematicaTurnoModel extends Model
         $counters = [
             'reservas' => 0,
             'fechamentos' => 0,
+            'grupos' => 0,
             'configs' => 0,
         ];
 
@@ -110,11 +128,30 @@ class ReservaTematicaTurnoModel extends Model
         $stmtFechamentos->execute([':id' => $id]);
         $counters['fechamentos'] = (int)$stmtFechamentos->fetchColumn();
 
+        if ($this->tableExists('reservas_tematicas_grupos')) {
+            $stmtGrupos = $this->db->prepare("SELECT COUNT(*) FROM reservas_tematicas_grupos WHERE turno_id = :id");
+            $stmtGrupos->execute([':id' => $id]);
+            $counters['grupos'] = (int)$stmtGrupos->fetchColumn();
+        }
+
         $stmtConfigs = $this->db->prepare("SELECT COUNT(*) FROM reservas_tematicas_config_turnos WHERE turno_id = :id");
         $stmtConfigs->execute([':id' => $id]);
         $counters['configs'] = (int)$stmtConfigs->fetchColumn();
 
         return $counters;
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        $stmt = $this->db->prepare("
+            SELECT 1
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = :table_name
+            LIMIT 1
+        ");
+        $stmt->execute([':table_name' => $tableName]);
+        return (bool)$stmt->fetchColumn();
     }
 }
 

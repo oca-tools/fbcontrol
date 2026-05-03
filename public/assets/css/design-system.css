@@ -1,0 +1,386 @@
+:root {
+    --ux-font-sans: "Manrope", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --ux-font-title: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
+    --ux-text: var(--ab-ink, #0f172a);
+    --ux-muted: var(--ab-muted, #64748b);
+    --ux-bg: var(--ab-page-bg, #f8fafc);
+    --ux-surface: var(--ab-card, #ffffff);
+    --ux-surface-soft: color-mix(in srgb, var(--ux-surface) 92%, #f8fafc 8%);
+    --ux-border: var(--ab-border, #dbe3ef);
+    --ux-shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.06);
+    --ux-shadow-md: 0 16px 40px rgba(15, 23, 42, 0.1);
+    --ux-radius-sm: 10px;
+    --ux-radius-md: 14px;
+    --ux-radius-lg: 18px;
+    --ux-radius-xl: 22px;
+    --ux-primary: var(--ab-accent, #f97316);
+    --ux-primary-strong: color-mix(in srgb, var(--ux-primary) 74%, #0f172a 26%);
+    --ux-primary-soft: color-mix(in srgb, var(--ux-primary) 14%, #ffffff 86%);
+    --ux-success: #16a34a;
+    --ux-warning: #d97706;
+    --ux-danger: #dc2626;
+    --ux-info: #0ea5e9;
+}
+
+html,
+body {
+    font-family: var(--ux-font-sans);
+    color: var(--ux-text);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.brand-title,
+.saas-title {
+    font-family: var(--ux-font-title);
+    letter-spacing: -0.02em;
+    color: var(--ux-text);
+}
+
+.text-muted,
+.small,
+small {
+    color: var(--ux-muted) !important;
+}
+
+.form-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    margin-bottom: 0.38rem;
+    color: color-mix(in srgb, var(--ux-muted) 82%, #0f172a 18%);
+}
+
+.form-control,
+.form-select,
+textarea.form-control {
+    border: 1px solid var(--ux-border);
+    background: color-mix(in srgb, var(--ux-surface) 96%, #f8fafc 4%);
+    color: var(--ux-text);
+    border-radius: var(--ux-radius-sm);
+    min-height: 42px;
+    box-shadow: none;
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.form-control::placeholder,
+.form-select:invalid {
+    color: color-mix(in srgb, var(--ux-muted) 78%, #cbd5e1 22%);
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+    border-color: color-mix(in srgb, var(--ux-primary) 68%, #ffffff 32%);
+    box-shadow: 0 0 0 0.22rem color-mix(in srgb, var(--ux-primary) 16%, transparent);
+    background: var(--ux-surface);
+    color: var(--ux-text);
+}
+
+.input-xl {
+    min-height: 48px;
+    font-size: 1rem !important;
+    border-radius: 12px;
+}
+
+.btn {
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border-width: 1px;
+    transition: transform .14s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-primary {
+    color: #fff !important;
+    background: linear-gradient(135deg, var(--ux-primary) 0%, color-mix(in srgb, var(--ux-primary) 62%, #ffffff 38%) 100%);
+    border-color: color-mix(in srgb, var(--ux-primary) 78%, #0f172a 22%);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--ux-primary) 24%, transparent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    color: #fff !important;
+    border-color: color-mix(in srgb, var(--ux-primary) 56%, #0f172a 44%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--ux-primary) 84%, #0f172a 16%) 0%, var(--ux-primary) 100%);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--ux-primary) 28%, transparent);
+}
+
+.btn-outline-primary {
+    color: var(--ux-primary-strong) !important;
+    border-color: color-mix(in srgb, var(--ux-primary) 46%, #ffffff 54%);
+    background: var(--ux-surface);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    color: #fff !important;
+    border-color: color-mix(in srgb, var(--ux-primary) 74%, #0f172a 26%);
+    background: linear-gradient(135deg, var(--ux-primary) 0%, color-mix(in srgb, var(--ux-primary) 62%, #ffffff 38%) 100%);
+}
+
+.btn-outline-secondary {
+    border-color: color-mix(in srgb, var(--ux-border) 78%, #94a3b8 22%);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+    border-color: #15803d;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    border-color: #b91c1c;
+}
+
+.btn-xl {
+    min-height: 46px;
+    padding: 0.72rem 1.15rem;
+    font-size: .96rem;
+}
+
+.card,
+.saas-table-card,
+.section-block,
+.saas-hero-card,
+.saas-stat-card {
+    border: 1px solid var(--ux-border);
+    border-radius: var(--ux-radius-lg);
+    background: var(--ux-surface);
+    box-shadow: var(--ux-shadow-sm);
+}
+
+.card-soft {
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--ux-surface) 95%, #ffffff 5%) 0%,
+        color-mix(in srgb, var(--ux-surface-soft) 92%, #f8fafc 8%) 100%
+    );
+}
+
+.metric-card,
+.saas-stat-card {
+    min-height: 128px;
+}
+
+.metric-card .display-6,
+.saas-stat-value,
+.display-6 {
+    font-size: clamp(1.45rem, 1.1rem + 0.9vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.section-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.78rem;
+}
+
+.section-title .icon,
+.metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: var(--ux-primary-strong);
+    background: var(--ux-primary-soft);
+    border: 1px solid color-mix(in srgb, var(--ux-primary) 26%, #ffffff 74%);
+}
+
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .36rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ux-border) 70%, #94a3b8 30%);
+    background: color-mix(in srgb, var(--ux-surface) 94%, #f8fafc 6%);
+    color: color-mix(in srgb, var(--ux-muted) 78%, #0f172a 22%);
+    padding: .22rem .62rem;
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.badge {
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.28rem 0.56rem;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #15803d 0%, #22c55e 100%) !important;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%) !important;
+}
+
+.badge-soft {
+    background: color-mix(in srgb, var(--ux-primary) 10%, #ffffff 90%) !important;
+    border: 1px solid color-mix(in srgb, var(--ux-primary) 34%, #ffffff 66%);
+    color: var(--ux-primary-strong) !important;
+}
+
+.tag {
+    border-radius: 999px;
+    font-size: 0.74rem;
+    padding: 0.26rem 0.56rem;
+    font-weight: 700;
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-border-color: color-mix(in srgb, var(--ux-border) 88%, #f8fafc 12%);
+    --bs-table-striped-bg: color-mix(in srgb, var(--ux-surface) 95%, #f1f5f9 5%);
+    --bs-table-hover-bg: color-mix(in srgb, var(--ux-primary) 6%, #f8fafc 94%);
+    margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+    padding: .62rem .66rem;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-top: 0;
+    background: color-mix(in srgb, var(--ux-surface) 92%, #f8fafc 8%);
+    color: color-mix(in srgb, var(--ux-muted) 76%, #0f172a 24%);
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    font-size: 0.68rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table-responsive {
+    border: 1px solid color-mix(in srgb, var(--ux-border) 82%, transparent);
+    border-radius: var(--ux-radius-md);
+    background: var(--ux-surface);
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ux-primary) 54%, #ffffff 46%) transparent;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ux-primary) 60%, #ffffff 40%), color-mix(in srgb, var(--ux-primary) 82%, #0f172a 18%));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ux-primary) 78%, #ffffff 22%), color-mix(in srgb, var(--ux-primary) 86%, #0f172a 14%));
+}
+
+.auto-table-pagination .btn,
+.pagination .page-link {
+    border-radius: 10px;
+    min-width: 32px;
+    font-weight: 700;
+}
+
+.pagination {
+    --bs-pagination-color: var(--ux-primary-strong);
+    --bs-pagination-bg: var(--ux-surface);
+    --bs-pagination-border-color: color-mix(in srgb, var(--ux-primary) 32%, #ffffff 68%);
+    --bs-pagination-hover-color: #fff;
+    --bs-pagination-hover-bg: var(--ux-primary);
+    --bs-pagination-hover-border-color: var(--ux-primary);
+    --bs-pagination-active-bg: var(--ux-primary);
+    --bs-pagination-active-border-color: var(--ux-primary);
+    --bs-pagination-focus-color: #fff;
+    --bs-pagination-focus-bg: var(--ux-primary);
+    --bs-pagination-focus-box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--ux-primary) 22%, transparent);
+}
+
+.alert {
+    border-radius: var(--ux-radius-md);
+    border-width: 1px;
+    box-shadow: none;
+}
+
+.alert-success {
+    border-color: color-mix(in srgb, #22c55e 45%, #ffffff 55%);
+}
+
+.alert-warning {
+    border-color: color-mix(in srgb, #f59e0b 45%, #ffffff 55%);
+}
+
+.alert-danger {
+    border-color: color-mix(in srgb, #ef4444 45%, #ffffff 55%);
+}
+
+.modal-content {
+    border: 1px solid var(--ux-border);
+    border-radius: var(--ux-radius-lg);
+    box-shadow: var(--ux-shadow-md);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: color-mix(in srgb, var(--ux-border) 86%, transparent);
+}
+
+.offcanvas {
+    border-right: 1px solid var(--ux-border);
+    background: var(--ux-surface);
+}
+
+.empty-state {
+    border: 1px dashed color-mix(in srgb, var(--ux-border) 72%, #94a3b8 28%);
+    border-radius: var(--ux-radius-md);
+    background: color-mix(in srgb, var(--ux-surface) 90%, #f8fafc 10%);
+    padding: 1rem;
+    color: var(--ux-muted);
+    text-align: center;
+}
+
+.status-success { color: var(--ux-success) !important; }
+.status-warning { color: var(--ux-warning) !important; }
+.status-danger { color: var(--ux-danger) !important; }
+
+@media (max-width: 992px) {
+    .card,
+    .saas-table-card,
+    .section-block,
+    .saas-hero-card,
+    .saas-stat-card {
+        border-radius: 14px;
+    }
+
+    .table > :not(caption) > * > * {
+        padding: .58rem .52rem;
+    }
+}

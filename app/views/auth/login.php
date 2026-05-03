@@ -213,7 +213,7 @@ $flash = $this->data['flash'] ?? null;
                 <i class="bi bi-stars"></i>
                 Plataforma Operacional A&B
             </span>
-            <h1 class="auth-title">OCA FBControl<br>Controle inteligente para restaurantes e áreas especiais.</h1>
+            <h1 class="auth-title">FBControl<br>Controle inteligente para restaurantes e áreas especiais.</h1>
             <p class="auth-subtitle">
                 Centralize registros, turnos, reservas temáticas e auditoria em uma experiência rápida, segura e preparada para escala.
             </p>

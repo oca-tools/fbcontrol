@@ -3,10 +3,10 @@ class SpecialShiftModel extends Model
 {
     public function findExpiredActive(int $graceMinutes = 10, ?int $userId = null): array
     {
+        $graceMinutes = max(0, $graceMinutes);
+        $idleMinutes = 30;
         $whereUser = '';
-        $params = [
-            ':grace_min' => max(0, $graceMinutes),
-        ];
+        $params = [];
         if ($userId !== null) {
             $whereUser = ' AND t.usuario_id = :user_id';
             $params[':user_id'] = $userId;
@@ -15,7 +15,39 @@ class SpecialShiftModel extends Model
         $sql = "
             SELECT
                 t.id,
-                t.usuario_id
+                t.usuario_id,
+                CASE
+                    WHEN NOT EXISTS (
+                            SELECT 1
+                            FROM acessos_especiais a
+                            WHERE a.turno_especial_id = t.id
+                        )
+                        AND DATE_ADD(t.inicio_em, INTERVAL {$idleMinutes} MINUTE) <= NOW()
+                        THEN DATE_ADD(t.inicio_em, INTERVAL {$idleMinutes} MINUTE)
+                    WHEN DATE_ADD(
+                            DATE_ADD(
+                                CASE
+                                    WHEN re.hora_fim < re.hora_inicio
+                                        THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), re.hora_fim), INTERVAL 1 DAY)
+                                    ELSE TIMESTAMP(DATE(t.inicio_em), re.hora_fim)
+                                END,
+                                INTERVAL re.tolerancia_min MINUTE
+                            ),
+                            INTERVAL {$graceMinutes} MINUTE
+                        ) <= NOW()
+                        THEN DATE_ADD(
+                            DATE_ADD(
+                                CASE
+                                    WHEN re.hora_fim < re.hora_inicio
+                                        THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), re.hora_fim), INTERVAL 1 DAY)
+                                    ELSE TIMESTAMP(DATE(t.inicio_em), re.hora_fim)
+                                END,
+                                INTERVAL re.tolerancia_min MINUTE
+                            ),
+                            INTERVAL {$graceMinutes} MINUTE
+                        )
+                    ELSE NULL
+                END AS auto_fim_em
             FROM turnos_especiais t
             JOIN restaurante_especiais re
                 ON re.restaurante_id = t.restaurante_id
@@ -23,22 +55,7 @@ class SpecialShiftModel extends Model
                AND re.ativo = 1
             WHERE t.fim_em IS NULL
               {$whereUser}
-              AND EXISTS (
-                    SELECT 1
-                    FROM acessos_especiais a
-                    WHERE a.turno_especial_id = t.id
-              )
-              AND NOW() >= DATE_ADD(
-                    DATE_ADD(
-                        CASE
-                            WHEN re.hora_fim < re.hora_inicio
-                                THEN DATE_ADD(TIMESTAMP(DATE(t.inicio_em), re.hora_fim), INTERVAL 1 DAY)
-                            ELSE TIMESTAMP(DATE(t.inicio_em), re.hora_fim)
-                        END,
-                        INTERVAL re.tolerancia_min MINUTE
-                    ),
-                    INTERVAL :grace_min MINUTE
-              )
+            HAVING auto_fim_em IS NOT NULL
         ";
 
         $stmt = $this->db->prepare($sql);
@@ -55,7 +72,12 @@ class SpecialShiftModel extends Model
 
         $closed = 0;
         foreach ($expired as $row) {
-            $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            $autoFimEm = (string)($row['auto_fim_em'] ?? '');
+            if ($autoFimEm !== '') {
+                $this->endAt((int)$row['id'], (int)$row['usuario_id'], $autoFimEm, 'auto_close_timeout');
+            } else {
+                $this->end((int)$row['id'], (int)$row['usuario_id'], 'auto_close_timeout');
+            }
             $closed++;
         }
         return $closed;
@@ -99,6 +121,18 @@ class SpecialShiftModel extends Model
         $before = $this->find($turnoId) ?? [];
         $stmt = $this->db->prepare("UPDATE turnos_especiais SET fim_em = NOW() WHERE id = :id");
         $stmt->execute([':id' => $turnoId]);
+        $after = $this->find($turnoId) ?? [];
+        $this->audit($auditAction, $userId, $before, $after, 'turnos_especiais', $turnoId);
+    }
+
+    public function endAt(int $turnoId, int $userId, string $fimEm, string $auditAction = 'update'): void
+    {
+        $before = $this->find($turnoId) ?? [];
+        $stmt = $this->db->prepare("UPDATE turnos_especiais SET fim_em = :fim_em WHERE id = :id");
+        $stmt->execute([
+            ':fim_em' => $fimEm,
+            ':id' => $turnoId,
+        ]);
         $after = $this->find($turnoId) ?? [];
         $this->audit($auditAction, $userId, $before, $after, 'turnos_especiais', $turnoId);
     }

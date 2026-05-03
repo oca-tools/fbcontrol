@@ -171,7 +171,7 @@ class ReservasTematicasController extends Controller
             $availability = [];
             foreach ($restaurantes as $rest) {
                 $restId = (int)$rest['id'];
-                $turnoCaps = $configModel->turnosConfig($restId);
+                $turnoCaps = $configModel->turnosConfigForDate($restId, $date);
                 foreach ($turnos as $turno) {
                     $capacidade = 0;
                     foreach ($turnoCaps as $cfg) {
@@ -391,8 +391,11 @@ class ReservasTematicasController extends Controller
 
                     $titularItem = normalize_mojibake(trim((string)($batchTitulares[$idx] ?? '')));
                     $paxItem = (int)($batchPax[$idx] ?? 0);
+                    if ($titularItem === '' && $grupoResponsavel !== '') {
+                        $titularItem = $grupoResponsavel;
+                    }
                     if ($titularItem === '' || $paxItem <= 0) {
-                        set_flash('warning', 'Preencha titular e quantidade de PAX em todas as UHs do lote.');
+                        set_flash('warning', 'Preencha o titular padrão do lote (ou titular por UH) e quantidade de PAX em todas as UHs do lote.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
 
@@ -442,7 +445,7 @@ class ReservasTematicasController extends Controller
                 }
 
                 $capacidadeTurnoBatch = 0;
-                foreach ($configModel->turnosConfig($restauranteId) as $cfg) {
+                foreach ($configModel->turnosConfigForDate($restauranteId, $dataReserva) as $cfg) {
                     if ((int)$cfg['turno_id'] === $turnoId) {
                         $capacidadeTurnoBatch = (int)$cfg['capacidade'];
                         break;
@@ -532,7 +535,7 @@ class ReservasTematicasController extends Controller
                 }
 
                 $capacidadeTurno = 0;
-                foreach ($configModel->turnosConfig($restauranteId) as $cfg) {
+                foreach ($configModel->turnosConfigForDate($restauranteId, $dataReserva) as $cfg) {
                     if ((int)$cfg['turno_id'] === $turnoId) {
                         $capacidadeTurno = (int)$cfg['capacidade'];
                         break;
@@ -623,7 +626,7 @@ class ReservasTematicasController extends Controller
             }
 
             $capacidadeTurno = 0;
-            foreach ($configModel->turnosConfig($restauranteId) as $cfg) {
+            foreach ($configModel->turnosConfigForDate($restauranteId, $dataReserva) as $cfg) {
                 if ((int)$cfg['turno_id'] === $turnoId) {
                     $capacidadeTurno = (int)$cfg['capacidade'];
                     break;
@@ -735,13 +738,18 @@ class ReservasTematicasController extends Controller
         $fechamentoModel = new ReservaTematicaFechamentoModel();
         $logModel = new ReservaTematicaLogModel();
 
-        $restaurantes = $this->getTematicRestaurants();
+        $printRestaurants = $this->getTematicRestaurants();
+        $restaurantes = $printRestaurants;
         $restrictedRestaurant = null;
+        $allowedHostessRestaurantIds = [];
         if (($user['perfil'] ?? '') === 'hostess') {
             $assigned = $this->hostessTematicRestaurants((int)$user['id']);
             if (!empty($assigned)) {
                 $restaurantes = $assigned;
-                $restrictedRestaurant = $assigned[0] ?? null;
+                $allowedHostessRestaurantIds = array_map(static fn($r) => (int)$r['id'], $assigned);
+                if (count($assigned) === 1) {
+                    $restrictedRestaurant = $assigned[0] ?? null;
+                }
             }
         }
         $turnos = $turnoModel->allActive();
@@ -761,6 +769,11 @@ class ReservasTematicasController extends Controller
             if (empty($filters['restaurante_id']) || !in_array((int)$filters['restaurante_id'], $allowedIds, true)) {
                 $filters['restaurante_id'] = (string)$allowedIds[0];
             }
+        } elseif (!empty($allowedHostessRestaurantIds)) {
+            if (!empty($filters['restaurante_id']) && !in_array((int)$filters['restaurante_id'], $allowedHostessRestaurantIds, true)) {
+                $filters['restaurante_id'] = '';
+            }
+            $filters['restaurante_ids'] = $allowedHostessRestaurantIds;
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -883,7 +896,7 @@ class ReservasTematicasController extends Controller
 
                 if ($status !== 'Cancelada') {
                     $capacidadeTurno = 0;
-                    foreach ($configModel->turnosConfig($restauranteId) as $cfg) {
+                    foreach ($configModel->turnosConfigForDate($restauranteId, (string)$current['data_reserva']) as $cfg) {
                         if ((int)$cfg['turno_id'] === $turnoId) {
                             $capacidadeTurno = (int)$cfg['capacidade'];
                             break;
@@ -1010,7 +1023,7 @@ class ReservasTematicasController extends Controller
             'excedente' => 0,
         ];
         foreach ($reservas as $row) {
-            $status = $this->normalizeReservaStatus((string)($row['status'] ?? ''));
+            $status = $this->normalizeReservaStatus((string)($row['status_reserva'] ?? ($row['status'] ?? '')));
             if ($status === 'Reservada') {
                 $summary['reservada']++;
             } elseif ($status === 'Finalizada') {
@@ -1032,6 +1045,7 @@ class ReservasTematicasController extends Controller
 
         $this->view('reservas_tematicas/operacao', [
             'restaurantes' => $restaurantes,
+            'print_restaurantes' => $printRestaurants,
             'turnos' => $turnos,
             'reservas' => $reservas,
             'filters' => $filters,
@@ -1046,11 +1060,37 @@ class ReservasTematicasController extends Controller
     public function admin(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole(['admin', 'supervisor']);
 
         $configModel = new ReservaTematicaConfigModel();
         $turnoModel = new ReservaTematicaTurnoModel();
         $periodoModel = new ReservaTematicaPeriodoModel();
+
+        if (($_GET['ajax'] ?? '') === 'capacity_date') {
+            $capacidadeDataAjax = sanitize_date_param($_GET['cap_data'] ?? '', date('Y-m-d'));
+            $restaurantesAjax = $this->getTematicRestaurants();
+            $payload = [];
+            foreach ($restaurantesAjax as $rest) {
+                $restId = (int)$rest['id'];
+                $rows = $configModel->turnosConfigForDate($restId, $capacidadeDataAjax);
+                $turnosPayload = [];
+                $total = 0;
+                foreach ($rows as $row) {
+                    $capacidade = (int)($row['capacidade'] ?? 0);
+                    $total += $capacidade;
+                    $turnosPayload[(int)$row['turno_id']] = $capacidade;
+                }
+                $payload[$restId] = [
+                    'total' => $total,
+                    'turnos' => $turnosPayload,
+                ];
+            }
+            json_response([
+                'ok' => true,
+                'date' => $capacidadeDataAjax,
+                'restaurants' => $payload,
+            ]);
+        }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
@@ -1087,6 +1127,17 @@ class ReservasTematicasController extends Controller
                 }
                 set_flash('success', 'Configurações atualizadas.');
                 $this->redirect('/?r=reservasTematicas/admin');
+            }
+
+            if ($action === 'config_capacidade_data') {
+                $dataCapacidade = sanitize_date_param($_POST['capacidade_data'] ?? '', '');
+                if ($dataCapacidade === '') {
+                    set_flash('warning', 'Informe uma data válida para a capacidade futura.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                $configModel->updateDateConfig($dataCapacidade, $_POST['capacidade_data_turno'] ?? [], (int)Auth::user()['id']);
+                set_flash('success', 'Capacidade específica da data atualizada.');
+                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataCapacidade));
             }
 
             if ($action === 'config_turnos') {
@@ -1162,12 +1213,15 @@ class ReservasTematicasController extends Controller
 
         $restaurantes = $this->getTematicRestaurants();
         $configs = $configModel->configs();
-        $turnos = $turnoModel->all();
+        $turnos = $turnoModel->allActive();
         $periodos = $periodoModel->all();
+        $capacidadeData = sanitize_date_param($_GET['cap_data'] ?? '', date('Y-m-d'));
 
         $turnosConfig = [];
+        $turnosConfigData = [];
         foreach ($restaurantes as $rest) {
-            $turnosConfig[(int)$rest['id']] = $configModel->turnosConfig((int)$rest['id'], false);
+            $turnosConfig[(int)$rest['id']] = $configModel->turnosConfig((int)$rest['id']);
+            $turnosConfigData[(int)$rest['id']] = $configModel->turnosConfigForDate((int)$rest['id'], $capacidadeData);
         }
 
         $this->view('reservas_tematicas/admin', [
@@ -1176,6 +1230,8 @@ class ReservasTematicasController extends Controller
             'turnos' => $turnos,
             'periodos' => $periodos,
             'turnos_config' => $turnosConfig,
+            'turnos_config_data' => $turnosConfigData,
+            'capacidade_data' => $capacidadeData,
             'flash' => get_flash(),
         ]);
     }

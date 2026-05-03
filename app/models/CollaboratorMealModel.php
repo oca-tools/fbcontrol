@@ -21,17 +21,18 @@ class CollaboratorMealModel extends Model
         return $id;
     }
 
-    public function listByFilters(array $filters): array
+    private function buildWhere(array $filters, array &$params): string
     {
         $where = "WHERE 1=1";
         $params = [];
         if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND DATE(c.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
+            $where .= " AND c.criado_em >= :data_inicio_start AND c.criado_em < DATE_ADD(:data_fim_end, INTERVAL 1 DAY)";
+            $params[':data_inicio_start'] = $filters['data_inicio'];
+            $params[':data_fim_end'] = $filters['data_fim'];
         } elseif (!empty($filters['data'])) {
-            $where .= " AND DATE(c.criado_em) = :data";
-            $params[':data'] = $filters['data'];
+            $where .= " AND c.criado_em >= :data_start AND c.criado_em < DATE_ADD(:data_end, INTERVAL 1 DAY)";
+            $params[':data_start'] = $filters['data'];
+            $params[':data_end'] = $filters['data'];
         }
         if (!empty($filters['restaurante_id'])) {
             $where .= " AND c.restaurante_id = :restaurante_id";
@@ -41,6 +42,14 @@ class CollaboratorMealModel extends Model
             $where .= " AND c.operacao_id = :operacao_id";
             $params[':operacao_id'] = $filters['operacao_id'];
         }
+        return $where;
+    }
+
+    public function listByFilters(array $filters, ?int $limit = null, int $offset = 0): array
+    {
+        $params = [];
+        $where = $this->buildWhere($filters, $params);
+        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
 
         $stmt = $this->db->prepare("
             SELECT c.*, r.nome AS restaurante, o.nome AS operacao, u.nome AS usuario
@@ -50,8 +59,30 @@ class CollaboratorMealModel extends Model
             JOIN usuarios u ON u.id = c.usuario_id
             $where
             ORDER BY c.criado_em ASC
+            $paginationSql
+        ");
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
+            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+        }
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function countByFilters(array $filters): int
+    {
+        $params = [];
+        $where = $this->buildWhere($filters, $params);
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM colaborador_refeicoes c
+            $where
         ");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $row = $stmt->fetch();
+        return (int)($row['total'] ?? 0);
     }
 }

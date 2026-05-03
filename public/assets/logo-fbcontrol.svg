@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 160" role="img" aria-labelledby="title desc">
+  <title id="title">FBControl</title>
+  <desc id="desc">Logotipo textual do FBControl</desc>
+  <defs>
+    <linearGradient id="fb-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f9db5"/>
+      <stop offset="1" stop-color="#08758e"/>
+    </linearGradient>
+  </defs>
+  <rect width="620" height="160" fill="none"/>
+  <text x="310" y="106" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-weight="800" font-size="86" letter-spacing="-1">
+    <tspan fill="url(#fb-accent)">FB</tspan><tspan fill="#1f2937">Control</tspan>
+  </text>
+</svg>

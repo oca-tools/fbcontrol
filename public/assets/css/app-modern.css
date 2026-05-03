@@ -1,0 +1,401 @@
+.saas-page,
+.split-pane-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+.saas-page > .card,
+.saas-page > .row,
+.saas-page > section {
+    margin-bottom: 0;
+}
+
+.access-page .card,
+.reservas-tematicas-page .card,
+.relatorios-tematicos-page .card {
+    border-radius: 18px;
+}
+
+.reservas-tematicas-page .card.p-4,
+.relatorios-tematicos-page .card.p-4 {
+    padding: clamp(.86rem, .72rem + .5vw, 1.12rem) !important;
+}
+
+.reservas-tematicas-page .section-title h3,
+.relatorios-tematicos-page .section-title h3 {
+    font-size: clamp(1.08rem, .98rem + .46vw, 1.42rem);
+    letter-spacing: -0.015em;
+}
+
+.reservas-tematicas-page .btn-group > .btn {
+    min-height: 44px;
+}
+
+.reservas-tematicas-page .batch-row-wrap {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.relatorios-tematicos-page .metric-card {
+    min-height: 118px;
+}
+
+.relatorios-tematicos-page [id$='Pagination'] {
+    align-items: center;
+}
+
+.access-page .saas-hero-card .turno-pill,
+.access-page .saas-hero-card .stat-chip {
+    white-space: nowrap;
+}
+
+.saas-grid-top {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1.35fr .9fr;
+}
+
+.saas-kpi-grid {
+    display: grid;
+    gap: .78rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.saas-filter-grid .form-control,
+.saas-filter-grid .form-select {
+    min-height: 44px;
+}
+
+.saas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .42rem;
+}
+
+.saas-toolbar .btn {
+    min-height: 40px;
+}
+
+.saas-divider {
+    border-top: 1px dashed color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
+    margin: .86rem 0;
+}
+
+.saas-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.saas-chip-row .btn {
+    min-height: 36px;
+    padding: .32rem .62rem;
+}
+
+.saas-table-card {
+    padding: .8rem;
+}
+
+.saas-table-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .55rem;
+    margin-bottom: .55rem;
+}
+
+.saas-table-head h5 {
+    margin: 0;
+    font-size: .96rem;
+}
+
+.saas-table-scroll {
+    overflow: auto;
+}
+
+.saas-hero-card {
+    padding: 1rem;
+}
+
+.saas-headline {
+    display: flex;
+    justify-content: space-between;
+    gap: .85rem;
+    align-items: flex-start;
+}
+
+.saas-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ab-muted);
+}
+
+.saas-subtitle {
+    margin: 0;
+    color: var(--ab-muted);
+}
+
+.saas-mini-card {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
+    border-radius: 12px;
+    padding: .64rem .7rem;
+    background: color-mix(in srgb, var(--ab-surface) 90%, #ffffff 10%);
+}
+
+.saas-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: .35rem;
+}
+
+.saas-status-dot.warn { background: #f59e0b; }
+.saas-status-dot.err { background: #ef4444; }
+.saas-status-dot.info { background: #0ea5e9; }
+
+.split-full .metric-card {
+    min-height: 120px;
+}
+
+.split-side.sticky-side {
+    position: relative;
+}
+
+.split-side .metric-card .progress {
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.access-start-grid .card,
+.access-register-grid .section-block,
+.tematic-operacao-page .section-block,
+.dashboard-general-page .saas-table-card,
+.dashboard-restaurant-page .saas-table-card,
+.dashboard-restaurant-page .section-block,
+.dashboard-general-page .saas-hero-card,
+.dashboard-restaurant-page .saas-hero-card,
+.auth-panel,
+.auth-showcase,
+.card.metric-card {
+    box-shadow: var(--ux-shadow-sm);
+}
+
+.auth-login-shell .auth-showcase,
+.auth-login-shell .auth-panel {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 84%, #ffffff 16%);
+}
+
+.auth-login-shell .auth-title {
+    max-width: 15ch;
+}
+
+.auth-login-shell .auth-point {
+    font-weight: 620;
+}
+
+.auth-login-shell .auth-input-wrap .form-control {
+    min-height: 48px;
+}
+
+.tematic-operacao-page .summary-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.tematic-operacao-page .js-row-clickable td {
+    transition: background-color .14s ease;
+}
+
+.tematic-operacao-page .js-row-clickable:hover td {
+    background: color-mix(in srgb, var(--ab-accent) 8%, #f8fafc 92%);
+}
+
+.availability-vertical-grid {
+    display: grid;
+    gap: .72rem;
+}
+
+.availability-restaurant-card {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 86%, #ffffff 14%);
+    border-radius: 14px;
+    padding: .7rem;
+    background: color-mix(in srgb, var(--ab-card) 96%, #ffffff 4%);
+}
+
+.availability-turnos-grid {
+    display: grid;
+    gap: .58rem;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.availability-turno-tile {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 84%, #ffffff 16%);
+    border-radius: 12px;
+    padding: .52rem;
+    background: color-mix(in srgb, var(--ab-soft-bg) 86%, #ffffff 14%);
+}
+
+.availability-turno-time {
+    font-size: .7rem;
+    color: var(--ab-muted);
+    letter-spacing: .04em;
+    font-weight: 800;
+}
+
+.availability-turno-values .badge {
+    min-width: 40px;
+}
+
+.batch-row-wrap {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 84%, #ffffff 16%);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ab-card) 95%, #ffffff 5%);
+}
+
+.batch-row-grid {
+    gap: .42rem;
+}
+
+.js-page-btn {
+    min-width: 34px;
+}
+
+.export-toast {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
+    box-shadow: var(--ux-shadow-md);
+}
+
+.export-toast .ok-icon {
+    box-shadow: 0 8px 16px rgba(15,23,42,.18);
+}
+
+.app-confirm-card {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 82%, #ffffff 18%);
+    border-radius: 16px;
+    box-shadow: var(--ux-shadow-md);
+}
+
+body.mobile-beginner .card,
+body.mobile-beginner .section-block,
+body.mobile-beginner .saas-table-card,
+body.mobile-beginner .saas-hero-card {
+    border-radius: 14px;
+}
+
+body.mobile-beginner .btn,
+body.mobile-beginner .form-control,
+body.mobile-beginner .form-select {
+    min-height: 46px;
+}
+
+body.mobile-beginner .form-label {
+    font-size: .72rem;
+}
+
+@media (max-width: 1280px) {
+    .saas-kpi-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1100px) {
+    .saas-grid-top {
+        grid-template-columns: 1fr;
+    }
+
+    .tematic-operacao-page .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .form-select.input-xl,
+    .form-control.input-xl {
+        min-height: 42px;
+        padding-top: .46rem;
+        padding-bottom: .46rem;
+        font-size: .95rem !important;
+    }
+
+    .saas-filter-grid .form-select,
+    .saas-filter-grid .form-control {
+        min-height: 40px;
+    }
+
+    .app-content .form-select,
+    .app-content .form-control,
+    .app-content input[type="date"],
+    .app-content input[type="text"],
+    .app-content input[type="number"],
+    .app-content input[type="email"],
+    .app-content input[type="password"] {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .app-content .form-select {
+        padding-right: 2rem;
+        background-position: right .62rem center;
+        background-size: 12px 12px;
+        text-overflow: ellipsis;
+    }
+
+    .app-content .row > [class*="col-"] {
+        min-width: 0;
+    }
+
+    body.mobile-beginner .form-control,
+    body.mobile-beginner .form-select {
+        min-height: 42px;
+        font-size: .94rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .saas-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .saas-toolbar .btn {
+        flex: 1 1 calc(50% - .42rem);
+    }
+
+    .auth-login-shell .auth-title {
+        max-width: none;
+    }
+
+    .tematic-operacao-page .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .saas-kpi-grid,
+    .tematic-operacao-page .summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .saas-toolbar .btn {
+        flex: 1 1 100%;
+    }
+
+    .saas-table-card,
+    .saas-hero-card,
+    .section-block,
+    .card {
+        padding: .78rem !important;
+    }
+
+    body.mobile-beginner .form-control,
+    body.mobile-beginner .form-select {
+        min-height: 40px;
+        padding-top: .42rem;
+        padding-bottom: .42rem;
+        font-size: .93rem !important;
+    }
+
+    body.mobile-beginner .form-select.input-xl,
+    body.mobile-beginner .form-control.input-xl {
+        min-height: 41px;
+    }
+}

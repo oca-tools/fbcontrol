@@ -1,6 +1,7 @@
 ﻿<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
+$printRestaurantes = $this->data['print_restaurantes'] ?? $restaurantes;
 $turnos = $this->data['turnos'] ?? [];
 $reservas = $this->data['reservas'] ?? [];
 $filters = $this->data['filters'] ?? [];
@@ -43,8 +44,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     if ($ta !== $tb) {
         return strcmp($ta, $tb);
     }
-    $sa = $normalizeStatus((string)($a['status'] ?? ''));
-    $sb = $normalizeStatus((string)($b['status'] ?? ''));
+    $sa = $normalizeStatus((string)($a['status_reserva'] ?? ($a['status'] ?? '')));
+    $sb = $normalizeStatus((string)($b['status_reserva'] ?? ($b['status'] ?? '')));
     if ($sa !== $sb) {
         return strcmp($sa, $sb);
     }
@@ -261,7 +262,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <?php foreach ($restaurantes as $rest): ?>
+        <?php foreach ($printRestaurantes as $rest): ?>
             <a
                 class="btn btn-outline-primary btn-xl"
                 href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($rest['id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=Reservada&order=hora"
@@ -382,7 +383,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             </thead>
             <tbody id="quickTableBody">
                 <?php foreach ($reservasOrdenadas as $item): ?>
-                    <?php $status = $normalizeStatus((string)($item['status'] ?? '')); ?>
+                    <?php $status = $normalizeStatus((string)($item['status_reserva'] ?? ($item['status'] ?? ''))); ?>
                     <?php
                         $titularDisplay = normalize_mojibake((string)($item['titular_nome_display'] ?? $item['titular_nome'] ?? '-'));
                         $restDisplay = normalize_mojibake((string)($item['restaurante'] ?? ''));
@@ -484,7 +485,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             </thead>
             <tbody id="detailedTableBody">
                 <?php foreach ($reservas as $row): ?>
-                    <?php $rowStatus = $normalizeStatus((string)($row['status'] ?? '')); ?>
+                    <?php $rowStatus = $normalizeStatus((string)($row['status_reserva'] ?? ($row['status'] ?? ''))); ?>
                     <?php
                         $rowTitular = normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '-'));
                         $rowRest = normalize_mojibake((string)($row['restaurante'] ?? ''));

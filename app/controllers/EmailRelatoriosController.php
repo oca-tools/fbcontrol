@@ -30,7 +30,7 @@ class EmailRelatoriosController extends Controller
         $ativo = (int)($_POST['ativo'] ?? 0) === 1 ? 1 : 0;
         $horaEnvio = trim((string)($_POST['hora_envio'] ?? '23:00'));
         $assunto = trim((string)($_POST['assunto'] ?? 'Resumo diário A&B - {data}'));
-        $remetenteNome = trim((string)($_POST['remetente_nome'] ?? 'OCA FBControl'));
+            $remetenteNome = trim((string)($_POST['remetente_nome'] ?? 'FBControl'));
         $remetenteEmail = trim((string)($_POST['remetente_email'] ?? ''));
         if (!preg_match('/^\d{2}:\d{2}$/', $horaEnvio) && !preg_match('/^\d{2}:\d{2}:\d{2}$/', $horaEnvio)) {
             set_flash('danger', 'Hora inválida. Use HH:MM.');
@@ -49,7 +49,7 @@ class EmailRelatoriosController extends Controller
             'ativo' => $ativo,
             'hora_envio' => $horaEnvio,
             'assunto' => $assunto !== '' ? $assunto : 'Resumo diário A&B - {data}',
-            'remetente_nome' => $remetenteNome !== '' ? $remetenteNome : 'OCA FBControl',
+                'remetente_nome' => $remetenteNome !== '' ? $remetenteNome : 'FBControl',
             'remetente_email' => $remetenteEmail,
         ], (int)Auth::user()['id']);
 

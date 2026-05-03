@@ -19,6 +19,15 @@ class DashboardController extends Controller
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');
         }
+        $hasFlowFilterRequest = array_key_exists('fluxo_restaurante_id', $_GET)
+            || array_key_exists('fluxo_operacao_id', $_GET);
+        $flowFilters = $filters;
+        $flowFilters['restaurante_id'] = $hasFlowFilterRequest
+            ? sanitize_int_param($_GET['fluxo_restaurante_id'] ?? '')
+            : $filters['restaurante_id'];
+        $flowFilters['operacao_id'] = $hasFlowFilterRequest
+            ? sanitize_int_param($_GET['fluxo_operacao_id'] ?? '')
+            : $filters['operacao_id'];
 
         $restaurantModel = new RestaurantModel();
         $operationModel = new OperationModel();
@@ -33,6 +42,7 @@ class DashboardController extends Controller
         }
 
         $stats = $accessModel->dashboard($filters);
+        $stats['fluxo_horario'] = $accessModel->dashboardFlow($flowFilters);
 
         $includeTematico = !in_array($filters['status'] ?? '', ['nao_informado', 'day_use'], true);
         if (!empty($filters['operacao_id'])) {
@@ -56,10 +66,18 @@ class DashboardController extends Controller
                 );
             }
             $stats['total_pax'] = (int)($stats['total_pax'] ?? 0) + $tematicoTotalPax;
+        }
 
+        $includeFlowTematico = !in_array($flowFilters['status'] ?? '', ['nao_informado', 'day_use'], true);
+        if (!empty($flowFilters['operacao_id'])) {
+            $selectedFlowOp = $operationModel->find((int)$flowFilters['operacao_id']);
+            $selectedFlowName = mb_strtolower($selectedFlowOp['nome'] ?? '', 'UTF-8');
+            $includeFlowTematico = strpos($selectedFlowName, 'temático') !== false || strpos($selectedFlowName, 'tematico') !== false;
+        }
+        if ($includeFlowTematico) {
             $stats['fluxo_horario'] = $this->mergeTotalsByName(
                 $stats['fluxo_horario'] ?? [],
-                $reservaTematicaModel->dashboardFinalizadasFluxo($filters),
+                $reservaTematicaModel->dashboardFinalizadasFluxo($flowFilters),
                 'hora'
             );
         }
@@ -85,8 +103,10 @@ class DashboardController extends Controller
 
         $this->view('dashboard/general', [
             'filters' => $filters,
+            'flow_filters' => $flowFilters,
             'restaurantes' => $restaurantModel->all(),
             'operacoes' => $operacoes,
+            'flow_operacoes' => $operationModel->all(),
             'stats' => $stats,
             'recentes' => $recentes,
         ]);
@@ -255,4 +275,3 @@ class DashboardController extends Controller
         return array_slice($rows, 0, $limit);
     }
 }
-

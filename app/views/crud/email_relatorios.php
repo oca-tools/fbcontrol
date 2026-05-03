@@ -41,7 +41,7 @@ $logs = $this->data['logs'] ?? [];
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label">Remetente (nome)</label>
-                    <input type="text" class="form-control input-xl" name="remetente_nome" value="<?= h($config['remetente_nome'] ?? 'OCA FBControl') ?>">
+                    <input type="text" class="form-control input-xl" name="remetente_nome" value="<?= h($config['remetente_nome'] ?? 'FBControl') ?>">
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label">Remetente (e-mail)</label>

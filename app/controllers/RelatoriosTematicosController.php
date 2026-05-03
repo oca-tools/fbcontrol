@@ -33,7 +33,7 @@ class RelatoriosTematicosController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $reservaModel = new ReservaTematicaModel();
         $restauranteModel = new RestaurantModel();
@@ -84,7 +84,7 @@ class RelatoriosTematicosController extends Controller
     public function export(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $reservaModel = new ReservaTematicaModel();
         $restauranteModel = new RestaurantModel();

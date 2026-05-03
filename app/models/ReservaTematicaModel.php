@@ -739,16 +739,19 @@ class ReservaTematicaModel extends Model
         $order = "ORDER BY rsv.data_reserva DESC, t.ordem, t.hora, r.nome";
         if (!empty($filters['order']) && $filters['order'] === 'status') {
             $order = "ORDER BY rsv.status, t.ordem, t.hora, uh.numero";
+        } elseif (!empty($filters['order']) && $filters['order'] === 'turno') {
+            $order = "ORDER BY t.ordem, t.hora, uh.numero, rsv.status";
         }
         $stmt = $this->db->prepare("
             SELECT
                 rsv.*,
+                COALESCE(NULLIF(TRIM(rsv.status), ''), 'Reservada') AS status_reserva,
                 {$selectGroupFields}
                 {$adultExpr} AS pax_adulto_calc,
                 {$chdExpr} AS pax_chd_calc,
                 {$qtdChdExpr} AS qtd_chd_calc,
                 r.nome AS restaurante,
-                t.hora AS turno_hora,
+                COALESCE(NULLIF(TIME_FORMAT(t.hora, '%H:%i'), ''), NULLIF(LEFT(CAST(t.hora AS CHAR), 5), ''), '--:--') AS turno_hora,
                 uh.numero AS uh_numero,
                 u.nome AS usuario
             FROM reservas_tematicas rsv
@@ -929,7 +932,8 @@ class ReservaTematicaModel extends Model
         $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $stmt = $this->db->prepare("
-            SELECT t.hora AS turno,
+            SELECT r.nome AS restaurante,
+                   t.hora AS turno,
                    COUNT(*) AS total,
                    SUM(CASE WHEN rsv.status = 'Finalizada' THEN 1 ELSE 0 END) AS finalizadas,
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
@@ -941,10 +945,11 @@ class ReservaTematicaModel extends Model
                     {$grupoLoteExpr} AS total_lotes,
                     {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
+            JOIN restaurantes r ON r.id = rsv.restaurante_id
             JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
             $where
-            GROUP BY t.id
-            ORDER BY t.ordem, t.hora
+            GROUP BY r.id, t.id
+            ORDER BY r.nome, t.ordem, t.hora
         ");
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -1274,8 +1279,9 @@ class ReservaTematicaModel extends Model
 
     public function sumPax(int $restauranteId, string $data, int $turnoId): int
     {
+        $paxExpr = $this->hasPaxRealColumn() ? "COALESCE(pax_real, pax)" : "pax";
         $stmt = $this->db->prepare("
-            SELECT COALESCE(SUM(pax), 0) AS total_pax
+            SELECT COALESCE(SUM({$paxExpr}), 0) AS total_pax
             FROM reservas_tematicas
             WHERE restaurante_id = :restaurante_id
               AND data_reserva = :data

@@ -52,10 +52,10 @@ class UnitModel extends Model
 
     private function isCoreOperationalUnit(int $num): bool
     {
-        if ($num === 2 || $num === 998 || $num === 999) {
+        if ($num === 998 || $num === 999) {
             return true;
         }
-        if ($num >= 100 && $num <= 299) {
+        if ($num >= 101 && $num <= 299) {
             return true;
         }
         if ($num >= 300 && $num <= 1019) {
@@ -84,6 +84,14 @@ class UnitModel extends Model
         if ($numero === '') {
             return null;
         }
+        if (!ctype_digit($numero)) {
+            return null;
+        }
+        $numeroInt = (int)$numero;
+        if (!$this->isCoreOperationalUnit($numeroInt)) {
+            return null;
+        }
+        $numero = (string)$numeroInt;
 
         $item = $this->findByNumeroFlexible($numero, true);
         if ($item) {
@@ -102,24 +110,11 @@ class UnitModel extends Model
             }
         }
 
-        // Garante UHs técnicas para operação (Não Informado / Day Use).
-        // Auto-reparo: UHs operacionais podem nao existir em bases antigas.
-        if (!$anyStatus && ctype_digit($numero)) {
-            $num = (int)$numero;
-            if ($this->isCoreOperationalUnit($num)) {
-                $stmtCreate = $this->db->prepare("
-                    INSERT INTO unidades_habitacionais (numero, ativo, criado_em)
-                    VALUES (:numero, 1, NOW())
-                ");
-                $stmtCreate->execute([':numero' => (string)$num]);
-                return $this->findByNumeroFlexible((string)$num, false);
-            }
-        }
-        if (in_array($numero, ['998', '999'], true)) {
+        // Garante apenas UHs técnicas para operação (Não Informado / Day Use).
+        if (!$anyStatus && in_array($numero, ['998', '999'], true)) {
             $this->ensureTechnicalUnit($numero);
             return $this->findByNumeroFlexible($numero, false);
         }
-
         return null;
     }
 
@@ -130,7 +125,7 @@ class UnitModel extends Model
         if ($num === 998 || $num === 999) {
             return null; // UHs técnicas (não informado/day use): sem limite rígido por tipologia
         }
-        if ($num >= 100 && $num <= 299) {
+        if ($num >= 101 && $num <= 299) {
             return 4; // bangalos (series 100 e 200)
         }
         if ($num >= 300 && $num <= 1019) {

@@ -1,11 +1,26 @@
 # Local secrets / environment overrides
 config/config.local.php
+config/*.local.php
+.env
+.env.*
+!.env.example
 
 # Runtime artifacts
 *.log
 *.tmp
 *.bak
+*.bak.*
+*.tar
+*.tar.gz
+*.zip
+*.sql.gz
+logs/
+public/uploads/
+central/
 
 # OS / editor noise
 .DS_Store
 Thumbs.db
+desktop.ini
+.idea/
+.vscode/

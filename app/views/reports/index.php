@@ -11,6 +11,8 @@ $mapPage = (int)($this->data['map_page'] ?? 1);
 $mapTotalPages = (int)($this->data['map_total_pages'] ?? 1);
 $mapTotal = (int)($this->data['map_total'] ?? count($dailyMap));
 $listPaged = $this->data['list_paged'] ?? $list;
+$biFilters = $this->data['bi_filters'] ?? $filters;
+$biGroupedMultiple = (bool)($this->data['bi_grouped_multiple'] ?? false);
 $biPage = (int)($this->data['bi_page'] ?? 1);
 $biTotalPages = (int)($this->data['bi_total_pages'] ?? 1);
 $biTotal = (int)($this->data['bi_total'] ?? count($list));
@@ -26,20 +28,19 @@ $voucherTotalPages = (int)($this->data['voucher_total_pages'] ?? 1);
 $voucherTotal = (int)($this->data['voucher_total'] ?? count($vouchers));
 $insights = $this->data['insights'] ?? [];
 $tematicosResumo = $this->data['tematicos_resumo'] ?? [];
-$totalRegistros = count($list);
-$totalPax = array_sum(array_map(fn($r) => (int)$r['pax'], $list));
-$duplicados = count(array_filter($list, fn($r) => $r['alerta_duplicidade']));
-$foraHorario = count(array_filter($list, fn($r) => $r['fora_do_horario']));
-$multiplos = count(array_filter($list, fn($r) => ($r['status_operacional'] ?? '') === 'Múltiplo Acesso'));
-$naoInformadoAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numero'] ?? '') === '998'));
-$naoInformadoPax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '998') ? (int)$r['pax'] : 0, $list));
-$dayUseAcessos = count(array_filter($list, fn($r) => (string)($r['uh_numero'] ?? '') === '999'));
-$dayUsePax = array_sum(array_map(fn($r) => ((string)($r['uh_numero'] ?? '') === '999') ? (int)$r['pax'] : 0, $list));
-$privilegedAcessos = count(array_filter($list, fn($r) => strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'privileged') !== false));
-$privilegedPax = array_sum(array_map(fn($r) => (strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'privileged') !== false) ? (int)$r['pax'] : 0, $list));
-$vipPremiumAcessos = count(array_filter($list, fn($r) => strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false));
-$vipPremiumPax = array_sum(array_map(fn($r) => (strpos(mb_strtolower(($r['restaurante'] ?? '') . ' ' . ($r['operacao'] ?? ''), 'UTF-8'), 'vip premium') !== false) ? (int)$r['pax'] : 0, $list));
-$dupPercent = $totalRegistros > 0 ? round(($duplicados / $totalRegistros) * 100) : 0;
+$totalRegistros = (int)($insights['total_registros'] ?? 0);
+$totalPax = (int)($insights['total_pax'] ?? 0);
+$duplicados = (int)($insights['duplicados'] ?? 0);
+$foraHorario = (int)($insights['fora_horario'] ?? 0);
+$multiplos = (int)($insights['multiplos'] ?? 0);
+$naoInformadoAcessos = (int)($insights['nao_informado_registros'] ?? 0);
+$naoInformadoPax = (int)($insights['nao_informado_pax'] ?? 0);
+$dayUseAcessos = (int)($insights['day_use_registros'] ?? 0);
+$dayUsePax = (int)($insights['day_use_pax'] ?? 0);
+$privilegedAcessos = (int)($insights['privileged_registros'] ?? 0);
+$privilegedPax = (int)($insights['privileged_pax'] ?? 0);
+$vipPremiumAcessos = (int)($insights['vip_premium_registros'] ?? 0);
+$vipPremiumPax = (int)($insights['vip_premium_pax'] ?? 0);
 $foraPercent = $totalRegistros > 0 ? round(($foraHorario / $totalRegistros) * 100) : 0;
 $indiceQualidade = (float)($insights['indice_qualidade'] ?? 0);
 $taxaAlertas = (float)($insights['taxa_alertas'] ?? 0);
@@ -48,11 +49,47 @@ $taxaDayUse = (float)($insights['taxa_day_use'] ?? 0);
 $paxReservadasTem = (int)($tematicosResumo['pax_reservadas'] ?? 0);
 $paxComparecidasTem = (int)($tematicosResumo['pax_comparecidas'] ?? 0);
 $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $paxReservadasTem) * 100, 2) : 0;
+$paginationPages = static function (int $current, int $total): array {
+    if ($total <= 1) {
+        return [];
+    }
+    $current = max(1, min($current, $total));
+    $visible = [1, $total, $current, $current - 1, $current + 1];
+    if ($current <= 4) {
+        $visible = array_merge($visible, range(2, min(5, $total)));
+    }
+    if ($current >= $total - 3) {
+        $visible = array_merge($visible, range(max(2, $total - 4), $total - 1));
+    }
+    $visible = array_values(array_unique(array_filter($visible, static fn($page) => $page >= 1 && $page <= $total)));
+    sort($visible);
+
+    $pages = [];
+    $previous = 0;
+    foreach ($visible as $page) {
+        if ($previous > 0 && $page - $previous > 1) {
+            $pages[] = null;
+        }
+        $pages[] = $page;
+        $previous = $page;
+    }
+    return $pages;
+};
 ?>
-<div class="split-pane-layout">
-<div class="card card-soft p-4 mb-4">
-    <div class="d-flex justify-content-between align-items-start">
-            <div class="section-title">
+<style>
+    .reports-page .section-title {
+        min-width: 0;
+    }
+    .reports-page .section-title h3,
+    .reports-page .section-title .text-muted {
+        overflow-wrap: anywhere;
+    }
+</style>
+
+<div class="split-pane-layout reports-page">
+<div class="card card-soft p-4 mb-4 split-full">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div class="section-title">
             <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
             <div>
                 <div class="text-uppercase text-muted small">Relatórios</div>
@@ -60,7 +97,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
                 <div class="text-muted">Filtre por data, UH, restaurante e operação.</div>
             </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-download me-1"></i>Exportar CSV
             </a>
@@ -69,7 +106,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             </a>
         </div>
     </div>
-    <form class="row g-3 align-items-end mt-2" method="get" action="/">
+    <form class="row g-3 align-items-end mt-2" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
         <input type="hidden" name="r" value="relatorios/index">
         <div class="col-12 col-md-3">
             <label class="form-label">Data (única)</label>
@@ -126,7 +163,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
             <button class="btn btn-outline-primary" type="button" data-range="30">Últimos 30 dias</button>
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-            <a class="btn btn-primary btn-xl" href="/?r=relatorios/index">Remover filtro</a>
+            <a class="btn btn-primary btn-xl" href="/?r=relatorios/index" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
         </div>
     </form>
 </div>
@@ -165,18 +202,6 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
     <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
-                <div class="metric-icon"><i class="bi bi-shield-check"></i></div>
-                <div>
-                    <div class="text-muted small">Índice de qualidade</div>
-                    <div class="display-6 fw-bold"><?= h((string)$indiceQualidade) ?>%</div>
-                </div>
-            </div>
-            <span class="stat-chip mt-3"><i class="bi bi-exclamation-triangle"></i> Alertas <?= h((string)$taxaAlertas) ?>%</span>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card metric-card p-4">
-            <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-question-circle"></i></div>
                 <div>
                     <div class="text-muted small">Taxa de não informado</div>
@@ -184,18 +209,6 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
                 </div>
             </div>
             <span class="stat-chip mt-3"><i class="bi bi-clipboard-check"></i> Melhorar coleta</span>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="card metric-card p-4">
-            <div class="d-flex align-items-center gap-3">
-                <div class="metric-icon"><i class="bi bi-sun"></i></div>
-                <div>
-                    <div class="text-muted small">Taxa de Day use</div>
-                    <div class="display-6 fw-bold"><?= h((string)$taxaDayUse) ?>%</div>
-                </div>
-            </div>
-            <span class="stat-chip mt-3"><i class="bi bi-people"></i> Participação no fluxo</span>
         </div>
     </div>
     <div class="col-12 col-md-6 col-xl-3">
@@ -210,22 +223,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <span class="stat-chip mt-3"><i class="bi bi-people"></i> <?= $paxComparecidasTem ?>/<?= $paxReservadasTem ?> PAX</span>
         </div>
     </div>
-</div>
-
-<div class="row g-4 mb-4 split-side sticky-side">
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="card metric-card p-4">
-            <div class="d-flex align-items-center gap-3">
-                <div class="metric-icon"><i class="bi bi-clipboard-data"></i></div>
-                <div>
-                    <div class="text-muted small">Registros</div>
-                    <div class="display-6 fw-bold"><?= $totalRegistros ?></div>
-                </div>
-            </div>
-            <span class="stat-chip mt-3"><i class="bi bi-filter"></i> Filtro atual</span>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-people"></i></div>
@@ -237,21 +235,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <span class="stat-chip mt-3"><i class="bi bi-graph-up"></i> Consolidação</span>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="card metric-card p-4">
-            <div class="d-flex align-items-center gap-3">
-                <div class="metric-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                <div>
-                    <div class="text-muted small">Duplicidades</div>
-                    <div class="display-6 fw-bold status-warning"><?= $duplicados ?></div>
-                </div>
-            </div>
-            <div class="progress mt-3" style="height:6px;">
-                <div class="progress-bar bg-warning" style="width: <?= $dupPercent ?>%"></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-clock-history"></i></div>
@@ -265,7 +249,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             </div>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-arrow-repeat"></i></div>
@@ -277,7 +261,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <span class="stat-chip mt-3"><i class="bi bi-repeat"></i> UH repetente</span>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-question-circle"></i></div>
@@ -289,19 +273,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $naoInformadoPax ?></span>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
-        <div class="card metric-card p-4">
-            <div class="d-flex align-items-center gap-3">
-                <div class="metric-icon"><i class="bi bi-sun"></i></div>
-                <div>
-                    <div class="text-muted small">Day use</div>
-                    <div class="display-6 fw-bold"><?= $dayUseAcessos ?></div>
-                </div>
-            </div>
-            <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $dayUsePax ?></span>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-stars"></i></div>
@@ -313,7 +285,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
             <span class="stat-chip mt-3"><i class="bi bi-people"></i> PAX <?= $privilegedPax ?></span>
         </div>
     </div>
-    <div class="col-12 col-md-6 col-lg-3">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
                 <div class="metric-icon"><i class="bi bi-gem"></i></div>
@@ -423,7 +395,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         </a>
     </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" data-no-auto-pagination="1">
             <thead>
                 <tr>
                     <th>UH</th>
@@ -457,12 +429,16 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted small">Mapa diário: <?= $mapTotal ?> UHs (20 por página)</span>
             <ul class="pagination pagination-sm mb-0">
-                <?php for ($i = 1; $i <= $mapTotalPages; $i++): ?>
+                <?php foreach ($paginationPages($mapPage, $mapTotalPages) as $i): ?>
+                    <?php if ($i === null): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php continue; ?>
+                    <?php endif; ?>
                     <?php $mapQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'map_page' => $i, 'bi_page' => $biPage])); ?>
                     <li class="page-item <?= $i === $mapPage ? 'active' : '' ?>">
-                        <a class="page-link" href="/?<?= h($mapQuery) ?>"><?= $i ?></a>
+                        <a class="page-link" href="/?<?= h($mapQuery) ?>" data-ajax-link data-ajax-target=".app-content"><?= $i ?></a>
                     </li>
-                <?php endfor; ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     <?php endif; ?>
@@ -477,54 +453,119 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
-        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_bi&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_bi&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&bi_restaurante_id=<?= h($biFilters['restaurante_id'] ?? '') ?>&bi_operacao_id=<?= h($biFilters['operacao_id'] ?? '') ?>&status=<?= h($filters['status'] ?? '') ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
-        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_bi&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
+        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatorios/export_bi&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&bi_restaurante_id=<?= h($biFilters['restaurante_id'] ?? '') ?>&bi_operacao_id=<?= h($biFilters['operacao_id'] ?? '') ?>&status=<?= h($filters['status'] ?? '') ?>">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
+    <form class="row g-2 align-items-end mb-3" method="get" action="/" data-ajax-filter data-ajax-target=".app-content" data-ajax-preserve-scroll="1">
+        <input type="hidden" name="r" value="relatorios/index">
+        <input type="hidden" name="data" value="<?= h($filters['data'] ?? '') ?>">
+        <input type="hidden" name="data_inicio" value="<?= h($filters['data_inicio'] ?? '') ?>">
+        <input type="hidden" name="data_fim" value="<?= h($filters['data_fim'] ?? '') ?>">
+        <input type="hidden" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>">
+        <input type="hidden" name="status" value="<?= h($filters['status'] ?? '') ?>">
+        <div class="col-12 col-md-4">
+            <label class="form-label mb-1">Restaurante BI</label>
+            <select class="form-select" name="bi_restaurante_id">
+                <option value="">Todos</option>
+                <?php foreach ($restaurantes as $item): ?>
+                    <option value="<?= (int)$item['id'] ?>" <?= ($biFilters['restaurante_id'] ?? '') == $item['id'] ? 'selected' : '' ?>><?= h($item['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label mb-1">Operação BI</label>
+            <select class="form-select" name="bi_operacao_id">
+                <option value="">Todas</option>
+                <?php foreach ($operacoes as $item): ?>
+                    <option value="<?= (int)$item['id'] ?>" <?= ($biFilters['operacao_id'] ?? '') == $item['id'] ? 'selected' : '' ?>><?= h($item['nome']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12 col-md-4 d-flex gap-2">
+            <button class="btn btn-outline-primary flex-fill">Filtrar BI</button>
+            <a class="btn btn-outline-secondary flex-fill" href="/?<?= h(http_build_query(array_merge($filters, ['r' => 'relatorios/index']))) ?>" data-ajax-link data-ajax-target=".app-content" data-ajax-preserve-scroll="1">Limpar BI</a>
+        </div>
+    </form>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" data-no-auto-pagination="1">
             <thead>
-                <tr>
-                    <th>Tipo</th>
-                    <th>Status</th>
-                    <th>Data/Hora</th>
-                    <th>UH</th>
-                    <th>PAX</th>
-                    <th>Restaurante</th>
-                    <th>Operação</th>
-                    <th>Porta</th>
-                    <th>Usuário</th>
-                </tr>
+                <?php if ($biGroupedMultiple): ?>
+                    <tr>
+                        <th>Status</th>
+                        <th>UH</th>
+                        <th>Primeira passagem</th>
+                        <th>Última passagem</th>
+                        <th>Acessos</th>
+                        <th>PAX total</th>
+                        <th>Variação PAX</th>
+                        <th>Restaurantes</th>
+                        <th>Operações</th>
+                        <th>Usuários</th>
+                    </tr>
+                <?php else: ?>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Data/Hora</th>
+                        <th>UH</th>
+                        <th>PAX</th>
+                        <th>Restaurante</th>
+                        <th>Operação</th>
+                        <th>Porta</th>
+                        <th>Usuário</th>
+                    </tr>
+                <?php endif; ?>
             </thead>
             <tbody>
-                <?php foreach ($listPaged as $row): ?>
-                    <tr>
-                        <td><span class="badge badge-soft">Acesso</span></td>
-                        <td>
-                            <?php if (($row['status_operacional'] ?? '') === 'Duplicado'): ?>
-                                <span class="badge badge-warning">Duplicado</span>
-                            <?php elseif (($row['status_operacional'] ?? '') === 'Fora do Horário'): ?>
-                                <span class="badge badge-danger">Fora do horário</span>
-                            <?php elseif (($row['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
+                <?php if ($biGroupedMultiple): ?>
+                    <?php foreach ($listPaged as $row): ?>
+                        <tr>
+                            <td><span class="badge badge-soft">Múltiplo acesso</span></td>
+                            <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h(uh_label($row['uh_numero'])) ?></span></td>
+                            <td><?= h($row['primeira_passagem']) ?></td>
+                            <td><?= h($row['ultima_passagem']) ?></td>
+                            <td><?= (int)$row['total_acessos'] ?></td>
+                            <td><?= (int)$row['total_pax'] ?></td>
+                            <td><?= (int)$row['menor_pax'] ?> a <?= (int)$row['maior_pax'] ?></td>
+                            <td class="small"><?= h($row['restaurantes'] ?? '-') ?></td>
+                            <td class="small"><?= h($row['operacoes'] ?? '-') ?></td>
+                            <td class="small"><?= h($row['usuarios'] ?? '-') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($listPaged)): ?>
+                        <tr><td colspan="10" class="text-muted">Sem UHs com múltiplo acesso para o filtro atual.</td></tr>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <?php foreach ($listPaged as $row): ?>
+                        <tr>
+                            <td><span class="badge badge-soft">Acesso</span></td>
+                            <td>
+                                <?php if (($row['status_operacional'] ?? '') === 'Duplicado'): ?>
+                                    <span class="badge badge-warning">Duplicado</span>
+                                <?php elseif (($row['status_operacional'] ?? '') === 'Fora do Horário'): ?>
+                                    <span class="badge badge-danger">Fora do horário</span>
+                                <?php elseif (($row['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
                                 <span class="badge badge-soft">Múltiplo acesso</span>
-                            <?php else: ?>
-                                <span class="badge badge-success">OK</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h($row['criado_em']) ?></td>
-                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h(uh_label($row['uh_numero'])) ?></span></td>
-                        <td><?= h($row['pax']) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
-                        <td><span class="tag <?= operation_badge_class($row['operacao']) ?>"><?= h($row['operacao']) ?></span></td>
-                        <td><?= h($row['porta'] ?? '-') ?></td>
-                        <td><?= h($row['usuario']) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (empty($listPaged)): ?>
-                    <tr><td colspan="9" class="text-muted">Sem registros para o filtro atual.</td></tr>
+                                <?php else: ?>
+                                    <span class="badge badge-success">OK</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= h($row['criado_em']) ?></td>
+                            <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h(uh_label($row['uh_numero'])) ?></span></td>
+                            <td><?= h($row['pax']) ?></td>
+                            <td><span class="tag <?= restaurant_badge_class($row['restaurante']) ?>"><?= h($row['restaurante']) ?></span></td>
+                            <td><span class="tag <?= operation_badge_class($row['operacao']) ?>"><?= h($row['operacao']) ?></span></td>
+                            <td><?= h($row['porta'] ?? '-') ?></td>
+                            <td><?= h($row['usuario']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($listPaged)): ?>
+                        <tr><td colspan="9" class="text-muted">Sem registros para o filtro atual.</td></tr>
+                    <?php endif; ?>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -533,12 +574,16 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted small">Base BI: <?= $biTotal ?> registros (20 por página)</span>
             <ul class="pagination pagination-sm mb-0">
-                <?php for ($i = 1; $i <= $biTotalPages; $i++): ?>
-                    <?php $biQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'bi_page' => $i, 'map_page' => $mapPage])); ?>
+                <?php foreach ($paginationPages($biPage, $biTotalPages) as $i): ?>
+                    <?php if ($i === null): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php continue; ?>
+                    <?php endif; ?>
+                    <?php $biQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'bi_restaurante_id' => $biFilters['restaurante_id'] ?? '', 'bi_operacao_id' => $biFilters['operacao_id'] ?? '', 'bi_page' => $i, 'map_page' => $mapPage])); ?>
                     <li class="page-item <?= $i === $biPage ? 'active' : '' ?>">
-                        <a class="page-link" href="/?<?= h($biQuery) ?>"><?= $i ?></a>
+                        <a class="page-link" href="/?<?= h($biQuery) ?>" data-ajax-link data-ajax-target=".app-content"><?= $i ?></a>
                     </li>
-                <?php endfor; ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     <?php endif; ?>
@@ -561,7 +606,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         </a>
     </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" data-no-auto-pagination="1">
             <thead>
                 <tr>
                     <th>Data/Hora</th>
@@ -593,12 +638,16 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted small">Colaboradores: <?= $colabTotal ?> registros (20 por página)</span>
             <ul class="pagination pagination-sm mb-0">
-                <?php for ($i = 1; $i <= $colabTotalPages; $i++): ?>
+                <?php foreach ($paginationPages($colabPage, $colabTotalPages) as $i): ?>
+                    <?php if ($i === null): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php continue; ?>
+                    <?php endif; ?>
                     <?php $colabQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'colab_page' => $i, 'map_page' => $mapPage, 'bi_page' => $biPage, 'voucher_page' => $voucherPage])); ?>
                     <li class="page-item <?= $i === $colabPage ? 'active' : '' ?>">
-                        <a class="page-link" href="/?<?= h($colabQuery) ?>"><?= $i ?></a>
+                        <a class="page-link" href="/?<?= h($colabQuery) ?>" data-ajax-link data-ajax-target=".app-content"><?= $i ?></a>
                     </li>
-                <?php endfor; ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     <?php endif; ?>
@@ -613,6 +662,9 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         </div>
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
+        <a class="btn btn-outline-primary js-export-btn" data-progress-download="1" data-toast="Preparando PDFs dos vouchers. O download será iniciado." href="/?r=relatorios/export_voucher_pdfs&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
+            <i class="bi bi-file-earmark-zip me-1"></i>Exportar PDFs
+        </a>
         <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_vouchers&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV
         </a>
@@ -621,7 +673,7 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         </a>
     </div>
     <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle" data-no-auto-pagination="1">
             <thead>
                 <tr>
                     <th>Data/Hora</th>
@@ -669,17 +721,17 @@ $taxaComparecimentoTem = $paxReservadasTem > 0 ? round(($paxComparecidasTem / $p
         <div class="d-flex justify-content-between align-items-center mt-3">
             <span class="text-muted small">Vouchers: <?= $voucherTotal ?> registros (20 por página)</span>
             <ul class="pagination pagination-sm mb-0">
-                <?php for ($i = 1; $i <= $voucherTotalPages; $i++): ?>
+                <?php foreach ($paginationPages($voucherPage, $voucherTotalPages) as $i): ?>
+                    <?php if ($i === null): ?>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        <?php continue; ?>
+                    <?php endif; ?>
                     <?php $voucherQuery = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'voucher_page' => $i, 'map_page' => $mapPage, 'bi_page' => $biPage, 'colab_page' => $colabPage])); ?>
                     <li class="page-item <?= $i === $voucherPage ? 'active' : '' ?>">
-                        <a class="page-link" href="/?<?= h($voucherQuery) ?>"><?= $i ?></a>
+                        <a class="page-link" href="/?<?= h($voucherQuery) ?>" data-ajax-link data-ajax-target=".app-content"><?= $i ?></a>
                     </li>
-                <?php endfor; ?>
+                <?php endforeach; ?>
             </ul>
         </div>
     <?php endif; ?>
 </div>
-
-
-
-

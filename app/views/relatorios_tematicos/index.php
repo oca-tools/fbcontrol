@@ -21,6 +21,7 @@ $statuses = [
 ];
 ?>
 
+<div class="saas-page relatorios-tematicos-page">
 <div class="card card-soft p-4 mb-4">
     <div class="section-title">
         <div class="icon"><i class="bi bi-clipboard-data"></i></div>
@@ -41,7 +42,7 @@ $statuses = [
             <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
         </a>
     </div>
-    <form class="row g-3 align-items-end" method="get" action="/">
+    <form class="row g-3 align-items-end" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
         <input type="hidden" name="r" value="relatoriosTematicos/index">
         <div class="col-12 col-md-3">
             <label class="form-label">Data (única)</label>
@@ -97,7 +98,7 @@ $statuses = [
             <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
             <button class="btn btn-outline-primary" type="button" data-range="30">Últimos 30 dias</button>
             <button class="btn btn-primary btn-xl">Aplicar filtros</button>
-                    <a class="btn btn-primary btn-xl" href="/?r=relatoriosTematicos/index">Remover filtro</a>
+                    <a class="btn btn-primary btn-xl" href="/?r=relatoriosTematicos/index" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
         </div>
     </form>
 </div>
@@ -253,6 +254,7 @@ $statuses = [
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
+                            <th>Restaurante</th>
                             <th>Turno</th>
                             <th>Total</th>
                             <th>Lotes</th>
@@ -267,6 +269,7 @@ $statuses = [
                     <tbody id="rtByTurnoBody" class="js-rt-paginated-body" data-page-size="8">
                         <?php foreach ($byTurno as $row): ?>
                             <tr>
+                                <td><span class="tag <?= restaurant_badge_class($row['restaurante'] ?? '') ?>"><?= h($row['restaurante'] ?? '') ?></span></td>
                                 <td><span class="tag badge-soft"><?= h($row['turno']) ?></span></td>
                                 <td><?= (int)$row['total'] ?></td>
                                 <td><?= (int)($row['total_lotes'] ?? $row['total_grupos'] ?? 0) ?></td>
@@ -279,7 +282,7 @@ $statuses = [
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($byTurno)): ?>
-                            <tr><td colspan="9" class="text-muted">Sem dados.</td></tr>
+                            <tr><td colspan="10" class="text-muted">Sem dados.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -388,6 +391,7 @@ $statuses = [
                     <th>PAX reservada</th>
                     <th>PAX real</th>
                     <th>Status</th>
+                    <th>Usuário</th>
                     <th>Observação</th>
                 </tr>
             </thead>
@@ -407,6 +411,7 @@ $statuses = [
                             (string)($row['uh_numero'] ?? ''),
                             (string)$titularDisplay,
                             (string)($row['status'] ?? ''),
+                            normalize_mojibake((string)($row['usuario'] ?? '')),
                             normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
                         ])), 'UTF-8');
                     ?>
@@ -434,11 +439,12 @@ $statuses = [
                         <td><?= h($row['pax']) ?></td>
                         <td><?= h($row['pax_real'] ?? '-') ?></td>
                         <td><span class="badge badge-soft"><?= h($row['status']) ?></span></td>
+                        <td><?= h($row['usuario'] ?? '-') ?></td>
                         <td><?= h($row['observacao_reserva'] ?? '-') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($list)): ?>
-                    <tr><td colspan="12" class="text-muted">Sem reservas para o filtro atual.</td></tr>
+                    <tr><td colspan="13" class="text-muted">Sem reservas para o filtro atual.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -460,13 +466,55 @@ $statuses = [
         if (!container) return;
         container.innerHTML = '';
         if (totalPages <= 1) return;
-        for (let i = 1; i <= totalPages; i++) {
+
+        const appendPageBtn = (page) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `btn btn-sm ${i === currentPage ? 'btn-primary' : 'btn-outline-primary'}`;
-            btn.textContent = String(i);
-            btn.addEventListener('click', () => onSelect(i));
+            btn.className = `btn btn-sm ${page === currentPage ? 'btn-primary' : 'btn-outline-primary'}`;
+            btn.textContent = String(page);
+            btn.addEventListener('click', () => onSelect(page));
             container.appendChild(btn);
+        };
+
+        const appendDots = () => {
+            const dots = document.createElement('span');
+            dots.className = 'text-muted px-1 align-self-center';
+            dots.textContent = '...';
+            container.appendChild(dots);
+        };
+
+        if (totalPages <= 9) {
+            for (let i = 1; i <= totalPages; i++) {
+                appendPageBtn(i);
+            }
+            return;
+        }
+
+        const visiblePages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+        if (currentPage <= 4) {
+            for (let i = 2; i <= 5 && i < totalPages; i++) visiblePages.add(i);
+        }
+        if (currentPage >= totalPages - 3) {
+            for (let i = totalPages - 4; i < totalPages; i++) {
+                if (i > 1) visiblePages.add(i);
+            }
+        }
+
+        const orderedPages = Array.from(visiblePages)
+            .filter((n) => n >= 1 && n <= totalPages)
+            .sort((a, b) => a - b);
+
+        let prev = 0;
+        for (const page of orderedPages) {
+            if (prev > 0 && page - prev > 1) {
+                if (page - prev === 2) {
+                    appendPageBtn(prev + 1);
+                } else {
+                    appendDots();
+                }
+            }
+            appendPageBtn(page);
+            prev = page;
         }
     };
 
@@ -543,3 +591,5 @@ $statuses = [
     }
 })();
 </script>
+
+</div>

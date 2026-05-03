@@ -1,4 +1,28 @@
 <?php
+/** polyfill PHP 7 for str_starts_with/contains/ends_with */
+if (!function_exists('str_starts_with')) {
+    function str_starts_with($haystack, $needle) {
+        $haystack = (string)$haystack;
+        $needle = (string)$needle;
+        return $needle === '' || strpos($haystack, $needle) === 0;
+    }
+}
+if (!function_exists('str_contains')) {
+    function str_contains($haystack, $needle) {
+        $haystack = (string)$haystack;
+        $needle = (string)$needle;
+        return $needle === '' || strpos($haystack, $needle) !== false;
+    }
+}
+if (!function_exists('str_ends_with')) {
+    function str_ends_with($haystack, $needle) {
+        $haystack = (string)$haystack;
+        $needle = (string)$needle;
+        if ($needle === '') return true;
+        $len = strlen($needle);
+        return substr($haystack, -$len) === $needle;
+    }
+}
 
 function normalize_mojibake(string $value): string
 {
@@ -83,6 +107,60 @@ function get_flash(): ?array
 function h(string $value): string
 {
     return htmlspecialchars(normalize_mojibake($value), ENT_QUOTES, 'UTF-8');
+}
+
+function ini_size_to_bytes(string $value): int
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+    if ($value === '-1') {
+        return PHP_INT_MAX;
+    }
+
+    $unit = strtolower(substr($value, -1));
+    $number = (float)$value;
+    switch ($unit) {
+        case 'g':
+            $number *= 1024;
+            // no break
+        case 'm':
+            $number *= 1024;
+            // no break
+        case 'k':
+            $number *= 1024;
+            break;
+    }
+
+    return (int)ceil($number);
+}
+
+function upload_limit_bytes(int $appMaxBytes): int
+{
+    $limits = [$appMaxBytes];
+    foreach (['upload_max_filesize', 'post_max_size'] as $key) {
+        $bytes = ini_size_to_bytes((string)ini_get($key));
+        if ($bytes > 0 && $bytes < PHP_INT_MAX) {
+            $limits[] = $bytes;
+        }
+    }
+    return min($limits);
+}
+
+function format_bytes_ptbr(int $bytes): string
+{
+    if ($bytes >= 1024 * 1024) {
+        $mb = $bytes / (1024 * 1024);
+        $decimals = abs($mb - round($mb)) < 0.01 ? 0 : 1;
+        return number_format($mb, $decimals, ',', '.') . 'MB';
+    }
+    if ($bytes >= 1024) {
+        $kb = $bytes / 1024;
+        $decimals = abs($kb - round($kb)) < 0.01 ? 0 : 1;
+        return number_format($kb, $decimals, ',', '.') . 'KB';
+    }
+    return $bytes . 'B';
 }
 
 function sanitize_date_param(?string $value, string $default = ''): string

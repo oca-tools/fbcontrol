@@ -4,7 +4,7 @@ class PrivacidadeController extends Controller
     public function index(): void
     {
         $config = [
-            'controlador_nome' => 'Grand Oca Maragogi Resort',
+            'controlador_nome' => 'Controlador da operação',
             'controlador_email' => '',
             'encarregado_nome' => '',
             'encarregado_email' => '',

@@ -14,7 +14,7 @@ class LgpdModel extends Model
 
         return [
             'id' => 1,
-            'controlador_nome' => 'Grand Oca Maragogi Resort',
+            'controlador_nome' => 'Controlador da operação',
             'controlador_email' => '',
             'encarregado_nome' => '',
             'encarregado_email' => '',

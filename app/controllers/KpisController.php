@@ -18,13 +18,83 @@ class KpisController extends Controller
 
     private function readFilters(): array
     {
-        return [
+        return $this->normalizeFilterPeriod([
             'data' => $this->normalizeDate((string)($_GET['data'] ?? '')),
             'data_inicio' => $this->normalizeDate((string)($_GET['data_inicio'] ?? '')),
             'data_fim' => $this->normalizeDate((string)($_GET['data_fim'] ?? '')),
             'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
             'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
             'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
+        ]);
+    }
+
+    private function normalizeFilterPeriod(array $filters): array
+    {
+        $inicio = (string)($filters['data_inicio'] ?? '');
+        $fim = (string)($filters['data_fim'] ?? '');
+
+        if ($inicio !== '' || $fim !== '') {
+            if ($inicio === '') {
+                $inicio = $fim;
+            }
+            if ($fim === '') {
+                $fim = $inicio;
+            }
+            if ($inicio > $fim) {
+                [$inicio, $fim] = [$fim, $inicio];
+            }
+
+            $filters['data'] = '';
+            $filters['data_inicio'] = $inicio;
+            $filters['data_fim'] = $fim;
+        }
+
+        return $filters;
+    }
+
+    private function readFlowFilters(array $filters): array
+    {
+        $flowData = $this->normalizeDate((string)($_GET['flow_data'] ?? ($_GET['candle_data'] ?? '')));
+        $flowInicio = $this->normalizeDate((string)($_GET['flow_data_inicio'] ?? ($_GET['candle_data_inicio'] ?? '')));
+        $flowFim = $this->normalizeDate((string)($_GET['flow_data_fim'] ?? ($_GET['candle_data_fim'] ?? '')));
+
+        $hasOwnFlowFilter = array_key_exists('flow_data', $_GET)
+            || array_key_exists('flow_data_inicio', $_GET)
+            || array_key_exists('flow_data_fim', $_GET)
+            || array_key_exists('candle_data', $_GET)
+            || array_key_exists('candle_data_inicio', $_GET)
+            || array_key_exists('candle_data_fim', $_GET);
+
+        if (!$hasOwnFlowFilter) {
+            $flowData = (string)($filters['data'] ?? '');
+            $flowInicio = (string)($filters['data_inicio'] ?? '');
+            $flowFim = (string)($filters['data_fim'] ?? '');
+        }
+
+        if ($flowInicio !== '' || $flowFim !== '') {
+            if ($flowInicio === '') {
+                $flowInicio = $flowFim;
+            }
+            if ($flowFim === '') {
+                $flowFim = $flowInicio;
+            }
+            $flowData = '';
+        } elseif ($flowData === '') {
+            $flowInicio = date('Y-m-d', strtotime('-6 days'));
+            $flowFim = date('Y-m-d');
+        }
+
+        if ($flowInicio !== '' && $flowFim !== '' && $flowInicio > $flowFim) {
+            [$flowInicio, $flowFim] = [$flowFim, $flowInicio];
+        }
+
+        return [
+            'data' => $flowData,
+            'data_inicio' => $flowInicio,
+            'data_fim' => $flowFim,
+            'status' => $filters['status'] ?? '',
+            'restaurante_id' => sanitize_int_param($_GET['flow_restaurante_id'] ?? ($_GET['candle_restaurante_id'] ?? '')),
+            'operacao_id' => sanitize_int_param($_GET['flow_operacao_id'] ?? ($_GET['candle_operacao_id'] ?? '')),
         ];
     }
 
@@ -47,7 +117,7 @@ class KpisController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'gerente']);
+        Auth::requireRole(['admin', 'gerente']);
 
         $filters = $this->readFilters();
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
@@ -62,11 +132,11 @@ class KpisController extends Controller
         $occupancyModel = new KpiOccupancyModel();
 
         $summary = $accessModel->kpiSummary($filters);
-        $dailyTrend = $accessModel->kpiDailyTrend($filters);
         $operatorRanking = $accessModel->kpiOperatorRanking($filters, 10);
         $operationMix = $accessModel->kpiOperationMix($filters);
         $restaurantMix = $accessModel->kpiRestaurantMix($filters);
-        $candleSeries = $accessModel->kpiCandleSeries($filters);
+        $flowFilters = $this->readFlowFilters($filters);
+        $hourlyOperationFlow = $accessModel->kpiHourlyOperationFlow($flowFilters);
         $tematicos = $reservaTematicaModel->dashboardStats($filters);
 
         $activeTematicas = (int)($tematicos['finalizadas'] ?? 0) + (int)($tematicos['no_shows'] ?? 0);
@@ -79,7 +149,8 @@ class KpisController extends Controller
 
         $occupancyDate = $this->normalizeDate((string)($_GET['ocupacao_data'] ?? ''));
         if ($occupancyDate === '') {
-            $occupancyDate = $filters['data'] !== '' ? $filters['data'] : date('Y-m-d');
+            $rangeForOccupancy = $this->resolveRange($filters);
+            $occupancyDate = $filters['data'] !== '' ? $filters['data'] : $rangeForOccupancy['fim'];
         }
 
         $occupancy = $occupancyModel->getByDate($occupancyDate);
@@ -91,7 +162,7 @@ class KpisController extends Controller
 
         $range = $this->resolveRange($filters);
         $occupancyHistoryRows = $occupancyModel->history($range['inicio'], $range['fim'], 120);
-        $buffetHistoryRows = $accessModel->kpiBuffetDailyRange($range['inicio'], $range['fim']);
+        $buffetHistoryRows = $accessModel->kpiBuffetDailyOperationRange($range['inicio'], $range['fim']);
 
         $occMap = [];
         foreach ($occupancyHistoryRows as $row) {
@@ -103,7 +174,21 @@ class KpisController extends Controller
 
         $buffetMap = [];
         foreach ($buffetHistoryRows as $row) {
-            $buffetMap[$row['data_ref']] = (int)($row['total_pax'] ?? 0);
+            $dateKey = (string)($row['data_ref'] ?? '');
+            $operationKey = (string)($row['operacao'] ?? '');
+            if ($dateKey === '' || $operationKey === '') {
+                continue;
+            }
+            if (!isset($buffetMap[$dateKey])) {
+                $buffetMap[$dateKey] = [
+                    'Café' => 0,
+                    'Almoço' => 0,
+                    'Jantar' => 0,
+                ];
+            }
+            if (isset($buffetMap[$dateKey][$operationKey])) {
+                $buffetMap[$dateKey][$operationKey] += (int)($row['total_pax'] ?? 0);
+            }
         }
 
         $timeline = [];
@@ -115,7 +200,9 @@ class KpisController extends Controller
                 'data_ref' => $key,
                 'ocupacao_uh' => $occMap[$key]['ocupacao_uh'] ?? null,
                 'ocupacao_pax' => $occMap[$key]['ocupacao_pax'] ?? null,
-                'buffet_pax' => $buffetMap[$key] ?? 0,
+                'cafe_pax' => $buffetMap[$key]['Café'] ?? 0,
+                'almoco_pax' => $buffetMap[$key]['Almoço'] ?? 0,
+                'jantar_pax' => $buffetMap[$key]['Jantar'] ?? 0,
             ];
             $cursor = $cursor->modify('+1 day');
         }
@@ -129,12 +216,12 @@ class KpisController extends Controller
 
         $this->view('kpis/index', [
             'filters' => $filters,
+            'flow_filters' => $flowFilters,
             'summary' => $summary,
-            'daily_trend' => $dailyTrend,
             'operator_ranking' => $operatorRanking,
             'operation_mix' => $operationMix,
             'restaurant_mix' => $restaurantMix,
-            'candle_series' => $candleSeries,
+            'hourly_operation_flow' => $hourlyOperationFlow,
             'tematicos' => $tematicos,
             'taxa_no_show' => $taxaNoShow,
             'taxa_comparecimento_tematico' => $taxaComparecimentoTematico,
@@ -146,7 +233,7 @@ class KpisController extends Controller
             'buffet_pax_dia' => $buffetPaxDia,
             'taxa_buffet_ocupacao' => $taxaBuffetSobreOcupacao,
             'occupancy_timeline' => $timeline,
-            'can_edit_ocupacao' => in_array((string)(Auth::user()['perfil'] ?? ''), ['admin', 'supervisor'], true),
+            'can_edit_ocupacao' => in_array((string)(Auth::user()['perfil'] ?? ''), ['admin'], true),
             'flash' => get_flash(),
         ]);
     }
@@ -154,7 +241,7 @@ class KpisController extends Controller
     public function saveOcupacao(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=kpis/index');
@@ -218,7 +305,7 @@ class KpisController extends Controller
     public function exportTrend(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'gerente']);
+        Auth::requireRole(['admin', 'gerente']);
 
         $filters = $this->readFilters();
         $rows = (new AccessModel())->kpiDailyTrend($filters);

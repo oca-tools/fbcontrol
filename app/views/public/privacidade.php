@@ -31,7 +31,7 @@ $flash = $this->data['flash'] ?? null;
 <div class="saas-page privacy-page">
     <section class="saas-hero-card">
         <div class="saas-label">Transparência</div>
-        <h3 class="saas-title mb-2">Aviso de Privacidade - OCA FBControl</h3>
+                <h3 class="saas-title mb-2">Aviso de Privacidade - FBControl</h3>
         <p class="saas-subtitle mb-0">
             Este aviso explica como dados pessoais são tratados na operação de A&B do resort.
         </p>
@@ -43,7 +43,7 @@ $flash = $this->data['flash'] ?? null;
 
     <section class="saas-table-card">
         <h5 class="mb-3">Quem controla os dados</h5>
-        <p class="mb-1"><strong>Controlador:</strong> <?= h((string)($config['controlador_nome'] ?? 'Grand Oca Maragogi Resort')) ?></p>
+                    <p class="mb-1"><strong>Controlador:</strong> <?= h((string)($config['controlador_nome'] ?? 'Controlador da operação')) ?></p>
         <p class="mb-1"><strong>E-mail do controlador:</strong> <?= h((string)($config['controlador_email'] ?? '-')) ?></p>
         <p class="mb-1"><strong>Encarregado (DPO):</strong> <?= h((string)($config['encarregado_nome'] ?? '-')) ?></p>
         <p class="mb-1"><strong>E-mail do encarregado:</strong> <?= h((string)($config['encarregado_email'] ?? '-')) ?></p>

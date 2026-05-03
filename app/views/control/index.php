@@ -7,6 +7,32 @@ $recentes = $this->data['recentes'] ?? [];
 $page = (int)($this->data['page'] ?? 1);
 $totalPages = (int)($this->data['total_pages'] ?? 1);
 $totalRegistros = (int)($this->data['total_registros'] ?? count($recentes));
+$paginationPages = static function (int $current, int $total): array {
+    if ($total <= 1) {
+        return [];
+    }
+    $current = max(1, min($current, $total));
+    $visible = [1, $total, $current, $current - 1, $current + 1];
+    if ($current <= 4) {
+        $visible = array_merge($visible, range(2, min(5, $total)));
+    }
+    if ($current >= $total - 3) {
+        $visible = array_merge($visible, range(max(2, $total - 4), $total - 1));
+    }
+    $visible = array_values(array_unique(array_filter($visible, static fn($item) => $item >= 1 && $item <= $total)));
+    sort($visible);
+
+    $pages = [];
+    $previous = 0;
+    foreach ($visible as $item) {
+        if ($previous > 0 && $item - $previous > 1) {
+            $pages[] = null;
+        }
+        $pages[] = $item;
+        $previous = $item;
+    }
+    return $pages;
+};
 ?>
 
 <div class="saas-page control-page">
@@ -109,7 +135,7 @@ $totalRegistros = (int)($this->data['total_registros'] ?? count($recentes));
         </div>
 
         <div class="saas-table-scroll">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-sm align-middle mb-0" data-no-auto-pagination="1">
                 <thead>
                     <tr>
                         <th>Restaurante</th>
@@ -141,11 +167,15 @@ $totalRegistros = (int)($this->data['total_registros'] ?? count($recentes));
         <?php if ($totalPages > 1): ?>
             <nav class="mt-3" aria-label="Paginacao centro de controle">
                 <ul class="pagination mb-0 control-pagination">
-                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <?php foreach ($paginationPages($page, $totalPages) as $i): ?>
+                        <?php if ($i === null): ?>
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            <?php continue; ?>
+                        <?php endif; ?>
                         <li class="page-item <?= $i === $page ? 'active' : '' ?>">
                             <a class="page-link" href="/?r=control/index&page=<?= $i ?>"><?= $i ?></a>
                         </li>
-                    <?php endfor; ?>
+                    <?php endforeach; ?>
                 </ul>
             </nav>
         <?php endif; ?>

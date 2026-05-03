@@ -13,9 +13,9 @@ if (!function_exists('cfg_env')) {
 
 $config = [
     'app' => [
-        'name' => cfg_env('APP_NAME', 'OCA FBControl'),
+        'name' => cfg_env('APP_NAME', 'FBControl'),
         'version' => cfg_env('APP_VERSION', '2.0'),
-        'logo_path' => cfg_env('APP_LOGO_PATH', '/assets/logo-oca.png'),
+        'logo_path' => cfg_env('APP_LOGO_PATH', '/assets/logo-fbcontrol.svg'),
         'favicon_path' => cfg_env('APP_FAVICON_PATH', '/assets/favicon-fb-white.svg'),
         'base_url' => cfg_env('APP_BASE_URL', '/'),
         'timezone' => cfg_env('APP_TIMEZONE', 'America/Sao_Paulo'),

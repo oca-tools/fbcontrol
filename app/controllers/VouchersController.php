@@ -24,6 +24,10 @@ class VouchersController extends Controller
             'vouchers' => $vouchers,
             'restaurantes' => $restaurantModel->all(),
             'operacoes' => $operationModel->all(),
+            'voucher_receive_limit_bytes' => upload_limit_bytes(10 * 1024 * 1024),
+            'voucher_receive_limit_label' => format_bytes_ptbr(upload_limit_bytes(10 * 1024 * 1024)),
+            'voucher_target_limit_bytes' => 5 * 1024 * 1024,
+            'voucher_target_limit_label' => format_bytes_ptbr(5 * 1024 * 1024),
             'flash' => get_flash(),
         ]);
     }

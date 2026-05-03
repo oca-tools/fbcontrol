@@ -20,13 +20,13 @@ class LgpdController extends Controller
     private function canEdit(): bool
     {
         $perfil = strtolower((string)(Auth::user()['perfil'] ?? ''));
-        return in_array($perfil, ['admin', 'supervisor'], true);
+        return in_array($perfil, ['admin'], true);
     }
 
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'gerente']);
+        Auth::requireRole(['admin']);
 
         $filters = [
             'status' => trim((string)($_GET['status'] ?? '')),
@@ -43,7 +43,7 @@ class LgpdController extends Controller
                 'incidents_open' => 0,
             ],
             'config' => [
-                'controlador_nome' => 'Grand Oca Maragogi Resort',
+            'controlador_nome' => 'Controlador da operação',
                 'canal_titular_url' => '/?r=privacidade/index',
                 'prazo_titular_dias' => 15,
                 'prazo_incidente_dias_uteis' => 3,
@@ -76,7 +76,7 @@ class LgpdController extends Controller
     public function saveConfig(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }
@@ -116,7 +116,7 @@ class LgpdController extends Controller
     public function addRequest(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }
@@ -153,7 +153,7 @@ class LgpdController extends Controller
     public function updateRequest(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }
@@ -193,7 +193,7 @@ class LgpdController extends Controller
     public function addIncident(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }
@@ -236,7 +236,7 @@ class LgpdController extends Controller
     public function updateIncident(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }
@@ -280,7 +280,7 @@ class LgpdController extends Controller
     public function saveRetention(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin']);
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=lgpd/index');
         }

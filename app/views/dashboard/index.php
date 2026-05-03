@@ -58,7 +58,7 @@ $stats = $this->data['stats'] ?? [];
     <div class="col-12 col-md-6 col-lg-3">
         <div class="card p-3 text-center">
             <div class="text-muted">Fora do horário</div>
-            <div class="display-6 fw-bold status-danger"><?= (int)$stats['fora_Horário'] ?></div>
+            <div class="display-6 fw-bold status-danger"><?= (int)$stats['fora_horario'] ?></div>
         </div>
     </div>
 </div>
@@ -107,10 +107,10 @@ $stats = $this->data['stats'] ?? [];
                 <table class="table table-sm">
                     <thead><tr><th>Hora</th><th>Total</th></tr></thead>
                     <tbody>
-                        <?php foreach ($stats['fluxo_Horário'] ?? [] as $row): ?>
+                        <?php foreach ($stats['fluxo_horario'] ?? [] as $row): ?>
                             <tr><td><?= h($row['hora']) ?></td><td><?= h($row['total_pax']) ?></td></tr>
                         <?php endforeach; ?>
-                        <?php if (empty($stats['fluxo_Horário'])): ?>
+                        <?php if (empty($stats['fluxo_horario'])): ?>
                             <tr><td colspan="2" class="text-muted">Sem dados.</td></tr>
                         <?php endif; ?>
                     </tbody>
@@ -119,4 +119,3 @@ $stats = $this->data['stats'] ?? [];
         </div>
     </div>
 </div>
-

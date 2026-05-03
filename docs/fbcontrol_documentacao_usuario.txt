@@ -1,0 +1,316 @@
+DOCUMENTAÇÃO DO USUÁRIO - FBCONTROL
+Versão: Maio/2026
+
+1. Visão geral
+
+O FBControl é uma plataforma operacional para controle de A&B em hotelaria e resortaria. O sistema centraliza registros de acesso aos restaurantes, reservas temáticas, vouchers, relatórios, auditoria, indicadores e cadastros administrativos.
+
+O objetivo principal é reduzir controles dispersos, padronizar a operação, registrar responsabilidades e oferecer dados confiáveis para supervisão, gerência, auditoria e direção.
+
+
+2. Perfis de usuário
+
+Hostess
+- Registra acessos aos restaurantes.
+- Inicia e encerra turnos operacionais.
+- Consulta e atualiza reservas temáticas durante o serviço.
+- Registra vouchers, quando autorizado.
+
+Supervisor
+- Acompanha a operação em andamento.
+- Consulta dashboards e relatórios.
+- Ajusta configurações temáticas conforme necessidade operacional.
+- Apoia a equipe durante o serviço.
+
+Gerente
+- Consulta indicadores, dashboards e relatórios gerenciais.
+- Analisa comportamento da operação por período, restaurante e status.
+- Usa os dados para decisão e acompanhamento de performance.
+
+Administrador
+- Gerencia usuários, permissões, cadastros e configurações.
+- Acessa auditoria, LGPD e módulos administrativos.
+- Mantém a estrutura operacional do sistema.
+
+
+3. Módulos
+
+3.1 Registro
+
+Finalidade:
+Registrar acessos aos restaurantes durante uma operação ativa.
+
+Principais usos:
+- Iniciar turno informando restaurante, operação e porta, quando aplicável.
+- Informar UH e PAX do hóspede.
+- Registrar acessos de forma padronizada.
+- Validar duplicidades, múltiplos acessos, regras de horário e alertas operacionais.
+
+Cuidados:
+- Conferir restaurante e operação antes de iniciar o turno.
+- Conferir UH e PAX antes de registrar.
+- Usar códigos especiais somente quando permitido.
+
+Observação:
+Os atalhos especiais são 998 para "Não informado" e 999 para "Day use", quando a regra estiver habilitada.
+
+
+3.2 Meus turnos
+
+Finalidade:
+Mostrar o histórico de turnos realizados pela hostess.
+
+Principais usos:
+- Conferir turnos iniciados, encerrados ou cancelados.
+- Acompanhar histórico operacional individual.
+- Apoiar conferências sobre produtividade e execução do serviço.
+
+
+3.3 Vouchers
+
+Finalidade:
+Registrar vouchers recebidos e seus anexos para conferência financeira e operacional.
+
+Principais usos:
+- Cadastrar vouchers recebidos no turno.
+- Anexar comprovantes, quando houver.
+- Consultar histórico e origem dos registros.
+- Exportar PDFs de vouchers por data, quando necessário.
+
+Cuidados:
+- Preencher dados essenciais corretamente.
+- Conferir anexos antes de finalizar.
+- Ajustar filtros caso não existam vouchers para a data selecionada.
+
+
+3.4 Reservas Temáticas
+
+Finalidade:
+Cadastrar e consultar reservas dos restaurantes temáticos.
+
+Principais usos:
+- Registrar UH, PAX, restaurante, turno e observações.
+- Consultar reservas existentes.
+- Controlar status e capacidade por turno.
+- Alimentar a Operação Temática no dia do serviço.
+
+Cuidados:
+- Conferir data, restaurante, horário e PAX antes de salvar.
+- Evitar duplicidades ou reservas em turno incorreto.
+
+
+3.5 Operação Temática
+
+Finalidade:
+Apoiar a hostess na conferência das reservas temáticas durante o serviço.
+
+Principais usos:
+- Buscar reservas por UH.
+- Visualizar reservas do dia.
+- Atualizar status como reservada, finalizada ou não compareceu.
+- Confirmar entrada e PAX real.
+
+Cuidados:
+- A lista "Reservas do dia" deve servir como apoio panorâmico.
+- A busca por UH deve ser usada para localizar reservas rapidamente.
+- Status e horário devem ser conferidos antes de qualquer alteração.
+
+
+3.6 Config. Temáticas
+
+Finalidade:
+Ajustar regras operacionais dos restaurantes temáticos.
+
+Principais usos:
+- Configurar capacidade por restaurante e turno.
+- Criar exceções de capacidade por data futura.
+- Ajustar turnos conforme necessidade da operação.
+
+Cuidados:
+- Validar a data antes de salvar exceções.
+- Conferir totais e distribuição por turno.
+- Alterações impactam diretamente a reserva e a operação do dia.
+
+
+3.7 Centro de Controle
+
+Finalidade:
+Concentrar a leitura do dia para supervisão, gerência e administração.
+
+Principais usos:
+- Acompanhar turnos ativos.
+- Ver registros recentes.
+- Consultar alertas e indicadores do dia.
+- Apoiar decisões rápidas durante a operação.
+
+Observação:
+O Centro de Controle mostra o pulso operacional. Para análise detalhada, use os módulos de relatórios.
+
+
+3.8 Dashboard Geral
+
+Finalidade:
+Mostrar indicadores consolidados da operação por período, restaurante, operação e status.
+
+Principais usos:
+- Analisar KPIs do período.
+- Aplicar filtros para comparar contextos específicos.
+- Acompanhar fluxo por horário.
+- Entender concentração de acessos e comportamento operacional.
+
+Cuidados:
+- Evitar comparar períodos ou operações sem aplicar filtros adequados.
+- Ler primeiro os KPIs e depois aprofundar nas tabelas e gráficos.
+
+
+3.9 Dashboard do Restaurante
+
+Finalidade:
+Analisar uma unidade ou restaurante específico.
+
+Principais usos:
+- Avaliar comportamento de um restaurante.
+- Comparar status, horários e ocorrências recentes.
+- Identificar gargalos e oportunidades por unidade.
+
+
+3.10 KPIs Estratégicos
+
+Finalidade:
+Apoiar análises gerenciais com indicadores mais amplos de consumo, ocupação e previsibilidade.
+
+Principais usos:
+- Comparar consumo real versus demanda.
+- Avaliar tendências operacionais.
+- Apoiar reuniões gerenciais e planejamento.
+
+Cuidados:
+- Informar período e ocupação quando o cálculo depender de demanda.
+- Usar este módulo para leitura gerencial, não para registro operacional.
+
+
+3.11 Relatórios
+
+Finalidade:
+Consultar e exportar registros operacionais com filtros detalhados.
+
+Principais usos:
+- Filtrar por período, UH, restaurante, operação e status.
+- Exportar CSV/Excel para BI, auditoria e reuniões.
+- Consultar bases operacionais detalhadas.
+
+Cuidados:
+- Ajustar filtros antes de exportar.
+- Se não houver dados no filtro, revisar data e contexto.
+
+
+3.12 Relatórios Temáticos
+
+Finalidade:
+Analisar desempenho das reservas temáticas, comparecimento e no-show.
+
+Principais usos:
+- Filtrar por período e restaurante.
+- Acompanhar comparecimento, cancelamentos e ocupação por turno.
+- Consultar base detalhada das reservas.
+- Ver o usuário responsável pelo lançamento, quando disponível.
+
+
+3.13 Auditoria
+
+Finalidade:
+Centralizar eventos importantes do sistema para rastreabilidade e conferência.
+
+Principais usos:
+- Investigar ações por data, módulo e usuário.
+- Conferir alterações e eventos relevantes.
+- Apoiar controle interno e responsabilização.
+
+Observação:
+A auditoria não é uma tela operacional. Ela serve para controle, rastreabilidade e validação posterior.
+
+
+3.14 LGPD
+
+Finalidade:
+Apoiar o controle de privacidade, termos e solicitações relacionadas a dados pessoais.
+
+Principais usos:
+- Consultar informações relacionadas a privacidade.
+- Apoiar demandas administrativas ou solicitações formais.
+
+Cuidados:
+- Usar apenas quando houver necessidade administrativa.
+- Evitar exposição de informações sensíveis fora do fluxo correto.
+
+
+4. Cadastros administrativos
+
+4.1 Restaurantes
+
+Mantém a lista de restaurantes/unidades usadas em registros, dashboards e relatórios.
+
+Cuidados:
+- Usar nomes claros e consistentes.
+- Avaliar impacto antes de alterar cadastros com histórico.
+
+
+4.2 Portas
+
+Controla pontos de entrada usados no registro operacional.
+
+Cuidados:
+- Usar nomes simples.
+- Configurar portas somente quando a operação tiver mais de um ponto de controle.
+
+
+4.3 Operações
+
+Define operações como café, almoço, jantar ou eventos específicos.
+
+Cuidados:
+- Evitar duplicidade de operações com nomes parecidos.
+- Lembrar que operações aparecem em filtros, turnos e relatórios.
+
+
+4.4 Horários
+
+Controla janelas de horário usadas para validação de registros e leitura operacional.
+
+Cuidados:
+- Alterações impactam regras de fora do horário e fluxo por período.
+- Alterar somente quando a regra da operação mudar de fato.
+
+
+4.5 Usuários
+
+Gerencia acessos, perfis e permissões.
+
+Cuidados:
+- Cada perfil deve receber apenas o acesso necessário para sua função.
+- Revisar usuários inativos periodicamente.
+- Perfis influenciam menu, módulos e permissões de ação.
+
+
+4.6 E-mail Diário
+
+Configura destinatários e rotinas de envio de relatórios por e-mail.
+
+Cuidados:
+- Manter destinatários atualizados.
+- Evitar envio desnecessário para pessoas que não precisam acompanhar a rotina.
+
+
+5. Boas práticas de uso
+
+- Conferir filtros antes de analisar ou exportar dados.
+- Registrar informações no momento da operação sempre que possível.
+- Evitar ajustes manuais sem validação do contexto.
+- Usar auditoria para investigar eventos, não para operar o dia a dia.
+- Manter usuários e permissões atualizados.
+- Usar o Guia do sistema sempre que houver dúvida sobre a tela atual.
+
+
+6. Mensagem executiva
+
+O FBControl organiza a operação de A&B com rastreabilidade, padronização e dados de apoio à decisão. Cada módulo foi criado para reduzir controles paralelos, melhorar a confiabilidade da informação e permitir que supervisão, gerência e direção acompanhem a operação com mais segurança.

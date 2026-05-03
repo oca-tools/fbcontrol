@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/../app/helpers/php7_compat.php';
 
 $appEnv = strtolower((string)(getenv('APP_ENV') ?: 'production'));
 if ($appEnv === 'production') {
@@ -72,15 +73,7 @@ $csp = [
 ];
 header('Content-Security-Policy: ' . implode('; ', $csp));
 
-$config = require __DIR__ . '/../config/config.php';
-date_default_timezone_set($config['app']['timezone']);
-
-require __DIR__ . '/../app/helpers/functions.php';
-ob_start('normalize_output_mojibake');
-require __DIR__ . '/../app/core/Database.php';
-require __DIR__ . '/../app/core/Model.php';
-require __DIR__ . '/../app/core/Controller.php';
-require __DIR__ . '/../app/core/Auth.php';
+$config = require __DIR__ . '/../app/bootstrap_web.php';
 
 if (Auth::check()) {
     $timeout = max(30, (int)($config['app']['session_timeout_min'] ?? 30));
@@ -97,19 +90,6 @@ if (Auth::check()) {
     header('Cache-Control: private, no-store, no-cache, must-revalidate');
     header('Pragma: no-cache');
 }
-
-spl_autoload_register(function ($class) {
-    $paths = [
-        __DIR__ . '/../app/controllers/' . $class . '.php',
-        __DIR__ . '/../app/models/' . $class . '.php',
-    ];
-    foreach ($paths as $path) {
-        if (file_exists($path)) {
-            require $path;
-            return;
-        }
-    }
-});
 
 $route = (string)($_GET['r'] ?? '');
 if ($route !== '' && !preg_match('/^[a-zA-Z0-9_\/-]+$/', $route)) {
