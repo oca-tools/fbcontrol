@@ -9,7 +9,7 @@ class ReservasTematicasController extends Controller
             Auth::requireRole(['admin']);
         }
         $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor'], true)) {
+        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
             return;
         }
         if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
@@ -26,10 +26,10 @@ class ReservasTematicasController extends Controller
             Auth::requireRole(['admin']);
         }
         $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor'], true)) {
+        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
             return;
         }
-        if ($perfil === 'hostess' && $this->hostessHasCorais((int)$user['id'])) {
+        if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
             return;
         }
         $this->forbidden();
@@ -43,7 +43,7 @@ class ReservasTematicasController extends Controller
             Auth::requireRole(['admin']);
         }
         $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor'], true)) {
+        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
             return;
         }
         if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
@@ -117,6 +117,10 @@ class ReservasTematicasController extends Controller
 
     private function isWithinReservaWindow(array $periodos): bool
     {
+        if (app_demo_mode_enabled()) {
+            return true;
+        }
+
         $tz = new DateTimeZone(date_default_timezone_get());
         $now = new DateTime('now', $tz);
         foreach ($periodos as $periodo) {
@@ -134,6 +138,18 @@ class ReservasTematicasController extends Controller
         return false;
     }
 
+    private function autoCloseTimeoutShiftsForCurrentUser(): int
+    {
+        $user = Auth::user();
+        if (!$user || app_demo_mode_enabled()) {
+            return 0;
+        }
+
+        $graceMinutes = 10;
+        return (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id'])
+            + (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
+    }
+
     private function isDuplicateAllowedUh(?string $uhNumero): bool
     {
         $uhNumero = trim((string)$uhNumero);
@@ -149,6 +165,7 @@ class ReservasTematicasController extends Controller
         $turnoModel = new ReservaTematicaTurnoModel();
         $periodoModel = new ReservaTematicaPeriodoModel();
         $configModel = new ReservaTematicaConfigModel();
+        $bloqueioDataModel = new ReservaTematicaBloqueioDataModel();
         $logModel = new ReservaTematicaLogModel();
         $unitModel = new UnitModel();
 
@@ -156,7 +173,14 @@ class ReservasTematicasController extends Controller
         $turnos = $turnoModel->allActive();
         $periodos = $periodoModel->allActive();
         $isHostess = ($user['perfil'] ?? '') === 'hostess';
-        $withinWindow = $this->isWithinReservaWindow($periodos);
+        if ($isHostess && !$this->hostessHasCorais((int)$user['id'])) {
+            $permitidos = array_map(static fn($rest) => (int)$rest['id'], $this->hostessTematicRestaurants((int)$user['id']));
+            $restaurantes = array_values(array_filter(
+                $restaurantes,
+                static fn($rest) => in_array((int)$rest['id'], $permitidos, true)
+            ));
+        }
+        $withinWindow = app_demo_mode_enabled() ? true : $this->isWithinReservaWindow($periodos);
         $canReserveNow = !$isHostess || $withinWindow;
 
         $filters = [
@@ -167,10 +191,11 @@ class ReservasTematicasController extends Controller
             'titular' => $_GET['titular'] ?? '',
         ];
 
-        $buildAvailability = function (string $date) use ($restaurantes, $turnos, $configModel, $reservaModel): array {
+        $buildAvailability = function (string $date) use ($restaurantes, $turnos, $configModel, $reservaModel, $bloqueioDataModel): array {
             $availability = [];
             foreach ($restaurantes as $rest) {
                 $restId = (int)$rest['id'];
+                $fechado = $bloqueioDataModel->isClosed($restId, $date);
                 $turnoCaps = $configModel->turnosConfigForDate($restId, $date);
                 foreach ($turnos as $turno) {
                     $capacidade = 0;
@@ -182,9 +207,10 @@ class ReservasTematicasController extends Controller
                     }
                     $sum = $reservaModel->sumPax($restId, $date, (int)$turno['id']);
                     $availability[$restId][(int)$turno['id']] = [
-                        'capacidade' => $capacidade,
+                        'capacidade' => $fechado ? 0 : $capacidade,
                         'reservado' => $sum,
-                        'restante' => max(0, $capacidade - $sum),
+                        'restante' => $fechado ? 0 : max(0, $capacidade - $sum),
+                        'fechado' => $fechado,
                     ];
                 }
             }
@@ -278,13 +304,13 @@ class ReservasTematicasController extends Controller
                     return [];
                 }
                 $ages = [];
-                foreach ((preg_split('/[,\s;]+/', $raw) ?: []) as $part) {
+                foreach ((preg_split('/(?:y+|[,\s;]+)/i', $raw) ?: []) as $part) {
                     $part = trim($part);
                     if ($part === '') {
                         continue;
                     }
                     if (!ctype_digit($part)) {
-                        throw new RuntimeException('Idade de CHD inválida.');
+                        throw new RuntimeException('Idade de CHD inválida. Use o formato 1y2y4y.');
                     }
                     $age = (int)$part;
                     if ($age < 0 || $age > 17) {
@@ -317,8 +343,6 @@ class ReservasTematicasController extends Controller
             $paxAdulto = max(0, $pax - $qtdChd);
             $obs = trim($_POST['observacao_reserva'] ?? '');
             $tags = $_POST['observacao_tags'] ?? [];
-            $excedenteChecked = (int)($_POST['excedente'] ?? 0) === 1;
-            $excedenteMotivo = trim($_POST['excedente_motivo'] ?? '');
 
             $restIds = array_map(fn($r) => (int)$r['id'], $restaurantes);
             if ($restauranteId <= 0 || !in_array($restauranteId, $restIds, true)) {
@@ -327,6 +351,10 @@ class ReservasTematicasController extends Controller
             }
             if ($turnoId <= 0) {
                 set_flash('danger', 'Selecione o turno.');
+                $this->redirect('/?r=reservasTematicas/reservas');
+            }
+            if ($bloqueioDataModel->isClosed($restauranteId, $dataReserva)) {
+                set_flash('warning', 'Este restaurante está fechado para a data selecionada. Escolha outro restaurante ou outra data.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
             $uh = null;
@@ -368,11 +396,14 @@ class ReservasTematicasController extends Controller
 
             if ($action === 'create_batch') {
                 $batchUhs = $_POST['batch_uh_numero'] ?? [];
-                $batchTitulares = $_POST['batch_titular_nome'] ?? [];
                 $batchPax = $_POST['batch_pax'] ?? [];
                 $batchIdades = $_POST['batch_chd_idades'] ?? [];
                 $grupoResponsavel = normalize_mojibake(trim((string)($_POST['grupo_responsavel'] ?? '')));
                 $grupoNomeBatch = $grupoNome !== '' ? $grupoNome : ($grupoResponsavel !== '' ? $grupoResponsavel : null);
+                if ($grupoResponsavel === '') {
+                    set_flash('warning', 'Informe o titular do grupo.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
 
                 $batchItems = [];
                 $batchTotal = 0;
@@ -384,18 +415,14 @@ class ReservasTematicasController extends Controller
                     }
                     $uhKey = mb_strtolower($uhNumeroItem, 'UTF-8');
                     if (isset($seenBatchUhs[$uhKey])) {
-                        set_flash('warning', 'UH duplicada no lote: ' . $uhNumeroItem);
+                        set_flash('warning', 'UH duplicada no grupo: ' . $uhNumeroItem);
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
                     $seenBatchUhs[$uhKey] = true;
 
-                    $titularItem = normalize_mojibake(trim((string)($batchTitulares[$idx] ?? '')));
                     $paxItem = (int)($batchPax[$idx] ?? 0);
-                    if ($titularItem === '' && $grupoResponsavel !== '') {
-                        $titularItem = $grupoResponsavel;
-                    }
-                    if ($titularItem === '' || $paxItem <= 0) {
-                        set_flash('warning', 'Preencha o titular padrão do lote (ou titular por UH) e quantidade de PAX em todas as UHs do lote.');
+                    if ($paxItem <= 0) {
+                        set_flash('warning', 'Preencha a quantidade de PAX em todas as UHs do grupo.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
 
@@ -429,7 +456,7 @@ class ReservasTematicasController extends Controller
 
                     $batchItems[] = [
                         'uh_id' => (int)$uhItem['id'],
-                        'titular_nome' => $titularItem,
+                        'titular_nome' => $grupoResponsavel,
                         'pax_adulto' => $adultosItem,
                         'qtd_chd' => $qtdChdItem,
                         'pax_chd' => $qtdChdItem,
@@ -440,7 +467,7 @@ class ReservasTematicasController extends Controller
                 }
 
                 if (empty($batchItems)) {
-                    set_flash('warning', 'Adicione ao menos uma UH no lote.');
+                    set_flash('warning', 'Adicione ao menos uma UH no grupo.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
 
@@ -453,18 +480,13 @@ class ReservasTematicasController extends Controller
                 }
                 $sumBatch = $reservaModel->sumPax($restauranteId, $dataReserva, $turnoId);
                 $excedeBatch = ($capacidadeTurnoBatch > 0) && (($sumBatch + $batchTotal) > $capacidadeTurnoBatch);
-                $isPrivileged = in_array($user['perfil'], ['admin', 'supervisor'], true);
-                if (($excedeBatch || $capacidadeTurnoBatch <= 0 || $excedenteChecked) && !$isPrivileged) {
-                    set_flash('danger', 'Capacidade do turno atingida.');
+                if ($capacidadeTurnoBatch <= 0) {
+                    set_flash('danger', 'Capacidade não configurada para este turno. Ajuste a capacidade antes de registrar reservas.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
-                $isExcedenteBatch = false;
-                if ($isPrivileged && ($excedeBatch || $capacidadeTurnoBatch <= 0 || $excedenteChecked)) {
-                    if ($excedenteMotivo === '') {
-                        set_flash('warning', 'Informe o motivo do excedente.');
-                        $this->redirect('/?r=reservasTematicas/reservas');
-                    }
-                    $isExcedenteBatch = true;
+                if ($excedeBatch) {
+                    set_flash('danger', 'Capacidade do turno atingida. Ajuste a capacidade do turno se necessário.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
                 }
 
                 $db = Database::getInstance();
@@ -494,10 +516,10 @@ class ReservasTematicasController extends Controller
                             'observacao_reserva' => $obs,
                             'observacao_tags' => $tagsText,
                             'status' => 'Reservada',
-                            'excedente' => $isExcedenteBatch ? 1 : 0,
-                            'excedente_motivo' => $isExcedenteBatch ? $excedenteMotivo : null,
-                            'excedente_autor_id' => $isExcedenteBatch ? (int)$user['id'] : null,
-                            'excedente_em' => $isExcedenteBatch ? date('Y-m-d H:i:s') : null,
+                            'excedente' => 0,
+                            'excedente_motivo' => null,
+                            'excedente_autor_id' => null,
+                            'excedente_em' => null,
                         ];
                         $newId = $reservaModel->create($payload, (int)$user['id']);
                         $reservaModel->replaceChdAges($newId, $item['idades']);
@@ -509,11 +531,11 @@ class ReservasTematicasController extends Controller
                     if ($db->inTransaction()) {
                         $db->rollBack();
                     }
-                    set_flash('danger', 'Falha ao registrar lote de reservas.');
+                    set_flash('danger', 'Falha ao registrar grupo de reservas.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
 
-                set_flash($isExcedenteBatch ? 'warning' : 'success', 'Lote de reservas registrado com sucesso.');
+                set_flash('success', 'Grupo de reservas registrado com sucesso.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
@@ -541,8 +563,8 @@ class ReservasTematicasController extends Controller
                         break;
                     }
                 }
-                if ($capacidadeTurno <= 0 && !in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                    set_flash('danger', 'Capacidade não configurada para este turno.');
+                if ($capacidadeTurno <= 0) {
+                    set_flash('danger', 'Capacidade não configurada para este turno. Ajuste a capacidade antes de registrar reservas.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
                 $sum = $reservaModel->sumPax($restauranteId, $dataReserva, $turnoId);
@@ -570,36 +592,8 @@ class ReservasTematicasController extends Controller
                 ];
 
                 if ($excede) {
-                    if (!in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                        set_flash('danger', 'Capacidade do turno atingida.');
-                        $this->redirect('/?r=reservasTematicas/reservas');
-                    }
-                    if ($excedenteMotivo === '') {
-                        set_flash('warning', 'Informe o motivo do excedente.');
-                        $this->redirect('/?r=reservasTematicas/reservas&edit=' . $id);
-                    }
-                    $dataUpdate['excedente'] = 1;
-                    $dataUpdate['excedente_motivo'] = $excedenteMotivo;
-                    $dataUpdate['excedente_autor_id'] = (int)$user['id'];
-                    $dataUpdate['excedente_em'] = date('Y-m-d H:i:s');
-                } elseif ($capacidadeTurno <= 0 && in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                    if ($excedenteMotivo === '') {
-                        set_flash('warning', 'Informe o motivo para inserir sem capacidade configurada.');
-                        $this->redirect('/?r=reservasTematicas/reservas&edit=' . $id);
-                    }
-                    $dataUpdate['excedente'] = 1;
-                    $dataUpdate['excedente_motivo'] = $excedenteMotivo;
-                    $dataUpdate['excedente_autor_id'] = (int)$user['id'];
-                    $dataUpdate['excedente_em'] = date('Y-m-d H:i:s');
-                } elseif ($excedenteChecked && in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                    if ($excedenteMotivo === '') {
-                        set_flash('warning', 'Informe o motivo do excedente.');
-                        $this->redirect('/?r=reservasTematicas/reservas&edit=' . $id);
-                    }
-                    $dataUpdate['excedente'] = 1;
-                    $dataUpdate['excedente_motivo'] = $excedenteMotivo;
-                    $dataUpdate['excedente_autor_id'] = (int)$user['id'];
-                    $dataUpdate['excedente_em'] = date('Y-m-d H:i:s');
+                    set_flash('danger', 'Capacidade do turno atingida. Ajuste a capacidade do turno se necessário.');
+                    $this->redirect('/?r=reservasTematicas/reservas&edit=' . $id);
                 }
 
                 $before = $current;
@@ -608,11 +602,7 @@ class ReservasTematicasController extends Controller
                 $after = $reservaModel->find($id) ?? [];
                 $logModel->log($id, 'update', (int)$user['id'], $before, $after);
 
-                if (!empty($dataUpdate['excedente'])) {
-                    set_flash('warning', 'Reserva excedente registrada e sinalizada.');
-                } else {
-                    set_flash('success', 'Reserva atualizada.');
-                }
+                set_flash('success', 'Reserva atualizada.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
@@ -632,8 +622,8 @@ class ReservasTematicasController extends Controller
                     break;
                 }
             }
-            if ($capacidadeTurno <= 0 && !in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                set_flash('danger', 'Capacidade não configurada para este turno.');
+            if ($capacidadeTurno <= 0) {
+                set_flash('danger', 'Capacidade não configurada para este turno. Ajuste a capacidade antes de registrar reservas.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
             $sum = $reservaModel->sumPax($restauranteId, $dataReserva, $turnoId);
@@ -657,47 +647,15 @@ class ReservasTematicasController extends Controller
             ];
 
             if ($excede) {
-                if (!in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                    set_flash('danger', 'Capacidade do turno atingida.');
-                    $this->redirect('/?r=reservasTematicas/reservas');
-                }
-                if ($excedenteMotivo === '') {
-                    set_flash('warning', 'Informe o motivo do excedente.');
-                    $this->redirect('/?r=reservasTematicas/reservas');
-                }
-                $dataInsert['excedente'] = 1;
-                $dataInsert['excedente_motivo'] = $excedenteMotivo;
-                $dataInsert['excedente_autor_id'] = (int)$user['id'];
-                $dataInsert['excedente_em'] = date('Y-m-d H:i:s');
-            } elseif ($capacidadeTurno <= 0 && in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                if ($excedenteMotivo === '') {
-                    set_flash('warning', 'Informe o motivo para inserir sem capacidade configurada.');
-                    $this->redirect('/?r=reservasTematicas/reservas');
-                }
-                $dataInsert['excedente'] = 1;
-                $dataInsert['excedente_motivo'] = $excedenteMotivo;
-                $dataInsert['excedente_autor_id'] = (int)$user['id'];
-                $dataInsert['excedente_em'] = date('Y-m-d H:i:s');
-            } elseif ($excedenteChecked && in_array($user['perfil'], ['admin', 'supervisor'], true)) {
-                if ($excedenteMotivo === '') {
-                    set_flash('warning', 'Informe o motivo do excedente.');
-                    $this->redirect('/?r=reservasTematicas/reservas');
-                }
-                $dataInsert['excedente'] = 1;
-                $dataInsert['excedente_motivo'] = $excedenteMotivo;
-                $dataInsert['excedente_autor_id'] = (int)$user['id'];
-                $dataInsert['excedente_em'] = date('Y-m-d H:i:s');
+                set_flash('danger', 'Capacidade do turno atingida. Ajuste a capacidade do turno se necessário.');
+                $this->redirect('/?r=reservasTematicas/reservas');
             }
 
             $id = $reservaModel->create($dataInsert, (int)$user['id']);
             $reservaModel->replaceChdAges($id, $chdIdades);
             $logModel->log($id, 'create', (int)$user['id'], [], $reservaModel->find($id) ?? []);
 
-            if (!empty($dataInsert['excedente'])) {
-                set_flash('warning', 'Reserva excedente registrada e sinalizada.');
-            } else {
-                set_flash('success', 'Reserva registrada.');
-            }
+            set_flash('success', 'Reserva registrada.');
             $this->redirect('/?r=reservasTematicas/reservas');
         }
 
@@ -709,7 +667,7 @@ class ReservasTematicasController extends Controller
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
             $editItem['uh_numero'] = $uhRow['numero'] ?? '';
             $agesMap = $reservaModel->getChdAgesMap([$editId]);
-            $editItem['chd_idades'] = isset($agesMap[$editId]) ? implode(',', $agesMap[$editId]) : '';
+            $editItem['chd_idades'] = isset($agesMap[$editId]) && !empty($agesMap[$editId]) ? implode('y', $agesMap[$editId]) . 'y' : '';
             $editItem['qtd_chd'] = (int)($editItem['qtd_chd'] ?? 0);
             $editItem['pax_adulto'] = (int)($editItem['pax_adulto'] ?? max(0, (int)($editItem['pax'] ?? 0) - (int)$editItem['qtd_chd']));
         }
@@ -731,6 +689,10 @@ class ReservasTematicasController extends Controller
     {
         $this->requireOperacaoAccess();
         $user = Auth::user();
+        $closedByTimeout = $this->autoCloseTimeoutShiftsForCurrentUser();
+        if ($closedByTimeout > 0 && !isset($_SESSION['flash'])) {
+            set_flash('warning', 'Turno encerrado automaticamente por tempo excedido (limite + 10 min).');
+        }
 
         $reservaModel = new ReservaTematicaModel();
         $turnoModel = new ReservaTematicaTurnoModel();
@@ -830,7 +792,7 @@ class ReservasTematicasController extends Controller
                 $justificativa = trim((string)($_POST['justificativa'] ?? ''));
                 $confirmFinal = (int)($_POST['confirm_final'] ?? 0) === 1;
 
-                $allowedStatuses = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia', 'Excedente'];
+                $allowedStatuses = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia'];
                 if (!in_array($status, $allowedStatuses, true)) {
                     set_flash('danger', 'Status inválido.');
                     $this->redirect('/?r=reservasTematicas/operacao');
@@ -854,7 +816,7 @@ class ReservasTematicasController extends Controller
 
                 $currentStatus = $this->normalizeReservaStatus(normalize_mojibake((string)($current['status'] ?? '')));
                 $currentIsFinal = in_array($currentStatus, ['Finalizada', 'Nao compareceu', 'Cancelada'], true);
-                if ($currentIsFinal && $status !== $currentStatus && !in_array($user['perfil'], ['admin', 'supervisor'], true)) {
+                if ($currentIsFinal && $status !== $currentStatus && !in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)) {
                     set_flash('warning', 'Status definitivo não pode ser alterado pela hostess.');
                     $this->redirect('/?r=reservasTematicas/operacao');
                 }
@@ -884,7 +846,7 @@ class ReservasTematicasController extends Controller
 
                 $closedCurrent = $fechamentoModel->isClosed((int)$current['restaurante_id'], (string)$current['data_reserva'], (int)$current['turno_id']);
                 $closedTarget = $fechamentoModel->isClosed($restauranteId, (string)$current['data_reserva'], $turnoId);
-                $privileged = in_array($user['perfil'], ['admin', 'supervisor'], true);
+                $privileged = in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true);
                 if (($closedCurrent || $closedTarget) && !$privileged) {
                     set_flash('warning', 'Turno encerrado. Somente supervisão pode alterar.');
                     $this->redirect('/?r=reservasTematicas/operacao');
@@ -905,8 +867,12 @@ class ReservasTematicasController extends Controller
                     $sum = $reservaModel->sumPax($restauranteId, (string)$current['data_reserva'], $turnoId);
                     $sameSlot = ((int)$current['restaurante_id'] === $restauranteId) && ((int)$current['turno_id'] === $turnoId);
                     $projected = $sum - ($sameSlot && $currentStatus !== 'Cancelada' ? $paxAtual : 0) + $paxAtual;
-                    if ($capacidadeTurno > 0 && $projected > $capacidadeTurno && !$privileged) {
-                        set_flash('warning', 'Capacidade do turno atingida para o destino selecionado.');
+                    if ($capacidadeTurno <= 0) {
+                        set_flash('warning', 'Capacidade não configurada para o destino selecionado. Ajuste a capacidade antes de mover a reserva.');
+                        $this->redirect('/?r=reservasTematicas/operacao');
+                    }
+                    if ($capacidadeTurno > 0 && $projected > $capacidadeTurno) {
+                        set_flash('warning', 'Capacidade do turno atingida para o destino selecionado. Ajuste a capacidade do turno se necessário.');
                         $this->redirect('/?r=reservasTematicas/operacao');
                     }
                 }
@@ -940,7 +906,6 @@ class ReservasTematicasController extends Controller
                     'Nao compareceu',
                     'Cancelada',
                     'Divergencia',
-                    'Excedente',
                 ];
                 if (!in_array($status, $allowedStatuses, true)) {
                     set_flash('danger', 'Status inválido.');
@@ -958,7 +923,7 @@ class ReservasTematicasController extends Controller
                 }
                 $currentStatus = $this->normalizeReservaStatus(normalize_mojibake((string)($current['status'] ?? '')));
                 $currentIsFinal = in_array($currentStatus, ['Finalizada', 'Nao compareceu', 'Cancelada'], true);
-                if ($currentIsFinal && $status !== $currentStatus && !in_array($user['perfil'], ['admin', 'supervisor'], true)) {
+                if ($currentIsFinal && $status !== $currentStatus && !in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)) {
                     set_flash('warning', 'Status definitivo não pode ser alterado pela hostess.');
                     $this->redirect('/?r=reservasTematicas/operacao');
                 }
@@ -993,11 +958,11 @@ class ReservasTematicasController extends Controller
                 $dataReserva = $current['data_reserva'];
                 $closed = $fechamentoModel->isClosed($restauranteId, $dataReserva, $turnoId);
 
-                if ($closed && !in_array($user['perfil'], ['admin', 'supervisor'], true)) {
+                if ($closed && !in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)) {
                     set_flash('warning', 'Turno encerrado. Somente supervisão pode alterar.');
                     $this->redirect('/?r=reservasTematicas/operacao&restaurante_id=' . $restauranteId . '&turno_id=' . $turnoId . '&data=' . $dataReserva);
                 }
-                if ($closed && in_array($user['perfil'], ['admin', 'supervisor'], true) && $justificativa === '') {
+                if ($closed && in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true) && $justificativa === '') {
                     set_flash('warning', 'Informe a justificativa para alterar turno encerrado.');
                     $this->redirect('/?r=reservasTematicas/operacao&restaurante_id=' . $restauranteId . '&turno_id=' . $turnoId . '&data=' . $dataReserva);
                 }
@@ -1020,7 +985,6 @@ class ReservasTematicasController extends Controller
             'nao_compareceu' => 0,
             'cancelada' => 0,
             'divergencia' => 0,
-            'excedente' => 0,
         ];
         foreach ($reservas as $row) {
             $status = $this->normalizeReservaStatus((string)($row['status_reserva'] ?? ($row['status'] ?? '')));
@@ -1034,8 +998,6 @@ class ReservasTematicasController extends Controller
                 $summary['cancelada']++;
             } elseif ($status === 'Divergencia') {
                 $summary['divergencia']++;
-            } elseif ($status === 'Excedente') {
-                $summary['excedente']++;
             }
         }
         $closed = false;
@@ -1060,11 +1022,16 @@ class ReservasTematicasController extends Controller
     public function admin(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor']);
+        Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $configModel = new ReservaTematicaConfigModel();
         $turnoModel = new ReservaTematicaTurnoModel();
         $periodoModel = new ReservaTematicaPeriodoModel();
+        $bloqueioDataModel = new ReservaTematicaBloqueioDataModel();
+        $bloqueioSemanalModel = new ReservaTematicaBloqueioSemanalModel();
+        $bloqueioSemanalModel->seedDefaultsIfEmpty();
+        $perfilAtual = Auth::user()['perfil'] ?? '';
+        $canManageBloqueios = in_array($perfilAtual, ['admin', 'gerente'], true);
 
         if (($_GET['ajax'] ?? '') === 'capacity_date') {
             $capacidadeDataAjax = sanitize_date_param($_GET['cap_data'] ?? '', date('Y-m-d'));
@@ -1116,16 +1083,67 @@ class ReservasTematicasController extends Controller
             }
 
             $action = $_POST['action'] ?? '';
+            if ($action === 'bloqueio_data') {
+                if (!$canManageBloqueios) {
+                    set_flash('danger', 'Somente admin e gerente podem alterar fechamentos dos temáticos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                $dataBloqueio = sanitize_date_param($_POST['data_bloqueio'] ?? '', '');
+                $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
+                $fechar = (int)($_POST['fechar'] ?? 1) === 1;
+                $motivo = normalize_mojibake(trim((string)($_POST['motivo'] ?? '')));
+                $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
+                if ($dataBloqueio === '' || !in_array($restauranteId, $restIds, true)) {
+                    set_flash('warning', 'Informe uma data e um restaurante temático válidos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                if ($fechar && $motivo === '') {
+                    set_flash('warning', 'Informe o motivo do fechamento.');
+                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+                }
+                $bloqueioDataModel->setClosed($restauranteId, $dataBloqueio, $fechar, $motivo, (int)Auth::user()['id']);
+                set_flash('success', $fechar ? 'Restaurante fechado para a data selecionada.' : 'Restaurante reaberto para a data selecionada.');
+                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+            }
+            if ($action === 'bloqueio_semanal') {
+                if (!$canManageBloqueios) {
+                    set_flash('danger', 'Somente admin e gerente podem alterar fechamentos semanais dos temáticos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
+                $diaSemana = (int)($_POST['dia_semana'] ?? -1);
+                $fechar = (int)($_POST['fechar'] ?? 1) === 1;
+                $motivo = normalize_mojibake(trim((string)($_POST['motivo'] ?? '')));
+                $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
+                if (!in_array($restauranteId, $restIds, true) || $diaSemana < 0 || $diaSemana > 6) {
+                    set_flash('warning', 'Informe restaurante e dia da semana válidos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                if ($fechar && $motivo === '') {
+                    set_flash('warning', 'Informe o motivo do fechamento semanal.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                $bloqueioSemanalModel->setClosed($restauranteId, $diaSemana, $fechar, $motivo, (int)Auth::user()['id']);
+                set_flash('success', $fechar ? 'Fechamento semanal salvo.' : 'Fechamento semanal removido.');
+                $this->redirect('/?r=reservasTematicas/admin');
+            }
             if ($action === 'config_capacidade') {
                 $totais = $_POST['capacidade_total'] ?? [];
-                $turnos = $_POST['capacidade_turno'] ?? [];
                 $autoCancelNoShow = $_POST['auto_cancel_no_show_min'] ?? [];
+                $turnosAtivos = $turnoModel->allActive();
+                $turnosCount = max(1, count($turnosAtivos));
                 foreach ($totais as $restId => $capTotal) {
-                    $turnoCaps = $turnos[$restId] ?? [];
+                    $capacidadeTotal = max(0, (int)$capTotal);
+                    $base = intdiv($capacidadeTotal, $turnosCount);
+                    $remainder = $capacidadeTotal % $turnosCount;
+                    $turnoCaps = [];
+                    foreach ($turnosAtivos as $index => $turno) {
+                        $turnoCaps[(int)$turno['id']] = $base + ($index < $remainder ? 1 : 0);
+                    }
                     $autoCancelMin = (int)($autoCancelNoShow[$restId] ?? 0);
-                    $configModel->updateConfig((int)$restId, (int)$capTotal, $turnoCaps, (int)Auth::user()['id'], $autoCancelMin);
+                    $configModel->updateConfig((int)$restId, $capacidadeTotal, $turnoCaps, (int)Auth::user()['id'], $autoCancelMin);
                 }
-                set_flash('success', 'Configurações atualizadas.');
+                set_flash('success', 'Capacidades atualizadas e distribuídas entre os turnos ativos.');
                 $this->redirect('/?r=reservasTematicas/admin');
             }
 
@@ -1223,6 +1241,8 @@ class ReservasTematicasController extends Controller
             $turnosConfig[(int)$rest['id']] = $configModel->turnosConfig((int)$rest['id']);
             $turnosConfigData[(int)$rest['id']] = $configModel->turnosConfigForDate((int)$rest['id'], $capacidadeData);
         }
+        $bloqueiosData = $bloqueioDataModel->activeByDate($capacidadeData);
+        $bloqueiosSemanais = $bloqueioSemanalModel->all();
 
         $this->view('reservas_tematicas/admin', [
             'restaurantes' => $restaurantes,
@@ -1232,6 +1252,9 @@ class ReservasTematicasController extends Controller
             'turnos_config' => $turnosConfig,
             'turnos_config_data' => $turnosConfigData,
             'capacidade_data' => $capacidadeData,
+            'bloqueios_data' => $bloqueiosData,
+            'bloqueios_semanais' => $bloqueiosSemanais,
+            'can_manage_bloqueios' => $canManageBloqueios,
             'flash' => get_flash(),
         ]);
     }
@@ -1337,9 +1360,3 @@ class ReservasTematicasController extends Controller
         return $map[$status] ?? $status;
     }
 }
-
-
-
-
-
-

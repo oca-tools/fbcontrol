@@ -104,6 +104,12 @@ function get_flash(): ?array
     return $flash;
 }
 
+function app_demo_mode_enabled(): bool
+{
+    $user = class_exists('Auth') ? Auth::user() : null;
+    return (($user['perfil'] ?? '') === 'admin') && !empty($_SESSION['demo_mode']);
+}
+
 function h(string $value): string
 {
     return htmlspecialchars(normalize_mojibake($value), ENT_QUOTES, 'UTF-8');
@@ -146,6 +152,49 @@ function upload_limit_bytes(int $appMaxBytes): int
         }
     }
     return min($limits);
+}
+
+function sanitize_local_redirect_path(string $value, string $fallback = '/?r=home'): string
+{
+    if (preg_match('/[\x00-\x1F\x7F]/', $value)) {
+        return $fallback;
+    }
+
+    $value = trim($value);
+    if ($value === '') {
+        return $fallback;
+    }
+    if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $value)) {
+        return $fallback;
+    }
+    if (str_starts_with($value, '//') || !str_starts_with($value, '/') || strpos($value, '\\') !== false) {
+        return $fallback;
+    }
+    return $value;
+}
+
+function safe_download_filename(string $filename, string $fallback = 'download'): string
+{
+    $filename = basename(str_replace('\\', '/', $filename));
+    $filename = normalize_mojibake($filename);
+    $filename = str_replace(["\r", "\n", "\0", '"'], '', $filename);
+    $filename = preg_replace('/[^A-Za-z0-9._ -]+/', '_', $filename) ?? '';
+    $filename = preg_replace('/\s+/', ' ', trim($filename)) ?? '';
+    $filename = trim($filename, ". \t\n\r\0\x0B");
+
+    if ($filename === '') {
+        $filename = $fallback;
+    }
+    if (strlen($filename) > 140) {
+        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $base = pathinfo($filename, PATHINFO_FILENAME);
+        $filename = substr($base, 0, 120);
+        if ($ext !== '') {
+            $filename .= '.' . substr($ext, 0, 12);
+        }
+    }
+
+    return $filename;
 }
 
 function format_bytes_ptbr(int $bytes): string

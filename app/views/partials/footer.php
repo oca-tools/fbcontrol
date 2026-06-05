@@ -867,11 +867,18 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
             'vouchers/index',
         ],
         gerente: [
+            'access/index',
+            'vouchers/index',
+            'reservastematicas/reservas',
+            'reservastematicas/operacao',
+            'reservastematicas/admin',
             'control/index',
             'dashboard/index',
             'dashboard/restaurant',
             'kpis/index',
             'relatorios/index',
+            'relatoriostematicos/index',
+            'usuarios/index',
         ],
         admin: [
             'access/index',

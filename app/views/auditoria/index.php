@@ -60,6 +60,131 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
 };
 ?>
 
+<style>
+.audit-page .audit-filter-card,
+.audit-page .audit-table-card {
+    border: 1px solid var(--ab-border);
+    border-radius: 18px;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.audit-page .audit-table-card .table-responsive {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+    border-radius: 14px;
+}
+
+.audit-page .audit-table-card table {
+    margin-bottom: 0;
+}
+
+.audit-page .audit-table-card thead th {
+    color: var(--ab-muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--ab-soft-bg) 74%, var(--ab-card) 26%);
+}
+
+@media (max-width: 576px) {
+    .audit-page .card-soft {
+        padding: 0.9rem !important;
+        margin-bottom: 0.85rem !important;
+    }
+
+    .audit-page .card-soft .section-title {
+        align-items: flex-start;
+        gap: 0.55rem;
+    }
+
+    .audit-page .card-soft .section-title .icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+    }
+
+    .audit-page .card-soft h3 {
+        font-size: 1.08rem;
+        line-height: 1.18;
+    }
+
+    .audit-page .card-soft .section-title .text-muted:not(.small) {
+        display: none;
+    }
+
+    .audit-page .audit-filter-card,
+    .audit-page .audit-table-card {
+        padding: 0.85rem !important;
+        border-radius: 16px;
+    }
+
+    .audit-page .audit-filter-card .row {
+        --bs-gutter-x: 0.65rem;
+        --bs-gutter-y: 0.65rem;
+    }
+
+    .audit-page .audit-table-card .table-responsive {
+        border: 0;
+        overflow: visible;
+    }
+
+    .audit-page .audit-table-card table,
+    .audit-page .audit-table-card thead,
+    .audit-page .audit-table-card tbody,
+    .audit-page .audit-table-card tr,
+    .audit-page .audit-table-card td {
+        display: block;
+        width: 100%;
+    }
+
+    .audit-page .audit-table-card thead {
+        display: none;
+    }
+
+    .audit-page .audit-table-card tbody tr {
+        border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+        margin-bottom: 0.65rem;
+        padding: 0.65rem;
+    }
+
+    .audit-page .audit-table-card tbody td {
+        display: grid;
+        grid-template-columns: minmax(92px, 0.38fr) minmax(0, 1fr);
+        gap: 0.55rem;
+        align-items: center;
+        border: 0;
+        padding: 0.34rem 0;
+        word-break: break-word;
+    }
+
+    .audit-page .audit-table-card tbody td::before {
+        content: attr(data-label);
+        color: var(--ab-muted);
+        font-size: 0.7rem;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .audit-page .audit-table-card tbody td[colspan] {
+        display: block;
+        text-align: center;
+    }
+
+    .audit-page .audit-table-card tbody td[colspan]::before {
+        content: none;
+    }
+
+    .audit-page .pagination {
+        justify-content: center;
+        width: 100%;
+    }
+}
+</style>
+
+<div class="audit-page">
 <div class="card card-soft p-4 mb-4">
     <div class="section-title">
         <div class="icon"><i class="bi bi-shield-check"></i></div>
@@ -71,7 +196,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     </div>
 </div>
 
-<div class="card p-4 mb-4">
+<div class="card audit-filter-card p-4 mb-4">
     <form class="row g-3 align-items-end" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
         <input type="hidden" name="r" value="auditoria/index">
         <div class="col-12 col-md-2">
@@ -107,7 +232,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     </form>
 </div>
 
-<div class="card p-4 mb-4">
+<div class="card audit-table-card p-4 mb-4">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-calendar-heart"></i></div>
         <div>
@@ -132,13 +257,13 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
             <tbody>
                 <?php foreach (($thematicLogs['rows'] ?? []) as $log): ?>
                     <tr>
-                        <td><?= h($log['criado_em']) ?></td>
-                        <td><?= h($log['usuario'] ?? '-') ?></td>
-                        <td><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
-                        <td>#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
-                        <td><?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5)) ?></td>
-                        <td class="small text-muted"><?= h($log['justificativa'] ?? '') ?></td>
+                        <td data-label="Data/hora"><?= h($log['criado_em']) ?></td>
+                        <td data-label="Usuário"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
+                        <td data-label="Reserva">#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
+                        <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
+                        <td data-label="Turno"><?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5)) ?></td>
+                        <td data-label="Justificativa" class="small text-muted"><?= h($log['justificativa'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($thematicLogs['rows'] ?? [])): ?>
@@ -150,7 +275,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     <?php $renderPagination($thematicLogs, $filters); ?>
 </div>
 
-<div class="card p-4 mb-4">
+<div class="card audit-table-card p-4 mb-4">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-clock-history"></i></div>
         <div>
@@ -174,13 +299,13 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
             <tbody>
                 <?php foreach (($shiftLogs['rows'] ?? []) as $turno): ?>
                     <tr>
-                        <td><?= h($turno['usuario']) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($turno['restaurante']) ?>"><?= h($turno['restaurante']) ?></span></td>
-                        <td><span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></td>
-                        <td><?= h($turno['inicio_em']) ?></td>
-                        <td><?= h($turno['fim_em'] ?? 'Aberto') ?></td>
-                        <td><?= (int)$turno['total_registros'] ?></td>
-                        <td><?= (int)$turno['total_pax'] ?></td>
+                        <td data-label="Usuário"><?= h($turno['usuario']) ?></td>
+                        <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($turno['restaurante']) ?>"><?= h($turno['restaurante']) ?></span></td>
+                        <td data-label="Operação"><span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></td>
+                        <td data-label="Início"><?= h($turno['inicio_em']) ?></td>
+                        <td data-label="Fim"><?= h($turno['fim_em'] ?? 'Aberto') ?></td>
+                        <td data-label="Registros"><?= (int)$turno['total_registros'] ?></td>
+                        <td data-label="PAX"><?= (int)$turno['total_pax'] ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($shiftLogs['rows'] ?? [])): ?>
@@ -192,7 +317,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     <?php $renderPagination($shiftLogs, $filters); ?>
 </div>
 
-<div class="card p-4">
+<div class="card audit-table-card p-4">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-journal-text"></i></div>
         <div>
@@ -215,12 +340,12 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
             <tbody>
                 <?php foreach (($generalLogs['rows'] ?? []) as $log): ?>
                     <tr>
-                        <td><?= h($log['criado_em']) ?></td>
-                        <td><?= h($log['usuario'] ?? '-') ?></td>
-                        <td><?= h($log['tabela']) ?></td>
-                        <td><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
-                        <td><?= h((string)($log['registro_id'] ?? '-')) ?></td>
-                        <td class="small text-muted"><?= h(mb_substr((string)($log['dados_depois'] ?? ''), 0, 180, 'UTF-8')) ?></td>
+                        <td data-label="Data/hora"><?= h($log['criado_em']) ?></td>
+                        <td data-label="Usuário"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Área"><?= h($log['tabela']) ?></td>
+                        <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
+                        <td data-label="Registro"><?= h((string)($log['registro_id'] ?? '-')) ?></td>
+                        <td data-label="Dados" class="small text-muted"><?= h(mb_substr((string)($log['dados_depois'] ?? ''), 0, 180, 'UTF-8')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($generalLogs['rows'] ?? [])): ?>
@@ -230,4 +355,5 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
         </table>
     </div>
     <?php $renderPagination($generalLogs, $filters); ?>
+</div>
 </div>

@@ -11,3 +11,16 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+
+config/config.local.php export-ignore
+config/*.local.php export-ignore
+public/uploads/** export-ignore
+public/uploads/.htaccess -export-ignore
+logs/ export-ignore
+*.bak export-ignore
+*.bak.* export-ignore
+*.tmp export-ignore
+*.tar export-ignore
+*.tar.gz export-ignore
+*.zip export-ignore
+*.sql.gz export-ignore

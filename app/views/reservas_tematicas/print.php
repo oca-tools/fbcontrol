@@ -57,7 +57,7 @@ foreach ($reservas as $r) {
                     <td><?= htmlspecialchars($row['turno_hora']) ?></td>
                     <td><?= htmlspecialchars($row['uh_numero']) ?></td>
                     <td><?= htmlspecialchars($row['pax']) ?></td>
-                    <td><?= htmlspecialchars($row['status']) ?><?= !empty($row['excedente']) ? ' (Excedente)' : '' ?></td>
+                    <td><?= htmlspecialchars($row['status']) ?></td>
                     <?php if ($tipo === 'detalhada'): ?>
                         <td><?= htmlspecialchars($row['observacao_reserva'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($row['observacao_operacao'] ?? '-') ?></td>

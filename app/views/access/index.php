@@ -41,6 +41,111 @@ $showHostessTutorial = false;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 0.5rem;
     }
+    .access-register-actions {
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+    .access-primary-form {
+        display: grid;
+        gap: 1rem;
+    }
+    .access-primary-form .mb-3 {
+        margin-bottom: 0 !important;
+    }
+    .access-pax-control {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr) 56px;
+        gap: .65rem;
+        align-items: stretch;
+    }
+    .access-pax-control .btn,
+    .access-pax-control .form-control {
+        min-height: 54px;
+    }
+    @media (max-width: 991.98px) {
+        .access-start-grid .saas-hero-card,
+        .access-register-grid .saas-hero-card,
+        .access-register-grid .section-block {
+            border-radius: 18px;
+            padding: 1rem !important;
+        }
+        .access-register-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+        .access-register-actions form,
+        .access-register-actions .btn {
+            flex: 1 1 auto;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .access-page h3 {
+            font-size: 1.25rem;
+            line-height: 1.2;
+        }
+        .access-register-actions {
+            display: grid !important;
+            grid-template-columns: 1fr;
+        }
+        .access-register-actions form,
+        .access-register-actions .btn {
+            width: 100%;
+        }
+        .access-register-grid .quick-uh-wrap {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .access-register-grid .quick-uh-wrap .btn {
+            min-height: 44px;
+            white-space: normal;
+            line-height: 1.15;
+        }
+        .access-pax-control {
+            grid-template-columns: 52px minmax(0, 1fr) 52px;
+        }
+        .access-register-grid .recent-live-table,
+        .access-register-grid .recent-live-table tbody,
+        .access-register-grid .recent-live-table tr,
+        .access-register-grid .recent-live-table td {
+            display: block;
+            width: 100%;
+        }
+        .access-register-grid .recent-live-table thead {
+            display: none;
+        }
+        .access-register-grid .recent-live-table tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .access-register-grid .recent-live-table td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            white-space: normal;
+            text-align: right;
+        }
+        .access-register-grid .recent-live-table td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+        }
+        .access-register-grid .recent-live-table td .tag,
+        .access-register-grid .recent-live-table td .uh-badge,
+        .access-register-grid .recent-live-table td .badge {
+            max-width: 62%;
+            white-space: normal;
+            text-align: center;
+        }
+    }
 </style>
 
 <div class="saas-page access-page">
@@ -486,7 +591,7 @@ $showHostessTutorial = false;
                         </h3>
                         <div class="text-muted">Operação: <span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></div>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap">
+                    <div class="d-flex gap-2 flex-wrap access-register-actions">
                         <?php if ($allowHostessTutorial): ?>
                             <button type="button" class="btn btn-outline-primary" id="openHostessTutorial">
                                 <i class="bi bi-mortarboard me-1"></i>Tutorial
@@ -570,7 +675,7 @@ $showHostessTutorial = false;
                     </div>
                 <?php endif; ?>
 
-                <form method="post" action="/?r=access/register">
+                <form method="post" action="/?r=access/register" class="access-primary-form">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <div class="mb-3">
                     <label class="form-label">Número da UH</label>
@@ -592,7 +697,7 @@ $showHostessTutorial = false;
                     <?php if ($turno['exige_pax'] == 1): ?>
                         <div class="mb-3">
                             <label class="form-label">Quantidade de PAX</label>
-                            <div class="d-flex gap-2 align-items-center">
+                            <div class="access-pax-control">
                                 <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(-1)">-</button>
                                 <input type="number" min="1" name="pax" id="pax" class="form-control input-xl text-center" value="1" required>
                                 <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(1)">+</button>
@@ -688,10 +793,10 @@ $showHostessTutorial = false;
                         <tbody>
                             <?php foreach ($recentes as $item): ?>
                                 <tr>
-                                    <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
-                                    <td><?= h($item['pax']) ?></td>
-                                    <td><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
-                                    <td>
+                                    <td data-label="UH"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
+                                    <td data-label="PAX"><?= h($item['pax']) ?></td>
+                                    <td data-label="Operação"><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
+                                    <td data-label="Status">
                                         <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
                                             <span class="badge badge-warning">Duplicado</span>
                                         <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
@@ -1035,5 +1140,4 @@ $showHostessTutorial = false;
     </script>
 <?php endif; ?>
 </div>
-
 

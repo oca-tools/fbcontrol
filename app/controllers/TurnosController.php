@@ -56,6 +56,9 @@ class TurnosController extends Controller
         if (!$user) {
             return;
         }
+        if (app_demo_mode_enabled()) {
+            return;
+        }
         $graceMinutes = 10;
         (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
         (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
@@ -64,7 +67,7 @@ class TurnosController extends Controller
     public function start(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
 
         $shiftModel = new ShiftModel();
@@ -149,7 +152,7 @@ class TurnosController extends Controller
                 set_flash('danger', 'Operação inválida para este restaurante.');
                 $this->redirect('/?r=turnos/start');
             }
-            $outsideHorario = $this->isOutsideHorario($restOp);
+            $outsideHorario = !app_demo_mode_enabled() && $this->isOutsideHorario($restOp);
 
             $rest = $restaurantModel->find($restauranteId);
             $opInfo = (new OperationModel())->find($operacaoId);
@@ -205,6 +208,7 @@ class TurnosController extends Controller
                 'restaurante_id' => $restauranteId,
                 'operacao_id' => $operacaoId,
                 'porta_id' => $portaId > 0 ? $portaId : null,
+                'modo_demo' => app_demo_mode_enabled() ? 1 : 0,
             ], $user['id']);
 
             $this->redirect('/?r=access/index');
@@ -223,7 +227,7 @@ class TurnosController extends Controller
     public function end(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
 
         $shiftModel = new ShiftModel();
@@ -243,7 +247,7 @@ class TurnosController extends Controller
 
         $restOpModel = new RestaurantOperationModel();
         $restOp = $restOpModel->findByRestaurantOperation((int)$shift['restaurante_id'], (int)$shift['operacao_id']);
-        if ($restOp) {
+        if ($restOp && !app_demo_mode_enabled()) {
             $now = new DateTime('now', new DateTimeZone(date_default_timezone_get()));
             $end = DateTime::createFromFormat('H:i:s', $restOp['hora_fim'], new DateTimeZone(date_default_timezone_get()));
             if ($end) {
@@ -291,7 +295,7 @@ class TurnosController extends Controller
     public function cancel(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

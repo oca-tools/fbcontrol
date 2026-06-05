@@ -3,6 +3,33 @@ class LgpdModel extends Model
 {
     private const REQUEST_FINAL_STATUSES = ['concluida', 'indeferida'];
     private const INCIDENT_FINAL_STATUS = 'encerrado';
+    private const RETENTION_ALLOWED_TABLES = [
+        'auditoria' => [
+            'column' => 'criado_em',
+            'label' => 'Auditoria do sistema',
+            'description' => 'Eventos operacionais, segurança e rastreabilidade administrativa.',
+        ],
+        'relatorio_email_envios' => [
+            'column' => 'data_referencia',
+            'label' => 'Histórico de e-mails diários',
+            'description' => 'Registro de envios automáticos de relatórios.',
+        ],
+        'lgpd_eventos' => [
+            'column' => 'criado_em',
+            'label' => 'Eventos LGPD',
+            'description' => 'Trilha interna do módulo de privacidade.',
+        ],
+        'sessoes_ativas' => [
+            'column' => 'atualizado_em',
+            'label' => 'Sessões ativas',
+            'description' => 'Controle opcional de sessão única por usuário.',
+        ],
+    ];
+
+    public function retentionTableOptions(): array
+    {
+        return self::RETENTION_ALLOWED_TABLES;
+    }
 
     public function getConfig(): array
     {
@@ -116,14 +143,16 @@ class LgpdModel extends Model
 
         $dateFrom = trim((string)($filters['date_from'] ?? ''));
         if ($dateFrom !== '') {
-            $where[] = 'DATE(s.recebido_em) >= :date_from';
-            $params[':date_from'] = $dateFrom;
+            [$fromStart] = $this->dayRange($dateFrom);
+            $where[] = 's.recebido_em >= :date_from_start';
+            $params[':date_from_start'] = $fromStart;
         }
 
         $dateTo = trim((string)($filters['date_to'] ?? ''));
         if ($dateTo !== '') {
-            $where[] = 'DATE(s.recebido_em) <= :date_to';
-            $params[':date_to'] = $dateTo;
+            [, $toEnd] = $this->dayRange($dateTo);
+            $where[] = 's.recebido_em < :date_to_end';
+            $params[':date_to_end'] = $toEnd;
         }
 
         $sql = "
@@ -388,8 +417,8 @@ class LgpdModel extends Model
     public function upsertRetentionPolicy(array $data, int $userId): void
     {
         $tableName = strtolower(trim((string)$data['tabela_nome']));
-        if ($tableName === '') {
-            throw new InvalidArgumentException('Tabela invalida.');
+        if ($tableName === '' || !isset(self::RETENTION_ALLOWED_TABLES[$tableName])) {
+            throw new InvalidArgumentException('Tabela de retencao nao suportada.');
         }
 
         $stmtBefore = $this->db->prepare("SELECT * FROM lgpd_retencao_politicas WHERE tabela_nome = :table LIMIT 1");
@@ -413,7 +442,7 @@ class LgpdModel extends Model
             ':tabela_nome' => $tableName,
             ':descricao' => trim((string)$data['descricao']),
             ':retencao_dias' => max(1, (int)$data['retencao_dias']),
-            ':modo' => ($data['modo'] === 'anonimizar') ? 'anonimizar' : 'eliminar',
+            ':modo' => 'eliminar',
             ':ativo' => (int)$data['ativo'] === 1 ? 1 : 0,
             ':atualizado_por' => $userId,
         ]);
@@ -439,20 +468,13 @@ class LgpdModel extends Model
             'errors' => [],
         ];
 
-        $allowed = [
-            'relatorio_email_envios' => 'data_referencia',
-            'auditoria' => 'criado_em',
-            'lgpd_eventos' => 'criado_em',
-            'sessoes_ativas' => 'atualizado_em',
-        ];
-
         foreach ($policies as $policy) {
             if ((int)($policy['ativo'] ?? 0) !== 1) {
                 continue;
             }
 
             $table = strtolower(trim((string)($policy['tabela_nome'] ?? '')));
-            if ($table === '' || !isset($allowed[$table])) {
+            if ($table === '' || !isset(self::RETENTION_ALLOWED_TABLES[$table])) {
                 continue;
             }
             if (!$this->tableExists($table)) {
@@ -462,7 +484,7 @@ class LgpdModel extends Model
                 continue;
             }
 
-            $column = $allowed[$table];
+            $column = self::RETENTION_ALLOWED_TABLES[$table]['column'];
             $days = max(1, (int)($policy['retencao_dias'] ?? 180));
             $sql = "DELETE FROM `$table` WHERE `$column` < DATE_SUB(NOW(), INTERVAL :days DAY)";
 

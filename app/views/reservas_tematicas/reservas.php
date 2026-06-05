@@ -23,45 +23,714 @@ $selectedTags = [];
 if ($editItem && !empty($editItem['observacao_tags'])) {
     $selectedTags = array_map('trim', explode(',', $editItem['observacao_tags']));
 }
+$hasOptionalDetails = $editItem && (
+    !empty($editItem['grupo_nome'])
+    || !empty($editItem['chd_idades'])
+    || !empty($editItem['observacao_reserva'])
+    || !empty($selectedTags)
+);
 $availabilityDate = $filters['data'] ?? date('Y-m-d');
 $quickDates = [
     ['label' => 'Hoje', 'date' => date('Y-m-d')],
     ['label' => 'Amanhã', 'date' => date('Y-m-d', strtotime('+1 day'))],
 ];
+$availabilityTotals = [];
+$dayTotalCapacidade = 0;
+$dayTotalReservado = 0;
+$dayTotalRestante = 0;
+$dayClosedSlots = 0;
+$dayTotalSlots = max(1, count($restaurantes) * count($turnos));
+foreach ($restaurantes as $rest) {
+    $restId = (int)$rest['id'];
+    $totalCapacidade = 0;
+    $totalReservado = 0;
+    $totalRestante = 0;
+    $fechado = false;
+    foreach ($turnos as $turno) {
+        $info = $availability[$restId][(int)$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0, 'fechado' => false];
+        $totalCapacidade += (int)($info['capacidade'] ?? 0);
+        $totalReservado += (int)($info['reservado'] ?? 0);
+        $totalRestante += (int)($info['restante'] ?? 0);
+        $fechado = $fechado || !empty($info['fechado']);
+        $dayClosedSlots += !empty($info['fechado']) ? 1 : 0;
+    }
+    $dayTotalCapacidade += $totalCapacidade;
+    $dayTotalReservado += $totalReservado;
+    $dayTotalRestante += $totalRestante;
+    $availabilityTotals[$restId] = [
+        'capacidade' => $totalCapacidade,
+        'reservado' => $totalReservado,
+        'restante' => $totalRestante,
+        'fechado' => $fechado,
+        'percentual' => $totalCapacidade > 0 ? min(100, (int)round(($totalReservado / $totalCapacidade) * 100)) : 0,
+    ];
+}
+$dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReservado / $dayTotalCapacidade) * 100)) : 0;
 ?>
 
-<div class="saas-page reservas-tematicas-page">
-<div class="card card-soft p-4 mb-4">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-        <div class="section-title">
+<div class="saas-page reservas-tematicas-page reserva-redesign">
+<section class="reserva-hero mb-4">
+    <div class="reserva-hero-main">
+        <div class="section-title mb-0">
             <div class="icon"><i class="bi bi-calendar-heart"></i></div>
             <div>
                 <div class="text-uppercase text-muted small">Reservas Temáticas</div>
-                <h3 class="fw-bold mb-1">Ambiente de Reserva</h3>
-                <div class="text-muted">Registre e gerencie reservas para Giardino, IX'u e La Brasa.</div>
+                <h3 class="fw-bold mb-1">Mapa de reservas</h3>
+                <div class="text-muted">Escolha a data, veja disponibilidade e cadastre sem sair do fluxo.</div>
             </div>
         </div>
-        <span class="badge badge-soft">Jornada 1</span>
+        <div class="reserva-date-strip" aria-label="Datas rápidas">
+            <?php foreach ($quickDates as $quick): ?>
+                <?php $isActive = ($availabilityDate === $quick['date']); ?>
+                <button
+                    type="button"
+                    class="reserva-date-pill <?= $isActive ? 'active' : '' ?> js-quick-date"
+                    data-date="<?= h($quick['date']) ?>"
+                >
+                    <span><?= h($quick['label']) ?></span>
+                    <strong><?= h(date('d/m', strtotime($quick['date']))) ?></strong>
+                </button>
+            <?php endforeach; ?>
+            <div class="reserva-date-picker">
+                <input type="date" class="form-control form-control-sm js-availability-date-input" id="availabilityDateInput" value="<?= h($availabilityDate) ?>">
+                <button class="btn btn-outline-primary btn-sm js-availability-go" type="button" id="btnAvailabilityGo" aria-label="Carregar data"><i class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+        <div class="reserva-flow-steps" aria-label="Fluxo sugerido">
+            <div class="reserva-flow-step active" data-flow-step="date">
+                <span>1</span>
+                <strong>Escolha a data</strong>
+            </div>
+            <div class="reserva-flow-step" data-flow-step="slot">
+                <span>2</span>
+                <strong>Selecione o turno</strong>
+            </div>
+            <div class="reserva-flow-step" data-flow-step="guest">
+                <span>3</span>
+                <strong>Cadastre a UH</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="reserva-hero-side">
+        <div class="reserva-status-card <?= ($isHostess && !$canReserve) ? 'blocked' : 'open' ?>">
+            <div class="text-uppercase small"><?= ($isHostess && !$canReserve) ? 'Criação bloqueada' : 'Criação ativa' ?></div>
+            <strong><?= h(date('d/m/Y', strtotime($availabilityDate))) ?></strong>
+            <span class="js-availability-date-label">Data em análise</span>
+        </div>
+        <?php if (!empty($periodos)): ?>
+            <div class="reserva-window-card">
+                <i class="bi bi-clock-history"></i>
+                <div>
+                    <div class="text-uppercase small">Janela de reserva</div>
+                    <span>
+                        <?php foreach ($periodos as $idx => $p): ?><?= $idx > 0 ? ' · ' : '' ?><?= h(substr((string)$p['hora_inicio'], 0, 5)) ?>-<?= h(substr((string)$p['hora_fim'], 0, 5)) ?><?php endforeach; ?>
+                    </span>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mt-3"><?= h($flash['message']) ?></div>
+        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
     <?php endif; ?>
-
-    <div class="mt-3">
-        <div class="text-muted small">Horários permitidos para reservas:</div>
-        <div class="d-flex flex-wrap gap-2 mt-2">
-            <?php foreach ($periodos as $p): ?>
-                <span class="tag badge-soft"><i class="bi bi-clock me-1"></i><?= h($p['hora_inicio']) ?> - <?= h($p['hora_fim']) ?></span>
-            <?php endforeach; ?>
-        </div>
-        <?php if ($isHostess && !$canReserve): ?>
-            <div class="alert alert-warning mt-3">Fora do horário permitido para reservas. A criação está bloqueada para hostess.</div>
-        <?php endif; ?>
-    </div>
-</div>
+    <?php if ($isHostess && !$canReserve): ?>
+        <div class="alert alert-warning mb-0">Fora do horário permitido para reservas. A criação está bloqueada para hostess.</div>
+    <?php endif; ?>
+</section>
 
 <style>
+.reserva-redesign {
+    --reservation-muted-bg: color-mix(in srgb, var(--ab-soft-bg) 78%, var(--ab-card) 22%);
+}
+
+.reserva-hero,
+.reserva-planner,
+.reservation-compose-card {
+    border: 1px solid var(--ab-border);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+}
+
+.reserva-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+    gap: 1rem;
+    padding: 1.1rem;
+}
+
+.reserva-hero-main,
+.reserva-hero-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.reserva-date-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.reserva-date-pill {
+    border: 1px solid var(--ab-border);
+    border-radius: 14px;
+    background: var(--reservation-muted-bg);
+    color: var(--ab-ink);
+    min-width: 92px;
+    min-height: 54px;
+    padding: 0.45rem 0.7rem;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    transition: .16s ease;
+}
+
+.reserva-date-pill span {
+    color: var(--ab-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.reserva-date-pill strong {
+    font-size: 1.02rem;
+}
+
+.reserva-date-pill.active,
+.reserva-date-pill:hover {
+    border-color: color-mix(in srgb, var(--ab-accent) 70%, var(--ab-border) 30%);
+    background: color-mix(in srgb, var(--ab-accent) 14%, var(--ab-card) 86%);
+    transform: translateY(-1px);
+}
+
+.reserva-date-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: min(100%, 228px);
+}
+
+.reserva-date-picker .form-control {
+    min-height: 42px;
+}
+
+.reserva-flow-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.reserva-flow-step {
+    border: 1px solid var(--ab-border);
+    border-radius: 14px;
+    background: var(--reservation-muted-bg);
+    padding: 0.58rem 0.62rem;
+    display: flex;
+    align-items: center;
+    gap: 0.52rem;
+    min-width: 0;
+}
+
+.reserva-flow-step span {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--ab-accent) 13%, var(--ab-card) 87%);
+    color: var(--ab-accent);
+    font-weight: 850;
+}
+
+.reserva-flow-step strong {
+    min-width: 0;
+    color: var(--ab-ink);
+    font-size: 0.82rem;
+    line-height: 1.15;
+}
+
+.reserva-flow-step.active {
+    border-color: color-mix(in srgb, var(--ab-accent) 42%, var(--ab-border) 58%);
+    background: color-mix(in srgb, var(--ab-accent) 10%, var(--ab-card) 90%);
+}
+
+.reserva-flow-step.completed {
+    border-color: color-mix(in srgb, #16a34a 42%, var(--ab-border) 58%);
+    background: color-mix(in srgb, #16a34a 10%, var(--ab-card) 90%);
+}
+
+.reserva-flow-step.completed span {
+    background: color-mix(in srgb, #16a34a 18%, var(--ab-card) 82%);
+    color: #15803d;
+}
+
+.reserva-status-card,
+.reserva-window-card {
+    border-radius: 16px;
+    border: 1px solid var(--ab-border);
+    background: var(--reservation-muted-bg);
+    padding: 0.85rem;
+}
+
+.reserva-status-card {
+    border-left: 5px solid #16a34a;
+}
+
+.reserva-status-card.blocked {
+    border-left-color: #dc2626;
+}
+
+.reserva-status-card .small,
+.reserva-window-card .small {
+    color: var(--ab-muted);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.reserva-status-card strong {
+    display: block;
+    font-size: 1.15rem;
+}
+
+.reserva-status-card span,
+.reserva-window-card span {
+    color: var(--ab-muted);
+    font-size: 0.88rem;
+}
+
+.reserva-window-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.reserva-window-card i {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--ab-accent) 16%, transparent);
+    color: var(--ab-accent);
+}
+
+.reserva-planner {
+    padding: 1rem;
+}
+
+.reserva-planner-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 0.85rem;
+}
+
+.reserva-planner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.reserva-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.reserva-day-overview {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 0.9rem;
+}
+
+.reserva-day-metric {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ab-card) 86%, var(--ab-soft-bg) 14%);
+    padding: 0.68rem 0.75rem;
+    min-width: 0;
+}
+
+.reserva-day-metric > span {
+    display: block;
+    color: var(--ab-muted);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.reserva-day-metric strong {
+    display: block;
+    margin-top: 0.18rem;
+    color: var(--ab-ink);
+    font-size: 1.04rem;
+    line-height: 1.15;
+}
+
+.reserva-day-metric strong span {
+    display: inline;
+}
+
+.reserva-day-meter {
+    grid-column: 1 / -1;
+    height: 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ab-border) 62%, transparent);
+    overflow: hidden;
+}
+
+.reserva-day-meter span {
+    display: block;
+    height: 100%;
+    width: var(--reservation-day-progress, 0%);
+    background: linear-gradient(90deg, #16a34a, #f97316);
+}
+
+.reserva-rest-card {
+    border: 1px solid var(--ab-border);
+    border-radius: 16px;
+    background: var(--reservation-muted-bg);
+    padding: 0.85rem;
+    min-width: 0;
+}
+
+.reserva-rest-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.65rem;
+    align-items: center;
+    margin-bottom: 0.7rem;
+}
+
+.reserva-rest-progress {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ab-border) 58%, transparent);
+    overflow: hidden;
+    margin: 0.65rem 0;
+}
+
+.reserva-rest-progress span {
+    display: block;
+    height: 100%;
+    width: var(--reservation-progress, 0%);
+    background: linear-gradient(90deg, #16a34a, #f97316);
+}
+
+.reserva-turnos-inline {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.reserva-turno-chip {
+    border: 1px solid var(--ab-border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ab-card) 88%, transparent);
+    padding: 0.52rem 0.6rem;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.reserva-turno-chip.is-closed {
+    opacity: 0.72;
+}
+
+.reserva-turno-chip.is-full:not(.is-closed) {
+    border-color: color-mix(in srgb, #dc2626 38%, var(--ab-border) 62%);
+    background: color-mix(in srgb, #dc2626 7%, var(--ab-card) 93%);
+}
+
+.reserva-turno-chip.is-full .reserva-turno-action,
+.reserva-turno-chip.is-closed .reserva-turno-action {
+    color: var(--ab-muted);
+    cursor: not-allowed;
+}
+
+.reserva-turno-chip.is-selected,
+.availability-turno-tile.is-selected {
+    border-color: color-mix(in srgb, var(--ab-accent) 62%, var(--ab-border) 38%);
+    background: color-mix(in srgb, var(--ab-accent) 11%, var(--ab-card) 89%);
+    box-shadow: 0 12px 26px color-mix(in srgb, var(--ab-accent) 18%, transparent);
+}
+
+.reserva-turno-hour {
+    font-weight: 850;
+}
+
+.reserva-turno-meta {
+    color: var(--ab-muted);
+    font-size: 0.78rem;
+    min-width: 0;
+}
+
+.reserva-turno-action {
+    border: 0;
+    background: transparent;
+    color: var(--ab-accent);
+    font-weight: 800;
+    padding: 0;
+}
+
+.reservation-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(320px, 0.44fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.reservation-compose-card {
+    padding: 1rem;
+}
+
+.reservation-sticky-panel {
+    position: sticky;
+    top: 6.7rem;
+}
+
+.selected-slot-preview {
+    border: 1px solid color-mix(in srgb, var(--ab-accent) 25%, var(--ab-border) 75%);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
+    padding: 0.72rem;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 0.66rem;
+    align-items: center;
+    margin-bottom: 0.85rem;
+}
+
+.selected-slot-preview i {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ab-accent);
+    background: color-mix(in srgb, var(--ab-accent) 14%, var(--ab-card) 86%);
+}
+
+.selected-slot-preview .slot-kicker {
+    color: var(--ab-muted);
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.selected-slot-preview .slot-title {
+    color: var(--ab-ink);
+    font-weight: 850;
+    line-height: 1.18;
+}
+
+.selected-slot-preview .slot-meta {
+    color: var(--ab-muted);
+    font-size: 0.8rem;
+}
+
+.form-step-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--ab-muted);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+}
+
+.form-step-label span {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--ab-accent) 18%, transparent);
+    color: var(--ab-accent);
+}
+
+.mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.35rem;
+    border: 1px solid var(--ab-border);
+    border-radius: 16px;
+    background: var(--reservation-muted-bg);
+}
+
+.mode-switch .btn {
+    border-radius: 12px !important;
+}
+
+.reservation-compose-card .form-label {
+    color: var(--ab-ink);
+    font-size: 0.82rem;
+    font-weight: 760;
+}
+
+.reservation-compose-card .form-control,
+.reservation-compose-card .form-select {
+    border-color: color-mix(in srgb, var(--ab-border) 78%, transparent);
+    background: color-mix(in srgb, var(--ab-card) 96%, var(--ab-soft-bg) 4%);
+}
+
+.reservation-compose-card .form-control:focus,
+.reservation-compose-card .form-select:focus {
+    border-color: color-mix(in srgb, var(--ab-accent) 58%, var(--ab-border) 42%);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--ab-accent) 16%, transparent);
+}
+
+.reservation-person-panel {
+    border-left: 3px solid color-mix(in srgb, var(--ab-accent) 62%, var(--ab-border) 38%);
+    padding-left: 0.85rem;
+}
+
+.reservation-person-panel .mb-3:last-child {
+    margin-bottom: 0 !important;
+}
+
+.reservation-form-divider {
+    height: 1px;
+    margin: 0.85rem 0;
+    background: color-mix(in srgb, var(--ab-border) 72%, transparent);
+}
+
+.reservation-optional-panel {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--ab-soft-bg) 66%, var(--ab-card) 34%);
+    margin-top: 0.85rem;
+    margin-bottom: 0.85rem;
+    overflow: hidden;
+}
+
+.reservation-optional-panel summary {
+    list-style: none;
+    min-height: 48px;
+    padding: 0.72rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+    color: var(--ab-ink);
+    font-weight: 820;
+}
+
+.reservation-optional-panel summary::-webkit-details-marker {
+    display: none;
+}
+
+.reservation-optional-panel summary::after {
+    content: "+";
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--ab-accent) 13%, var(--ab-card) 87%);
+    color: var(--ab-accent);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.reservation-optional-panel[open] summary::after {
+    content: "-";
+}
+
+.reservation-optional-body {
+    padding: 0 0.85rem 0.85rem;
+}
+
+.tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.tag-choice {
+    position: relative;
+}
+
+.tag-choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tag-choice label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    min-height: 34px;
+    border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+    border-radius: 999px;
+    padding: 0.36rem 0.62rem;
+    background: color-mix(in srgb, var(--ab-card) 92%, var(--ab-soft-bg) 8%);
+    color: var(--ab-muted);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 720;
+    transition: 0.16s ease;
+}
+
+.tag-choice input:checked + label {
+    border-color: color-mix(in srgb, var(--ab-accent) 58%, var(--ab-border) 42%);
+    background: color-mix(in srgb, var(--ab-accent) 13%, var(--ab-card) 87%);
+    color: var(--ab-ink);
+}
+
+.tag-choice label:hover {
+    transform: translateY(-1px);
+}
+
+.reservation-batch-panel {
+    border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent) !important;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--ab-soft-bg) 70%, var(--ab-card) 30%) !important;
+    box-shadow: none;
+}
+
+.reservation-submit-bar {
+    display: grid;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+}
+
+.reservation-submit-bar .btn {
+    min-height: 48px;
+}
+
+.availability-modal-content {
+    border: 0;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.availability-modal-content .modal-header {
+    border-bottom: 1px solid color-mix(in srgb, var(--ab-border) 68%, transparent);
+    background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
+}
+
 .availability-vertical-grid {
     display: grid;
     gap: 1rem;
@@ -111,6 +780,56 @@ $quickDates = [
     color: var(--text-muted, #6b7280);
 }
 
+.availability-detail-list {
+    display: grid;
+    gap: 0.65rem;
+    max-height: min(52vh, 520px);
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.availability-detail-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.65rem;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, transparent);
+    border-radius: 14px;
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+}
+
+.availability-detail-title {
+    font-weight: 850;
+    color: var(--ab-ink);
+    line-height: 1.18;
+}
+
+.availability-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+}
+
+.availability-detail-meta span {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ab-soft-bg) 82%, var(--ab-card) 18%);
+    color: var(--ab-muted);
+    font-size: 0.75rem;
+    font-weight: 760;
+    padding: 0.24rem 0.5rem;
+}
+
+.availability-detail-empty {
+    border: 1px dashed color-mix(in srgb, var(--ab-border) 86%, transparent);
+    border-radius: 14px;
+    padding: 1rem;
+    color: var(--ab-muted);
+    text-align: center;
+    background: color-mix(in srgb, var(--ab-soft-bg) 62%, transparent);
+}
+
 .batch-rows {
     display: grid;
     gap: 0.55rem;
@@ -121,19 +840,25 @@ $quickDates = [
     border-radius: 0.8rem;
     padding: 0.55rem;
     overflow-x: auto;
+    background: color-mix(in srgb, var(--ab-card) 86%, transparent);
 }
 
 .batch-row-grid {
     display: grid;
-    grid-template-columns: 92px 110px minmax(140px, 1fr) minmax(160px, 1.2fr) 44px;
+    grid-template-columns: 92px 110px minmax(140px, 1fr) 44px;
     gap: 0.5rem;
     align-items: end;
-    min-width: 560px;
+    min-width: 420px;
 }
 
 .batch-row-grid .form-label {
     font-size: 0.76rem;
     margin-bottom: 0.2rem;
+}
+
+.batch-row-grid .js-remove-batch-row {
+    min-height: 38px;
+    border-radius: 12px;
 }
 
 .batch-hint {
@@ -142,6 +867,48 @@ $quickDates = [
 }
 
 @media (max-width: 991px) {
+    .reserva-hero,
+    .reservation-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .reserva-flow-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .reservation-sticky-panel {
+        position: static;
+    }
+
+    .reserva-board {
+        grid-template-columns: 1fr;
+    }
+
+    .reserva-day-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reserva-planner-head {
+        flex-direction: column;
+    }
+
+    .reserva-planner-actions {
+        width: 100%;
+    }
+
+    .reserva-planner-actions .btn {
+        flex: 1 1 150px;
+    }
+
+    .reserva-turno-chip {
+        grid-template-columns: 54px minmax(0, 1fr);
+    }
+
+    .reserva-turno-action {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
     .batch-row-grid {
         min-width: 100%;
         grid-template-columns: 1fr 1fr;
@@ -150,26 +917,292 @@ $quickDates = [
     .batch-row-grid > div:last-child {
         grid-column: span 2;
     }
+
+    .reservation-submit-bar {
+        position: sticky;
+        bottom: 0.55rem;
+        z-index: 12;
+        margin-left: -0.2rem;
+        margin-right: -0.2rem;
+        padding: 0.55rem;
+        border: 1px solid color-mix(in srgb, var(--ab-border) 70%, transparent);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+    }
+}
+
+@media (max-width: 576px) {
+    .reserva-hero {
+        gap: 0.75rem;
+        padding: 0.85rem;
+        margin-bottom: 0.85rem !important;
+    }
+
+    .reserva-hero .section-title {
+        align-items: flex-start;
+        gap: 0.55rem;
+    }
+
+    .reserva-hero .section-title .icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+    }
+
+    .reserva-hero h3 {
+        font-size: 1.08rem;
+        line-height: 1.18;
+        margin-bottom: 0 !important;
+    }
+
+    .reserva-hero-main > .section-title .text-muted:not(.small) {
+        display: none;
+    }
+
+    .reserva-date-strip {
+        gap: 0.45rem;
+    }
+
+    .reserva-date-pill {
+        flex: 1 1 calc(50% - 0.45rem);
+        min-width: 0;
+        padding: 0.52rem;
+    }
+
+    .reserva-date-picker {
+        flex: 1 1 100%;
+    }
+
+    .reserva-flow-steps {
+        display: none;
+    }
+
+    .reserva-hero-side {
+        gap: 0.5rem;
+    }
+
+    .reserva-status-card,
+    .reserva-window-card {
+        padding: 0.65rem;
+    }
+
+    .reserva-planner {
+        padding: 0.85rem;
+    }
+
+    .reserva-planner-head {
+        gap: 0.75rem;
+    }
+
+    .reserva-planner-head h5,
+    .reservation-compose-card h5 {
+        font-size: 1rem;
+    }
+
+    .reserva-rest-card {
+        padding: 0.72rem;
+    }
+
+    .reserva-day-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .reserva-turnos-inline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+
+    .reserva-turno-chip {
+        grid-template-columns: 1fr;
+        gap: 0.28rem;
+        padding: 0.52rem;
+    }
+
+    .reserva-turno-hour {
+        font-size: 0.98rem;
+    }
+
+    .reserva-turno-meta {
+        font-size: 0.72rem;
+    }
+
+    .reserva-turno-meta strong {
+        display: block;
+        line-height: 1.12;
+    }
+
+    .reserva-turno-action {
+        grid-column: auto;
+        justify-self: stretch;
+        min-height: 30px;
+        border: 1px solid color-mix(in srgb, var(--ab-accent) 36%, var(--ab-border) 64%);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
+        font-size: 0.78rem;
+    }
+
+    .tag-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .tag-choice label {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .availability-modal-content {
+        border-radius: 18px;
+    }
+
+    .availability-modal-content .modal-header {
+        padding: 0.75rem 0.9rem;
+    }
+
+    .availability-modal-content .modal-body {
+        padding: 0.8rem;
+    }
+
+    .availability-modal-content .modal-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        padding: 0.7rem;
+        background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+    }
+
+    .availability-modal-content .modal-footer .btn {
+        width: 100%;
+    }
+
+    .reservation-person-panel {
+        border-left: 0;
+        padding-left: 0;
+    }
+
+    .reservation-compose-card .row.g-2 > [class*="col-"] {
+        min-width: 0;
+    }
 }
 </style>
 
-<div class="row g-4">
-    <div class="col-12">
-        <div class="card p-4">
+<div class="reservation-workspace mb-4">
+    <section class="reserva-planner">
+        <div class="reserva-planner-head">
+            <div>
+                <div class="text-uppercase text-muted small">Capacidade e escolha rápida</div>
+                <h5 class="fw-bold mb-1">Disponibilidade por restaurante</h5>
+                <div class="text-muted small">Clique em um turno para carregar restaurante/horário no cadastro.</div>
+            </div>
+            <div class="reserva-planner-actions">
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#availabilityModal">
+                    <i class="bi bi-arrows-fullscreen me-1"></i>Ver detalhes
+                </button>
+                <button type="button" class="btn btn-primary btn-sm js-scroll-compose">
+                    <i class="bi bi-pencil-square me-1"></i>Ir para cadastro
+                </button>
+            </div>
+        </div>
+
+        <div class="reserva-day-overview">
+            <div class="reserva-day-metric">
+                <span>Disponíveis</span>
+                <strong><span class="js-day-restante"><?= (int)$dayTotalRestante ?></span></strong>
+            </div>
+            <div class="reserva-day-metric">
+                <span>Reservados</span>
+                <strong><span class="js-day-reservado"><?= (int)$dayTotalReservado ?></span></strong>
+            </div>
+            <div class="reserva-day-metric">
+                <span>Capacidade</span>
+                <strong><span class="js-day-capacidade"><?= (int)$dayTotalCapacidade ?></span></strong>
+            </div>
+            <div class="reserva-day-metric">
+                <span>Fechados</span>
+                <strong><span class="js-day-fechados"><?= (int)$dayClosedSlots ?></span>/<span class="js-day-turnos"><?= (int)$dayTotalSlots ?></span></strong>
+            </div>
+            <div class="reserva-day-meter" style="--reservation-day-progress: <?= (int)$dayPercentual ?>%;">
+                <span class="js-day-progress"></span>
+            </div>
+        </div>
+
+        <div class="reserva-board">
+            <?php foreach ($restaurantes as $rest): ?>
+                <?php
+                    $restId = (int)$rest['id'];
+                    $totais = $availabilityTotals[$restId] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0, 'fechado' => false, 'percentual' => 0];
+                ?>
+                <article class="reserva-rest-card js-rest-card" data-rest-id="<?= $restId ?>">
+                    <div class="reserva-rest-head">
+                        <span class="tag <?= restaurant_badge_class($rest['nome']) ?>"><?= h($rest['nome']) ?></span>
+                        <span class="badge <?= ((int)$totais['restante'] > 0) ? 'badge-success' : 'badge-danger' ?> js-rest-total-badge">
+                            <?= !empty($totais['fechado']) && (int)$totais['capacidade'] === 0 ? 'Fechado' : (int)$totais['restante'] . ' disp.' ?>
+                        </span>
+                    </div>
+                    <div class="reserva-rest-progress js-rest-progress" style="--reservation-progress: <?= (int)$totais['percentual'] ?>%;">
+                        <span></span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span><span class="js-rest-reservado"><?= (int)$totais['reservado'] ?></span> reservados</span>
+                        <span><span class="js-rest-capacidade"><?= (int)$totais['capacidade'] ?></span> lugares</span>
+                    </div>
+                    <div class="reserva-turnos-inline">
+                        <?php foreach ($turnos as $turno): ?>
+                            <?php
+                                $info = $availability[$restId][(int)$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0, 'fechado' => false];
+                                $fechado = !empty($info['fechado']);
+                                $restante = (int)($info['restante'] ?? 0);
+                                $capacidade = (int)($info['capacidade'] ?? 0);
+                                $reservado = (int)($info['reservado'] ?? 0);
+                            ?>
+                            <div
+                                class="reserva-turno-chip js-availability-cell <?= $fechado ? 'is-closed' : '' ?> <?= (!$fechado && $capacidade > 0 && $restante <= 0) ? 'is-full' : '' ?>"
+                                data-rest-id="<?= $restId ?>"
+                                data-turno-id="<?= (int)$turno['id'] ?>"
+                                data-rest-nome="<?= h($rest['nome']) ?>"
+                                data-turno-hora="<?= h($turno['hora']) ?>"
+                                data-restante="<?= $restante ?>"
+                                data-reservado="<?= $reservado ?>"
+                                data-capacidade="<?= $capacidade ?>"
+                                data-fechado="<?= $fechado ? '1' : '0' ?>"
+                            >
+                                <div class="reserva-turno-hour"><?= h(substr((string)$turno['hora'], 0, 5)) ?></div>
+                                <div class="reserva-turno-meta">
+                                    <strong class="js-availability-restante"><?= $fechado ? 'Fechado' : $restante . ' livres' ?></strong>
+                                    <span class="d-block js-availability-rc"><span class="js-availability-reservado"><?= $reservado ?></span><?= $fechado ? ' reservas' : '/' . $capacidade . ' ocupados' ?></span>
+                                </div>
+                                <button type="button" class="reserva-turno-action js-pick-slot" data-rest-id="<?= $restId ?>" data-turno-id="<?= (int)$turno['id'] ?>" <?= ($fechado || ($capacidade > 0 && $restante <= 0)) ? 'disabled' : '' ?>>
+                                    <?= (!$fechado && $capacidade > 0 && $restante <= 0) ? 'Lotado' : 'Selecionar' ?>
+                                </button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="reservation-compose-card reservation-sticky-panel">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <div class="text-uppercase text-muted small"><?= $editItem ? 'Editar reserva' : 'Nova reserva' ?></div>
-                    <h5 class="fw-bold mb-0">Cadastro rápido</h5>
+                    <h5 class="fw-bold mb-0">Cadastro assistido</h5>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#availabilityModal">
-                        <i class="bi bi-grid-3x3-gap me-1"></i>Ver capacidade
-                    </button>
                     <?php if ($isHostess && !$canReserve): ?>
                         <span class="badge badge-danger">Inativo</span>
                     <?php else: ?>
                         <span class="badge badge-success">Ativo</span>
                     <?php endif; ?>
+                </div>
+            </div>
+            <div class="selected-slot-preview" id="selectedSlotPreview">
+                <i class="bi bi-calendar2-check"></i>
+                <div>
+                    <div class="slot-kicker">Seleção atual</div>
+                    <div class="slot-title" id="selectedSlotTitle">Escolha um restaurante e turno</div>
+                    <div class="slot-meta" id="selectedSlotMeta">Clique em um turno disponível no mapa para preencher automaticamente.</div>
                 </div>
             </div>
 
@@ -181,13 +1214,13 @@ $quickDates = [
                 <?php endif; ?>
 
                 <div class="mb-3">
-                    <label class="form-label">Data da reserva</label>
+                    <label class="form-label form-step-label"><span>1</span>Data da reserva</label>
                     <input type="date" class="form-control input-xl" name="data_reserva" value="<?= h($editItem['data_reserva'] ?? $filters['data'] ?? date('Y-m-d')) ?>" required>
                 </div>
 
                 <div class="row g-2 mb-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label">1) Restaurante</label>
+                        <label class="form-label form-step-label"><span>2</span>Restaurante</label>
                         <select class="form-select input-xl" name="restaurante_id" required>
                             <option value="">Selecione</option>
                             <?php foreach ($restaurantes as $rest): ?>
@@ -198,7 +1231,7 @@ $quickDates = [
                         </select>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label">2) Turno</label>
+                        <label class="form-label form-step-label"><span>3</span>Turno</label>
                         <select class="form-select input-xl" name="turno_id" required>
                             <option value="">Selecione</option>
                             <?php foreach ($turnos as $turno): ?>
@@ -212,16 +1245,15 @@ $quickDates = [
 
                 <?php if (!$editItem): ?>
                     <div class="mb-3">
-                        <label class="form-label">Tipo de registro</label>
-                        <div class="btn-group w-100" role="group" aria-label="Tipo de reserva">
-                            <button type="button" class="btn btn-primary" id="btnModeSingle">Individual</button>
-                            <button type="button" class="btn btn-outline-primary" id="btnModeBatch">Lote</button>
+                        <label class="form-label form-step-label"><span>4</span>Formato da reserva</label>
+                        <div class="mode-switch" role="group" aria-label="Tipo de reserva">
+                            <button type="button" class="btn btn-primary" id="btnModeSingle"><i class="bi bi-person me-1"></i>Individual</button>
+                            <button type="button" class="btn btn-outline-primary" id="btnModeBatch"><i class="bi bi-people me-1"></i>Grupo</button>
                         </div>
-                        <div class="batch-hint mt-1">No modo lote, a tela troca para múltiplas UHs e reduz a poluição visual.</div>
                     </div>
                 <?php endif; ?>
 
-                <div id="singleReservationPanel">
+                <div id="singleReservationPanel" class="reservation-person-panel">
                     <div class="mb-3">
                         <label class="form-label">UH</label>
                         <input type="text" class="form-control input-xl" name="uh_numero" inputmode="numeric" value="<?= h($editItem['uh_numero'] ?? '') ?>" placeholder="Ex: 402" required>
@@ -232,120 +1264,124 @@ $quickDates = [
                         <input type="text" class="form-control input-xl" name="titular_nome" value="<?= h($editItem['titular_nome'] ?? '') ?>" placeholder="Nome e sobrenome" required>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Grupo (opcional)</label>
-                        <input type="text" class="form-control input-xl" name="grupo_nome" value="<?= h($editItem['grupo_nome'] ?? '') ?>" maxlength="120" placeholder="Ex: Famtour ABAV, Família Silva, Evento XYZ">
-                        <div class="text-muted small mt-1">Use para identificar grupos comerciais/famílias, separado do conceito de lote técnico.</div>
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-md-5">
-                            <label class="form-label">Qtd PAX</label>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label">PAX</label>
                             <input type="number" class="form-control input-xl text-center" min="1" name="pax" value="<?= h($editItem['pax'] ?? 1) ?>" required>
                         </div>
-                        <div class="col-12 col-md-7">
-                            <label class="form-label">Idades CHD (opcional)</label>
-                            <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3, 7">
-                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Marcadores rápidos</label>
-                        <div class="tag-grid">
-                            <?php foreach ($tagsPadrao as $tag): ?>
-                                <?php $tagId = 'tag_' . md5($tag); ?>
-                                <div class="tag-choice">
-                                    <input type="checkbox" id="<?= h($tagId) ?>" name="observacao_tags[]" value="<?= h($tag) ?>" <?= in_array($tag, $selectedTags, true) ? 'checked' : '' ?>>
-                                    <label for="<?= h($tagId) ?>"><i class="bi bi-bookmark-star"></i><?= h($tag) ?></label>
+                    <details class="reservation-optional-panel" <?= $hasOptionalDetails ? 'open' : '' ?>>
+                        <summary>
+                            <span>Detalhes opcionais</span>
+                            <small class="text-muted fw-semibold">grupo, CHD, marcadores e observações</small>
+                        </summary>
+                        <div class="reservation-optional-body">
+                            <div class="mb-3">
+                                <label class="form-label">Grupo (opcional)</label>
+                                <input type="text" class="form-control input-xl" name="grupo_nome" value="<?= h($editItem['grupo_nome'] ?? '') ?>" maxlength="120" placeholder="Ex: Famtour ABAV, Família Silva, Evento XYZ">
+                                <div class="text-muted small mt-1">Use para identificar grupos comerciais/famílias, separado do cadastro individual.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Idades CHD (opcional)</label>
+                                <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3y7y">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Marcadores rápidos</label>
+                                <div class="tag-grid">
+                                    <?php foreach ($tagsPadrao as $tag): ?>
+                                        <?php $tagId = 'tag_' . md5($tag); ?>
+                                        <div class="tag-choice">
+                                            <input type="checkbox" id="<?= h($tagId) ?>" name="observacao_tags[]" value="<?= h($tag) ?>" <?= in_array($tag, $selectedTags, true) ? 'checked' : '' ?>>
+                                            <label for="<?= h($tagId) ?>"><i class="bi bi-bookmark-star"></i><?= h($tag) ?></label>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
+                            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Observações</label>
-                        <textarea class="form-control" name="observacao_reserva" rows="3" placeholder="Observações gerais..."><?= h($editItem['observacao_reserva'] ?? '') ?></textarea>
-                    </div>
+                            <div class="mb-0">
+                                <label class="form-label">Observações</label>
+                                <textarea class="form-control" name="observacao_reserva" rows="3" placeholder="Observações gerais..."><?= h($editItem['observacao_reserva'] ?? '') ?></textarea>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <?php if (!$editItem): ?>
-                    <div id="batchReservationPanel" class="card border-0 bg-light-subtle p-3 mb-3 d-none">
+                    <div id="batchReservationPanel" class="card reservation-batch-panel p-3 mb-3 d-none">
                         <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                             <div>
-                                <div class="text-uppercase text-muted small">Reserva em lote</div>
-                                <div class="fw-semibold">Múltiplas UHs no mesmo atendimento</div>
+                                <div class="text-uppercase text-muted small">Reserva em grupo</div>
+                                <div class="fw-semibold">Múltiplas UHs vinculadas a um titular</div>
                             </div>
-                            <span class="badge badge-soft">Modo lote</span>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Grupo (opcional)</label>
-                            <input type="text" class="form-control" name="grupo_nome" maxlength="120" placeholder="Ex: Famtour ABAV, Família Silva, Evento XYZ">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Marcadores rápidos</label>
-                            <div class="tag-grid">
-                                <?php foreach ($tagsPadrao as $tag): ?>
-                                    <?php $tagId = 'batch_tag_' . md5($tag); ?>
-                                    <div class="tag-choice">
-                                        <input type="checkbox" id="<?= h($tagId) ?>" name="observacao_tags[]" value="<?= h($tag) ?>">
-                                        <label for="<?= h($tagId) ?>"><i class="bi bi-bookmark-star"></i><?= h($tag) ?></label>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Observações</label>
-                            <textarea class="form-control" name="observacao_reserva" rows="3" placeholder="Observações gerais para o lote..."></textarea>
+                            <span class="badge badge-soft">Grupo</span>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label">Titular padrão do lote</label>
-                            <input type="text" class="form-control" name="grupo_responsavel" id="batchDefaultTitular" placeholder="Nome que pode ser repetido em todas as UHs">
-                            <div class="batch-hint mt-1">Preencha uma vez e ajuste por UH apenas quando for diferente.</div>
-                        </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" value="1" id="batchApplyDefault" checked>
-                            <label class="form-check-label" for="batchApplyDefault">Aplicar titular padrão nas UHs sem nome informado</label>
+                            <label class="form-label">Titular</label>
+                            <input type="text" class="form-control input-xl" name="grupo_responsavel" id="batchDefaultTitular" placeholder="Nome do titular do grupo" required>
+                            <div class="batch-hint mt-1">Esse titular será usado em todas as UHs do grupo.</div>
                         </div>
                         <div id="batchContainer">
-                            <div class="batch-hint mb-2">Fluxo rápido: UH + PAX + CHD por UH. Titular por UH é opcional.</div>
+                            <div class="batch-hint mb-2">UHs, PAX e CHD vinculados ao mesmo titular.</div>
                             <div id="batchRows" class="batch-rows"></div>
                             <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnAddBatchRow">
                                 <i class="bi bi-plus-circle me-1"></i>Adicionar UH
                             </button>
                         </div>
+                        <details class="reservation-optional-panel">
+                            <summary>
+                                <span>Detalhes opcionais</span>
+                                <small class="text-muted fw-semibold">grupo, marcadores e observações</small>
+                            </summary>
+                            <div class="reservation-optional-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Grupo (opcional)</label>
+                                    <input type="text" class="form-control" name="grupo_nome" maxlength="120" placeholder="Ex: Famtour ABAV, Família Silva, Evento XYZ">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Marcadores rápidos</label>
+                                    <div class="tag-grid">
+                                        <?php foreach ($tagsPadrao as $tag): ?>
+                                            <?php $tagId = 'batch_tag_' . md5($tag); ?>
+                                            <div class="tag-choice">
+                                                <input type="checkbox" id="<?= h($tagId) ?>" name="observacao_tags[]" value="<?= h($tag) ?>">
+                                                <label for="<?= h($tagId) ?>"><i class="bi bi-bookmark-star"></i><?= h($tag) ?></label>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label">Observações</label>
+                                    <textarea class="form-control" name="observacao_reserva" rows="3" placeholder="Observações gerais para o grupo..."></textarea>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                 <?php endif; ?>
 
-                <?php if (in_array(($user['perfil'] ?? ''), ['admin', 'supervisor'], true)): ?>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="1" id="excedente" name="excedente" <?= !empty($editItem['excedente']) ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="excedente">Reserva excedente</label>
-                        </div>
-                        <input type="text" class="form-control mt-2" name="excedente_motivo" placeholder="Motivo do excedente" value="<?= h($editItem['excedente_motivo'] ?? '') ?>">
-                    </div>
-                <?php endif; ?>
-
-                <button class="btn btn-primary btn-xl w-100" <?= !$canReserve ? 'disabled' : '' ?>>
-                    <i class="bi bi-check2-circle me-1"></i><?= $editItem ? 'Salvar alterações' : 'Registrar reserva' ?>
-                </button>
-                <?php if ($editItem): ?>
-                    <a class="btn btn-outline-primary btn-xl w-100 mt-2" href="/?r=reservasTematicas/reservas">Cancelar edição</a>
-                <?php endif; ?>
+                <div class="reservation-submit-bar">
+                    <button class="btn btn-primary btn-xl w-100" <?= !$canReserve ? 'disabled' : '' ?>>
+                        <i class="bi bi-check2-circle me-1"></i><?= $editItem ? 'Salvar alterações' : 'Registrar reserva' ?>
+                    </button>
+                    <?php if ($editItem): ?>
+                        <a class="btn btn-outline-primary btn-xl w-100" href="/?r=reservasTematicas/reservas">Cancelar edição</a>
+                    <?php endif; ?>
+                </div>
             </form>
-        </div>
-    </div>
+    </section>
 
 </div>
 
 <div class="modal fade" id="availabilityModal" tabindex="-1" aria-labelledby="availabilityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content availability-modal-content">
             <div class="modal-header">
                 <div>
                     <div class="text-uppercase text-muted small">Disponibilidade</div>
                     <h5 class="fw-bold mb-0" id="availabilityModalLabel">Capacidade por restaurante e turno</h5>
-                    <div class="text-muted small mt-1" id="availabilityDateLabel">Data: <?= h(date('d/m/Y', strtotime($availabilityDate))) ?></div>
+                    <div class="text-muted small mt-1 js-availability-date-label">Data: <?= h(date('d/m/Y', strtotime($availabilityDate))) ?></div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -362,8 +1398,8 @@ $quickDates = [
                         </button>
                     <?php endforeach; ?>
                     <div class="d-flex align-items-center gap-2">
-                        <input type="date" class="form-control form-control-sm" id="availabilityDateInput" value="<?= h($availabilityDate) ?>">
-                        <button class="btn btn-outline-primary btn-sm" type="button" id="btnAvailabilityGo">Ir</button>
+                        <input type="date" class="form-control form-control-sm js-availability-date-input" value="<?= h($availabilityDate) ?>">
+                        <button class="btn btn-outline-primary btn-sm js-availability-go" type="button">Ir</button>
                     </div>
                 </div>
 
@@ -375,7 +1411,8 @@ $quickDates = [
                                 <?php foreach ($turnos as $turno): ?>
                                     <?php
                                         $info = $availability[$rest['id']][$turno['id']] ?? ['capacidade' => 0, 'reservado' => 0, 'restante' => 0];
-                                        $status = $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
+                                        $fechado = !empty($info['fechado']);
+                                        $status = !$fechado && $info['restante'] > 0 ? 'badge-success' : 'badge-danger';
                                     ?>
                                     <div
                                         class="availability-turno-tile js-availability-cell"
@@ -386,9 +1423,9 @@ $quickDates = [
                                     >
                                         <div class="availability-turno-time"><?= h($turno['hora']) ?></div>
                                         <div class="availability-turno-values">
-                                            <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver os detalhes do turno"><?= (int)$info['restante'] ?></span>
+                                            <span class="badge <?= $status ?> js-availability-restante" role="button" title="Clique para ver os detalhes do turno"><?= $fechado ? 'Fechado' : (int)$info['restante'] ?></span>
                                         </div>
-                                        <div class="availability-turno-ratio js-availability-rc"><span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno"><?= (int)$info['reservado'] ?></span>/<?= (int)$info['capacidade'] ?></div>
+                                        <div class="availability-turno-ratio js-availability-rc"><?php if ($fechado): ?>Reservas: <?php endif; ?><span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno"><?= (int)$info['reservado'] ?></span><?= $fechado ? '' : '/' . (int)$info['capacidade'] ?></div>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
@@ -407,15 +1444,62 @@ $quickDates = [
 
 <script>
 (() => {
-    const dateLabel = document.getElementById('availabilityDateLabel');
+    const dateLabels = Array.from(document.querySelectorAll('.js-availability-date-label'));
     const dateInput = document.getElementById('availabilityDateInput');
-    const goBtn = document.getElementById('btnAvailabilityGo');
+    const dateInputs = Array.from(document.querySelectorAll('.js-availability-date-input'));
+    const goBtns = Array.from(document.querySelectorAll('.js-availability-go'));
     const quickBtns = Array.from(document.querySelectorAll('.js-quick-date'));
     const reservaDateInput = document.querySelector('input[name="data_reserva"]');
     const restauranteSelect = document.querySelector('select[name="restaurante_id"]');
     const turnoSelect = document.querySelector('select[name="turno_id"]');
-    const excedenteCheckbox = document.getElementById('excedente');
+    const selectedSlotTitle = document.getElementById('selectedSlotTitle');
+    const selectedSlotMeta = document.getElementById('selectedSlotMeta');
     const availabilityCache = {};
+    const selectedText = (select) => {
+        if (!select || !select.value) return '';
+        const opt = select.options[select.selectedIndex];
+        return opt ? opt.textContent.trim() : '';
+    };
+    const updateFlowState = () => {
+        const restSelected = !!(restauranteSelect && restauranteSelect.value);
+        const turnoSelected = !!(turnoSelect && turnoSelect.value);
+        document.querySelectorAll('[data-flow-step]').forEach((step) => {
+            const key = step.getAttribute('data-flow-step');
+            step.classList.toggle('completed', key === 'date' || (key === 'slot' && turnoSelected));
+            step.classList.toggle('active', (key === 'slot' && !turnoSelected) || (key === 'guest' && turnoSelected));
+            if (key === 'guest' && !restSelected) {
+                step.classList.remove('active');
+            }
+        });
+        document.querySelectorAll('.js-availability-cell[data-rest-id][data-turno-id]').forEach((cell) => {
+            const selected = restSelected
+                && turnoSelected
+                && cell.getAttribute('data-rest-id') === restauranteSelect.value
+                && cell.getAttribute('data-turno-id') === turnoSelect.value;
+            cell.classList.toggle('is-selected', selected);
+        });
+    };
+    const updateSelectedSlot = () => {
+        if (!selectedSlotTitle || !selectedSlotMeta) return;
+        const restName = selectedText(restauranteSelect);
+        const turnoName = selectedText(turnoSelect);
+        const date = reservaDateInput?.value || dateInput?.value || '';
+        if (restName && turnoName) {
+            selectedSlotTitle.textContent = `${restName} · ${turnoName}`;
+            selectedSlotMeta.textContent = `Data da reserva: ${fmtBr(date)}`;
+            updateFlowState();
+            return;
+        }
+        if (restName) {
+            selectedSlotTitle.textContent = restName;
+            selectedSlotMeta.textContent = 'Agora selecione um turno disponível.';
+            updateFlowState();
+            return;
+        }
+        selectedSlotTitle.textContent = 'Escolha um restaurante e turno';
+        selectedSlotMeta.textContent = 'Clique em um turno disponível no mapa para preencher automaticamente.';
+        updateFlowState();
+    };
     const setTurnoSequentialState = () => {
         if (!restauranteSelect || !turnoSelect) return;
         const hasRestaurant = restauranteSelect.value !== '';
@@ -423,6 +1507,7 @@ $quickDates = [
         if (!hasRestaurant) {
             turnoSelect.value = '';
         }
+        updateSelectedSlot();
     };
 
     const fmtBr = (iso) => {
@@ -440,31 +1525,108 @@ $quickDates = [
     const paintAvailability = (payload) => {
         const data = payload?.availability || {};
         availabilityCache[payload?.date || ''] = data;
+        const restTotals = {};
+        let dayCapacidade = 0;
+        let dayReservado = 0;
+        let dayRestante = 0;
+        let dayFechados = 0;
+        let dayTurnos = 0;
         document.querySelectorAll('.js-availability-cell[data-rest-id][data-turno-id]').forEach((cell) => {
             const restId = cell.getAttribute('data-rest-id');
             const turnoId = cell.getAttribute('data-turno-id');
             const info = data?.[restId]?.[turnoId] || { capacidade: 0, reservado: 0, restante: 0 };
-            cell.dataset.restante = String(parseInt(info.restante || 0, 10));
-            cell.dataset.reservado = String(parseInt(info.reservado || 0, 10));
-            cell.dataset.capacidade = String(parseInt(info.capacidade || 0, 10));
+            const fechado = !!info.fechado;
+            const restante = parseInt(info.restante || 0, 10);
+            const reservado = parseInt(info.reservado || 0, 10);
+            const capacidade = parseInt(info.capacidade || 0, 10);
+            const lotado = !fechado && capacidade > 0 && restante <= 0;
+            if (!restTotals[restId]) {
+                restTotals[restId] = { capacidade: 0, reservado: 0, restante: 0, fechado: 0, turnos: 0 };
+            }
+            restTotals[restId].capacidade += capacidade;
+            restTotals[restId].reservado += reservado;
+            restTotals[restId].restante += restante;
+            restTotals[restId].fechado += fechado ? 1 : 0;
+            restTotals[restId].turnos += 1;
+            dayCapacidade += capacidade;
+            dayReservado += reservado;
+            dayRestante += restante;
+            dayFechados += fechado ? 1 : 0;
+            dayTurnos += 1;
+            cell.dataset.restante = String(restante);
+            cell.dataset.reservado = String(reservado);
+            cell.dataset.capacidade = String(capacidade);
+            cell.dataset.fechado = fechado ? '1' : '0';
+            cell.classList.toggle('is-closed', fechado);
+            cell.classList.toggle('is-full', lotado);
             const badge = cell.querySelector('.js-availability-restante');
             const rc = cell.querySelector('.js-availability-rc');
+            const isInlineChip = cell.classList.contains('reserva-turno-chip');
             if (badge) {
-                badge.textContent = String(parseInt(info.restante || 0, 10));
+                badge.textContent = fechado
+                    ? 'Fechado'
+                    : (isInlineChip ? `${restante} livres` : String(restante));
                 badge.classList.remove('badge-success', 'badge-danger');
-                badge.classList.add((parseInt(info.restante || 0, 10) > 0) ? 'badge-success' : 'badge-danger');
+                if (!isInlineChip) {
+                    badge.classList.add(!fechado && restante > 0 ? 'badge-success' : 'badge-danger');
+                }
             }
             if (rc) {
-                rc.innerHTML = `<span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${parseInt(info.reservado || 0, 10)}</span>/${parseInt(info.capacidade || 0, 10)}`;
+                if (isInlineChip) {
+                    rc.innerHTML = fechado
+                        ? `<span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${reservado}</span> reservas`
+                        : `<span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${reservado}</span>/${capacidade} ocupados`;
+                } else {
+                    rc.innerHTML = fechado
+                        ? `Reservas: <span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${reservado}</span>`
+                        : `<span class="js-availability-reservado" role="button" title="Clique para ver as reservas preenchidas do turno">${reservado}</span>/${capacidade}`;
+                }
+            }
+            const pickButton = cell.querySelector('.js-pick-slot');
+            if (pickButton) {
+                pickButton.disabled = fechado || lotado;
+                pickButton.textContent = lotado ? 'Lotado' : 'Selecionar';
             }
         });
+        Object.entries(restTotals).forEach(([restId, totals]) => {
+            const card = document.querySelector(`.js-rest-card[data-rest-id="${restId}"]`);
+            if (!card) return;
+            const percentual = totals.capacidade > 0 ? Math.min(100, Math.round((totals.reservado / totals.capacidade) * 100)) : 0;
+            const fechadoTotal = totals.fechado > 0 && totals.capacidade <= 0;
+            const badge = card.querySelector('.js-rest-total-badge');
+            if (badge) {
+                badge.textContent = fechadoTotal ? 'Fechado' : `${totals.restante} disp.`;
+                badge.classList.toggle('badge-success', !fechadoTotal && totals.restante > 0);
+                badge.classList.toggle('badge-danger', fechadoTotal || totals.restante <= 0);
+            }
+            card.querySelector('.js-rest-progress')?.style.setProperty('--reservation-progress', `${percentual}%`);
+            const reservadoEl = card.querySelector('.js-rest-reservado');
+            const capacidadeEl = card.querySelector('.js-rest-capacidade');
+            if (reservadoEl) reservadoEl.textContent = String(totals.reservado);
+            if (capacidadeEl) capacidadeEl.textContent = String(totals.capacidade);
+        });
+        const dayPercentual = dayCapacidade > 0 ? Math.min(100, Math.round((dayReservado / dayCapacidade) * 100)) : 0;
+        const setText = (selector, value) => {
+            const el = document.querySelector(selector);
+            if (el) el.textContent = String(value);
+        };
+        setText('.js-day-restante', dayRestante);
+        setText('.js-day-reservado', dayReservado);
+        setText('.js-day-capacidade', dayCapacidade);
+        setText('.js-day-fechados', dayFechados);
+        setText('.js-day-turnos', Math.max(1, dayTurnos));
+        document.querySelector('.reserva-day-meter')?.style.setProperty('--reservation-day-progress', `${dayPercentual}%`);
+        updateFlowState();
     };
 
     const setQuickActive = (date) => {
         quickBtns.forEach((btn) => {
             const isActive = btn.dataset.date === date;
-            btn.classList.toggle('btn-primary', isActive);
-            btn.classList.toggle('btn-outline-primary', !isActive);
+            btn.classList.toggle('active', isActive);
+            if (btn.classList.contains('btn')) {
+                btn.classList.toggle('btn-primary', isActive);
+                btn.classList.toggle('btn-outline-primary', !isActive);
+            }
         });
     };
 
@@ -497,7 +1659,6 @@ $quickDates = [
         if (!payload?.ok) return;
         const availability = payload.availability || {};
         const byTurno = availability?.[restId] || {};
-        const canUseExcedente = !!(excedenteCheckbox && excedenteCheckbox.checked);
         let selectedBlocked = false;
 
         Array.from(turnoSelect.options).forEach((opt) => {
@@ -505,8 +1666,9 @@ $quickDates = [
             const info = byTurno?.[opt.value] || { capacidade: 0, restante: 0 };
             const capacidade = parseInt(info.capacidade || 0, 10);
             const restante = parseInt(info.restante || 0, 10);
+            const fechado = !!info.fechado;
             const lotado = capacidade > 0 && restante <= 0;
-            const blocked = lotado && !canUseExcedente;
+            const blocked = fechado || lotado;
             opt.hidden = blocked;
             opt.disabled = blocked;
             if (blocked && opt.selected) {
@@ -519,8 +1681,8 @@ $quickDates = [
             if (window.Swal) {
                 window.Swal.fire({
                     icon: 'info',
-                    title: 'Turno lotado',
-                    text: 'Esse turno está lotado para a data e restaurante selecionados.'
+                    title: 'Turno indisponível',
+                    text: 'Esse turno não aceita reservas para a data e restaurante selecionados.'
                 });
             }
         }
@@ -531,8 +1693,12 @@ $quickDates = [
         const payload = await fetchAvailability(date);
         if (!payload?.ok) return;
         paintAvailability(payload);
-        if (dateLabel) dateLabel.textContent = `Data: ${fmtBr(payload.date || date)}`;
-        if (dateInput) dateInput.value = payload.date || date;
+        dateLabels.forEach((label) => {
+            label.textContent = `Data: ${fmtBr(payload.date || date)}`;
+        });
+        dateInputs.forEach((input) => {
+            input.value = payload.date || date;
+        });
         setQuickActive(payload.date || date);
         if (reservaDateInput && !reservaDateInput.value) {
             reservaDateInput.value = payload.date || date;
@@ -541,13 +1707,18 @@ $quickDates = [
     };
 
     quickBtns.forEach((btn) => btn.addEventListener('click', () => loadAvailability(btn.dataset.date || '')));
-    goBtn?.addEventListener('click', () => loadAvailability(dateInput?.value || ''));
+    goBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const localInput = btn.closest('.reserva-date-picker, .d-flex')?.querySelector('.js-availability-date-input');
+            loadAvailability(localInput?.value || dateInput?.value || '');
+        });
+    });
     reservaDateInput?.addEventListener('change', applyTurnoAvailability);
     restauranteSelect?.addEventListener('change', () => {
         setTurnoSequentialState();
         applyTurnoAvailability();
     });
-    excedenteCheckbox?.addEventListener('change', applyTurnoAvailability);
+    turnoSelect?.addEventListener('change', updateSelectedSlot);
 
     const showTurnoPopup = (html) => {
         if (window.Swal) {
@@ -612,15 +1783,18 @@ $quickDates = [
             if (!payload?.ok) throw new Error(payload?.message || 'Não foi possível carregar os detalhes.');
 
             const rows = (payload.items || []).map((item) => `
-                <tr>
-                    <td>${escapeHtml(item.titular_nome || '-')}</td>
-                    <td>${escapeHtml(item.uh_numero || '-')}</td>
-                    <td>${escapeHtml(String(item.pax ?? 0))}</td>
-                    <td>${escapeHtml(String(item.qtd_chd ?? 0))}</td>
-                    <td class="text-end">
-                        <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url || '#')}">Editar</a>
-                    </td>
-                </tr>
+                <div class="availability-detail-item">
+                    <div>
+                        <div class="availability-detail-title">${escapeHtml(item.titular_nome || '-')}</div>
+                        <div class="availability-detail-meta">
+                            <span>UH ${escapeHtml(item.uh_numero || '-')}</span>
+                            <span>${escapeHtml(String(item.pax ?? 0))} PAX</span>
+                            <span>${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
+                            <span>${escapeHtml(item.status || 'Reservada')}</span>
+                        </div>
+                    </div>
+                    <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url || '#')}">Editar</a>
+                </div>
             `).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
         const reservado = parseInt(String(payload.reservado ?? cell.dataset.reservado ?? '0'), 10) || 0;
@@ -628,12 +1802,7 @@ $quickDates = [
             const html = `
                 <div class="text-start">
                     <div class="small text-muted mb-2">Data ${escapeHtml(fmtBr(payload.date || date))} · ${escapeHtml(restNome)} · ${escapeHtml(turnoHora)}</div>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-2">
-                            <thead><tr><th>Nome</th><th>UH</th><th>PAX</th><th>CHD</th><th></th></tr></thead>
-                            <tbody>${rows || '<tr><td colspan="5" class="text-muted">Sem reservas neste turno.</td></tr>'}</tbody>
-                        </table>
-                    </div>
+                    <div class="availability-detail-list mb-2">${rows || '<div class="availability-detail-empty">Sem reservas neste turno.</div>'}</div>
                     <div class="fw-semibold">Disponíveis: ${escapeHtml(String(restante))} · Preenchidas: ${escapeHtml(String(reservado))}/${escapeHtml(String(capacidade))}</div>
                     <div class="small text-muted">Total de reservas: ${escapeHtml(String(payload.count || 0))} · Total de PAX: ${escapeHtml(String(payload.total_pax || 0))} · Total CHD: ${escapeHtml(String(payload.total_chd || 0))}</div>
                 </div>
@@ -652,6 +1821,21 @@ $quickDates = [
     document.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (!target) return;
+        const scrollCompose = target.closest('.js-scroll-compose');
+        if (scrollCompose) {
+            document.querySelector('.reservation-compose-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
+        const pick = target.closest('.js-pick-slot');
+        if (pick && restauranteSelect && turnoSelect) {
+            restauranteSelect.value = pick.getAttribute('data-rest-id') || '';
+            setTurnoSequentialState();
+            turnoSelect.value = pick.getAttribute('data-turno-id') || '';
+            updateSelectedSlot();
+            applyTurnoAvailability();
+            document.querySelector('.reservation-compose-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
         const trigger = target.closest('.js-availability-restante, .js-availability-reservado');
         if (!trigger) return;
         openAvailabilityDetail(trigger);
@@ -663,7 +1847,6 @@ $quickDates = [
     const addBatchRowBtn = document.getElementById('btnAddBatchRow');
     const batchRows = document.getElementById('batchRows');
     const batchDefaultTitular = document.getElementById('batchDefaultTitular');
-    const batchApplyDefault = document.getElementById('batchApplyDefault');
     const actionInput = document.getElementById('reservaActionInput');
     const reservaForm = document.querySelector('form[action="/?r=reservasTematicas/reservas"]');
     const singleFields = [
@@ -678,26 +1861,13 @@ $quickDates = [
         wrap.innerHTML = `
             <div class="batch-row-grid">
                 <div><label class="form-label">UH</label><input class="form-control" name="batch_uh_numero[]" inputmode="numeric" required></div>
-                <div><label class="form-label">Qtd PAX</label><input type="number" class="form-control" min="1" name="batch_pax[]" value="1" required></div>
-                <div><label class="form-label">Idades CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="Ex: 3,7"></div>
-                <div><label class="form-label">Titular desta UH (opcional)</label><input class="form-control" name="batch_titular_nome[]" placeholder="Em branco = usar titular padrão"></div>
-                <div class="d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row">X</button></div>
+                <div><label class="form-label">PAX</label><input type="number" class="form-control" min="1" name="batch_pax[]" value="1" required></div>
+                <div><label class="form-label">CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="Ex: 3y7y"></div>
+                <div class="d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row" aria-label="Remover UH"><i class="bi bi-dash-lg"></i></button></div>
             </div>
         `;
         wrap.querySelector('.js-remove-batch-row')?.addEventListener('click', () => wrap.remove());
         return wrap;
-    };
-
-    const applyDefaultTitularToEmptyRows = () => {
-        if (!batchRows || !batchApplyDefault || !batchApplyDefault.checked) return;
-        const defaultName = (batchDefaultTitular?.value || '').trim();
-        if (!defaultName) return;
-        batchRows.querySelectorAll('input[name="batch_titular_nome[]"]').forEach((input) => {
-            if (input.disabled) return;
-            if (input.value.trim() === '') {
-                input.value = defaultName;
-            }
-        });
     };
 
     const setBatchEnabled = (enabled) => {
@@ -739,7 +1909,6 @@ $quickDates = [
                 batchRows.appendChild(batchTemplate());
             }
             setBatchEnabled(true);
-            applyDefaultTitularToEmptyRows();
         } else {
             setBatchEnabled(false);
         }
@@ -754,24 +1923,15 @@ $quickDates = [
             node.querySelectorAll('input').forEach((input) => (input.disabled = true));
         }
         batchRows.appendChild(node);
-        applyDefaultTitularToEmptyRows();
     });
 
     btnModeSingle?.addEventListener('click', () => setReservaMode('single'));
     btnModeBatch?.addEventListener('click', () => setReservaMode('batch'));
 
-    batchDefaultTitular?.addEventListener('blur', applyDefaultTitularToEmptyRows);
-    batchApplyDefault?.addEventListener('change', applyDefaultTitularToEmptyRows);
-
     reservaForm?.addEventListener('submit', (event) => {
         if (!actionInput || actionInput.value !== 'create_batch') return;
-        applyDefaultTitularToEmptyRows();
-
         const defaultName = (batchDefaultTitular?.value || '').trim();
-        const rowTitulares = Array.from(batchRows?.querySelectorAll('input[name="batch_titular_nome[]"]') || [])
-            .filter((input) => !input.disabled);
-        const missingTitular = rowTitulares.some((input) => input.value.trim() === '');
-        if (!missingTitular || defaultName !== '') {
+        if (defaultName !== '') {
             return;
         }
 
@@ -779,11 +1939,11 @@ $quickDates = [
         if (window.Swal) {
             window.Swal.fire({
                 icon: 'warning',
-                title: 'Titular padrão pendente',
-                text: 'Informe o titular padrão do lote ou preencha o titular em cada UH.'
+                title: 'Titular pendente',
+                text: 'Informe o titular do grupo.'
             });
         } else {
-            window.alert('Informe o titular padrão do lote ou preencha o titular em cada UH.');
+            window.alert('Informe o titular do grupo.');
         }
     });
 
@@ -791,7 +1951,7 @@ $quickDates = [
         setReservaMode('single');
     }
     setTurnoSequentialState();
+    updateSelectedSlot();
     applyTurnoAvailability();
 })();
 </script>
-

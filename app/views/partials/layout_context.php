@@ -1,7 +1,7 @@
 <?php
 $shiftModel = new ShiftModel();
 $activeShift = $shiftModel->getActiveByUser($user['id']);
-$canTematicas = in_array($user['perfil'], ['admin', 'supervisor'], true);
+$canTematicas = in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true);
 $canTematicasReserva = false;
 $isHostessTematicoOnly = false;
 
@@ -30,6 +30,7 @@ if (!$canTematicas && $user['perfil'] === 'hostess') {
 
         if ($isTematicoRest) {
             $canTematicas = true;
+            $canTematicasReserva = true;
             $hasTematico = true;
         } else {
             $hasRegistroClassico = true;
@@ -47,6 +48,29 @@ $perfilLabelMap = [
 ];
 $perfilAtual = strtolower((string)($user['perfil'] ?? ''));
 $perfilLabel = $perfilLabelMap[$perfilAtual] ?? ucfirst($perfilAtual);
+
+$navIsActive = static function ($routes) use ($currentRoute): bool {
+    $routes = is_array($routes) ? $routes : [$routes];
+    foreach ($routes as $route) {
+        $route = (string)$route;
+        if ($route === $currentRoute) {
+            return true;
+        }
+        if (substr($route, -2) === '/*') {
+            $prefix = rtrim(substr($route, 0, -2), '/');
+            $expectedPrefix = $prefix . '/';
+            if ($prefix !== '' && strncmp($currentRoute, $expectedPrefix, strlen($expectedPrefix)) === 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
+$navAttrs = static function ($routes) use ($navIsActive): string {
+    return $navIsActive($routes) ? 'class="nav-link active" aria-current="page"' : 'class="nav-link"';
+};
+
 $completedTurns = 0;
 $level = null;
 

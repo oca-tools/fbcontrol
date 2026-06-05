@@ -4,7 +4,7 @@ class VouchersController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
 
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);

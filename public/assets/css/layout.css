@@ -46,6 +46,15 @@
     opacity: .92;
 }
 
+html[data-theme='dark'] .sidebar .nav-link i {
+    color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .sidebar .nav-link.active i,
+html[data-theme='dark'] .sidebar .nav-link:hover i {
+    color: #ffffff !important;
+}
+
 .sidebar .nav-link:hover,
 .sidebar .nav-link.active {
     transform: translateX(0);

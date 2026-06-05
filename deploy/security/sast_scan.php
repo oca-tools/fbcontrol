@@ -39,6 +39,19 @@ $rules = [
         'pattern' => '/->query\s*\(\s*"[^"]*\$[A-Za-z_][A-Za-z0-9_]*[^"]*"\s*\)/',
         'message' => 'Query SQL com interpolacao direta de variavel.',
     ],
+    [
+        'id' => 'HOST_HEADER_TRUST',
+        'severity' => 'MEDIUM',
+        'pattern' => '/\$_SERVER\s*\[\s*[\'"]HTTP_HOST[\'"]\s*\]/',
+        'message' => 'Uso direto de HTTP_HOST pode permitir host-header injection.',
+    ],
+    [
+        'id' => 'RAW_REQUEST_URI',
+        'severity' => 'LOW',
+        'pattern' => '/\$_SERVER\s*\[\s*[\'"]REQUEST_URI[\'"]\s*\]/',
+        'message' => 'REQUEST_URI deve passar por sanitizacao antes de ser reutilizado.',
+        'ignore_if_contains' => ['sanitize_local_redirect_path'],
+    ],
 ];
 
 $findings = [];
@@ -84,6 +97,16 @@ foreach ($iter as $file) {
         }
         foreach ($rules as $rule) {
             if (!preg_match($rule['pattern'], $line)) {
+                continue;
+            }
+            $ignored = false;
+            foreach (($rule['ignore_if_contains'] ?? []) as $needle) {
+                if (strpos($line, $needle) !== false) {
+                    $ignored = true;
+                    break;
+                }
+            }
+            if ($ignored) {
                 continue;
             }
 

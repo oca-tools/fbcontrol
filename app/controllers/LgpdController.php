@@ -61,6 +61,7 @@ class LgpdController extends Controller
             $payload['requests'] = $model->listRequests($filters);
             $payload['incidents'] = $model->listIncidents($filters);
             $payload['retention'] = $model->listRetentionPolicies();
+            $payload['retention_options'] = $model->retentionTableOptions();
             $payload['events'] = $model->listEvents(40);
         } catch (Throwable $e) {
             $dbError = 'Estrutura LGPD não encontrada. Execute o SQL: sql/migration_v2_1_lgpd.sql';
@@ -293,7 +294,7 @@ class LgpdController extends Controller
             'tabela_nome' => $this->sanitizeText($_POST['tabela_nome'] ?? '', 100),
             'descricao' => $this->sanitizeText($_POST['descricao'] ?? '', 190),
             'retencao_dias' => max(1, min(3650, (int)($_POST['retencao_dias'] ?? 180))),
-            'modo' => ($_POST['modo'] ?? '') === 'anonimizar' ? 'anonimizar' : 'eliminar',
+            'modo' => 'eliminar',
             'ativo' => (int)($_POST['ativo'] ?? 0) === 1 ? 1 : 0,
         ];
 

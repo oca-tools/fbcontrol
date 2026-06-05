@@ -9,14 +9,13 @@ $user = $this->data['user'] ?? Auth::user();
 $restrictedRestaurant = $this->data['restricted_restaurant'] ?? null;
 $summary = $this->data['summary'] ?? [];
 
-$statusOptions = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia', 'Excedente'];
+$statusOptions = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia'];
 $statusLabels = [
     'Reservada' => 'Reservada',
     'Finalizada' => 'Finalizada',
     'Nao compareceu' => 'Não compareceu',
     'Cancelada' => 'Cancelada',
     'Divergencia' => 'Divergência',
-    'Excedente' => 'Excedente',
 ];
 
 $normalizeStatus = static function (?string $status): string {
@@ -36,6 +35,17 @@ $labelStatus = static function (?string $status) use ($normalizeStatus, $statusL
     $canon = $normalizeStatus($status);
     return $statusLabels[$canon] ?? $canon;
 };
+$statusBadgeClass = static function (?string $status) use ($normalizeStatus): string {
+    $canon = $normalizeStatus($status);
+    $map = [
+        'Reservada' => 'status-reserved',
+        'Finalizada' => 'status-finished',
+        'Nao compareceu' => 'status-noshow',
+        'Cancelada' => 'status-canceled',
+        'Divergencia' => 'status-warning',
+    ];
+    return $map[$canon] ?? 'status-muted';
+};
 
 $reservasOrdenadas = $reservas;
 usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeStatus): int {
@@ -51,6 +61,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     }
     return strcmp((string)($a['uh_numero'] ?? ''), (string)($b['uh_numero'] ?? ''));
 });
+
 ?>
 
 <style>
@@ -73,12 +84,414 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     .tematic-operacao-page .summary-grid .saas-stat-value {
         margin-top: 0.35rem;
     }
+    .tematic-operacao-page .summary-grid::-webkit-scrollbar {
+        height: 0;
+    }
+    .tematic-operacao-page .operation-hero {
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(249, 115, 22, 0.16);
+        background:
+            linear-gradient(135deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.94)),
+            var(--ab-card);
+    }
+    .tematic-operacao-page .operation-hero .section-title {
+        min-width: 0;
+    }
+    .tematic-operacao-page .operation-hero h3 {
+        letter-spacing: 0;
+    }
+    .tematic-operacao-page .operation-hero-copy {
+        max-width: 760px;
+    }
+    html[data-theme='dark'] .tematic-operacao-page .operation-hero {
+        background:
+            linear-gradient(135deg, rgba(67, 56, 202, 0.18), rgba(15, 23, 42, 0.96)),
+            var(--ab-card);
+    }
     .tematic-operacao-page .section-block {
         border: 1px solid var(--ab-border);
         border-radius: 22px;
         padding: 1rem;
         background: var(--ab-card);
         box-shadow: var(--ab-shadow-soft);
+    }
+    .tematic-operacao-page .collapsible-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .tematic-operacao-page .collapsible-section-head .section-title {
+        margin-bottom: 0 !important;
+    }
+    .tematic-operacao-page .section-toggle-btn {
+        min-height: 38px;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .section-toggle-btn .bi-chevron-up {
+        transition: transform 0.18s ease;
+    }
+    .tematic-operacao-page .section-block.is-collapsed .section-toggle-btn .bi-chevron-up {
+        transform: rotate(180deg);
+    }
+    .tematic-operacao-page .section-block.is-collapsed .collapsible-section-body {
+        display: none;
+    }
+    .tematic-operacao-page .section-collapsed-hint {
+        display: none;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        border-radius: 16px;
+        padding: 0.85rem;
+        color: var(--ab-muted);
+        background: color-mix(in srgb, var(--ab-card) 78%, transparent);
+    }
+    .tematic-operacao-page .section-block.is-collapsed .section-collapsed-hint {
+        display: block;
+    }
+    .tematic-operacao-page .reservation-filter-panel {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        padding: 0.85rem;
+        background: rgba(248, 250, 252, 0.78);
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-filter-panel {
+        background: rgba(15, 23, 42, 0.48);
+    }
+    .tematic-operacao-page .quick-advanced-filters {
+        min-width: 0;
+    }
+    .tematic-operacao-page .quick-filter-toggle {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+    .tematic-operacao-page .quick-filter-toggle .bi-chevron-down {
+        transition: transform 0.18s ease;
+    }
+    .tematic-operacao-page .quick-filter-toggle[aria-expanded='true'] .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+    .tematic-operacao-page .reservation-table-shell {
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 18px;
+        background: var(--ab-card);
+    }
+    .tematic-operacao-page .reservation-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 0.75rem;
+    }
+    .tematic-operacao-page .reservation-op-card {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%), var(--ab-card)),
+            var(--ab-card);
+        padding: 0.9rem;
+        cursor: pointer;
+        min-width: 0;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .tematic-operacao-page .reservation-op-card:hover {
+        border-color: rgba(249, 115, 22, 0.35);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.09);
+        transform: translateY(-1px);
+    }
+    .tematic-operacao-page .reservation-op-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.65rem;
+        margin-bottom: 0.7rem;
+    }
+    .tematic-operacao-page .reservation-op-title {
+        min-width: 0;
+    }
+    .tematic-operacao-page .reservation-op-title strong {
+        display: block;
+        color: var(--ab-ink);
+        font-size: 0.98rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .reservation-op-title .small {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--ab-muted);
+    }
+    .tematic-operacao-page .reservation-op-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+        margin-bottom: 0.65rem;
+    }
+    .tematic-operacao-page .reservation-op-metric {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 13px;
+        background: color-mix(in srgb, var(--ab-soft-bg) 68%, var(--ab-card) 32%);
+        padding: 0.45rem;
+        text-align: center;
+        min-width: 0;
+    }
+    .tematic-operacao-page .reservation-op-metric .label {
+        display: block;
+        color: var(--ab-muted);
+        font-size: 0.64rem;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .tematic-operacao-page .reservation-op-metric .value {
+        display: block;
+        margin-top: 0.12rem;
+        color: var(--ab-ink);
+        font-size: 0.94rem;
+        font-weight: 850;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .reservation-op-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+    .tematic-operacao-page .reservation-op-foot .tag {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .tematic-operacao-page .reservation-empty-card {
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        border-radius: 18px;
+        padding: 1rem;
+        text-align: center;
+        color: var(--ab-muted);
+        background: color-mix(in srgb, var(--ab-card) 78%, transparent);
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-op-card,
+    html[data-theme='dark'] .tematic-operacao-page .reservation-op-metric {
+        background: rgba(15, 23, 42, 0.5);
+    }
+    .tematic-operacao-page .reservation-list-table {
+        margin-bottom: 0;
+    }
+    .tematic-operacao-page .reservation-list-table thead th {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 247, 237, 0.68);
+        color: #9a3412;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-list-table thead th {
+        background: rgba(30, 41, 59, 0.74);
+        color: #f8fafc;
+    }
+    .tematic-operacao-page .reservation-list-table tbody tr {
+        transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .tematic-operacao-page .reservation-list-table tbody td {
+        padding-top: 0.72rem;
+        padding-bottom: 0.72rem;
+        vertical-align: middle;
+    }
+    .tematic-operacao-page .reservation-status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0.3rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.78rem;
+        font-weight: 750;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .reservation-status-pill.status-reserved {
+        color: #0f766e;
+        border-color: rgba(20, 184, 166, 0.28);
+        background: rgba(204, 251, 241, 0.78);
+    }
+    .tematic-operacao-page .reservation-status-pill.status-finished {
+        color: #166534;
+        border-color: rgba(34, 197, 94, 0.24);
+        background: rgba(220, 252, 231, 0.82);
+    }
+    .tematic-operacao-page .reservation-status-pill.status-noshow,
+    .tematic-operacao-page .reservation-status-pill.status-canceled {
+        color: #991b1b;
+        border-color: rgba(248, 113, 113, 0.26);
+        background: rgba(254, 226, 226, 0.82);
+    }
+    .tematic-operacao-page .reservation-status-pill.status-warning {
+        color: #92400e;
+        border-color: rgba(251, 191, 36, 0.32);
+        background: rgba(254, 243, 199, 0.84);
+    }
+    .tematic-operacao-page .reservation-status-pill.status-muted {
+        color: #475569;
+        border-color: rgba(148, 163, 184, 0.28);
+        background: rgba(241, 245, 249, 0.86);
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-status-pill {
+        color: #f8fafc;
+        background: rgba(30, 41, 59, 0.78);
+        border-color: rgba(148, 163, 184, 0.26);
+    }
+    .tematic-operacao-page .reservation-pagination {
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 0.25rem;
+        gap: 0.5rem;
+    }
+    .tematic-operacao-page .reservation-pagination .btn {
+        min-width: 34px;
+        min-height: 34px;
+        padding: 0.25rem 0.55rem;
+    }
+    .tematic-operacao-page .reservation-pagination-info {
+        color: var(--ab-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .reservation-pagination-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.35rem;
+    }
+    .tematic-operacao-page .reservation-pagination-dots {
+        align-self: center;
+        color: var(--ab-muted);
+        padding: 0 0.15rem;
+    }
+    .tematic-operacao-page .reservation-helper {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--ab-muted);
+    }
+    .tematic-operacao-page .reservation-detail-modal {
+        border: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+    }
+    .tematic-operacao-page .reservation-detail-modal .modal-header {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(255, 247, 237, 0.72);
+    }
+    .tematic-operacao-page .reservation-detail-modal .modal-footer {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        background: color-mix(in srgb, var(--ab-card) 92%, var(--ab-soft-bg) 8%);
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-detail-modal .modal-header {
+        background: rgba(30, 41, 59, 0.82);
+    }
+    .tematic-operacao-page .reservation-modal-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.8rem;
+        align-items: start;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        padding: 0.9rem;
+        margin-bottom: 0.9rem;
+        background:
+            linear-gradient(135deg, color-mix(in srgb, var(--ab-card) 88%, var(--ab-soft-bg) 12%), var(--ab-card)),
+            var(--ab-card);
+    }
+    .tematic-operacao-page .reservation-modal-title {
+        min-width: 0;
+    }
+    .tematic-operacao-page .reservation-modal-title strong {
+        display: block;
+        color: var(--ab-ink);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tematic-operacao-page .reservation-modal-title span {
+        display: block;
+        color: var(--ab-muted);
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+    }
+    .tematic-operacao-page .reservation-modal-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.55rem;
+    }
+    .tematic-operacao-page .reservation-modal-count {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(70px, 1fr));
+        gap: 0.45rem;
+        min-width: 170px;
+    }
+    .tematic-operacao-page .reservation-modal-count .mini-stat {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--ab-soft-bg) 68%, var(--ab-card) 32%);
+        padding: 0.5rem;
+        text-align: center;
+    }
+    .tematic-operacao-page .reservation-modal-count .mini-stat span {
+        display: block;
+        color: var(--ab-muted);
+        font-size: 0.64rem;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .tematic-operacao-page .reservation-modal-count .mini-stat strong {
+        display: block;
+        margin-top: 0.12rem;
+        color: var(--ab-ink);
+        font-size: 1rem;
+    }
+    .tematic-operacao-page .reservation-form-section {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        padding: 0.85rem;
+        background: color-mix(in srgb, var(--ab-soft-bg) 58%, var(--ab-card) 42%);
+        margin-bottom: 0.85rem;
+    }
+    .tematic-operacao-page .reservation-form-section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--ab-ink);
+        font-weight: 850;
+        margin-bottom: 0.7rem;
+    }
+    .tematic-operacao-page .reservation-form-section-title i {
+        color: var(--ab-accent);
+    }
+    .tematic-operacao-page .modal-status-actions,
+    .tematic-operacao-page .modal-submit-actions {
+        min-width: 0;
+    }
+    .tematic-operacao-page .pax-real-group .btn {
+        min-width: 118px;
+    }
+    html[data-theme='dark'] .tematic-operacao-page .reservation-modal-summary,
+    html[data-theme='dark'] .tematic-operacao-page .reservation-form-section,
+    html[data-theme='dark'] .tematic-operacao-page .reservation-modal-count .mini-stat {
+        background: rgba(15, 23, 42, 0.48);
     }
     .tematic-operacao-page .btn {
         border-radius: 12px;
@@ -173,18 +586,302 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         .tematic-operacao-page .section-block {
             padding: 0.9rem;
         }
+        .tematic-operacao-page .collapsible-section-head {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .tematic-operacao-page .section-toggle-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .tematic-operacao-page .operation-hero {
+            padding: 0.85rem !important;
+            margin-bottom: 0.75rem !important;
+            border-radius: 18px;
+        }
+        .tematic-operacao-page .operation-hero > .d-flex {
+            align-items: flex-start !important;
+            flex-wrap: wrap !important;
+            gap: 0.65rem !important;
+        }
+        .tematic-operacao-page .operation-hero .section-title {
+            align-items: flex-start;
+            gap: 0.55rem;
+            min-width: 0;
+            width: 100%;
+        }
+        .tematic-operacao-page .operation-hero .section-title .icon {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+        }
+        .tematic-operacao-page .operation-hero h3 {
+            font-size: 1.02rem;
+            line-height: 1.15;
+            margin-bottom: 0 !important;
+            white-space: normal;
+        }
+        .tematic-operacao-page .operation-hero .text-uppercase {
+            font-size: 0.62rem;
+            line-height: 1.1;
+        }
+        .tematic-operacao-page .operation-hero-copy {
+            display: none;
+        }
+        .tematic-operacao-page .operation-hero .badge {
+            display: none;
+        }
+        .tematic-operacao-page .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem;
+            overflow: visible;
+            padding: 0;
+        }
+        .tematic-operacao-page .summary-grid .saas-stat-card {
+            min-height: 72px;
+            padding: 0.72rem;
+        }
+        .tematic-operacao-page .summary-grid .saas-stat-card .small {
+            font-size: 0.58rem;
+            letter-spacing: 0.03em;
+            line-height: 1.15;
+        }
+        .tematic-operacao-page .summary-grid .saas-stat-value {
+            margin-top: 0.2rem;
+            font-size: 1.35rem;
+            line-height: 1.05;
+        }
+        .tematic-operacao-page .summary-grid .saas-stat-card:first-child {
+            grid-column: 1 / -1;
+            min-height: 64px;
+        }
         .tematic-operacao-page .section-block .d-flex.flex-wrap.gap-2 {
             min-width: 0;
             max-width: 100%;
         }
-    .tematic-operacao-page .section-block .d-flex.flex-wrap.gap-2 > .btn {
+        .tematic-operacao-page .section-block .d-flex.flex-wrap.gap-2 > .btn {
             flex: 1 1 100%;
             min-width: 0;
             justify-content: center;
         }
+        .tematic-operacao-page .quick-filter-toggle {
+            display: inline-flex;
+            width: 100%;
+        }
+        .tematic-operacao-page .quick-advanced-filters.is-collapsed {
+            display: none;
+        }
+        .tematic-operacao-page .quick-advanced-filters .row {
+            --bs-gutter-x: 0.65rem;
+            --bs-gutter-y: 0.65rem;
+        }
         .tematic-operacao-page .table-responsive {
             max-width: 100%;
             overflow-x: auto;
+        }
+        .tematic-operacao-page .reservation-card-grid {
+            grid-template-columns: 1fr;
+            gap: 0.48rem;
+        }
+        .tematic-operacao-page .reservation-op-card {
+            border-radius: 15px;
+            padding: 0.62rem 0.68rem;
+            box-shadow: none;
+        }
+        .tematic-operacao-page .reservation-op-card:hover {
+            transform: none;
+        }
+        .tematic-operacao-page .reservation-op-head {
+            align-items: center;
+            gap: 0.45rem;
+            margin-bottom: 0.42rem;
+        }
+        .tematic-operacao-page .reservation-op-title strong {
+            font-size: 0.92rem;
+        }
+        .tematic-operacao-page .reservation-op-title .small {
+            display: none;
+        }
+        .tematic-operacao-page .reservation-op-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-bottom: 0.42rem;
+        }
+        .tematic-operacao-page .reservation-op-metric {
+            display: inline-flex;
+            flex: 1 1 28%;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            border-radius: 999px;
+            padding: 0.25rem 0.42rem;
+        }
+        .tematic-operacao-page .reservation-op-metric .label {
+            font-size: 0.56rem;
+            letter-spacing: 0;
+        }
+        .tematic-operacao-page .reservation-op-metric .value {
+            margin-top: 0;
+            font-size: 0.82rem;
+        }
+        .tematic-operacao-page .reservation-op-foot {
+            min-height: 24px;
+        }
+        .tematic-operacao-page .reservation-status-pill {
+            min-height: 24px;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.7rem;
+        }
+        .tematic-operacao-page .reservation-op-foot .tag {
+            max-width: calc(100% - 28px);
+        }
+        .tematic-operacao-page .reservation-table-shell {
+            border: 0;
+            background: transparent;
+        }
+        .tematic-operacao-page .reservation-list-table,
+        .tematic-operacao-page .reservation-list-table thead,
+        .tematic-operacao-page .reservation-list-table tbody,
+        .tematic-operacao-page .reservation-list-table tr,
+        .tematic-operacao-page .reservation-list-table td {
+            display: block;
+            width: 100%;
+        }
+        .tematic-operacao-page .reservation-list-table thead {
+            display: none;
+        }
+        .tematic-operacao-page .reservation-list-table tbody tr {
+            margin-bottom: 0.75rem;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 18px;
+            background: var(--ab-card);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        }
+        .tematic-operacao-page .reservation-list-table tbody td {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border: 0;
+            padding: 0.48rem 0.78rem;
+            text-align: right;
+        }
+        .tematic-operacao-page .reservation-list-table tbody td:first-child {
+            padding-top: 0.8rem;
+        }
+        .tematic-operacao-page .reservation-list-table tbody td:last-child {
+            padding-bottom: 0.8rem;
+        }
+        .tematic-operacao-page .reservation-list-table tbody td::before {
+            content: attr(data-label);
+            flex: 0 0 auto;
+            color: var(--ab-muted);
+            font-size: 0.72rem;
+            font-weight: 750;
+            letter-spacing: 0.04em;
+            text-align: left;
+            text-transform: uppercase;
+        }
+        .tematic-operacao-page .reservation-list-table tbody td.empty-state {
+            justify-content: center;
+            text-align: center;
+        }
+        .tematic-operacao-page .reservation-list-table tbody td.empty-state::before {
+            content: none;
+        }
+        .tematic-operacao-page .reservation-pagination {
+            justify-content: center;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .tematic-operacao-page .reservation-pagination-info {
+            text-align: center;
+        }
+        .tematic-operacao-page .reservation-pagination-controls {
+            justify-content: center;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-footer > div {
+            width: 100%;
+        }
+        .tematic-operacao-page .reservation-detail-modal {
+            border-radius: 18px;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-header {
+            padding: 0.75rem 0.9rem;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-title {
+            font-size: 1rem;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-body {
+            padding: 0.8rem;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            padding: 0.7rem;
+        }
+        .tematic-operacao-page .reservation-detail-modal .modal-footer .btn {
+            flex: 1 1 auto;
+            min-height: 38px;
+            padding: 0.42rem 0.55rem;
+            font-size: 0.82rem;
+        }
+        .tematic-operacao-page .reservation-modal-summary {
+            grid-template-columns: 1fr;
+            gap: 0.6rem;
+            padding: 0.7rem;
+            margin-bottom: 0.7rem;
+            border-radius: 16px;
+        }
+        .tematic-operacao-page .reservation-modal-count {
+            min-width: 0;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .tematic-operacao-page .reservation-modal-title strong {
+            white-space: normal;
+            font-size: 1rem;
+        }
+        .tematic-operacao-page .reservation-modal-title span {
+            font-size: 0.78rem;
+        }
+        .tematic-operacao-page .reservation-form-section {
+            border-radius: 15px;
+            margin-bottom: 0.65rem;
+            padding: 0.72rem;
+        }
+        .tematic-operacao-page .reservation-form-section-title {
+            margin-bottom: 0.55rem;
+            font-size: 0.9rem;
+        }
+        .tematic-operacao-page .pax-real-group {
+            flex-wrap: nowrap;
+        }
+        .tematic-operacao-page .pax-real-group .btn {
+            min-width: 96px;
+            padding-left: 0.45rem;
+            padding-right: 0.45rem;
+            font-size: 0.78rem;
+        }
+        .tematic-operacao-page .modal-status-actions,
+        .tematic-operacao-page .modal-submit-actions {
+            display: grid !important;
+            gap: 0.45rem !important;
+        }
+        .tematic-operacao-page .modal-status-actions {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .tematic-operacao-page .modal-submit-actions {
+            grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+        }
+        .tematic-operacao-page .modal-status-actions .btn,
+        .tematic-operacao-page .modal-submit-actions .btn {
+            width: 100%;
+            min-width: 0;
+            white-space: normal;
+            line-height: 1.05;
         }
     }
     .tematic-operacao-page .js-row-clickable {
@@ -196,14 +893,14 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
 </style>
 
 <div class="saas-page tematic-operacao-page">
-<div class="card card-soft p-4 mb-4">
+<div class="card card-soft operation-hero p-4 mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div class="section-title">
             <div class="icon"><i class="bi bi-printer"></i></div>
             <div>
                 <div class="text-uppercase text-muted small">Reservas Temáticas</div>
                 <h3 class="fw-bold mb-1">Ambiente de Conferência e Impressão</h3>
-                <div class="text-muted">Consulta operacional para cozinha e liderança, com confirmação rápida de entrada, no-show e cancelamento.</div>
+                <div class="text-muted operation-hero-copy">Consulta operacional para cozinha e liderança, com confirmação rápida de entrada, no-show e cancelamento.</div>
             </div>
         </div>
         <span class="badge badge-soft">Jornada 2</span>
@@ -214,75 +911,77 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <?php endif; ?>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Total</div>
-            <div class="saas-stat-value"><?= (int)($summary['total'] ?? count($reservas)) ?></div>
-        </div>
+<div class="summary-grid mb-4" aria-label="Resumo das reservas do dia">
+    <div class="saas-stat-card">
+        <div class="text-muted small">Total</div>
+        <div class="saas-stat-value"><?= (int)($summary['total'] ?? count($reservas)) ?></div>
     </div>
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Reservadas</div>
-            <div class="saas-stat-value"><?= (int)($summary['reservada'] ?? 0) ?></div>
-        </div>
+    <div class="saas-stat-card">
+        <div class="text-muted small">Reservadas</div>
+        <div class="saas-stat-value"><?= (int)($summary['reservada'] ?? 0) ?></div>
     </div>
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Finalizadas</div>
-            <div class="saas-stat-value status-success"><?= (int)($summary['finalizada'] ?? 0) ?></div>
-        </div>
+    <div class="saas-stat-card">
+        <div class="text-muted small">Finalizadas</div>
+        <div class="saas-stat-value status-success"><?= (int)($summary['finalizada'] ?? 0) ?></div>
     </div>
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Não compareceu</div>
-            <div class="saas-stat-value status-danger"><?= (int)($summary['nao_compareceu'] ?? 0) ?></div>
-        </div>
+    <div class="saas-stat-card">
+        <div class="text-muted small">Não compareceu</div>
+        <div class="saas-stat-value status-danger"><?= (int)($summary['nao_compareceu'] ?? 0) ?></div>
     </div>
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Canceladas</div>
-            <div class="saas-stat-value"><?= (int)($summary['cancelada'] ?? 0) ?></div>
-        </div>
-    </div>
-    <div class="col-6 col-md-2">
-        <div class="saas-stat-card">
-            <div class="text-muted small">Excedentes</div>
-            <div class="saas-stat-value status-warning"><?= (int)($summary['excedente'] ?? 0) ?></div>
-        </div>
+    <div class="saas-stat-card">
+        <div class="text-muted small">Canceladas</div>
+        <div class="saas-stat-value"><?= (int)($summary['cancelada'] ?? 0) ?></div>
     </div>
 </div>
 
-<div class="section-block mb-4">
-    <div class="section-title mb-3">
-        <div class="icon"><i class="bi bi-file-earmark-break"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Impressão para cozinha</div>
-            <h5 class="fw-bold mb-0">Reservas com status Reservada por restaurante</h5>
+<div class="section-block collapsible-section mb-4" data-mobile-collapsed="1" id="printKitchenSection">
+    <div class="collapsible-section-head">
+        <div class="section-title">
+            <div class="icon"><i class="bi bi-file-earmark-break"></i></div>
+            <div>
+                <div class="text-uppercase text-muted small">Impressão para cozinha</div>
+                <h5 class="fw-bold mb-0">Reservas com status Reservada por restaurante</h5>
+                <div class="text-muted small">Abra apenas quando precisar gerar listas para a cozinha.</div>
+            </div>
         </div>
+        <button
+            type="button"
+            class="btn btn-outline-primary section-toggle-btn"
+            data-toggle-section="#printKitchenSection"
+            data-open-label="Ocultar impressão"
+            data-closed-label="Mostrar impressão"
+            aria-expanded="true"
+        >
+            <i class="bi bi-chevron-up me-1"></i><span data-toggle-label>Ocultar impressão</span>
+        </button>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-        <?php foreach ($printRestaurantes as $rest): ?>
-            <a
-                class="btn btn-outline-primary btn-xl"
-                href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($rest['id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=Reservada&order=hora"
-                target="_blank"
-            >
-                <i class="bi bi-printer"></i> <?= h($rest['nome']) ?>
-            </a>
-        <?php endforeach; ?>
-        <?php if (!empty($filters['restaurante_id'])): ?>
-            <a
-                class="btn btn-primary btn-xl"
-                href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=Reservada&order=hora"
-                target="_blank"
-            >
-                <i class="bi bi-printer-fill"></i> Imprimir Reservadas do restaurante selecionado
-            </a>
-        <?php endif; ?>
+    <div class="section-collapsed-hint">
+        Impressão recolhida para priorizar a conferência das reservas.
     </div>
-    <div class="text-muted small mt-2">
-        Esta área imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio à cozinha.
+    <div class="collapsible-section-body">
+        <div class="d-flex flex-wrap gap-2">
+            <?php foreach ($printRestaurantes as $rest): ?>
+                <a
+                    class="btn btn-outline-primary btn-xl"
+                    href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($rest['id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=Reservada&order=hora"
+                    target="_blank"
+                >
+                    <i class="bi bi-printer"></i> <?= h($rest['nome']) ?>
+                </a>
+            <?php endforeach; ?>
+            <?php if (!empty($filters['restaurante_id'])): ?>
+                <a
+                    class="btn btn-primary btn-xl"
+                    href="/?r=reservasTematicas/print&tipo=detalhada&data=<?= h($filters['data']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=Reservada&order=hora"
+                    target="_blank"
+                >
+                    <i class="bi bi-printer-fill"></i> Imprimir Reservadas do restaurante selecionado
+                </a>
+            <?php endif; ?>
+        </div>
+        <div class="text-muted small mt-2">
+            Esta área imprime apenas reservas em <strong>status Reservada</strong>, organizadas para envio à cozinha.
+        </div>
     </div>
 </div>
 
@@ -290,12 +989,13 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-list-ul"></i></div>
         <div>
-            <div class="text-uppercase text-muted small">Visualização rápida</div>
-            <h5 class="fw-bold mb-0">Nome | UH | PAX | Turno | Restaurante | Status</h5>
+            <div class="text-uppercase text-muted small">Operação em tempo real</div>
+            <h5 class="fw-bold mb-0">Reservas do dia</h5>
+            <div class="text-muted small">Filtre, ordene e toque em qualquer reserva para conferir ou ajustar status.</div>
         </div>
     </div>
 
-    <form class="row g-2 mb-3" method="get" action="/">
+    <form class="row g-2 mb-3 reservation-filter-panel" method="get" action="/">
         <input type="hidden" name="r" value="reservasTematicas/operacao">
         <div class="col-12 col-md-3">
             <label class="form-label mb-1">Data da operação</label>
@@ -331,279 +1031,337 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             </select>
         </div>
         <div class="col-12 col-md-3 d-flex align-items-end gap-2 context-actions">
-            <button class="btn btn-primary w-100 context-btn">Atualizar contexto</button>
+            <button class="btn btn-primary w-100 context-btn">Filtrar</button>
             <a class="btn btn-outline-primary context-btn context-today" href="/?r=reservasTematicas/operacao">Hoje</a>
         </div>
     </form>
 
-    <div class="row g-2 mb-3">
+    <div class="row g-2 mb-3 reservation-filter-panel">
         <div class="col-12 col-md-4">
             <label class="form-label mb-1">Filtro da tabela rápida</label>
             <input type="text" class="form-control" id="quickLocalFilter" placeholder="Digite nome, UH, turno, restaurante ou status">
         </div>
-        <div class="col-6 col-md-3">
-            <label class="form-label mb-1">Status</label>
-            <select class="form-select" id="quickStatusFilter">
-                <option value="">Todos</option>
-                <?php foreach ($statusOptions as $status): ?>
-                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
-                <?php endforeach; ?>
-            </select>
+        <div class="col-12 d-md-none">
+            <button type="button" class="btn btn-outline-primary quick-filter-toggle" data-toggle-quick-filters aria-expanded="false">
+                <i class="bi bi-sliders"></i>
+                <span data-quick-filter-label>Mais filtros</span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
         </div>
-        <div class="col-6 col-md-3">
-            <label class="form-label mb-1">Restaurante</label>
-            <select class="form-select" id="quickRestaurantFilter">
-                <option value="">Todos</option>
-                <?php foreach ($restaurantes as $rest): ?>
-                    <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label mb-1">Ordenação</label>
-            <select class="form-select" id="quickSort">
-                <option value="restaurante">Restaurante (A-Z)</option>
-                <option value="nome">Nome (A-Z)</option>
-                <option value="turno">Turno</option>
-                <option value="status">Status</option>
-            </select>
+        <div class="col-12 col-md-8 quick-advanced-filters" id="quickAdvancedFilters">
+            <div class="row g-2">
+                <div class="col-6 col-md-4">
+                    <label class="form-label mb-1">Status</label>
+                    <select class="form-select" id="quickStatusFilter">
+                        <option value="">Todos</option>
+                        <?php foreach ($statusOptions as $status): ?>
+                            <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-6 col-md-5">
+                    <label class="form-label mb-1">Restaurante</label>
+                    <select class="form-select" id="quickRestaurantFilter">
+                        <option value="">Todos</option>
+                        <?php foreach ($restaurantes as $rest): ?>
+                            <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label mb-1">Ordenação</label>
+                    <select class="form-select" id="quickSort">
+                        <option value="restaurante">Restaurante (A-Z)</option>
+                        <option value="nome">Nome (A-Z)</option>
+                        <option value="turno">Turno</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="table-responsive">
-        <table class="table table-sm align-middle" id="quickTable">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>UH</th>
-                    <th>PAX</th>
-                    <th>Turno</th>
-                    <th>Restaurante</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="quickTableBody">
-                <?php foreach ($reservasOrdenadas as $item): ?>
-                    <?php $status = $normalizeStatus((string)($item['status_reserva'] ?? ($item['status'] ?? ''))); ?>
-                    <?php
-                        $titularDisplay = normalize_mojibake((string)($item['titular_nome_display'] ?? $item['titular_nome'] ?? '-'));
-                        $restDisplay = normalize_mojibake((string)($item['restaurante'] ?? ''));
-                        $statusDisplay = $labelStatus($status);
-                    ?>
-                    <?php
-                        $searchRow = mb_strtolower(trim(implode(' ', [
-                            $titularDisplay,
-                            (string)($item['uh_numero'] ?? ''),
-                            (string)($item['turno_hora'] ?? ''),
-                            (string)$statusDisplay,
-                            $restDisplay,
-                        ])), 'UTF-8');
-                    ?>
-                    <tr
-                        class="js-quick-row js-open-reserva"
-                        data-search="<?= h($searchRow) ?>"
-                        data-status="<?= h($status) ?>"
-                        data-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
-                        data-sort-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
-                        data-sort-nome="<?= h(mb_strtolower($titularDisplay, 'UTF-8')) ?>"
-                        data-sort-turno="<?= h((string)($item['turno_hora'] ?? '')) ?>"
-                        data-sort-status="<?= h(mb_strtolower((string)$statusDisplay, 'UTF-8')) ?>"
-                        data-id="<?= (int)($item['id'] ?? 0) ?>"
-                        data-titular="<?= h($titularDisplay) ?>"
-                        data-uh="<?= h((string)($item['uh_numero'] ?? '')) ?>"
-                        data-pax="<?= h((string)($item['pax'] ?? 0)) ?>"
-                        data-pax-real="<?= h((string)($item['pax_real'] ?? '')) ?>"
-                        data-restaurante-id="<?= (int)($item['restaurante_id'] ?? 0) ?>"
-                        data-restaurante-nome="<?= h($restDisplay) ?>"
-                        data-turno-id="<?= (int)($item['turno_id'] ?? 0) ?>"
-                        data-turno-hora="<?= h((string)($item['turno_hora'] ?? '')) ?>"
-                        data-status-atual="<?= h($status) ?>"
-                        data-obs-operacao="<?= h(normalize_mojibake((string)($item['observacao_operacao'] ?? ''))) ?>"
-                    >
-                        <td><?= h($titularDisplay) ?></td>
-                        <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></td>
-                        <td><?= h((string)($item['pax'] ?? 0)) ?></td>
-                        <td><span class="tag badge-soft"><?= h($item['turno_hora'] ?? '-') ?></span></td>
-                        <td><span class="tag <?= restaurant_badge_class($restDisplay) ?>"><?= h($restDisplay) ?></span></td>
-                        <td><span class="badge badge-soft"><?= h($statusDisplay) ?></span></td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (empty($reservasOrdenadas)): ?>
-                    <tr><td colspan="6" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
+    <div class="reservation-card-grid" id="quickTableBody">
+        <?php foreach ($reservasOrdenadas as $item): ?>
+            <?php $status = $normalizeStatus((string)($item['status_reserva'] ?? ($item['status'] ?? ''))); ?>
+            <?php
+                $titularDisplay = normalize_mojibake((string)($item['titular_nome_display'] ?? $item['titular_nome'] ?? '-'));
+                $restDisplay = normalize_mojibake((string)($item['restaurante'] ?? ''));
+                $statusDisplay = $labelStatus($status);
+                $turnoDisplay = substr((string)($item['turno_hora'] ?? '-'), 0, 5);
+            ?>
+            <?php
+                $searchRow = mb_strtolower(trim(implode(' ', [
+                    $titularDisplay,
+                    (string)($item['uh_numero'] ?? ''),
+                    (string)($item['turno_hora'] ?? ''),
+                    (string)$statusDisplay,
+                    $restDisplay,
+                ])), 'UTF-8');
+            ?>
+            <article
+                class="reservation-op-card js-quick-row js-open-reserva"
+                data-search="<?= h($searchRow) ?>"
+                data-status="<?= h($status) ?>"
+                data-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
+                data-sort-rest="<?= h(mb_strtolower($restDisplay, 'UTF-8')) ?>"
+                data-sort-nome="<?= h(mb_strtolower($titularDisplay, 'UTF-8')) ?>"
+                data-sort-turno="<?= h((string)($item['turno_hora'] ?? '')) ?>"
+                data-sort-status="<?= h(mb_strtolower((string)$statusDisplay, 'UTF-8')) ?>"
+                data-id="<?= (int)($item['id'] ?? 0) ?>"
+                data-titular="<?= h($titularDisplay) ?>"
+                data-uh="<?= h((string)($item['uh_numero'] ?? '')) ?>"
+                data-pax="<?= h((string)($item['pax'] ?? 0)) ?>"
+                data-pax-real="<?= h((string)($item['pax_real'] ?? '')) ?>"
+                data-restaurante-id="<?= (int)($item['restaurante_id'] ?? 0) ?>"
+                data-restaurante-nome="<?= h($restDisplay) ?>"
+                data-turno-id="<?= (int)($item['turno_id'] ?? 0) ?>"
+                data-turno-hora="<?= h((string)($item['turno_hora'] ?? '')) ?>"
+                data-status-atual="<?= h($status) ?>"
+                data-obs-operacao="<?= h(normalize_mojibake((string)($item['observacao_operacao'] ?? ''))) ?>"
+                role="button"
+                tabindex="0"
+            >
+                <div class="reservation-op-head">
+                    <div class="reservation-op-title">
+                        <strong><?= h($titularDisplay) ?></strong>
+                        <span class="small">Toque para conferir ou alterar status</span>
+                    </div>
+                    <span class="reservation-status-pill <?= h($statusBadgeClass($status)) ?>"><?= h($statusDisplay) ?></span>
+                </div>
+                <div class="reservation-op-meta">
+                    <div class="reservation-op-metric">
+                        <span class="label">UH</span>
+                        <span class="value"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></span>
+                    </div>
+                    <div class="reservation-op-metric">
+                        <span class="label">PAX</span>
+                        <span class="value"><?= h((string)($item['pax'] ?? 0)) ?></span>
+                    </div>
+                    <div class="reservation-op-metric">
+                        <span class="label">Turno</span>
+                        <span class="value"><?= h($turnoDisplay) ?></span>
+                    </div>
+                </div>
+                <div class="reservation-op-foot">
+                    <span class="tag <?= restaurant_badge_class($restDisplay) ?>"><?= h($restDisplay) ?></span>
+                    <span class="text-muted small"><i class="bi bi-chevron-right"></i></span>
+                </div>
+            </article>
+        <?php endforeach; ?>
+        <?php if (empty($reservasOrdenadas)): ?>
+            <div class="reservation-empty-card">Nenhuma reserva encontrada para este período.</div>
+        <?php endif; ?>
     </div>
-    <div id="quickPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
-    <div class="text-muted small mt-2">Clique em uma linha para abrir detalhes e editar restaurante, turno e status.</div>
+    <div id="quickEmptyState" class="reservation-empty-card mt-2" hidden>Nenhuma reserva encontrada com os filtros aplicados.</div>
+    <div id="quickPagination" class="reservation-pagination d-flex flex-wrap gap-2 mt-2"></div>
+    <div class="reservation-helper small mt-2"><i class="bi bi-hand-index-thumb"></i> Toque em uma reserva para abrir detalhes e editar restaurante, turno e status.</div>
 </div>
-<div class="section-block">
-    <div class="section-title mb-3">
-        <div class="icon"><i class="bi bi-clipboard-check"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Conferência</div>
-            <h5 class="fw-bold mb-0">Base detalhada do período selecionado</h5>
+<div class="section-block collapsible-section" data-mobile-collapsed="1" id="detailedSection">
+    <div class="collapsible-section-head">
+        <div class="section-title">
+            <div class="icon"><i class="bi bi-clipboard-check"></i></div>
+            <div>
+                <div class="text-uppercase text-muted small">Conferência</div>
+                <h5 class="fw-bold mb-0">Base detalhada do período selecionado</h5>
+                <div class="text-muted small">Use quando precisar auditar observações, PAX real e histórico completo.</div>
+            </div>
         </div>
+        <button type="button" class="btn btn-outline-primary section-toggle-btn" data-toggle-section="#detailedSection" aria-expanded="true">
+            <i class="bi bi-chevron-up me-1"></i><span data-toggle-label>Ocultar base</span>
+        </button>
     </div>
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-md-6">
-            <label class="form-label mb-1">Filtro da base detalhada</label>
-            <input type="text" class="form-control" id="detailedLocalFilter" placeholder="Nome, UH, observações, turno ou status">
-        </div>
-        <div class="col-6 col-md-3">
-            <label class="form-label mb-1">Status</label>
-            <select class="form-select" id="detailedStatusFilter">
-                <option value="">Todos</option>
-                <?php foreach ($statusOptions as $status): ?>
-                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-6 col-md-3">
-            <label class="form-label mb-1">Restaurante</label>
-            <select class="form-select" id="detailedRestaurantFilter">
-                <option value="">Todos</option>
-                <?php foreach ($restaurantes as $rest): ?>
-                    <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+    <div class="section-collapsed-hint">
+        Base detalhada recolhida para manter a operação mais rápida no celular.
     </div>
-    <div class="table-responsive">
-        <table class="table table-sm align-middle" id="detailedTable">
-            <thead>
-                <tr>
-                    <th>Status</th>
-                    <th>Nome</th>
-                    <th>UH</th>
-                    <th>PAX reservada</th>
-                    <th>PAX real</th>
-                    <th>Restaurante</th>
-                    <th>Turno</th>
-                    <th>Observação original</th>
-                    <th>Observação operacional</th>
-                </tr>
-            </thead>
-            <tbody id="detailedTableBody">
-                <?php foreach ($reservas as $row): ?>
-                    <?php $rowStatus = $normalizeStatus((string)($row['status_reserva'] ?? ($row['status'] ?? ''))); ?>
-                    <?php
-                        $rowTitular = normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '-'));
-                        $rowRest = normalize_mojibake((string)($row['restaurante'] ?? ''));
-                        $rowSearch = mb_strtolower(trim(implode(' ', [
-                            (string)$rowTitular,
-                            (string)($row['uh_numero'] ?? ''),
-                            (string)($row['turno_hora'] ?? ''),
-                            (string)$labelStatus($rowStatus),
-                            (string)$rowRest,
-                            normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
-                            normalize_mojibake((string)($row['observacao_operacao'] ?? '')),
-                        ])), 'UTF-8');
-                    ?>
-                    <tr class="js-detailed-row" data-search="<?= h($rowSearch) ?>" data-status="<?= h($rowStatus) ?>" data-rest="<?= h(mb_strtolower($rowRest, 'UTF-8')) ?>">
-                        <td>
-                            <span class="badge badge-soft"><?= h($labelStatus($rowStatus)) ?></span>
-                            <?php if (!empty($row['excedente'])): ?>
-                                <span class="badge badge-warning">Excedente</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h($rowTitular) ?></td>
-                        <td><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
-                        <td><?= h((string)($row['pax'] ?? 0)) ?></td>
-                        <td><?= h((string)($row['pax_real'] ?? '-')) ?></td>
-                        <td><span class="tag <?= restaurant_badge_class($rowRest) ?>"><?= h($rowRest) ?></span></td>
-                        <td><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
-                        <td>
-                            <?= h(normalize_mojibake((string)($row['observacao_reserva'] ?? '-'))) ?>
-                            <?php if (!empty($row['observacao_tags'])): ?>
-                                <div class="text-muted small"><?= h(normalize_mojibake((string)$row['observacao_tags'])) ?></div>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= h(normalize_mojibake((string)($row['observacao_operacao'] ?? '-'))) ?></td>
+    <div class="collapsible-section-body">
+        <div class="row g-2 mb-3 reservation-filter-panel">
+            <div class="col-12 col-md-6">
+                <label class="form-label mb-1">Filtro da base detalhada</label>
+                <input type="text" class="form-control" id="detailedLocalFilter" placeholder="Nome, UH, observações, turno ou status">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label mb-1">Status</label>
+                <select class="form-select" id="detailedStatusFilter">
+                    <option value="">Todos</option>
+                    <?php foreach ($statusOptions as $status): ?>
+                        <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label mb-1">Restaurante</label>
+                <select class="form-select" id="detailedRestaurantFilter">
+                    <option value="">Todos</option>
+                    <?php foreach ($restaurantes as $rest): ?>
+                        <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <div class="table-responsive reservation-table-shell">
+            <table class="table table-sm align-middle reservation-list-table" id="detailedTable">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Nome</th>
+                        <th>UH</th>
+                        <th>PAX reservada</th>
+                        <th>PAX real</th>
+                        <th>Restaurante</th>
+                        <th>Turno</th>
+                        <th>Observação original</th>
+                        <th>Observação operacional</th>
                     </tr>
-                <?php endforeach; ?>
-                <?php if (empty($reservas)): ?>
-                    <tr><td colspan="9" class="text-muted">Nenhuma reserva encontrada para este período.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody id="detailedTableBody">
+                    <?php foreach ($reservas as $row): ?>
+                        <?php $rowStatus = $normalizeStatus((string)($row['status_reserva'] ?? ($row['status'] ?? ''))); ?>
+                        <?php
+                            $rowTitular = normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '-'));
+                            $rowRest = normalize_mojibake((string)($row['restaurante'] ?? ''));
+                            $rowSearch = mb_strtolower(trim(implode(' ', [
+                                (string)$rowTitular,
+                                (string)($row['uh_numero'] ?? ''),
+                                (string)($row['turno_hora'] ?? ''),
+                                (string)$labelStatus($rowStatus),
+                                (string)$rowRest,
+                                normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
+                                normalize_mojibake((string)($row['observacao_operacao'] ?? '')),
+                            ])), 'UTF-8');
+                        ?>
+                        <tr class="js-detailed-row" data-search="<?= h($rowSearch) ?>" data-status="<?= h($rowStatus) ?>" data-rest="<?= h(mb_strtolower($rowRest, 'UTF-8')) ?>">
+                            <td data-label="Status">
+                                <span class="reservation-status-pill <?= h($statusBadgeClass($rowStatus)) ?>"><?= h($labelStatus($rowStatus)) ?></span>
+                            </td>
+                            <td data-label="Nome"><?= h($rowTitular) ?></td>
+                            <td data-label="UH"><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                            <td data-label="PAX reservada"><?= h((string)($row['pax'] ?? 0)) ?></td>
+                            <td data-label="PAX real"><?= h((string)($row['pax_real'] ?? '-')) ?></td>
+                            <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($rowRest) ?>"><?= h($rowRest) ?></span></td>
+                            <td data-label="Turno"><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
+                            <td data-label="Obs. original">
+                                <?= h(normalize_mojibake((string)($row['observacao_reserva'] ?? '-'))) ?>
+                                <?php if (!empty($row['observacao_tags'])): ?>
+                                    <div class="text-muted small"><?= h(normalize_mojibake((string)$row['observacao_tags'])) ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td data-label="Obs. operação"><?= h(normalize_mojibake((string)($row['observacao_operacao'] ?? '-'))) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($reservas)): ?>
+                        <tr><td colspan="9" class="text-muted empty-state">Nenhuma reserva encontrada para este período.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <div id="detailedPagination" class="reservation-pagination d-flex flex-wrap gap-2 mt-2"></div>
     </div>
-    <div id="detailedPagination" class="d-flex flex-wrap gap-2 mt-2"></div>
 </div>
 </div>
 
 <div class="modal fade" id="reservaDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content reservation-detail-modal">
             <form method="post" action="/?r=reservasTematicas/operacao" id="reservaDetailForm">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="update_detail">
                 <input type="hidden" name="id" id="modalReservaId" value="">
                 <input type="hidden" name="confirm_final" id="modalConfirmFinal" value="0">
                 <div class="modal-header">
-                    <h5 class="modal-title">Detalhes da reserva</h5>
+                    <div>
+                        <div class="text-uppercase text-muted small">Operação temática</div>
+                        <h5 class="modal-title mb-0">Detalhes da reserva</h5>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-2 mb-2">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Titular</label>
-                            <input class="form-control" id="modalTitular" readonly>
+                    <div class="reservation-modal-summary">
+                        <div class="reservation-modal-title">
+                            <strong id="modalTitularDisplay">-</strong>
+                            <span id="modalContextDisplay">Restaurante e turno</span>
+                            <div class="reservation-modal-badges">
+                                <span class="uh-badge" id="modalUhDisplay">UH -</span>
+                                <span class="reservation-status-pill status-muted" id="modalStatusDisplay">Reservada</span>
+                            </div>
                         </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label">UH</label>
-                            <input class="form-control" id="modalUh" readonly>
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label">PAX reservada</label>
-                            <input class="form-control" id="modalPax" readonly>
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label">PAX real</label>
-                            <input class="form-control" type="number" min="0" name="pax_real" id="modalPaxReal">
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status" id="modalStatus" required>
-                                <?php foreach ($statusOptions as $status): ?>
-                                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="reservation-modal-count">
+                            <div class="mini-stat">
+                                <span>Reservada</span>
+                                <strong id="modalPaxDisplay">0</strong>
+                            </div>
+                            <div class="mini-stat">
+                                <span>Real</span>
+                                <strong id="modalPaxRealDisplay">-</strong>
+                            </div>
                         </div>
                     </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Restaurante</label>
-                            <select class="form-select" name="restaurante_id" id="modalRestaurante" required>
-                                <?php foreach ($restaurantes as $rest): ?>
-                                    <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Turno</label>
-                            <select class="form-select" name="turno_id" id="modalTurno" required>
-                                <?php foreach ($turnos as $turno): ?>
-                                    <option value="<?= (int)$turno['id'] ?>"><?= h($turno['hora']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
+
+                    <input class="form-control d-none" id="modalTitular" readonly>
+                    <input class="form-control d-none" id="modalUh" readonly>
+                    <input class="form-control d-none" id="modalPax" readonly>
+
+                    <div class="reservation-form-section">
+                        <div class="reservation-form-section-title"><i class="bi bi-people"></i>Dados de conferência</div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">PAX real</label>
+                                <div class="input-group pax-real-group">
+                                    <input class="form-control" type="number" min="0" name="pax_real" id="modalPaxReal">
+                                    <button class="btn btn-outline-primary" type="button" id="useReservedPaxBtn">Usar reservado</button>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="status" id="modalStatus" required>
+                                    <?php foreach ($statusOptions as $status): ?>
+                                        <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label">Observação operacional</label>
-                        <textarea class="form-control" name="observacao_operacao" id="modalObsOperacao" rows="3"></textarea>
+
+                    <div class="reservation-form-section">
+                        <div class="reservation-form-section-title"><i class="bi bi-shop-window"></i>Restaurante e turno</div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Restaurante</label>
+                                <select class="form-select" name="restaurante_id" id="modalRestaurante" required>
+                                    <?php foreach ($restaurantes as $rest): ?>
+                                        <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Turno</label>
+                                <select class="form-select" name="turno_id" id="modalTurno" required>
+                                    <?php foreach ($turnos as $turno): ?>
+                                        <option value="<?= (int)$turno['id'] ?>"><?= h($turno['hora']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-0">
-                        <label class="form-label">Justificativa (obrigatória em turno encerrado)</label>
-                        <input class="form-control" type="text" name="justificativa" id="modalJustificativa" placeholder="Descreva o motivo da alteração">
+
+                    <div class="reservation-form-section mb-0">
+                        <div class="reservation-form-section-title"><i class="bi bi-card-text"></i>Observações</div>
+                        <div class="mb-2">
+                            <label class="form-label">Observação operacional</label>
+                            <textarea class="form-control" name="observacao_operacao" id="modalObsOperacao" rows="3"></textarea>
+                        </div>
+                        <div>
+                            <label class="form-label">Justificativa (obrigatória em turno encerrado)</label>
+                            <input class="form-control" type="text" name="justificativa" id="modalJustificativa" placeholder="Descreva o motivo da alteração">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer d-flex flex-wrap gap-2 justify-content-between">
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="d-flex flex-wrap gap-2 modal-status-actions">
                         <button type="button" class="btn btn-outline-primary" data-final-status="Finalizada">Finalizar</button>
                         <button type="button" class="btn btn-outline-primary" data-final-status="Nao compareceu">Não compareceu</button>
                         <button type="button" class="btn btn-outline-primary" data-final-status="Cancelada">Cancelar</button>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 modal-submit-actions">
                         <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Fechar</button>
                         <button type="submit" class="btn btn-primary">Salvar alterações</button>
                     </div>
@@ -621,6 +1379,62 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim();
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+    const responsivePageSize = (kind) => {
+        if (kind === 'quick') return isMobileViewport() ? 5 : 10;
+        if (kind === 'detailed') return isMobileViewport() ? 6 : 12;
+        return isMobileViewport() ? 5 : 12;
+    };
+    const setSectionCollapsed = (section, collapsed) => {
+        section.classList.toggle('is-collapsed', collapsed);
+        const toggle = document.querySelector(`[data-toggle-section="#${section.id}"]`);
+        if (!toggle) return;
+
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        const label = toggle.querySelector('[data-toggle-label]');
+        if (label) {
+            label.textContent = collapsed
+                ? (toggle.dataset.closedLabel || 'Mostrar base')
+                : (toggle.dataset.openLabel || 'Ocultar base');
+        }
+    };
+    document.querySelectorAll('[data-toggle-section]').forEach((toggle) => {
+        const selector = toggle.getAttribute('data-toggle-section');
+        const section = selector ? document.querySelector(selector) : null;
+        if (!section) return;
+
+        const startCollapsed = section.dataset.mobileCollapsed === '1' && isMobileViewport();
+        setSectionCollapsed(section, startCollapsed);
+        toggle.addEventListener('click', () => {
+            setSectionCollapsed(section, !section.classList.contains('is-collapsed'));
+        });
+    });
+    const quickAdvancedFilters = document.getElementById('quickAdvancedFilters');
+    const quickFilterToggle = document.querySelector('[data-toggle-quick-filters]');
+    const setQuickFiltersCollapsed = (collapsed) => {
+        if (!quickAdvancedFilters || !quickFilterToggle) return;
+        quickAdvancedFilters.classList.toggle('is-collapsed', collapsed);
+        quickFilterToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        const label = quickFilterToggle.querySelector('[data-quick-filter-label]');
+        if (label) label.textContent = collapsed ? 'Mais filtros' : 'Ocultar filtros';
+    };
+    if (quickAdvancedFilters && quickFilterToggle) {
+        setQuickFiltersCollapsed(isMobileViewport());
+        quickFilterToggle.addEventListener('click', () => {
+            setQuickFiltersCollapsed(!quickAdvancedFilters.classList.contains('is-collapsed'));
+        });
+    }
+    const pageWindow = (current, pages) => {
+        if (pages <= 5) return Array.from({ length: pages }, (_, idx) => idx + 1);
+        const items = [1];
+        const start = Math.max(2, current - 1);
+        const end = Math.min(pages - 1, current + 1);
+        if (start > 2) items.push('...');
+        for (let i = start; i <= end; i++) items.push(i);
+        if (end < pages - 1) items.push('...');
+        items.push(pages);
+        return items;
+    };
     const paginateRows = (rows, container, page = 1, perPage = 12) => {
         const total = rows.length;
         const pages = Math.max(1, Math.ceil(total / perPage));
@@ -632,15 +1446,41 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         });
         if (!container) return current;
         container.innerHTML = '';
+        if (total === 0) return current;
+
+        const info = document.createElement('div');
+        info.className = 'reservation-pagination-info';
+        info.textContent = `Mostrando ${start + 1}-${Math.min(end, total)} de ${total}`;
+        container.appendChild(info);
+
         if (pages <= 1) return current;
-        for (let i = 1; i <= pages; i++) {
+
+        const controls = document.createElement('div');
+        controls.className = 'reservation-pagination-controls';
+
+        const createButton = (label, targetPage, active = false, disabled = false) => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `btn btn-sm ${i === current ? 'btn-primary' : 'btn-outline-primary'} js-page-btn`;
-            btn.dataset.page = String(i);
-            btn.textContent = String(i);
-            container.appendChild(btn);
-        }
+            btn.className = `btn btn-sm ${active ? 'btn-primary' : 'btn-outline-primary'} js-page-btn`;
+            btn.dataset.page = String(targetPage);
+            btn.textContent = label;
+            btn.disabled = disabled;
+            return btn;
+        };
+
+        controls.appendChild(createButton('Anterior', current - 1, false, current <= 1));
+        pageWindow(current, pages).forEach((item) => {
+            if (item === '...') {
+                const dots = document.createElement('span');
+                dots.className = 'reservation-pagination-dots';
+                dots.textContent = '...';
+                controls.appendChild(dots);
+                return;
+            }
+            controls.appendChild(createButton(String(item), item, item === current));
+        });
+        controls.appendChild(createButton('Próxima', current + 1, false, current >= pages));
+        container.appendChild(controls);
         return current;
     };
 
@@ -651,6 +1491,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     const quickSort = document.getElementById('quickSort');
     const quickPagination = document.getElementById('quickPagination');
     const quickBody = document.getElementById('quickTableBody');
+    const quickEmptyState = document.getElementById('quickEmptyState');
     let quickPage = 1;
 
     const applyQuickFilters = (resetPage = true) => {
@@ -684,7 +1525,10 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             quickRows.forEach((row) => { row.style.display = 'none'; });
             filtered.forEach((row) => quickBody.appendChild(row));
         }
-        quickPage = paginateRows(filtered, quickPagination, quickPage, 10);
+        if (quickEmptyState) {
+            quickEmptyState.hidden = filtered.length > 0;
+        }
+        quickPage = paginateRows(filtered, quickPagination, quickPage, responsivePageSize('quick'));
     };
 
     quickInput?.addEventListener('input', () => applyQuickFilters(true));
@@ -723,7 +1567,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             detailedRows.forEach((row) => { row.style.display = 'none'; });
             filtered.forEach((row) => detailedBody.appendChild(row));
         }
-        detailedPage = paginateRows(filtered, detailedPagination, detailedPage, 12);
+        detailedPage = paginateRows(filtered, detailedPagination, detailedPage, responsivePageSize('detailed'));
     };
 
     detailedInput?.addEventListener('input', () => applyDetailedFilters(true));
@@ -734,6 +1578,15 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         if (!btn) return;
         detailedPage = parseInt(btn.dataset.page || '1', 10) || 1;
         applyDetailedFilters(false);
+    });
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            applyQuickFilters(false);
+            applyDetailedFilters(false);
+        }, 160);
     });
 
     const modalEl = document.getElementById('reservaDetailModal');
@@ -755,11 +1608,50 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     const modalTurno = document.getElementById('modalTurno');
     const modalObs = document.getElementById('modalObsOperacao');
     const modalConfirmFinal = document.getElementById('modalConfirmFinal');
+    const modalTitularDisplay = document.getElementById('modalTitularDisplay');
+    const modalContextDisplay = document.getElementById('modalContextDisplay');
+    const modalUhDisplay = document.getElementById('modalUhDisplay');
+    const modalStatusDisplay = document.getElementById('modalStatusDisplay');
+    const modalPaxDisplay = document.getElementById('modalPaxDisplay');
+    const modalPaxRealDisplay = document.getElementById('modalPaxRealDisplay');
+    const useReservedPaxBtn = document.getElementById('useReservedPaxBtn');
     const detailForm = document.getElementById('reservaDetailForm');
+
+    const statusLabelMap = {
+        Reservada: 'Reservada',
+        Finalizada: 'Finalizada',
+        'Nao compareceu': 'Não compareceu',
+        Cancelada: 'Cancelada',
+        Divergencia: 'Divergência',
+    };
+    const statusClassMap = {
+        Reservada: 'status-reserved',
+        Finalizada: 'status-finished',
+        'Nao compareceu': 'status-noshow',
+        Cancelada: 'status-canceled',
+        Divergencia: 'status-warning',
+    };
+    const syncModalSummary = () => {
+        const status = modalStatus?.value || 'Reservada';
+        const paxReal = modalPaxReal?.value || '';
+        if (modalTitularDisplay) modalTitularDisplay.textContent = modalTitular?.value || '-';
+        if (modalContextDisplay) {
+            const restText = modalRest?.selectedOptions?.[0]?.textContent?.trim() || '-';
+            const turnoText = modalTurno?.selectedOptions?.[0]?.textContent?.trim() || '-';
+            modalContextDisplay.textContent = `${restText} · ${turnoText}`;
+        }
+        if (modalUhDisplay) modalUhDisplay.textContent = `UH ${modalUh?.value || '-'}`;
+        if (modalPaxDisplay) modalPaxDisplay.textContent = modalPax?.value || '0';
+        if (modalPaxRealDisplay) modalPaxRealDisplay.textContent = paxReal !== '' ? paxReal : '-';
+        if (modalStatusDisplay) {
+            modalStatusDisplay.textContent = statusLabelMap[status] || status;
+            modalStatusDisplay.className = `reservation-status-pill ${statusClassMap[status] || 'status-muted'}`;
+        }
+    };
 
     document.querySelectorAll('.js-open-reserva').forEach((row) => {
         row.classList.add('js-row-clickable');
-        row.addEventListener('click', () => {
+        const openReserva = () => {
             const modalInstance = getModal();
             if (!modalInstance) return;
             modalId.value = row.dataset.id || '';
@@ -772,8 +1664,26 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             modalTurno.value = row.dataset.turnoId || '';
             modalObs.value = row.dataset.obsOperacao || '';
             modalConfirmFinal.value = '0';
+            syncModalSummary();
             modalInstance.show();
+        };
+        row.addEventListener('click', openReserva);
+        row.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openReserva();
         });
+    });
+
+    [modalStatus, modalRest, modalTurno, modalPaxReal].forEach((el) => {
+        el?.addEventListener('change', syncModalSummary);
+        el?.addEventListener('input', syncModalSummary);
+    });
+    useReservedPaxBtn?.addEventListener('click', () => {
+        if (!modalPaxReal || !modalPax) return;
+        modalPaxReal.value = modalPax.value || '0';
+        syncModalSummary();
+        modalPaxReal.focus();
     });
 
     detailForm?.addEventListener('submit', () => {

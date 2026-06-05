@@ -84,20 +84,133 @@ $paginationPages = static function (int $current, int $total): array {
     .reports-page .section-title .text-muted {
         overflow-wrap: anywhere;
     }
+    .reports-toggle > summary {
+        display: none;
+    }
+    .reports-toggle-summary {
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        cursor: pointer;
+        list-style: none;
+        border: 1px solid var(--ab-border);
+        border-radius: 16px;
+        padding: .85rem 1rem;
+        background: var(--ab-soft-bg);
+        color: var(--ab-text);
+        font-weight: 800;
+    }
+    .reports-toggle-summary::-webkit-details-marker {
+        display: none;
+    }
+    .reports-toggle-summary i {
+        color: var(--ab-primary);
+    }
+    .reports-toggle-summary .bi-chevron-down {
+        transition: transform .18s ease;
+    }
+    .reports-toggle[open] .reports-toggle-summary .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+    @media (max-width: 991.98px) {
+        .reports-page .card.p-4,
+        .reports-page .saas-hero-card {
+            padding: 1rem !important;
+        }
+        .reports-toggle > summary {
+            display: flex;
+        }
+        .reports-toggle:not([open]) > form,
+        .reports-toggle:not([open]) > .reports-section-body {
+            display: none !important;
+        }
+        .reports-toggle > form,
+        .reports-section-body {
+            margin-top: .85rem;
+        }
+        .reports-page .reports-actions {
+            width: 100%;
+        }
+        .reports-page .reports-actions .btn,
+        .reports-page .reports-actions .stat-chip {
+            flex: 1 1 auto;
+            justify-content: center;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .reports-page .section-title .icon {
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+        }
+        .reports-page .section-title h3 {
+            font-size: 1.35rem;
+        }
+        .reports-page .section-title h5 {
+            font-size: 1rem;
+        }
+        .reports-page .section-title .text-muted:not(.small) {
+            display: none;
+        }
+        .reports-page .reports-actions .btn,
+        .reports-page .reports-actions .stat-chip,
+        .reports-page .saas-toolbar .btn {
+            flex: 1 1 100%;
+            width: 100%;
+        }
+        .reports-metric-grid {
+            --bs-gutter-x: .75rem;
+            --bs-gutter-y: .75rem;
+        }
+        .reports-metric-grid > [class*="col-"] {
+            flex: 0 0 auto;
+            width: 50%;
+        }
+        .reports-metric-grid .metric-card {
+            padding: .85rem !important;
+            height: 100%;
+        }
+        .reports-metric-grid .metric-card .d-flex {
+            align-items: flex-start !important;
+            gap: .65rem !important;
+        }
+        .reports-metric-grid .metric-icon {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+        }
+        .reports-metric-grid .display-6 {
+            font-size: 1.25rem;
+            line-height: 1.05;
+        }
+        .reports-metric-grid .stat-chip {
+            width: 100%;
+            justify-content: flex-start;
+            white-space: normal;
+            line-height: 1.15;
+            font-size: .72rem;
+        }
+        .reports-page .pagination {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: .25rem;
+        }
+    }
 </style>
 
 <div class="split-pane-layout reports-page">
-<div class="card card-soft p-4 mb-4 split-full">
+<div class="saas-hero-card reports-hero split-full">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div class="section-title">
             <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
             <div>
-                <div class="text-uppercase text-muted small">Relatórios</div>
+                <div class="saas-label">Histórico e exportação</div>
                 <h3 class="fw-bold mb-1">Relatórios Operacionais</h3>
-                <div class="text-muted">Filtre por data, UH, restaurante e operação.</div>
+                <div class="text-muted">Consulta consolidada para auditoria, BI e fechamento gerencial.</div>
             </div>
         </div>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap gap-2 reports-actions">
+            <span class="stat-chip"><i class="bi bi-clock-history"></i> Histórico</span>
             <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&uh_numero=<?= h($filters['uh_numero']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>&status=<?= h($filters['status'] ?? '') ?>">
                 <i class="bi bi-download me-1"></i>Exportar CSV
             </a>
@@ -106,7 +219,12 @@ $paginationPages = static function (int $current, int $total): array {
             </a>
         </div>
     </div>
-    <form class="row g-3 align-items-end mt-2" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
+    <details class="reports-toggle" open data-reports-mobile-collapsed>
+        <summary class="reports-toggle-summary">
+            <span><i class="bi bi-funnel me-2"></i>Filtros do relatório</span>
+            <i class="bi bi-chevron-down"></i>
+        </summary>
+    <form class="row g-3 saas-filter-grid mt-3" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
         <input type="hidden" name="r" value="relatorios/index">
         <div class="col-12 col-md-3">
             <label class="form-label">Data (única)</label>
@@ -158,7 +276,7 @@ $paginationPages = static function (int $current, int $total): array {
                 <option value="day_use" <?= ($filters['status'] ?? '') === 'day_use' ? 'selected' : '' ?>>Day use</option>
             </select>
         </div>
-        <div class="col-12 d-flex flex-wrap gap-2">
+        <div class="col-12 saas-toolbar">
             <button class="btn btn-outline-primary" type="button" data-range="1">Ontem</button>
             <button class="btn btn-outline-primary" type="button" data-range="7">Últimos 7 dias</button>
             <button class="btn btn-outline-primary" type="button" data-range="30">Últimos 30 dias</button>
@@ -166,6 +284,7 @@ $paginationPages = static function (int $current, int $total): array {
             <a class="btn btn-primary btn-xl" href="/?r=relatorios/index" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
         </div>
     </form>
+    </details>
 </div>
 
 </div>
@@ -198,7 +317,7 @@ $paginationPages = static function (int $current, int $total): array {
     <div class="alert alert-warning">Mapa diário é exibido apenas para uma data única. Para visualizar o mapa, informe apenas a Data (única).</div>
 <?php endif; ?>
 
-<div class="row g-4 mb-4 split-full">
+<div class="row g-4 mb-4 split-full reports-metric-grid">
     <div class="col-12 col-md-6 col-xl-3">
         <div class="card metric-card p-4">
             <div class="d-flex align-items-center gap-3">
@@ -379,6 +498,12 @@ $paginationPages = static function (int $current, int $total): array {
 <?php endif; ?>
 
 <div class="card p-4 mb-4">
+    <details class="reports-toggle" open data-reports-mobile-collapsed>
+        <summary class="reports-toggle-summary">
+            <span><i class="bi bi-map me-2"></i>Mapa diário por UH</span>
+            <i class="bi bi-chevron-down"></i>
+        </summary>
+    <div class="reports-section-body">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-map"></i></div>
         <div>
@@ -442,9 +567,17 @@ $paginationPages = static function (int $current, int $total): array {
             </ul>
         </div>
     <?php endif; ?>
+    </div>
+    </details>
 </div>
 
 <div class="card p-4">
+    <details class="reports-toggle" open data-reports-mobile-collapsed>
+        <summary class="reports-toggle-summary">
+            <span><i class="bi bi-database me-2"></i>Base completa para BI</span>
+            <i class="bi bi-chevron-down"></i>
+        </summary>
+    <div class="reports-section-body">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-database"></i></div>
         <div>
@@ -587,9 +720,17 @@ $paginationPages = static function (int $current, int $total): array {
             </ul>
         </div>
     <?php endif; ?>
+    </div>
+    </details>
 </div>
 
 <div class="card p-4 mt-4">
+    <details class="reports-toggle" open data-reports-mobile-collapsed>
+        <summary class="reports-toggle-summary">
+            <span><i class="bi bi-person-badge me-2"></i>Refeições por colaborador</span>
+            <i class="bi bi-chevron-down"></i>
+        </summary>
+    <div class="reports-section-body">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-person-badge"></i></div>
         <div>
@@ -651,9 +792,17 @@ $paginationPages = static function (int $current, int $total): array {
             </ul>
         </div>
     <?php endif; ?>
+    </div>
+    </details>
 </div>
 
 <div class="card p-4 mt-4">
+    <details class="reports-toggle" open data-reports-mobile-collapsed>
+        <summary class="reports-toggle-summary">
+            <span><i class="bi bi-ticket-perforated me-2"></i>Vouchers registrados</span>
+            <i class="bi bi-chevron-down"></i>
+        </summary>
+    <div class="reports-section-body">
     <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-ticket-perforated"></i></div>
         <div>
@@ -734,4 +883,19 @@ $paginationPages = static function (int $current, int $total): array {
             </ul>
         </div>
     <?php endif; ?>
+    </div>
+    </details>
 </div>
+
+<script>
+(() => {
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    document.querySelectorAll('[data-reports-mobile-collapsed]').forEach((panel) => {
+        if (isMobile) {
+            panel.removeAttribute('open');
+        } else {
+            panel.setAttribute('open', 'open');
+        }
+    });
+})();
+</script>

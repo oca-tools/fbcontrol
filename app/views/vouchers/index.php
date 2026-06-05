@@ -9,6 +9,98 @@ $voucherReceiveLimitLabel = (string)($this->data['voucher_receive_limit_label'] 
 $voucherTargetLimitBytes = (int)($this->data['voucher_target_limit_bytes'] ?? (5 * 1024 * 1024));
 $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ?? format_bytes_ptbr($voucherTargetLimitBytes));
 ?>
+<style>
+    .vouchers-page,
+    .vouchers-page .row,
+    .vouchers-page [class*="col-"] {
+        min-width: 0;
+    }
+    .vouchers-page .card {
+        overflow: hidden;
+    }
+    .voucher-file-box {
+        border: 1px dashed var(--ab-border);
+        border-radius: 16px;
+        padding: 1rem;
+        background: var(--ab-soft-bg);
+    }
+    .voucher-file-box .form-control {
+        background: var(--ab-card);
+    }
+    .voucher-list-table td,
+    .voucher-list-table th {
+        vertical-align: middle;
+    }
+    @media (max-width: 991.98px) {
+        .vouchers-page .card.p-4,
+        .vouchers-page .card-soft.p-4 {
+            padding: 1rem !important;
+            border-radius: 18px;
+        }
+        .vouchers-page .section-title {
+            align-items: flex-start;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .vouchers-page .section-title .icon {
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+        }
+        .vouchers-page .section-title h3 {
+            font-size: 1.35rem;
+        }
+        .vouchers-page .section-title .text-muted:not(.small) {
+            display: none;
+        }
+        .voucher-form-card .badge {
+            align-self: flex-start;
+        }
+        .voucher-file-box {
+            padding: .85rem;
+        }
+        .voucher-list-table,
+        .voucher-list-table tbody,
+        .voucher-list-table tr,
+        .voucher-list-table td {
+            display: block;
+            width: 100%;
+        }
+        .voucher-list-table thead {
+            display: none;
+        }
+        .voucher-list-table tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .voucher-list-table td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            text-align: right;
+        }
+        .voucher-list-table td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+        }
+        .voucher-list-table td .btn {
+            min-width: 92px;
+        }
+    }
+</style>
+
+<div class="vouchers-page">
 <div class="card card-soft p-4 mb-4">
     <div class="section-title">
         <div class="icon"><i class="bi bi-ticket-perforated"></i></div>
@@ -26,7 +118,7 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
 
 <div class="row g-4">
     <div class="col-12 col-lg-6">
-        <div class="card p-4">
+        <div class="card p-4 voucher-form-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <div class="text-uppercase text-muted small">Cadastro</div>
@@ -85,11 +177,13 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                     <input type="text" name="servico_upselling" class="form-control input-xl" placeholder="Ex: Almoço Restaurante Corais" required>
                 </div>
                 <div class="col-12">
+                    <div class="voucher-file-box">
                     <label class="form-label">Anexo do voucher (PDF ou imagem)</label>
                     <input type="hidden" name="MAX_FILE_SIZE" value="<?= (int)$voucherReceiveLimitBytes ?>">
                     <input type="file" name="voucher_anexo" class="form-control" accept="application/pdf,image/png,image/jpeg,image/webp" data-voucher-file data-max-bytes="<?= (int)$voucherReceiveLimitBytes ?>" data-target-bytes="<?= (int)$voucherTargetLimitBytes ?>">
                     <div class="form-text">Formatos aceitos: PDF, JPG, PNG ou WEBP. Imagens acima de <?= h($voucherTargetLimitLabel) ?> serão compactadas automaticamente. Limite de envio: <?= h($voucherReceiveLimitLabel) ?>.</div>
                     <div class="form-text text-muted" data-voucher-file-status></div>
+                    </div>
                 </div>
                 <div class="col-12">
                     <button class="btn btn-primary btn-xl w-100">Registrar voucher</button>
@@ -104,7 +198,7 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                 <span class="text-muted small">Restaurante Corais</span>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
+                <table class="table table-sm align-middle voucher-list-table">
                     <thead>
                         <tr>
                             <th>Hóspede</th>
@@ -116,10 +210,10 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                     <tbody>
                         <?php foreach ($vouchers as $row): ?>
                             <tr>
-                                <td><?= h($row['nome_hospede']) ?></td>
-                                <td><?= h($row['numero_reserva']) ?></td>
-                                <td><?= h($row['data_venda']) ?></td>
-                                <td>
+                                <td data-label="Hóspede"><?= h($row['nome_hospede']) ?></td>
+                                <td data-label="Reserva"><?= h($row['numero_reserva']) ?></td>
+                                <td data-label="Data"><?= h($row['data_venda']) ?></td>
+                                <td data-label="Anexo">
                                     <?php if (!empty($row['voucher_anexo_path'])): ?>
                                         <a class="btn btn-outline-primary btn-sm" href="<?= h($row['voucher_anexo_path']) ?>" target="_blank">Abrir</a>
                                     <?php else: ?>
@@ -136,6 +230,7 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <script>

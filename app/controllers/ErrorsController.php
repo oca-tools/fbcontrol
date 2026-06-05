@@ -1,13 +1,13 @@
 <?php
 class ErrorsController extends Controller
 {
-    public function forbidden(): void
+    public function forbidden(string $message = 'OOps, acesso não autorizado.'): void
     {
-        parent::forbidden();
+        parent::forbidden($message);
     }
 
-    public function notFound(): void
+    public function notFound(string $message = 'OOps, página não encontrada.'): void
     {
-        parent::notFound();
+        parent::notFound($message);
     }
 }

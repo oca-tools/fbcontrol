@@ -1,7 +1,7 @@
 <div class="topbar">
-    <div>
-            <div class="text-muted small">Gestao operacional para hotelaria</div>
-        <div class="h5 mb-0"><?= h($appName) ?> <span class="text-muted small">v<?= h($appVersion) ?></span></div>
+    <div class="topbar-title">
+        <div class="topbar-eyebrow">Gestão Inteligente de A&amp;B</div>
+        <div class="topbar-product"><?= h($appName) ?> <span>v<?= h($appVersion) ?></span></div>
     </div>
     <div class="d-flex align-items-center gap-3 topbar-actions">
         <div class="theme-chip js-theme-label topbar-theme">
@@ -16,6 +16,17 @@
                 <i class="bi bi-question-circle me-1"></i>
                 Guia
             </button>
+        <?php endif; ?>
+        <?php if (($user['perfil'] ?? '') === 'admin'): ?>
+            <form method="post" action="/?r=demo/toggle" class="d-flex align-items-center">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
+                <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
+                <button class="btn <?= app_demo_mode_enabled() ? 'btn-warning' : 'btn-outline-secondary' ?> btn-sm topbar-theme" type="submit" title="Ignora validações de horário nesta sessão admin para treinamento">
+                    <i class="bi bi-mortarboard"></i>
+                    <?= app_demo_mode_enabled() ? 'Demo ON' : 'Demo' ?>
+                </button>
+            </form>
         <?php endif; ?>
         <form method="post" action="/?r=auth/logout" class="logout-inline-form">
             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">

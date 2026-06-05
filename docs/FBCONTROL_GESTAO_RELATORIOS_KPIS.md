@@ -308,7 +308,7 @@ Recursos principais:
 - Registro e acompanhamento de incidentes.
 - Politicas de retencao.
 - Execucao manual de retencao.
-- Modos de retencao: `anonimizar` ou `eliminar`.
+- Retencao automatica por eliminacao em tabelas permitidas pelo sistema.
 
 Tipos de solicitacao aceitos:
 
@@ -352,4 +352,3 @@ A camada gerencial mostra que o FBControl quer ser uma plataforma de inteligenci
 - LGPD e logs dao sustentacao institucional.
 
 Se o produto evoluir, o caminho natural e transformar esses dados em previsao: demanda por restaurante, taxa de comparecimento por turno, risco de no-show, necessidade de equipe e alertas antes da operacao acontecer.
-

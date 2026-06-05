@@ -25,15 +25,7 @@ class CollaboratorMealModel extends Model
     {
         $where = "WHERE 1=1";
         $params = [];
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND c.criado_em >= :data_inicio_start AND c.criado_em < DATE_ADD(:data_fim_end, INTERVAL 1 DAY)";
-            $params[':data_inicio_start'] = $filters['data_inicio'];
-            $params[':data_fim_end'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND c.criado_em >= :data_start AND c.criado_em < DATE_ADD(:data_end, INTERVAL 1 DAY)";
-            $params[':data_start'] = $filters['data'];
-            $params[':data_end'] = $filters['data'];
-        }
+        $this->applyCreatedAtFilter($where, $params, 'c.criado_em', $filters);
         if (!empty($filters['restaurante_id'])) {
             $where .= " AND c.restaurante_id = :restaurante_id";
             $params[':restaurante_id'] = $filters['restaurante_id'];
@@ -84,5 +76,17 @@ class CollaboratorMealModel extends Model
         $stmt->execute($params);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);
+    }
+
+    public function exportByFilters(array $filters, callable $callback, int $batchSize = 1000): int
+    {
+        $total = $this->countByFilters($filters);
+        $batchSize = max(100, min(5000, $batchSize));
+        for ($offset = 0; $offset < $total; $offset += $batchSize) {
+            foreach ($this->listByFilters($filters, $batchSize, $offset) as $row) {
+                $callback($row);
+            }
+        }
+        return $total;
     }
 }

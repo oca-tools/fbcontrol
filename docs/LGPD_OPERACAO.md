@@ -40,7 +40,9 @@ SLA sugerido:
 
 ## 5) Retencao e descarte
 
-- Polticas em `lgpd_retencao_politicas`.
+- Politicas em `lgpd_retencao_politicas`.
+- A rotina atual elimina registros vencidos somente em tabelas operacionais permitidas pelo sistema: auditoria, historico de e-mails diarios, eventos LGPD e sessoes ativas.
+- Anonimizacao de bases operacionais deve ser tratada como solicitacao registrada e analisada caso a caso; nao e executada automaticamente nesta versao.
 - Job diario: `app/cron/lgpd_retention.php`.
 - Toda limpeza deve gerar trilha de evento em `lgpd_eventos`.
 

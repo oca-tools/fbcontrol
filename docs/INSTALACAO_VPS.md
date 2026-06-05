@@ -66,16 +66,30 @@ Adicionar no root crontab (`sudo crontab -e`):
 
 ```bash
 * * * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/auto_close_shifts.php >> /var/log/fbcontrol_shifts.log 2>&1
+* * * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/reservas_tematicas_auto_no_show.php >> /var/log/fbcontrol_tematicos_no_show.log 2>&1
+*/5 * * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/send_daily_report_email.php >> /var/log/fbcontrol_daily_email.log 2>&1
 0 3 * * * /usr/bin/php /var/www/apps/fbcontrol/current/app/cron/lgpd_retention.php >> /var/log/fbcontrol_lgpd_retention.log 2>&1
 30 3 * * * /var/www/apps/fbcontrol/current/deploy/vps/backup_restore_check.sh >> /var/log/fbcontrol_backup.log 2>&1
 ```
 
-## 7) Validacao local de seguranca
+## 7) Validacao pos-deploy
+
+No servidor, rode:
+
+```bash
+cd /var/www/apps/fbcontrol/current
+php tools/healthcheck_fbcontrol.php --strict
+php tools/check_db_context.php
+```
+
+Se o healthcheck avisar que ha turnos ou reservas elegiveis para rotina automatica, confirme se os crons acima foram cadastrados no usuario correto e se estao gerando logs em `/var/log`.
+
+## 8) Validacao local de seguranca
 
 No repositorio, rode:
 
 ```bash
-bash deploy/security/run_security_checks.sh
+php tools/run_checks.php
 ```
 
 ## Observacoes

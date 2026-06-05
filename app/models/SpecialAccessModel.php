@@ -110,8 +110,8 @@ class SpecialAccessModel extends Model
         $where = "";
         $params = [];
         if ($data !== '') {
-            $where = "WHERE DATE(a.criado_em) = :data";
-            $params[':data'] = $data;
+            $where = "WHERE 1=1";
+            $this->applyCreatedAtFilter($where, $params, 'a.criado_em', ['data' => $data]);
         }
 
         $stmt = $this->db->prepare("
@@ -143,12 +143,15 @@ class SpecialAccessModel extends Model
             JOIN unidades_habitacionais uh ON uh.id = a.uh_id
             WHERE uh.numero = :uh
               AND a.tipo = :tipo
-              AND DATE(a.criado_em) = :data
+              AND a.criado_em >= :data_start
+              AND a.criado_em < :data_end
         ");
+        [$dataStart, $dataEnd] = $this->dayRange($date);
         $stmt->execute([
             ':uh' => $uhNumero,
             ':tipo' => $tipo,
-            ':data' => $date,
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
         ]);
         $row = $stmt->fetch();
         return (int)($row['total_pax'] ?? 0);
@@ -163,9 +166,14 @@ class SpecialAccessModel extends Model
                 SUM(CASE WHEN alerta_duplicidade = 1 THEN 1 ELSE 0 END) AS duplicados,
                 SUM(CASE WHEN fora_do_horario = 1 THEN 1 ELSE 0 END) AS fora_horario
             FROM acessos_especiais
-            WHERE DATE(criado_em) = :data
+            WHERE criado_em >= :data_start
+              AND criado_em < :data_end
         ");
-        $stmt->execute([':data' => $date]);
+        [$dataStart, $dataEnd] = $this->dayRange($date);
+        $stmt->execute([
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
+        ]);
         $row = $stmt->fetch();
         return [
             'total_acessos' => (int)($row['total_acessos'] ?? 0),
@@ -181,8 +189,7 @@ class SpecialAccessModel extends Model
         $params = [];
 
         if (!empty($filters['data'])) {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $filters['data'];
+            $this->applyCreatedAtFilter($where, $params, 'a.criado_em', ['data' => $filters['data']]);
         }
         if (!empty($filters['uh_numero'])) {
             $where .= " AND uh.numero = :uh";
@@ -220,12 +227,16 @@ class SpecialAccessModel extends Model
             JOIN restaurantes r ON r.id = a.restaurante_id
             LEFT JOIN portas p ON p.id = a.porta_id
             JOIN usuarios u ON u.id = a.usuario_id
-            WHERE uh.numero = :uh AND DATE(a.criado_em) = :data
+            WHERE uh.numero = :uh
+              AND a.criado_em >= :data_start
+              AND a.criado_em < :data_end
             ORDER BY a.criado_em ASC
         ");
+        [$dataStart, $dataEnd] = $this->dayRange($data);
         $stmt->execute([
             ':uh' => $uhNumero,
-            ':data' => $data,
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
         ]);
         return $stmt->fetchAll();
     }
@@ -242,13 +253,17 @@ class SpecialAccessModel extends Model
             FROM acessos_especiais a
             JOIN unidades_habitacionais uh ON uh.id = a.uh_id
             JOIN restaurantes r ON r.id = a.restaurante_id
-            WHERE uh.numero = :uh AND DATE(a.criado_em) = :data
+            WHERE uh.numero = :uh
+              AND a.criado_em >= :data_start
+              AND a.criado_em < :data_end
             GROUP BY r.nome, operacao
             ORDER BY primeira_passagem ASC
         ");
+        [$dataStart, $dataEnd] = $this->dayRange($data);
         $stmt->execute([
             ':uh' => $uhNumero,
-            ':data' => $data,
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
         ]);
         return $stmt->fetchAll();
     }
@@ -262,12 +277,16 @@ class SpecialAccessModel extends Model
                 MAX(CASE WHEN a.tipo = 'privileged' THEN 1 ELSE 0 END) AS privileged
             FROM acessos_especiais a
             JOIN unidades_habitacionais uh ON uh.id = a.uh_id
-            WHERE DATE(a.criado_em) = :data
+            WHERE a.criado_em >= :data_start
+              AND a.criado_em < :data_end
             GROUP BY uh.numero
             ORDER BY CAST(uh.numero AS UNSIGNED)
         ");
-        $stmt->execute([':data' => $data]);
+        [$dataStart, $dataEnd] = $this->dayRange($data);
+        $stmt->execute([
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
+        ]);
         return $stmt->fetchAll();
     }
 }
-

@@ -6,16 +6,27 @@ $doorsByRestaurant = $this->data['doorsByRestaurant'] ?? [];
 $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 ?>
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-start mb-3">
+<div class="saas-page shift-start-page">
+    <section class="saas-hero-card">
+        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+            <div>
+                <div class="saas-label">Turno operacional</div>
+                <h3 class="saas-title mb-1">Iniciar turno</h3>
+                <p class="saas-subtitle mb-0">Selecione restaurante, operação e porta para começar o registro.</p>
+            </div>
+            <span class="badge badge-soft"><i class="bi bi-check2-circle"></i> Checklist rápido</span>
+        </div>
+    </section>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-8">
+        <section class="saas-table-card">
+            <div class="shift-start-head">
                 <div>
-                    <div class="text-uppercase text-muted small">Turno operacional</div>
-                    <h3 class="fw-bold mb-1">Iniciar turno</h3>
-                    <p class="text-muted mb-0">Selecione o restaurante e a Operação do seu turno.</p>
+                    <h5 class="fw-bold mb-1">Dados do turno</h5>
+                    <div class="text-muted small">Confirme as informações antes de iniciar.</div>
                 </div>
-                <span class="turno-pill">Checklist rápido</span>
+                <i class="bi bi-door-open shift-start-icon"></i>
             </div>
 
             <?php if ($flash): ?>
@@ -87,8 +98,9 @@ $preselect = $this->data['preselect'] ?? [];
                     <?php endif; ?>
 
                     <div class="col-12">
-                        <div class="alert alert-secondary mb-0">
-                            <strong>Checklist:</strong> confirme restaurante, operação e porta antes de iniciar.
+                        <div class="shift-start-checklist">
+                            <i class="bi bi-info-circle"></i>
+                            <span>Confira restaurante, operação e porta. Depois de iniciado, o turno fica vinculado ao seu usuário.</span>
                         </div>
                     </div>
 
@@ -97,9 +109,79 @@ $preselect = $this->data['preselect'] ?? [];
                     </div>
                 </div>
             </form>
+        </section>
         </div>
     </div>
 </div>
+
+<style>
+    .shift-start-page {
+        max-width: 1180px;
+        margin: 0 auto;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+    .shift-start-page .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .shift-start-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.1rem;
+    }
+    .shift-start-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--ab-accent) 12%, transparent);
+        color: color-mix(in srgb, var(--ab-accent) 72%, var(--ab-ink) 28%);
+        font-size: 1.25rem;
+        flex: 0 0 auto;
+    }
+    .shift-start-page .form-label {
+        font-weight: 650;
+    }
+    .shift-start-checklist {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+        border-radius: 14px;
+        padding: 0.85rem 0.95rem;
+        color: var(--ab-muted);
+        background: color-mix(in srgb, var(--ab-soft) 72%, transparent);
+        font-size: 0.92rem;
+    }
+    .shift-start-checklist i {
+        color: color-mix(in srgb, var(--ab-accent) 78%, var(--ab-ink) 22%);
+        margin-top: 0.1rem;
+    }
+    @media (max-width: 576px) {
+        .shift-start-page .saas-hero-card,
+        .shift-start-page .saas-table-card {
+            padding: 1rem;
+            border-radius: 16px;
+        }
+        .shift-start-page .saas-headline .badge {
+            width: 100%;
+            justify-content: center;
+        }
+        .shift-start-head {
+            align-items: flex-start;
+        }
+        .shift-start-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+        }
+    }
+</style>
 
 <script>
 const restauranteSelect = document.getElementById('restaurante_id');
@@ -182,4 +264,3 @@ document.querySelectorAll('form').forEach((f) => {
     });
 });
 </script>
-

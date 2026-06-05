@@ -1,4 +1,4 @@
-# FBControl v2.3
+# FBControl v3.0
 
 Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido de acesso, turnos, auditoria, relatórios e reservas temáticas.
 
@@ -15,8 +15,8 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 - Relatórios operacionais e temáticos
 - Vouchers + refeições de colaborador
 - Reservas temáticas (reserva, operação e administração)
-- KPIs estratégicos (v2.0)
-- Onboarding/tutorial de hostess (v2.0)
+- KPIs estratégicos
+- Onboarding/tutorial de hostess
 - Envio de e-mail diário
 
 ## Instalação rápida
@@ -29,9 +29,13 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 7. Execute `sql/migration_v2_3_grupo_nome.sql`.
 8. Execute `sql/migration_v2_4_auto_no_show_min.sql` se quiser configurar tolerância de no-show automático.
 9. Execute `sql/migration_v2_5_tematic_capacity_by_date.sql` para habilitar capacidade temática por data.
-10. Ajuste variáveis de ambiente ou `config/config.local.php`.
-11. Configure o servidor web apontando para `public`.
-12. Acesse: `/?r=auth/login`.
+10. Execute `sql/migration_v2_6_reservas_tematicas_bloqueios_datas.sql`.
+11. Execute `sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql`.
+12. Execute `sql/migration_v2_8_turnos_modo_demo.sql`.
+13. Execute `sql/migration_v2_9_performance_indexes.sql`.
+14. Ajuste variáveis de ambiente ou `config/config.local.php`.
+15. Configure o servidor web apontando para `public`.
+16. Acesse: `/?r=auth/login`.
 
 Exemplo local com MySQL CLI:
 
@@ -44,6 +48,10 @@ mysql -u usuario -p nome_do_banco < sql/migration_v2_3_titular_nome.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_3_grupo_nome.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_4_auto_no_show_min.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_5_tematic_capacity_by_date.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v2_6_reservas_tematicas_bloqueios_datas.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v2_8_turnos_modo_demo.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v2_9_performance_indexes.sql
 ```
 
 Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos antigos. As tabelas LGPD já estão em `schema_v2_1_final.sql`.
@@ -80,6 +88,44 @@ php tools/smoke_fbcontrol.php
 ```
 
 Ele valida bootstrap web, conexão com banco, tabelas essenciais, coluna `auto_cancel_no_show_min` e renderização básica do layout logado.
+
+Checagem de contexto do banco:
+
+```bash
+php tools/check_db_context.php
+```
+
+Use antes de revisar login, relatórios ou deploy. Ela confirma se o runtime está conectado em um banco coerente, com tabelas/migrations críticas e administrador ativo. No ambiente local com dados reais importados do VPS, o banco esperado é `controle_ab_vps`; o banco `controle_ab` pode existir como base antiga/de teste e não deve ser usado para validar credenciais ou dados operacionais.
+
+Healthcheck operacional:
+
+```bash
+php tools/healthcheck_fbcontrol.php
+```
+
+Use depois de deploy e em revisões de VPS. Ele confere extensões PHP, limites de upload, diretórios de anexos, tabelas críticas, administrador ativo e sinais de crons atrasados.
+
+No VPS, rode em modo estrito para falhar quando faltar extensão ou limite mínimo:
+
+```bash
+php tools/healthcheck_fbcontrol.php --strict
+```
+
+Validação completa multiplataforma:
+
+```bash
+php tools/run_checks.php
+php tools/check_release_candidate.php
+```
+
+Higiene de release:
+
+```bash
+php tools/check_release_hygiene.php
+php tools/build_release.php 3.0
+```
+
+O builder gera um pacote `.tar.gz` somente com arquivos rastreados e exclui `config.local.php`, uploads reais, backups e artefatos temporários. O `public/uploads/.htaccess` permanece para manter proteção no Apache.
 
 ## Documentação local de estudo
 

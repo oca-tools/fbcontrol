@@ -3,13 +3,18 @@ class UsuariosController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
-        Auth::requireRole(['admin']);
+        $viewer = $this->requireUserManagementAccess();
 
         $model = new UserModel();
         $restaurantModel = new RestaurantModel();
         $operationModel = new RestaurantOperationModel();
         $items = $model->all();
+        $canManagePrivilegedProfiles = ($viewer['perfil'] ?? '') === 'admin';
+        if (!$canManagePrivilegedProfiles) {
+            $items = array_values(array_filter($items, static fn($item) => in_array(($item['perfil'] ?? ''), ['hostess', 'supervisor'], true)));
+        }
+        $itemsAtivos = array_values(array_filter($items, static fn($item) => (int)($item['ativo'] ?? 0) === 1));
+        $itemsDesativados = array_values(array_filter($items, static fn($item) => (int)($item['ativo'] ?? 0) !== 1));
 
         $assignModel = new UserRestaurantModel();
         $assignOpModel = new UserRestaurantOperationModel();
@@ -21,6 +26,9 @@ class UsuariosController extends Controller
 
         $this->view('crud/usuarios', [
             'items' => $items,
+            'items_ativos' => $itemsAtivos,
+            'items_desativados' => $itemsDesativados,
+            'can_manage_privileged_profiles' => $canManagePrivilegedProfiles,
             'restaurantes' => $restaurants,
             'assignment_options' => $this->buildAssignmentOptions($restaurants, $operationModel),
             'assigned_restaurants' => $assignedRestaurants,
@@ -31,8 +39,7 @@ class UsuariosController extends Controller
 
     public function create(): void
     {
-        $this->requireAuth();
-        Auth::requireRole(['admin']);
+        $viewer = $this->requireUserManagementAccess();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=usuarios/index');
@@ -52,6 +59,10 @@ class UsuariosController extends Controller
             set_flash('danger', 'Preencha todos os campos obrigatórios.');
             $this->redirect('/?r=usuarios/index');
         }
+        if (!$this->mayAssignProfile($viewer, $perfil)) {
+            set_flash('danger', 'A gerente pode criar apenas usuários hostess ou supervisor.');
+            $this->redirect('/?r=usuarios/index');
+        }
 
         $model = new UserModel();
         if ($model->emailPasswordExists($email, $senha)) {
@@ -59,7 +70,7 @@ class UsuariosController extends Controller
             $this->redirect('/?r=usuarios/index');
         }
 
-        $adminId = (int)Auth::user()['id'];
+        $adminId = (int)$viewer['id'];
         $userId = $model->create([
             'nome' => $nome,
             'email' => $email,
@@ -88,8 +99,7 @@ class UsuariosController extends Controller
 
     public function edit(): void
     {
-        $this->requireAuth();
-        Auth::requireRole(['admin']);
+        $viewer = $this->requireUserManagementAccess();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=usuarios/index');
@@ -113,12 +123,17 @@ class UsuariosController extends Controller
         }
 
         $model = new UserModel();
+        $current = $model->find($id);
+        if (!$current || !$this->mayManageTarget($viewer, $current) || !$this->mayAssignProfile($viewer, $perfil)) {
+            set_flash('danger', 'Você não tem permissão para alterar este usuário ou perfil.');
+            $this->redirect('/?r=usuarios/index');
+        }
         if ($senha !== '' && $model->emailPasswordExists($email, $senha, $id)) {
             set_flash('danger', 'Ja existe outro usuario com este e-mail e esta senha.');
             $this->redirect('/?r=usuarios/index');
         }
 
-        $adminId = (int)Auth::user()['id'];
+        $adminId = (int)$viewer['id'];
         $model->update($id, [
             'nome' => $nome,
             'email' => $email,
@@ -143,13 +158,12 @@ class UsuariosController extends Controller
         }
 
         set_flash('success', 'Usuário atualizado.');
-        $this->redirect('/?r=usuarios/index');
+        $this->redirect('/?r=usuarios/index&tab=' . ($ativo === 1 ? 'ativos' : 'desativados'));
     }
 
     public function delete(): void
     {
-        $this->requireAuth();
-        Auth::requireRole(['admin']);
+        $viewer = $this->requireUserManagementAccess();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=usuarios/index');
@@ -164,13 +178,18 @@ class UsuariosController extends Controller
             set_flash('danger', 'Usuário inválido.');
             $this->redirect('/?r=usuarios/index');
         }
-        if ($id === (int)Auth::user()['id']) {
+        if ($id === (int)$viewer['id']) {
             set_flash('warning', 'Você não pode excluir seu próprio usuário.');
             $this->redirect('/?r=usuarios/index');
         }
 
-        $adminId = (int)Auth::user()['id'];
         $model = new UserModel();
+        $target = $model->find($id);
+        if (!$target || !$this->mayManageTarget($viewer, $target)) {
+            set_flash('danger', 'Você não tem permissão para excluir este usuário.');
+            $this->redirect('/?r=usuarios/index');
+        }
+        $adminId = (int)$viewer['id'];
         $assignModel = new UserRestaurantModel();
         $assignOpModel = new UserRestaurantOperationModel();
         $assignModel->clearByUser($id, $adminId);
@@ -178,7 +197,24 @@ class UsuariosController extends Controller
         $model->anonymizeAndDeactivate($id, $adminId);
 
         set_flash('success', 'Usuário excluído com anonimização e mantido para auditoria.');
-        $this->redirect('/?r=usuarios/index');
+        $this->redirect('/?r=usuarios/index&tab=desativados');
+    }
+
+    private function requireUserManagementAccess(): array
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin', 'gerente']);
+        return Auth::user() ?? [];
+    }
+
+    private function mayAssignProfile(array $viewer, string $perfil): bool
+    {
+        return ($viewer['perfil'] ?? '') === 'admin' || in_array($perfil, ['hostess', 'supervisor'], true);
+    }
+
+    private function mayManageTarget(array $viewer, array $target): bool
+    {
+        return ($viewer['perfil'] ?? '') === 'admin' || in_array(($target['perfil'] ?? ''), ['hostess', 'supervisor'], true);
     }
 
     private function normalizeForCompare(string $value): string

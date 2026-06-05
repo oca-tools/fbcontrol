@@ -1,6 +1,10 @@
 <?php
 class HostessController extends Controller
 {
+    private const PROFILE_PHOTO_MAX_BYTES = 2097152;
+    private const PROFILE_PHOTO_MAX_PIXELS = 30000000;
+    private const PROFILE_PHOTO_MAX_SIDE = 8000;
+
     public function turnos(): void
     {
         $this->requireAuth();
@@ -45,6 +49,11 @@ class HostessController extends Controller
             set_flash('danger', 'Upload inválido.');
             $this->redirect('/?r=hostess/turnos');
         }
+        $receiveLimit = upload_limit_bytes(self::PROFILE_PHOTO_MAX_BYTES);
+        if ((int)($file['size'] ?? 0) > $receiveLimit) {
+            set_flash('danger', 'Arquivo muito grande. Máximo ' . format_bytes_ptbr($receiveLimit) . '.');
+            $this->redirect('/?r=hostess/turnos');
+        }
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         if (!in_array($ext, $allowed, true)) {
@@ -52,6 +61,10 @@ class HostessController extends Controller
             $this->redirect('/?r=hostess/turnos');
         }
 
+        if (!class_exists('finfo')) {
+            set_flash('danger', 'Não foi possível validar a imagem no servidor. Avise o suporte.');
+            $this->redirect('/?r=hostess/turnos');
+        }
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mime = $finfo->file($file['tmp_name']) ?: '';
         $allowedMimeByExt = [
@@ -65,14 +78,26 @@ class HostessController extends Controller
             $this->redirect('/?r=hostess/turnos');
         }
 
-        if ($file['size'] > 2 * 1024 * 1024) {
-            set_flash('danger', 'Arquivo muito grande. Maximo 2MB.');
+        $imageInfo = @getimagesize($file['tmp_name']);
+        $width = (int)($imageInfo[0] ?? 0);
+        $height = (int)($imageInfo[1] ?? 0);
+        if ($width <= 0 || $height <= 0) {
+            set_flash('danger', 'Não foi possível validar as dimensões da imagem.');
+            $this->redirect('/?r=hostess/turnos');
+        }
+        if ($width > self::PROFILE_PHOTO_MAX_SIDE || $height > self::PROFILE_PHOTO_MAX_SIDE || ($width * $height) > self::PROFILE_PHOTO_MAX_PIXELS) {
+            set_flash('danger', 'Imagem com dimensões muito grandes. Envie uma foto menor.');
             $this->redirect('/?r=hostess/turnos');
         }
 
         $uploadDir = __DIR__ . '/../../public/uploads/profiles';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            set_flash('danger', 'Pasta de fotos indisponível. Avise o suporte.');
+            $this->redirect('/?r=hostess/turnos');
+        }
+        if (!is_writable($uploadDir)) {
+            set_flash('danger', 'Pasta de fotos sem permissão de gravação. Avise o suporte.');
+            $this->redirect('/?r=hostess/turnos');
         }
 
         $userId = Auth::user()['id'];

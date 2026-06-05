@@ -39,6 +39,11 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             </a>
         </div>
 
+        <details class="restaurant-filter-panel" open data-restaurant-mobile-collapsed>
+            <summary class="restaurant-filter-summary">
+                <span><i class="bi bi-funnel me-2"></i>Filtros do restaurante</span>
+                <i class="bi bi-chevron-down"></i>
+            </summary>
         <form class="row g-3 saas-filter-grid" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
             <input type="hidden" name="r" value="dashboard/restaurant">
             <input type="hidden" name="id" value="<?= (int)($filters['restaurante_id'] ?? 0) ?>">
@@ -91,6 +96,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                 <a class="btn btn-primary btn-xl" href="/?r=dashboard/restaurant&id=<?= (int)($filters['restaurante_id'] ?? 0) ?>" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
             </div>
         </form>
+        </details>
     </section>
 
     <?php if ($tematicoMode): ?>
@@ -159,12 +165,12 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             <tbody>
                                 <?php foreach ($tematicoTurnos as $row): ?>
                                     <tr>
-                                        <td><span class="tag badge-soft"><?= h((string)($row['turno'] ?? '--:--')) ?></span></td>
-                                        <td><?= (int)($row['total'] ?? 0) ?></td>
-                                        <td><?= (int)($row['finalizadas'] ?? 0) ?></td>
-                                        <td><?= (int)($row['no_shows'] ?? 0) ?></td>
-                                        <td><?= (int)($row['pax_reservadas'] ?? 0) ?></td>
-                                        <td><?= (int)($row['pax_comparecidas'] ?? 0) ?></td>
+                                        <td data-label="Turno"><span class="tag badge-soft"><?= h((string)($row['turno'] ?? '--:--')) ?></span></td>
+                                        <td data-label="Reservas"><?= (int)($row['total'] ?? 0) ?></td>
+                                        <td data-label="Finalizadas"><?= (int)($row['finalizadas'] ?? 0) ?></td>
+                                        <td data-label="No-show"><?= (int)($row['no_shows'] ?? 0) ?></td>
+                                        <td data-label="PAX reservadas"><?= (int)($row['pax_reservadas'] ?? 0) ?></td>
+                                        <td data-label="PAX comparecidas"><?= (int)($row['pax_comparecidas'] ?? 0) ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($tematicoTurnos)): ?>
@@ -197,11 +203,11 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                 <?php foreach ($tematicoRecentes as $item): ?>
                                     <?php $statusTxt = normalize_mojibake((string)($item['status'] ?? '')); ?>
                                     <tr>
-                                        <td><?= h((string)($item['data_reserva'] ?? '-')) ?></td>
-                                        <td><span class="tag badge-soft"><?= h((string)($item['turno_hora'] ?? '--:--')) ?></span></td>
-                                        <td><span class="uh-badge <?= uh_badge_class((string)($item['uh_numero'] ?? '')) ?>"><?= h(uh_label((string)($item['uh_numero'] ?? '-'))) ?></span></td>
-                                        <td><?= (int)($item['pax'] ?? 0) ?></td>
-                                        <td>
+                                        <td data-label="Data"><?= h((string)($item['data_reserva'] ?? '-')) ?></td>
+                                        <td data-label="Turno"><span class="tag badge-soft"><?= h((string)($item['turno_hora'] ?? '--:--')) ?></span></td>
+                                        <td data-label="UH"><span class="uh-badge <?= uh_badge_class((string)($item['uh_numero'] ?? '')) ?>"><?= h(uh_label((string)($item['uh_numero'] ?? '-'))) ?></span></td>
+                                        <td data-label="PAX"><?= (int)($item['pax'] ?? 0) ?></td>
+                                        <td data-label="Status">
                                             <?php if (mb_stripos($statusTxt, 'finaliz', 0, 'UTF-8') !== false): ?>
                                                 <span class="badge badge-success">Finalizada</span>
                                             <?php elseif (mb_stripos($statusTxt, 'compareceu', 0, 'UTF-8') !== false): ?>
@@ -280,8 +286,8 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             <tbody>
                                 <?php foreach ($stats['totais_operacao'] ?? [] as $row): ?>
                                     <tr>
-                                        <td><span class="tag <?= operation_badge_class((string)($row['nome'] ?? '')) ?>"><?= h(normalize_mojibake((string)($row['nome'] ?? '-'))) ?></span></td>
-                                        <td><?= (int)($row['total_pax'] ?? 0) ?></td>
+                                        <td data-label="Operação"><span class="tag <?= operation_badge_class((string)($row['nome'] ?? '')) ?>"><?= h(normalize_mojibake((string)($row['nome'] ?? '-'))) ?></span></td>
+                                        <td data-label="Total"><?= (int)($row['total_pax'] ?? 0) ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($stats['totais_operacao'])): ?>
@@ -304,8 +310,8 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             <tbody>
                                 <?php foreach ($stats['fluxo_horario'] ?? [] as $row): ?>
                                     <tr>
-                                        <td><?= h((string)($row['hora'] ?? '--:--')) ?></td>
-                                        <td><?= (int)($row['total_pax'] ?? 0) ?></td>
+                                        <td data-label="Hora"><?= h((string)($row['hora'] ?? '--:--')) ?></td>
+                                        <td data-label="Total"><?= (int)($row['total_pax'] ?? 0) ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($stats['fluxo_horario'])): ?>
@@ -341,7 +347,7 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                             $statusNorm = mb_strtolower(normalize_mojibake((string)($item['status_operacional'] ?? '')), 'UTF-8');
                             ?>
                             <tr>
-                                <td>
+                                <td data-label="Status">
                                     <?php if (strpos($statusNorm, 'duplic') !== false): ?>
                                         <span class="badge badge-warning">Duplicado</span>
                                     <?php elseif (strpos($statusNorm, 'fora') !== false): ?>
@@ -352,11 +358,11 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
                                         <span class="badge badge-success">OK</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><span class="uh-badge <?= uh_badge_class((string)($item['uh_numero'] ?? '')) ?>"><?= h(uh_label((string)($item['uh_numero'] ?? '-'))) ?></span></td>
-                                <td><?= (int)($item['pax'] ?? 0) ?></td>
-                                <td><span class="tag <?= operation_badge_class((string)($item['operacao'] ?? '')) ?>"><?= h(normalize_mojibake((string)($item['operacao'] ?? '-'))) ?></span></td>
-                                <td><?= h((string)($item['usuario'] ?? '-')) ?></td>
-                                <td><?= h((string)($item['criado_em'] ?? '-')) ?></td>
+                                <td data-label="UH"><span class="uh-badge <?= uh_badge_class((string)($item['uh_numero'] ?? '')) ?>"><?= h(uh_label((string)($item['uh_numero'] ?? '-'))) ?></span></td>
+                                <td data-label="PAX"><?= (int)($item['pax'] ?? 0) ?></td>
+                                <td data-label="Operação"><span class="tag <?= operation_badge_class((string)($item['operacao'] ?? '')) ?>"><?= h(normalize_mojibake((string)($item['operacao'] ?? '-'))) ?></span></td>
+                                <td data-label="Usuário"><?= h((string)($item['usuario'] ?? '-')) ?></td>
+                                <td data-label="Horário"><?= h((string)($item['criado_em'] ?? '-')) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($recentes)): ?>
@@ -394,18 +400,88 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
         max-width: 100%;
         overflow-x: auto;
     }
+    .restaurant-filter-panel > summary {
+        display: none;
+    }
+    .restaurant-filter-summary {
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        cursor: pointer;
+        list-style: none;
+        border: 1px solid var(--ab-border);
+        border-radius: 16px;
+        padding: .85rem 1rem;
+        background: var(--ab-soft-bg);
+        color: var(--ab-text);
+        font-weight: 800;
+    }
+    .restaurant-filter-summary::-webkit-details-marker {
+        display: none;
+    }
+    .restaurant-filter-summary i {
+        color: var(--ab-primary);
+    }
+    .restaurant-filter-summary .bi-chevron-down {
+        transition: transform .18s ease;
+    }
+    .restaurant-filter-panel[open] .restaurant-filter-summary .bi-chevron-down {
+        transform: rotate(180deg);
+    }
     .dashboard-restaurant-page .stat-chip {
         white-space: normal;
         text-wrap: balance;
     }
+    @media (max-width: 991.98px) {
+        .dashboard-restaurant-page .saas-hero-card,
+        .dashboard-restaurant-page .saas-table-card,
+        .dashboard-restaurant-page .saas-stat-card {
+            border-radius: 18px;
+        }
+        .restaurant-filter-panel > summary {
+            display: flex;
+        }
+        .restaurant-filter-panel:not([open]) > form {
+            display: none !important;
+        }
+        .restaurant-filter-panel > form {
+            margin-top: .85rem;
+        }
+    }
     @media (max-width: 768px) {
+        .dashboard-restaurant-page .saas-headline > .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        .dashboard-restaurant-page .saas-subtitle {
+            display: none;
+        }
         .dashboard-restaurant-page .saas-toolbar .btn {
             flex: 1 1 calc(50% - 0.25rem);
         }
     }
     @media (max-width: 576px) {
         .dashboard-restaurant-page .saas-kpi-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: .75rem;
+        }
+        .dashboard-restaurant-page .saas-stat-card {
+            min-width: 0;
+            padding: .85rem;
+        }
+        .dashboard-restaurant-page .saas-stat-card .small {
+            min-height: 2.1em;
+            line-height: 1.15;
+        }
+        .dashboard-restaurant-page .saas-stat-value {
+            font-size: 1.45rem;
+            line-height: 1.1;
+        }
+        .dashboard-restaurant-page .saas-stat-card .stat-chip {
+            width: 100%;
+            font-size: .72rem;
+            line-height: 1.15;
+            padding-inline: .55rem;
         }
         .dashboard-restaurant-page .saas-toolbar .btn {
             flex: 1 1 100%;
@@ -415,10 +491,75 @@ $taxaComparecimento = $paxReservadas > 0 ? round(($paxComparecidas / $paxReserva
             text-align: center;
             justify-content: center;
         }
+        .dashboard-restaurant-page .saas-table-scroll {
+            overflow: visible;
+        }
+        .dashboard-restaurant-page .saas-table-scroll table,
+        .dashboard-restaurant-page .saas-table-scroll tbody,
+        .dashboard-restaurant-page .saas-table-scroll tr,
+        .dashboard-restaurant-page .saas-table-scroll td {
+            display: block;
+            width: 100%;
+        }
+        .dashboard-restaurant-page .saas-table-scroll thead {
+            display: none;
+        }
+        .dashboard-restaurant-page .saas-table-scroll tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .dashboard-restaurant-page .saas-table-scroll td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+        .dashboard-restaurant-page .saas-table-scroll td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+        }
+        .dashboard-restaurant-page .saas-table-scroll td .tag,
+        .dashboard-restaurant-page .saas-table-scroll td .uh-badge,
+        .dashboard-restaurant-page .saas-table-scroll td .badge {
+            max-width: 62%;
+            white-space: normal;
+            text-align: center;
+        }
+        .dashboard-restaurant-page .saas-table-scroll td[colspan] {
+            display: block;
+            text-align: left;
+        }
+        .dashboard-restaurant-page .saas-table-scroll td[colspan]::before {
+            content: "";
+            display: none;
+        }
     }
 </style>
 
 <script>
+(() => {
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    document.querySelectorAll('[data-restaurant-mobile-collapsed]').forEach((panel) => {
+        if (isMobile) {
+            panel.removeAttribute('open');
+        } else {
+            panel.setAttribute('open', 'open');
+        }
+    });
+})();
+
 (() => {
     const start = document.querySelector('input[name="data_inicio"]');
     const end = document.querySelector('input[name="data_fim"]');

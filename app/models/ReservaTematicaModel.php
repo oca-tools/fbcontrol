@@ -617,48 +617,15 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 
-    public function listByFilters(array $filters): array
+    private function buildListWhere(array $filters, array &$params, string &$joinGroup): string
     {
         $where = "WHERE 1=1";
         $params = [];
-        $adultExpr = $this->paxAdultoExpr('rsv');
-        $chdExpr = $this->paxChdExpr('rsv');
-        $qtdChdExpr = $this->qtdChdExpr('rsv');
         $hasTitular = $this->hasTitularNomeColumn();
         $hasGrupoNome = $this->hasGrupoNomeColumn();
         $hasGroupTable = $this->hasGruposTable() && $this->hasGrupoIdColumn();
-        $selectGroupFields = $this->hasGrupoIdColumn() ? "rsv.grupo_id," : "NULL AS grupo_id,";
-        $joinGroup = "";
-        if ($hasGroupTable) {
-            $joinGroup = "LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id";
-            $selectGroupFields .= " grp.responsavel_nome AS grupo_responsavel,";
-            if ($hasGrupoNome) {
-                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
-            } else {
-                $selectGroupFields .= " NULL AS grupo_nome,";
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
-            }
-            if ($hasTitular) {
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
-            } else {
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
-            }
-        } else {
-            $selectGroupFields .= " NULL AS grupo_responsavel,";
-            if ($hasGrupoNome) {
-                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '-') AS grupo_nome_display,";
-            } else {
-                $selectGroupFields .= " NULL AS grupo_nome,";
-                $selectGroupFields .= " '-' AS grupo_nome_display,";
-            }
-            if ($hasTitular) {
-                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '-') AS titular_nome_display,";
-            } else {
-                $selectGroupFields .= " '-' AS titular_nome_display,";
-            }
-        }
+        $joinGroup = $hasGroupTable ? "LEFT JOIN reservas_tematicas_grupos grp ON grp.id = rsv.grupo_id" : "";
+
         if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
             $placeholders = [];
             foreach ($filters['restaurante_ids'] as $idx => $rid) {
@@ -736,12 +703,58 @@ class ReservaTematicaModel extends Model
         }
         $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
+        return $where;
+    }
+
+    public function listByFilters(array $filters, ?int $limit = null, int $offset = 0): array
+    {
+        $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
+        $adultExpr = $this->paxAdultoExpr('rsv');
+        $chdExpr = $this->paxChdExpr('rsv');
+        $qtdChdExpr = $this->qtdChdExpr('rsv');
+        $hasTitular = $this->hasTitularNomeColumn();
+        $hasGrupoNome = $this->hasGrupoNomeColumn();
+        $hasGroupTable = $this->hasGruposTable() && $this->hasGrupoIdColumn();
+        $selectGroupFields = $this->hasGrupoIdColumn() ? "rsv.grupo_id," : "NULL AS grupo_id,";
+        if ($hasGroupTable) {
+            $selectGroupFields .= " grp.responsavel_nome AS grupo_responsavel,";
+            if ($hasGrupoNome) {
+                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
+            } else {
+                $selectGroupFields .= " NULL AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS grupo_nome_display,";
+            }
+            if ($hasTitular) {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
+            } else {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '-') AS titular_nome_display,";
+            }
+        } else {
+            $selectGroupFields .= " NULL AS grupo_responsavel,";
+            if ($hasGrupoNome) {
+                $selectGroupFields .= " NULLIF(TRIM(rsv.grupo_nome), '') AS grupo_nome,";
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '-') AS grupo_nome_display,";
+            } else {
+                $selectGroupFields .= " NULL AS grupo_nome,";
+                $selectGroupFields .= " '-' AS grupo_nome_display,";
+            }
+            if ($hasTitular) {
+                $selectGroupFields .= " COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '-') AS titular_nome_display,";
+            } else {
+                $selectGroupFields .= " '-' AS titular_nome_display,";
+            }
+        }
+
         $order = "ORDER BY rsv.data_reserva DESC, t.ordem, t.hora, r.nome";
         if (!empty($filters['order']) && $filters['order'] === 'status') {
             $order = "ORDER BY rsv.status, t.ordem, t.hora, uh.numero";
         } elseif (!empty($filters['order']) && $filters['order'] === 'turno') {
             $order = "ORDER BY t.ordem, t.hora, uh.numero, rsv.status";
         }
+        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
         $stmt = $this->db->prepare("
             SELECT
                 rsv.*,
@@ -762,9 +775,48 @@ class ReservaTematicaModel extends Model
             {$joinGroup}
             $where
             $order
+            $paginationSql
+        ");
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
+            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+        }
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function countByFilters(array $filters): int
+    {
+        $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS total
+            FROM reservas_tematicas rsv
+            JOIN restaurantes r ON r.id = rsv.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            {$joinGroup}
+            $where
         ");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $row = $stmt->fetch();
+        return (int)($row['total'] ?? 0);
+    }
+
+    public function exportByFilters(array $filters, callable $callback, int $batchSize = 1000): int
+    {
+        $total = $this->countByFilters($filters);
+        $batchSize = max(100, min(5000, $batchSize));
+        for ($offset = 0; $offset < $total; $offset += $batchSize) {
+            foreach ($this->listByFilters($filters, $batchSize, $offset) as $row) {
+                $callback($row);
+            }
+        }
+        return $total;
     }
 
     public function summary(array $filters): array
@@ -1402,7 +1454,6 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 }
-
 
 
 

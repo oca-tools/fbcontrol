@@ -32,20 +32,7 @@ class Controller
 
     protected function redirect(string $route): void
     {
-        $safeRoute = str_replace(["\r", "\n"], '', $route);
-        $hasExternalScheme = (bool)preg_match('/^[a-z][a-z0-9+\-.]*:/i', $safeRoute);
-        $isProtocolRelative = str_starts_with($safeRoute, '//');
-        $isAbsolutePath = str_starts_with($safeRoute, '/');
-
-        if (
-            $safeRoute === ''
-            || $hasExternalScheme
-            || $isProtocolRelative
-            || !$isAbsolutePath
-            || strpos($safeRoute, '\\') !== false
-        ) {
-            $safeRoute = '/?r=home';
-        }
+        $safeRoute = sanitize_local_redirect_path($route, '/?r=home');
         header('Location: ' . $safeRoute);
         exit;
     }

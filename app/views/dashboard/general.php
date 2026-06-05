@@ -22,13 +22,18 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
         <section class="saas-hero-card">
             <div class="saas-headline mb-3">
                 <div>
-                    <div class="saas-label">Centro Analítico</div>
+                    <div class="saas-label">Operação em acompanhamento</div>
                     <h3 class="saas-title">Dashboard Geral</h3>
-                    <p class="saas-subtitle">Visão consolidada da operação por período, status e restaurante.</p>
+                    <p class="saas-subtitle">Leitura rápida de fluxo, alertas e distribuição por restaurante.</p>
                 </div>
-                <span class="badge badge-soft">Tempo real</span>
+                <span class="badge badge-soft">Visão operacional</span>
             </div>
 
+            <details class="dashboard-mobile-panel" open data-dashboard-mobile-collapsed>
+                <summary class="dashboard-panel-summary">
+                    <span><i class="bi bi-funnel me-2"></i>Filtros do dashboard</span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
             <form class="row g-3 saas-filter-grid" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
                 <input type="hidden" name="r" value="dashboard/index">
                 <input type="hidden" name="fluxo_restaurante_id" value="<?= h($flowFilters['restaurante_id'] ?? '') ?>">
@@ -98,20 +103,27 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                     <a class="btn btn-primary btn-xl" href="/?r=dashboard/index" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
                 </div>
             </form>
+            </details>
 
             <div class="saas-divider"></div>
 
-            <div class="saas-label mb-2">Atalhos por restaurante</div>
-            <div class="saas-chip-row">
-                <?php foreach ($restaurantes as $item): ?>
-                    <a class="btn btn-outline-primary" href="/?r=dashboard/restaurant&id=<?= (int)$item['id'] ?>">
-                        <span class="tag <?= restaurant_badge_class($item['nome']) ?>"><?= h($item['nome']) ?></span>
-                    </a>
-                <?php endforeach; ?>
-                <?php if (empty($restaurantes)): ?>
-                    <span class="text-muted">Sem restaurantes cadastrados.</span>
-                <?php endif; ?>
-            </div>
+            <details class="dashboard-mobile-panel dashboard-shortcuts-panel" open data-dashboard-mobile-collapsed>
+                <summary class="dashboard-panel-summary">
+                    <span><i class="bi bi-shop-window me-2"></i>Atalhos por restaurante</span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
+                <div class="saas-label mb-2">Atalhos por restaurante</div>
+                <div class="saas-chip-row">
+                    <?php foreach ($restaurantes as $item): ?>
+                        <a class="btn btn-outline-primary" href="/?r=dashboard/restaurant&id=<?= (int)$item['id'] ?>">
+                            <span class="tag <?= restaurant_badge_class($item['nome']) ?>"><?= h($item['nome']) ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                    <?php if (empty($restaurantes)): ?>
+                        <span class="text-muted">Sem restaurantes cadastrados.</span>
+                    <?php endif; ?>
+                </div>
+            </details>
         </section>
 
         <section class="saas-hero-card">
@@ -191,12 +203,12 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                         <tbody>
                             <?php foreach ($stats['totais_operacao'] ?? [] as $row): ?>
                                 <tr>
-                                    <td><span class="tag <?= operation_badge_class($row['nome']) ?>"><?= h($row['nome']) ?></span></td>
-                                    <td><?= h($row['total_pax']) ?></td>
+                                    <td data-label="Operação"><span class="tag <?= operation_badge_class($row['nome']) ?>"><?= h($row['nome']) ?></span></td>
+                                    <td data-label="Total"><?= h($row['total_pax']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             <?php if (empty($stats['totais_operacao'])): ?>
-                                <tr><td colspan="2" class="text-muted">Sem dados.</td></tr>
+                                <tr class="dashboard-empty-row"><td colspan="2" class="text-muted">Sem dados.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -216,12 +228,12 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                         <tbody>
                             <?php foreach ($stats['totais_restaurante'] ?? [] as $row): ?>
                                 <tr>
-                                    <td><span class="tag <?= restaurant_badge_class($row['nome']) ?>"><?= h($row['nome']) ?></span></td>
-                                    <td><?= h($row['total_pax']) ?></td>
+                                    <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($row['nome']) ?>"><?= h($row['nome']) ?></span></td>
+                                    <td data-label="Total"><?= h($row['total_pax']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             <?php if (empty($stats['totais_restaurante'])): ?>
-                                <tr><td colspan="2" class="text-muted">Sem dados.</td></tr>
+                                <tr class="dashboard-empty-row"><td colspan="2" class="text-muted">Sem dados.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -237,6 +249,11 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                     <h5>Fluxo por horário</h5>
                     <span class="badge badge-soft">Picos</span>
                 </div>
+                <details class="dashboard-mobile-panel" open data-dashboard-mobile-collapsed>
+                    <summary class="dashboard-panel-summary">
+                        <span><i class="bi bi-sliders me-2"></i>Filtrar fluxo</span>
+                        <i class="bi bi-chevron-down"></i>
+                    </summary>
                 <form class="row g-2 align-items-end mb-3" method="get" action="/" data-ajax-filter data-ajax-target=".app-content" data-ajax-preserve-scroll="1">
                     <input type="hidden" name="r" value="dashboard/index">
                     <input type="hidden" name="data" value="<?= h($filters['data'] ?? '') ?>">
@@ -271,15 +288,16 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                         <button class="btn btn-outline-primary">Filtrar</button>
                     </div>
                 </form>
+                </details>
                 <div class="saas-table-scroll">
                     <table class="table table-sm mb-0">
                         <thead><tr><th>Hora</th><th>Total</th></tr></thead>
                         <tbody>
                             <?php foreach ($stats['fluxo_horario'] ?? [] as $row): ?>
-                                <tr><td><?= h($row['hora']) ?></td><td><?= h($row['total_pax']) ?></td></tr>
+                                <tr><td data-label="Hora"><?= h($row['hora']) ?></td><td data-label="Total"><?= h($row['total_pax']) ?></td></tr>
                             <?php endforeach; ?>
                             <?php if (empty($stats['fluxo_horario'])): ?>
-                                <tr><td colspan="2" class="text-muted">Sem dados.</td></tr>
+                                <tr class="dashboard-empty-row"><td colspan="2" class="text-muted">Sem dados.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -310,7 +328,7 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                             <?php foreach ($recentes as $item): ?>
                                 <?php $status = normalize_mojibake((string)($item['status_operacional'] ?? '')); ?>
                                 <tr>
-                                    <td>
+                                    <td data-label="Status">
                                         <?php if ($status === 'Duplicado'): ?>
                                             <span class="badge badge-warning">Duplicado</span>
                                         <?php elseif ($status === 'Fora do Horário' || $status === 'Fora do Horario'): ?>
@@ -321,16 +339,16 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
                                             <span class="badge badge-success">OK</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><span class="tag <?= restaurant_badge_class((string)$item['restaurante']) ?>"><?= h((string)$item['restaurante']) ?></span></td>
-                                    <td><span class="uh-badge <?= uh_badge_class((string)$item['uh_numero']) ?>"><?= h(uh_label((string)$item['uh_numero'])) ?></span></td>
-                                    <td><?= h((string)$item['pax']) ?></td>
-                                    <td><span class="tag <?= operation_badge_class((string)$item['operacao']) ?>"><?= h((string)$item['operacao']) ?></span></td>
-                                    <td><?= h((string)$item['usuario']) ?></td>
-                                    <td><?= h((string)$item['criado_em']) ?></td>
+                                    <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class((string)$item['restaurante']) ?>"><?= h((string)$item['restaurante']) ?></span></td>
+                                    <td data-label="UH"><span class="uh-badge <?= uh_badge_class((string)$item['uh_numero']) ?>"><?= h(uh_label((string)$item['uh_numero'])) ?></span></td>
+                                    <td data-label="PAX"><?= h((string)$item['pax']) ?></td>
+                                    <td data-label="Operação"><span class="tag <?= operation_badge_class((string)$item['operacao']) ?>"><?= h((string)$item['operacao']) ?></span></td>
+                                    <td data-label="Usuário"><?= h((string)$item['usuario']) ?></td>
+                                    <td data-label="Horário"><?= h((string)$item['criado_em']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                             <?php if (empty($recentes)): ?>
-                                <tr><td colspan="7" class="text-muted">Sem registros.</td></tr>
+                                <tr class="dashboard-empty-row"><td colspan="7" class="text-muted">Sem registros.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -422,6 +440,37 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
     .dashboard-general-page .table-responsive {
         max-width: 100%;
     }
+    .dashboard-mobile-panel {
+        min-width: 0;
+    }
+    .dashboard-mobile-panel > summary {
+        display: none;
+    }
+    .dashboard-panel-summary {
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        cursor: pointer;
+        list-style: none;
+        border: 1px solid var(--ab-border);
+        border-radius: 16px;
+        padding: .85rem 1rem;
+        background: var(--ab-soft-bg);
+        color: var(--ab-text);
+        font-weight: 800;
+    }
+    .dashboard-panel-summary::-webkit-details-marker {
+        display: none;
+    }
+    .dashboard-panel-summary i {
+        color: var(--ab-primary);
+    }
+    .dashboard-panel-summary .bi-chevron-down {
+        transition: transform .18s ease;
+    }
+    .dashboard-mobile-panel[open] .dashboard-panel-summary .bi-chevron-down {
+        transform: rotate(180deg);
+    }
     @media (max-width: 992px) {
         .dashboard-general-page .row {
             margin-left: 0;
@@ -437,8 +486,30 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
         .dashboard-general-page .saas-stat-card .stat-chip {
             white-space: normal;
         }
+        .dashboard-mobile-panel > summary {
+            display: flex;
+        }
+        .dashboard-mobile-panel:not([open]) > form,
+        .dashboard-mobile-panel:not([open]) > .saas-label,
+        .dashboard-mobile-panel:not([open]) > .saas-chip-row {
+            display: none !important;
+        }
+        .dashboard-mobile-panel > form,
+        .dashboard-shortcuts-panel > .saas-label {
+            margin-top: .85rem;
+        }
     }
     @media (max-width: 768px) {
+        .dashboard-general-page .saas-headline {
+            gap: .8rem;
+        }
+        .dashboard-general-page .saas-headline .badge,
+        .dashboard-general-page .saas-headline .stat-chip {
+            align-self: flex-start;
+        }
+        .dashboard-general-page .saas-subtitle {
+            display: none;
+        }
         .dashboard-general-page .saas-toolbar .btn {
             flex: 1 1 100%;
         }
@@ -449,12 +520,31 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
         .dashboard-general-page .saas-table-scroll,
         .dashboard-general-page .table-responsive {
             max-width: 100%;
-            overflow-x: auto;
+            overflow: visible;
         }
     }
     @media (max-width: 576px) {
         .dashboard-general-page .saas-kpi-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: .75rem;
+        }
+        .dashboard-general-page .saas-stat-card {
+            padding: .85rem;
+            min-width: 0;
+        }
+        .dashboard-general-page .saas-stat-card .small {
+            min-height: 2.1em;
+            line-height: 1.15;
+        }
+        .dashboard-general-page .saas-stat-value {
+            font-size: 1.45rem;
+            line-height: 1.1;
+        }
+        .dashboard-general-page .saas-stat-card .stat-chip {
+            width: 100%;
+            font-size: .72rem;
+            line-height: 1.15;
+            padding-inline: .55rem;
         }
         .dashboard-general-page .stat-chip {
             white-space: normal;
@@ -463,6 +553,56 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
         }
         .dashboard-general-page .saas-toolbar .btn {
             flex: 1 1 100%;
+        }
+        .dashboard-general-page .saas-table-scroll table,
+        .dashboard-general-page .saas-table-scroll tbody,
+        .dashboard-general-page .saas-table-scroll tr,
+        .dashboard-general-page .saas-table-scroll td {
+            display: block;
+            width: 100%;
+        }
+        .dashboard-general-page .saas-table-scroll thead {
+            display: none;
+        }
+        .dashboard-general-page .saas-table-scroll tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .dashboard-general-page .saas-table-scroll td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            text-align: right;
+        }
+        .dashboard-general-page .saas-table-scroll td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+        }
+        .dashboard-general-page .saas-table-scroll td .tag,
+        .dashboard-general-page .saas-table-scroll td .uh-badge,
+        .dashboard-general-page .saas-table-scroll td .badge {
+            max-width: 62%;
+            white-space: normal;
+            text-align: center;
+        }
+        .dashboard-general-page .dashboard-empty-row td {
+            display: block;
+            text-align: left;
+        }
+        .dashboard-general-page .dashboard-empty-row td::before {
+            content: "";
+            display: none;
         }
     }
 </style>
@@ -493,5 +633,15 @@ $alertasAtivos = $dupCount + $foraCount + $multiploCount;
         });
     });
 })();
-</script>
 
+(() => {
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    document.querySelectorAll('[data-dashboard-mobile-collapsed]').forEach((panel) => {
+        if (isMobile) {
+            panel.removeAttribute('open');
+        } else {
+            panel.setAttribute('open', 'open');
+        }
+    });
+})();
+</script>

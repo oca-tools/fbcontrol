@@ -44,6 +44,54 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
     .kpis-page .kpi-filter-actions .btn {
         min-height: 42px;
     }
+    .kpi-filter-panel > summary {
+        display: none;
+    }
+    .kpi-filter-panel {
+        margin-top: .5rem;
+    }
+    .kpi-filter-summary {
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        cursor: pointer;
+        list-style: none;
+        border: 1px solid var(--ab-border);
+        border-radius: 16px;
+        padding: .85rem 1rem;
+        background: var(--ab-soft-bg);
+        color: var(--ab-text);
+        font-weight: 800;
+    }
+    .kpi-filter-summary::-webkit-details-marker {
+        display: none;
+    }
+    .kpi-filter-summary i {
+        color: var(--ab-primary);
+    }
+    .kpi-filter-panel[open] .kpi-filter-summary .bi-chevron-down {
+        transform: rotate(180deg);
+    }
+    .kpi-filter-summary .bi-chevron-down {
+        transition: transform .18s ease;
+    }
+    .kpi-summary-grid {
+        margin-top: .5rem;
+    }
+    .kpi-summary-grid .metric-card {
+        height: 100%;
+    }
+    .kpi-mini-stat {
+        background: var(--ab-soft-bg);
+        border: 1px solid var(--ab-border);
+        border-radius: 14px;
+        padding: .9rem;
+        height: 100%;
+    }
+    .kpi-mini-stat .h4,
+    .kpi-mini-stat .h5 {
+        overflow-wrap: anywhere;
+    }
     .kpi-ranking-table {
         max-height: 360px;
         overflow-y: auto;
@@ -75,13 +123,114 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
         .kpis-page #kpiOccupancyVsBuffetChart {
             min-height: 260px !important;
         }
+        .kpi-filter-panel > summary {
+            display: flex;
+        }
+        .kpi-filter-panel:not([open]) form {
+            display: none !important;
+        }
+        .kpi-filter-panel form {
+            margin-top: .75rem !important;
+        }
     }
     @media (max-width: 575.98px) {
+        .kpis-page .section-title {
+            align-items: flex-start;
+            gap: .65rem;
+        }
+        .kpis-page .section-title .icon {
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+        }
+        .kpis-page .section-title h3 {
+            font-size: 1.35rem;
+        }
+        .kpis-page .section-title h5 {
+            font-size: 1rem;
+        }
+        .kpis-page .section-title .text-muted:not(.small) {
+            display: none;
+        }
+        .kpi-summary-grid {
+            --bs-gutter-x: .75rem;
+            --bs-gutter-y: .75rem;
+        }
+        .kpi-summary-grid > [class*="col-"] {
+            flex: 0 0 auto;
+            width: 50%;
+        }
+        .kpi-summary-grid > [class*="col-"]:last-child {
+            width: 100%;
+        }
+        .kpi-summary-grid .metric-card {
+            padding: .85rem !important;
+        }
+        .kpi-summary-grid .metric-card .d-flex {
+            align-items: flex-start !important;
+            gap: .65rem !important;
+        }
+        .kpi-summary-grid .metric-icon {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+        }
+        .kpi-summary-grid .display-6 {
+            font-size: 1.35rem;
+            line-height: 1.05;
+        }
+        .kpi-summary-grid .stat-chip {
+            width: 100%;
+            justify-content: flex-start;
+            white-space: normal;
+            line-height: 1.2;
+            font-size: .72rem;
+        }
+        .kpis-page .kpi-flow-filter {
+            padding: .85rem;
+            border-radius: 14px;
+        }
         .kpis-page .kpi-filter-actions .btn {
             flex: 1 1 100%;
         }
         .kpis-page .table {
             font-size: .88rem;
+        }
+        .kpi-ranking-table {
+            overflow: visible;
+        }
+        .kpi-ranking-table table,
+        .kpi-ranking-table tbody,
+        .kpi-ranking-table tr,
+        .kpi-ranking-table td {
+            display: block;
+            width: 100%;
+        }
+        .kpi-ranking-table thead {
+            display: none;
+        }
+        .kpi-ranking-table tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .kpi-ranking-table td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+        }
+        .kpi-ranking-table td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
         }
     }
 </style>
@@ -92,13 +241,18 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
             <div class="section-title">
                 <div class="icon"><i class="bi bi-speedometer2"></i></div>
                 <div>
-                    <div class="text-uppercase text-muted small">Visão executiva 2.0</div>
+                    <div class="text-uppercase text-muted small">Visão executiva 3.0</div>
                     <h3 class="fw-bold mb-1">KPIs Estratégicos</h3>
                     <div class="text-muted">Análises visuais para gestão operacional: desempenho, fluxo e aderência à ocupação.</div>
                 </div>
             </div>
         </div>
 
+        <details class="kpi-filter-panel" open data-mobile-collapsed>
+            <summary class="kpi-filter-summary">
+                <span><i class="bi bi-funnel me-2"></i>Filtros de análise</span>
+                <i class="bi bi-chevron-down"></i>
+            </summary>
         <form class="row g-3 align-items-end mt-2" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
             <input type="hidden" name="r" value="kpis/index">
             <div class="col-12 col-md-3">
@@ -155,9 +309,10 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                 <a class="btn btn-primary btn-xl" href="/?r=kpis/index" data-ajax-link data-ajax-target=".app-content">Remover filtro</a>
             </div>
         </form>
+        </details>
     </div>
 
-    <div class="row g-4 mb-4 split-full">
+    <div class="row g-4 mb-4 split-full kpi-summary-grid">
         <div class="col-12 col-md-6 col-xl-4">
             <div class="card metric-card p-4">
                 <div class="d-flex align-items-center gap-3">
@@ -209,6 +364,11 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                         <div class="text-muted small">Concentração real de PAX por faixa horária, separada por operação.</div>
                     </div>
                 </div>
+                <details class="kpi-filter-panel" open data-mobile-collapsed>
+                    <summary class="kpi-filter-summary mb-2">
+                        <span><i class="bi bi-sliders me-2"></i>Filtros do gráfico</span>
+                        <i class="bi bi-chevron-down"></i>
+                    </summary>
                 <form class="row g-2 align-items-end mb-3 kpi-flow-filter" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
                     <input type="hidden" name="r" value="kpis/index">
                     <input type="hidden" name="data" value="<?= h($filters['data'] ?? '') ?>">
@@ -256,6 +416,7 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                         <button class="btn btn-primary">Aplicar no gráfico</button>
                     </div>
                 </form>
+                </details>
                 <div id="kpiHourlyOperationChart" style="min-height: 320px;"></div>
             </div>
         </div>
@@ -325,24 +486,24 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                         </div>
                     </form>
                 <?php else: ?>
-                    <div class="alert alert-info mb-3">Somente <strong>admin/supervisor</strong> pode editar ocupação diária.</div>
+                    <div class="alert alert-info mb-3">Somente <strong>admin/gerente</strong> pode editar ocupação diária.</div>
                 <?php endif; ?>
 
                 <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
-                        <div class="p-3 rounded-3" style="background:var(--ab-soft-bg); border:1px solid var(--ab-border);">
+                        <div class="kpi-mini-stat">
                             <div class="text-muted small">PAX buffet no dia</div>
                             <div class="h4 mb-0"><?= (int)$buffetPaxDia ?></div>
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <div class="p-3 rounded-3" style="background:var(--ab-soft-bg); border:1px solid var(--ab-border);">
+                        <div class="kpi-mini-stat">
                             <div class="text-muted small">Ocupação PAX informada</div>
                             <div class="h4 mb-0"><?= isset($occupancy['ocupacao_pax']) ? (int)$occupancy['ocupacao_pax'] : 0 ?></div>
                         </div>
                     </div>
                     <div class="col-12">
-                        <div class="p-3 rounded-3" style="background:var(--ab-soft-bg); border:1px solid var(--ab-border);">
+                        <div class="kpi-mini-stat">
                             <div class="text-muted small">Índice buffet/ocupação</div>
                             <div class="h5 mb-0"><?= $taxaBuffetOcupacao === null ? 'Sem base de ocupação para comparação.' : h((string)$taxaBuffetOcupacao) . '%' ?></div>
                         </div>
@@ -388,10 +549,10 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                         <tbody>
                             <?php foreach ($operatorRanking as $row): ?>
                                 <tr>
-                                    <td><?= h($row['nome']) ?></td>
-                                    <td><?= (int)$row['registros'] ?></td>
-                                    <td><?= (int)$row['pax_total'] ?></td>
-                                    <td>
+                                    <td data-label="Operador"><?= h($row['nome']) ?></td>
+                                    <td data-label="Registros"><?= (int)$row['registros'] ?></td>
+                                    <td data-label="PAX"><?= (int)$row['pax_total'] ?></td>
+                                    <td data-label="Qualidade">
                                         <?php if ((float)$row['indice_qualidade'] >= 90): ?>
                                             <span class="badge badge-success"><?= h((string)$row['indice_qualidade']) ?>%</span>
                                         <?php elseif ((float)$row['indice_qualidade'] >= 75): ?>
@@ -452,6 +613,17 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
             start.value = fmt(from);
             end.value = fmt(today);
         });
+    });
+})();
+
+(() => {
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    document.querySelectorAll('[data-mobile-collapsed]').forEach((panel) => {
+        if (isMobile) {
+            panel.removeAttribute('open');
+        } else {
+            panel.setAttribute('open', 'open');
+        }
     });
 })();
 

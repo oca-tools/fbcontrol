@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
-echo "[1/2] PHP lint..."
+echo "[1/5] PHP lint..."
 php -r '
   $paths = ["app", "public", "config"];
   $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(".", FilesystemIterator::SKIP_DOTS));
@@ -24,5 +24,14 @@ php -r '
   echo "Lint finalizado: {$count} arquivos." . PHP_EOL;
 '
 
-echo "[2/2] SAST baseline..."
+echo "[2/5] Smoke check..."
+php tools/smoke_fbcontrol.php
+
+echo "[3/5] Release hygiene..."
+php tools/check_release_hygiene.php
+
+echo "[4/5] Ops healthcheck..."
+php tools/healthcheck_fbcontrol.php
+
+echo "[5/5] SAST baseline..."
 php deploy/security/sast_scan.php

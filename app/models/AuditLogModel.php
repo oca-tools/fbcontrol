@@ -89,16 +89,7 @@ class AuditLogModel extends Model
 
     private function applyDateFilters(string &$where, array &$params, string $field, array $filters): void
     {
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND DATE($field) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-            return;
-        }
-        if (!empty($filters['data'])) {
-            $where .= " AND DATE($field) = :data";
-            $params[':data'] = $filters['data'];
-        }
+        $this->applyCreatedAtFilter($where, $params, $field, $filters, 'audit_data');
     }
 
     private function applyShiftDateFilters(string &$where, array &$params, array $filters): void

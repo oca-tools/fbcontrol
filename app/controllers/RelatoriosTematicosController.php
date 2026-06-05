@@ -30,6 +30,27 @@ class RelatoriosTematicosController extends Controller
         return $type === 'xlsx' ? 'xlsx' : 'csv';
     }
 
+    private function prepareTabularDownload(string $filenameBase, string $type): mixed
+    {
+        $filenameBase = safe_download_filename($filenameBase, 'relatorio_tematicos');
+        if ($type === 'xlsx') {
+            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filenameBase . '.xls"');
+        } else {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filenameBase . '.csv"');
+        }
+        header('X-Accel-Buffering: no');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+
+        $out = fopen('php://output', 'w');
+        if ($out === false) {
+            http_response_code(500);
+            exit;
+        }
+        return $out;
+    }
+
     public function index(): void
     {
         $this->requireAuth();
@@ -63,7 +84,14 @@ class RelatoriosTematicosController extends Controller
         $byRestaurant = $reservaModel->totalsByRestaurant($filters);
         $byTurno = $reservaModel->totalsByTurno($filters);
         $byDay = $reservaModel->totalsByDay($filters);
-        $list = $reservaModel->listByFilters($filters);
+        $perPage = 20;
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $total = $reservaModel->countByFilters($filters);
+        $totalPages = max(1, (int)ceil($total / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $list = $reservaModel->listByFilters($filters, $perPage, ($page - 1) * $perPage);
 
         $base = (int)($summary['pax_reservadas'] ?? 0);
         $taxaComparecimento = $base > 0 ? round(((int)($summary['pax_comparecidas'] ?? 0) / $base) * 100, 1) : 0;
@@ -75,6 +103,9 @@ class RelatoriosTematicosController extends Controller
             'by_turno' => $byTurno,
             'by_day' => $byDay,
             'list' => $list,
+            'list_page' => $page,
+            'list_total_pages' => $totalPages,
+            'list_total' => $total,
             'taxa_comparecimento' => $taxaComparecimento,
             'restaurantes' => $tematicos,
             'turnos' => $turnoModel->all(),
@@ -109,26 +140,19 @@ class RelatoriosTematicosController extends Controller
 
         $filters = $this->buildFilters($tematicos, false);
 
-        $rows = $reservaModel->listByFilters($filters);
         $type = $this->buildExportType();
+        $totalRows = $reservaModel->countByFilters($filters);
         (new SecurityLogModel())->log('export_relatorios_tematicos', (int)(Auth::user()['id'] ?? 0), [
             'type' => $type,
-            'rows' => count($rows),
+            'rows' => $totalRows,
             'filters' => $filters,
         ]);
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="relatorio_tematicos.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="relatorio_tematicos.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $out = $this->prepareTabularDownload('relatorio_tematicos', $type);
         fputcsv($out, [
-            'data_reserva','turno','restaurante','lote_id','grupo_nome','responsavel_lote','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status','excedente',
+            'data_reserva','turno','restaurante','grupo_id','grupo_nome','responsavel_grupo','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status',
             'obs_reserva','tags','obs_operacao','usuario','criado_em'
         ]);
-        foreach ($rows as $r) {
+        $reservaModel->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 $r['data_reserva'],
                 $r['turno_hora'],
@@ -144,14 +168,13 @@ class RelatoriosTematicosController extends Controller
                 $r['pax'],
                 $r['pax_real'] ?? '',
                 $r['status'],
-                $r['excedente'] ? 'sim' : 'não',
                 $r['observacao_reserva'] ?? '',
                 $r['observacao_tags'] ?? '',
                 $r['observacao_operacao'] ?? '',
                 $r['usuario'],
                 $r['criado_em'],
             ]);
-        }
+        });
         fclose($out);
         exit;
     }

@@ -5,6 +5,7 @@ $config = $this->data['config'] ?? [];
 $requests = $this->data['requests'] ?? [];
 $incidents = $this->data['incidents'] ?? [];
 $retention = $this->data['retention'] ?? [];
+$retentionOptions = $this->data['retention_options'] ?? [];
 $events = $this->data['events'] ?? [];
 $canEdit = (bool)($this->data['can_edit'] ?? false);
 $dbError = (string)($this->data['db_error'] ?? '');
@@ -14,9 +15,9 @@ $dbError = (string)($this->data['db_error'] ?? '');
     <section class="saas-hero-card">
         <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
             <div>
-                <div class="saas-label">Governanca</div>
+                <div class="saas-label">Governança</div>
                 <h3 class="saas-title mb-1">Conformidade LGPD</h3>
-                <p class="saas-subtitle mb-0">Solicitacoes de titulares, incidentes e retencao de dados.</p>
+                <p class="saas-subtitle mb-0">Solicitações de titulares, incidentes e retenção de dados.</p>
             </div>
             <a class="btn btn-sm btn-outline-primary" href="/?r=privacidade/index" target="_blank" rel="noopener">
                 <i class="bi bi-box-arrow-up-right"></i> Aviso de privacidade
@@ -33,11 +34,11 @@ $dbError = (string)($this->data['db_error'] ?? '');
 
     <section class="saas-kpi-grid">
         <div class="saas-stat-card">
-            <div class="small text-muted">Solicitacoes abertas</div>
+            <div class="small text-muted">Solicitações abertas</div>
             <div class="saas-stat-value"><?= (int)($summary['requests_open'] ?? 0) ?></div>
         </div>
         <div class="saas-stat-card">
-            <div class="small text-muted">Prazo proximo (48h)</div>
+            <div class="small text-muted">Prazo próximo (48h)</div>
             <div class="saas-stat-value status-warning"><?= (int)($summary['requests_due_soon'] ?? 0) ?></div>
         </div>
         <div class="saas-stat-card">
@@ -50,7 +51,7 @@ $dbError = (string)($this->data['db_error'] ?? '');
         <div class="col-12 col-xl-7">
             <section class="saas-table-card h-100">
                 <div class="saas-table-head">
-                    <h5>Configuracao de governanca</h5>
+                    <h5>Configuração de governança</h5>
                     <span class="badge badge-soft">Controlador e DPO</span>
                 </div>
                 <form method="post" action="/?r=lgpd/saveConfig" class="row g-2">
@@ -88,11 +89,11 @@ $dbError = (string)($this->data['db_error'] ?? '');
                         <input type="number" min="1" max="180" name="prazo_titular_dias" class="form-control input-xl" value="<?= (int)($config['prazo_titular_dias'] ?? 15) ?>" <?= $canEdit ? '' : 'readonly' ?>>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Prazo incidente (dias uteis)</label>
+                        <label class="form-label">Prazo incidente (dias úteis)</label>
                         <input type="number" min="1" max="30" name="prazo_incidente_dias_uteis" class="form-control input-xl" value="<?= (int)($config['prazo_incidente_dias_uteis'] ?? 3) ?>" <?= $canEdit ? '' : 'readonly' ?>>
                     </div>
                     <?php if ($canEdit): ?>
-                        <div class="col-12"><button class="btn btn-primary btn-xl">Salvar configuracao</button></div>
+                        <div class="col-12"><button class="btn btn-primary btn-xl">Salvar configuração</button></div>
                     <?php endif; ?>
                 </form>
             </section>
@@ -101,41 +102,44 @@ $dbError = (string)($this->data['db_error'] ?? '');
         <div class="col-12 col-xl-5">
             <section class="saas-table-card h-100">
                 <div class="saas-table-head">
-                    <h5>Retencao de dados</h5>
-                    <span class="badge badge-soft">Minimizacao</span>
+                    <h5>Retenção de dados</h5>
+                    <span class="badge badge-soft">Minimização</span>
                 </div>
                 <?php if ($canEdit): ?>
                     <form method="post" action="/?r=lgpd/saveRetention" class="row g-2 mb-3">
                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                        <div class="col-12"><input type="text" name="tabela_nome" class="form-control input-xl" placeholder="Tabela (ex: auditoria)" required></div>
-                        <div class="col-12"><input type="text" name="descricao" class="form-control input-xl" placeholder="Descricao"></div>
-                        <div class="col-6"><input type="number" min="1" max="3650" name="retencao_dias" class="form-control input-xl" value="180" required></div>
-                        <div class="col-6">
-                            <select name="modo" class="form-select input-xl">
-                                <option value="eliminar">Eliminar</option>
-                                <option value="anonimizar">Anonimizar</option>
+                        <input type="hidden" name="modo" value="eliminar">
+                        <div class="col-12">
+                            <select name="tabela_nome" class="form-select input-xl" required>
+                                <option value="">Selecionar política</option>
+                                <?php foreach ($retentionOptions as $tableName => $option): ?>
+                                    <option value="<?= h((string)$tableName) ?>"><?= h((string)($option['label'] ?? $tableName)) ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
+                        <div class="col-12"><input type="text" name="descricao" class="form-control input-xl" placeholder="Descrição"></div>
+                        <div class="col-6"><input type="number" min="1" max="3650" name="retencao_dias" class="form-control input-xl" value="180" required></div>
+                        <div class="col-6"><input type="text" class="form-control input-xl" value="Eliminar registros vencidos" readonly></div>
                         <div class="col-12 d-flex gap-2">
                             <label class="form-check mt-2"><input class="form-check-input" type="checkbox" name="ativo" value="1" checked> <span class="form-check-label">Ativa</span></label>
-                            <button class="btn btn-outline-primary btn-xl">Salvar politica</button>
-                            <button class="btn btn-outline-danger btn-xl" formaction="/?r=lgpd/runRetentionNow" data-confirm="Executar retencao agora?" data-confirm-type="danger">Executar agora</button>
+                            <button class="btn btn-outline-primary btn-xl">Salvar política</button>
+                            <button class="btn btn-outline-danger btn-xl" formaction="/?r=lgpd/runRetentionNow" data-confirm="Executar retenção agora?" data-confirm-type="danger">Executar agora</button>
                         </div>
                     </form>
                 <?php endif; ?>
                 <div class="saas-table-scroll">
-                    <table class="table table-sm align-middle mb-0">
+                    <table class="table table-sm align-middle mb-0 lgpd-responsive-table">
                         <thead><tr><th>Tabela</th><th>Dias</th><th>Modo</th><th>Status</th></tr></thead>
                         <tbody>
                         <?php foreach ($retention as $p): ?>
                             <tr>
-                                <td><?= h((string)$p['tabela_nome']) ?></td>
-                                <td><?= (int)$p['retencao_dias'] ?></td>
-                                <td><?= h((string)$p['modo']) ?></td>
-                                <td><?= (int)$p['ativo'] === 1 ? 'Ativa' : 'Inativa' ?></td>
+                                <td data-label="Tabela"><?= h((string)$p['tabela_nome']) ?></td>
+                                <td data-label="Dias"><?= (int)$p['retencao_dias'] ?></td>
+                                <td data-label="Modo"><?= h((string)$p['modo']) ?></td>
+                                <td data-label="Status"><?= (int)$p['ativo'] === 1 ? 'Ativa' : 'Inativa' ?></td>
                             </tr>
                         <?php endforeach; ?>
-                        <?php if (empty($retention)): ?><tr><td colspan="4" class="text-muted">Sem politicas.</td></tr><?php endif; ?>
+                        <?php if (empty($retention)): ?><tr><td colspan="4" class="text-muted">Sem políticas.</td></tr><?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -144,13 +148,13 @@ $dbError = (string)($this->data['db_error'] ?? '');
     </div>
 
     <section class="saas-table-card">
-        <div class="saas-table-head"><h5>Solicitacoes de titulares</h5></div>
+        <div class="saas-table-head"><h5>Solicitações de titulares</h5></div>
         <?php if ($canEdit): ?>
             <form method="post" action="/?r=lgpd/addRequest" class="row g-2 mb-3">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <div class="col-12 col-md-2">
                     <select name="tipo" class="form-select input-xl">
-                        <option value="acesso">Acesso</option><option value="correcao">Correcao</option><option value="anonimizacao">Anonimizacao</option><option value="eliminacao">Eliminacao</option><option value="portabilidade">Portabilidade</option><option value="oposicao">Oposicao</option><option value="revogacao">Revogacao</option><option value="informacao">Informacao</option>
+                        <option value="acesso">Acesso</option><option value="correcao">Correção</option><option value="anonimizacao">Anonimização</option><option value="eliminacao">Eliminação</option><option value="portabilidade">Portabilidade</option><option value="oposicao">Oposição</option><option value="revogacao">Revogação</option><option value="informacao">Informação</option>
                     </select>
                 </div>
                 <div class="col-12 col-md-3"><input type="text" name="titular_nome" class="form-control input-xl" placeholder="Nome do titular" required></div>
@@ -159,22 +163,22 @@ $dbError = (string)($this->data['db_error'] ?? '');
                 <div class="col-6 col-md-1"><input type="datetime-local" name="recebido_em" class="form-control input-xl"></div>
                 <div class="col-6 col-md-1"><input type="datetime-local" name="prazo_resposta_em" class="form-control input-xl"></div>
                 <div class="col-12"><textarea name="detalhes" rows="2" class="form-control input-xl" placeholder="Detalhes"></textarea></div>
-                <div class="col-12"><button class="btn btn-primary btn-xl">Registrar solicitacao</button></div>
+                <div class="col-12"><button class="btn btn-primary btn-xl">Registrar solicitação</button></div>
             </form>
         <?php endif; ?>
         <div class="saas-table-scroll">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 lgpd-responsive-table">
                 <thead><tr><th>Protocolo</th><th>Tipo</th><th>Titular</th><th>Status</th><th>Prazo</th><?php if ($canEdit): ?><th>Ajustar</th><?php endif; ?></tr></thead>
                 <tbody>
                 <?php foreach ($requests as $r): ?>
                     <tr>
-                        <td><?= h((string)$r['protocolo']) ?></td>
-                        <td><?= h((string)$r['tipo']) ?></td>
-                        <td><?= h((string)$r['titular_nome']) ?></td>
-                        <td><span class="badge <?= in_array((string)$r['status'], ['concluida'], true) ? 'badge-success' : ((string)$r['status'] === 'indeferida' ? 'badge-danger' : 'badge-soft') ?>"><?= h((string)$r['status']) ?></span></td>
-                        <td><?= h((string)($r['prazo_resposta_em'] ?? '-')) ?></td>
+                        <td data-label="Protocolo"><?= h((string)$r['protocolo']) ?></td>
+                        <td data-label="Tipo"><?= h((string)$r['tipo']) ?></td>
+                        <td data-label="Titular"><?= h((string)$r['titular_nome']) ?></td>
+                        <td data-label="Status"><span class="badge <?= in_array((string)$r['status'], ['concluida'], true) ? 'badge-success' : ((string)$r['status'] === 'indeferida' ? 'badge-danger' : 'badge-soft') ?>"><?= h((string)$r['status']) ?></span></td>
+                        <td data-label="Prazo"><?= h((string)($r['prazo_resposta_em'] ?? '-')) ?></td>
                         <?php if ($canEdit): ?>
-                            <td>
+                            <td data-label="Ajustar">
                                 <form method="post" action="/?r=lgpd/updateRequest" class="d-flex gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
@@ -189,7 +193,7 @@ $dbError = (string)($this->data['db_error'] ?? '');
                                     <select name="status" class="form-select form-select-sm">
                                         <option value="aberta" <?= (($r['status'] ?? '') === 'aberta') ? 'selected' : '' ?>>Aberta</option>
                                         <option value="em_tratamento" <?= (($r['status'] ?? '') === 'em_tratamento') ? 'selected' : '' ?>>Em tratamento</option>
-                                        <option value="concluida" <?= (($r['status'] ?? '') === 'concluida') ? 'selected' : '' ?>>Concluida</option>
+                                        <option value="concluida" <?= (($r['status'] ?? '') === 'concluida') ? 'selected' : '' ?>>Concluída</option>
                                         <option value="indeferida" <?= (($r['status'] ?? '') === 'indeferida') ? 'selected' : '' ?>>Indeferida</option>
                                     </select>
                                     <button class="btn btn-sm btn-outline-primary">OK</button>
@@ -198,23 +202,23 @@ $dbError = (string)($this->data['db_error'] ?? '');
                         <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
-                <?php if (empty($requests)): ?><tr><td colspan="<?= $canEdit ? '6' : '5' ?>" class="text-muted">Sem solicitacoes.</td></tr><?php endif; ?>
+                <?php if (empty($requests)): ?><tr><td colspan="<?= $canEdit ? '6' : '5' ?>" class="text-muted">Sem solicitações.</td></tr><?php endif; ?>
                 </tbody>
             </table>
         </div>
     </section>
 
     <section class="saas-table-card">
-        <div class="saas-table-head"><h5>Incidentes de seguranca</h5></div>
+        <div class="saas-table-head"><h5>Incidentes de segurança</h5></div>
         <?php if ($canEdit): ?>
             <form method="post" action="/?r=lgpd/addIncident" class="row g-2 mb-3">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="col-12 col-md-3"><input type="text" name="titulo" class="form-control input-xl" placeholder="Titulo" required></div>
+                <div class="col-12 col-md-3"><input type="text" name="titulo" class="form-control input-xl" placeholder="Título" required></div>
                 <div class="col-6 col-md-2"><input type="text" name="categoria" class="form-control input-xl" placeholder="Categoria"></div>
-                <div class="col-6 col-md-2"><select name="risco_nivel" class="form-select input-xl"><option value="baixo">Baixo</option><option value="medio" selected>Medio</option><option value="alto">Alto</option></select></div>
+                <div class="col-6 col-md-2"><select name="risco_nivel" class="form-select input-xl"><option value="baixo">Baixo</option><option value="medio" selected>Médio</option><option value="alto">Alto</option></select></div>
                 <div class="col-6 col-md-2"><input type="datetime-local" name="data_incidente" class="form-control input-xl"></div>
                 <div class="col-6 col-md-2"><input type="datetime-local" name="detectado_em" class="form-control input-xl"></div>
-                <div class="col-6 col-md-1"><select name="status" class="form-select input-xl"><option value="aberto">Aberto</option><option value="investigacao">Investigacao</option><option value="comunicado">Comunicado</option><option value="encerrado">Encerrado</option></select></div>
+                <div class="col-6 col-md-1"><select name="status" class="form-select input-xl"><option value="aberto">Aberto</option><option value="investigacao">Investigação</option><option value="comunicado">Comunicado</option><option value="encerrado">Encerrado</option></select></div>
                 <div class="col-6 col-md-1"><input type="number" min="0" name="titulares_afetados" class="form-control input-xl" value="0"></div>
                 <div class="col-12 col-md-4"><textarea name="dados_afetados" class="form-control input-xl" rows="2" placeholder="Dados afetados"></textarea></div>
                 <div class="col-12 col-md-4"><textarea name="medidas_adotadas" class="form-control input-xl" rows="2" placeholder="Medidas adotadas"></textarea></div>
@@ -226,19 +230,19 @@ $dbError = (string)($this->data['db_error'] ?? '');
             </form>
         <?php endif; ?>
         <div class="saas-table-scroll">
-            <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Codigo</th><th>Titulo</th><th>Risco</th><th>Status</th><th>Detectado</th><th>Afetados</th><?php if ($canEdit): ?><th>Ajustar</th><?php endif; ?></tr></thead>
+            <table class="table table-sm align-middle mb-0 lgpd-responsive-table">
+                <thead><tr><th>Código</th><th>Título</th><th>Risco</th><th>Status</th><th>Detectado</th><th>Afetados</th><?php if ($canEdit): ?><th>Ajustar</th><?php endif; ?></tr></thead>
                 <tbody>
                 <?php foreach ($incidents as $i): ?>
                     <tr>
-                        <td><?= h((string)$i['codigo']) ?></td>
-                        <td><?= h((string)$i['titulo']) ?></td>
-                        <td><?= h((string)$i['risco_nivel']) ?></td>
-                        <td><span class="badge <?= (string)$i['status'] === 'encerrado' ? 'badge-success' : ((string)$i['status'] === 'aberto' ? 'badge-danger' : 'badge-soft') ?>"><?= h((string)$i['status']) ?></span></td>
-                        <td><?= h((string)$i['detectado_em']) ?></td>
-                        <td><?= (int)$i['titulares_afetados'] ?></td>
+                        <td data-label="Código"><?= h((string)$i['codigo']) ?></td>
+                        <td data-label="Título"><?= h((string)$i['titulo']) ?></td>
+                        <td data-label="Risco"><?= h((string)$i['risco_nivel']) ?></td>
+                        <td data-label="Status"><span class="badge <?= (string)$i['status'] === 'encerrado' ? 'badge-success' : ((string)$i['status'] === 'aberto' ? 'badge-danger' : 'badge-soft') ?>"><?= h((string)$i['status']) ?></span></td>
+                        <td data-label="Detectado"><?= h((string)$i['detectado_em']) ?></td>
+                        <td data-label="Afetados"><?= (int)$i['titulares_afetados'] ?></td>
                         <?php if ($canEdit): ?>
-                            <td>
+                            <td data-label="Ajustar">
                                 <form method="post" action="/?r=lgpd/updateIncident" class="d-flex gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$i['id'] ?>">
@@ -256,7 +260,7 @@ $dbError = (string)($this->data['db_error'] ?? '');
                                     <input type="hidden" name="encerrado_em" value="">
                                     <select name="status" class="form-select form-select-sm">
                                         <option value="aberto" <?= (($i['status'] ?? '') === 'aberto') ? 'selected' : '' ?>>Aberto</option>
-                                        <option value="investigacao" <?= (($i['status'] ?? '') === 'investigacao') ? 'selected' : '' ?>>Investigacao</option>
+                                        <option value="investigacao" <?= (($i['status'] ?? '') === 'investigacao') ? 'selected' : '' ?>>Investigação</option>
                                         <option value="comunicado" <?= (($i['status'] ?? '') === 'comunicado') ? 'selected' : '' ?>>Comunicado</option>
                                         <option value="encerrado" <?= (($i['status'] ?? '') === 'encerrado') ? 'selected' : '' ?>>Encerrado</option>
                                     </select>
@@ -275,16 +279,16 @@ $dbError = (string)($this->data['db_error'] ?? '');
     <section class="saas-table-card">
         <div class="saas-table-head"><h5>Eventos LGPD</h5></div>
         <div class="saas-table-scroll">
-            <table class="table table-sm align-middle mb-0">
-                <thead><tr><th>Data</th><th>Tipo</th><th>Referencia</th><th>Acao</th><th>Usuario</th></tr></thead>
+            <table class="table table-sm align-middle mb-0 lgpd-responsive-table">
+                <thead><tr><th>Data</th><th>Tipo</th><th>Referência</th><th>Ação</th><th>Usuário</th></tr></thead>
                 <tbody>
                 <?php foreach ($events as $e): ?>
                     <tr>
-                        <td><?= h((string)$e['criado_em']) ?></td>
-                        <td><?= h((string)$e['tipo']) ?></td>
-                        <td><?= h((string)$e['referencia']) ?></td>
-                        <td><?= h((string)$e['acao']) ?></td>
-                        <td><?= h((string)($e['usuario_nome'] ?? 'sistema')) ?></td>
+                        <td data-label="Data"><?= h((string)$e['criado_em']) ?></td>
+                        <td data-label="Tipo"><?= h((string)$e['tipo']) ?></td>
+                        <td data-label="Referência"><?= h((string)$e['referencia']) ?></td>
+                        <td data-label="Ação"><?= h((string)$e['acao']) ?></td>
+                        <td data-label="Usuário"><?= h((string)($e['usuario_nome'] ?? 'sistema')) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($events)): ?><tr><td colspan="5" class="text-muted">Sem eventos.</td></tr><?php endif; ?>
@@ -344,12 +348,79 @@ $dbError = (string)($this->data['db_error'] ?? '');
     .lgpd-page .d-flex.gap-2 .form-select {
         min-width: 0;
     }
+    .lgpd-page .lgpd-responsive-table td[data-label] {
+        vertical-align: middle;
+    }
     @media (max-width: 768px) {
         .lgpd-page .saas-kpi-grid {
             grid-template-columns: 1fr;
         }
         .lgpd-page .saas-headline .btn {
             width: 100%;
+        }
+        .lgpd-page .saas-table-card {
+            padding: 1rem;
+            border-radius: 16px;
+        }
+        .lgpd-page .saas-table-head {
+            align-items: flex-start;
+            gap: 0.65rem;
+        }
+        .lgpd-page .saas-table-scroll {
+            overflow-x: visible;
+        }
+        .lgpd-page .lgpd-responsive-table {
+            border-collapse: separate;
+            border-spacing: 0 0.75rem;
+        }
+        .lgpd-page .lgpd-responsive-table thead {
+            display: none;
+        }
+        .lgpd-page .lgpd-responsive-table,
+        .lgpd-page .lgpd-responsive-table tbody,
+        .lgpd-page .lgpd-responsive-table tr,
+        .lgpd-page .lgpd-responsive-table td {
+            display: block;
+            width: 100%;
+        }
+        .lgpd-page .lgpd-responsive-table tr {
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 14px;
+            padding: 0.4rem 0.75rem;
+            background: var(--surface, #fff);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        }
+        .lgpd-page .lgpd-responsive-table td {
+            border: 0;
+            padding: 0.55rem 0;
+        }
+        .lgpd-page .lgpd-responsive-table td[data-label] {
+            display: grid;
+            grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .lgpd-page .lgpd-responsive-table td[data-label]::before {
+            content: attr(data-label);
+            color: var(--text-muted, #64748b);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .lgpd-page .lgpd-responsive-table td[colspan] {
+            text-align: center;
+            padding: 1rem 0.5rem;
+        }
+        .lgpd-page .lgpd-responsive-table form.d-flex {
+            align-items: stretch !important;
+        }
+        .lgpd-page .lgpd-responsive-table form.d-flex .form-select,
+        .lgpd-page .lgpd-responsive-table form.d-flex .btn {
+            width: 100%;
+        }
+        .lgpd-page .btn-xl {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>

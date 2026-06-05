@@ -27,6 +27,14 @@ try {
     $db = Database::getInstance();
     $record('database_connection', true, (string)($config['db']['name'] ?? ''));
 
+    $stmt = $db->query("
+        SELECT COUNT(*)
+        FROM usuarios
+        WHERE perfil = 'admin'
+          AND ativo = 1
+    ");
+    $record('active_admin_user', ((int)$stmt->fetchColumn()) > 0, 'usuarios.perfil=admin ativo=1');
+
     $requiredTables = ['usuarios', 'turnos', 'acessos', 'reservas_tematicas'];
     foreach ($requiredTables as $table) {
         $stmt = $db->prepare("

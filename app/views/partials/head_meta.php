@@ -14,10 +14,10 @@
 })();
 </script>
 <?php if (!empty($faviconPath)): ?>
-    <link rel="icon" type="image/svg+xml" href="<?= h($faviconPath) ?>">
-    <link rel="shortcut icon" href="<?= h($faviconPath) ?>">
+    <link rel="icon" type="image/svg+xml" href="<?= h($faviconPath) ?>?v=20260605">
+    <link rel="shortcut icon" href="<?= h($faviconPath) ?>?v=20260605">
 <?php elseif (!empty($logoPath)): ?>
-    <link rel="icon" type="image/png" href="<?= h($logoPath) ?>">
+    <link rel="icon" type="image/png" href="<?= h($logoPath) ?>?v=20260605">
 <?php endif; ?>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">

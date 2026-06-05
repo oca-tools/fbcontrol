@@ -24,6 +24,10 @@ class AuditoriaController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin']);
 
+        $graceMinutes = 10;
+        (new ShiftModel())->autoCloseExpired($graceMinutes, null);
+        (new SpecialShiftModel())->autoCloseExpired($graceMinutes, null);
+
         $filters = [
             'data' => sanitize_date_param($_GET['data'] ?? '', ''),
             'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),

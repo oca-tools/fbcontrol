@@ -61,6 +61,7 @@ class ShiftModel extends Model
                AND ro.operacao_id = t.operacao_id
                AND ro.ativo = 1
             WHERE t.fim_em IS NULL
+              AND COALESCE(t.modo_demo, 0) = 0
               {$whereUser}
             HAVING auto_fim_em IS NOT NULL
         ";
@@ -110,14 +111,15 @@ class ShiftModel extends Model
     public function start(array $data, int $userId): int
     {
         $stmt = $this->db->prepare("
-            INSERT INTO turnos (usuario_id, restaurante_id, operacao_id, porta_id, inicio_em)
-            VALUES (:usuario_id, :restaurante_id, :operacao_id, :porta_id, NOW())
+            INSERT INTO turnos (usuario_id, restaurante_id, operacao_id, porta_id, inicio_em, modo_demo)
+            VALUES (:usuario_id, :restaurante_id, :operacao_id, :porta_id, NOW(), :modo_demo)
         ");
         $stmt->execute([
             ':usuario_id' => $userId,
             ':restaurante_id' => $data['restaurante_id'],
             ':operacao_id' => $data['operacao_id'],
             ':porta_id' => $data['porta_id'] ?? null,
+            ':modo_demo' => !empty($data['modo_demo']) ? 1 : 0,
         ]);
         $id = (int)$this->db->lastInsertId();
         $this->audit('create', $userId, [], array_merge($data, ['id' => $id]), 'turnos', $id);

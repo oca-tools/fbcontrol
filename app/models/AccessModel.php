@@ -59,12 +59,15 @@ class AccessModel extends Model
             JOIN unidades_habitacionais uh ON uh.id = a.uh_id
             WHERE uh.numero = :uh
               AND a.operacao_id = :operacao_id
-              AND DATE(a.criado_em) = :data
+              AND a.criado_em >= :data_start
+              AND a.criado_em < :data_end
         ");
+        [$dataStart, $dataEnd] = $this->dayRange($date);
         $stmt->execute([
             ':uh' => $uhNumero,
             ':operacao_id' => $operacaoId,
-            ':data' => $date,
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
         ]);
         $row = $stmt->fetch();
         return (int)($row['total_pax'] ?? 0);
@@ -93,6 +96,9 @@ class AccessModel extends Model
 
     private function checkForaHorario(?array $restauranteOperacao): bool
     {
+        if (function_exists('app_demo_mode_enabled') && app_demo_mode_enabled()) {
+            return false;
+        }
         if (!$restauranteOperacao) {
             return false;
         }
@@ -327,14 +333,7 @@ class AccessModel extends Model
         $where = "WHERE 1=1";
         $params = [];
 
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $filters['data'];
-        }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', $filters);
         if (!empty($filters['restaurante_id'])) {
             $where .= " AND a.restaurante_id = :restaurante_id";
             $params[':restaurante_id'] = $filters['restaurante_id'];
@@ -476,14 +475,7 @@ class AccessModel extends Model
         $where = "WHERE 1=1";
         $params = [];
 
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $filters['data'];
-        }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', $filters);
         if (!empty($filters['restaurante_id'])) {
             $where .= " AND a.restaurante_id = :restaurante_id";
             $params[':restaurante_id'] = $filters['restaurante_id'];
@@ -521,14 +513,11 @@ class AccessModel extends Model
         $where = "WHERE a.restaurante_id = :restaurante_id";
         $params = [':restaurante_id' => $restauranteId];
 
-        if ($dataInicio !== '' && $dataFim !== '') {
-            $where .= " AND DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $dataInicio;
-            $params[':data_fim'] = $dataFim;
-        } elseif ($data !== '') {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $data;
-        }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', [
+            'data' => $data,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+        ]);
         if ($uhNumero !== '') {
             $where .= " AND uh.numero = :uh";
             $params[':uh'] = $uhNumero;
@@ -572,17 +561,14 @@ class AccessModel extends Model
     {
         $where = "";
         $params = [];
-        if ($dataInicio !== '' && $dataFim !== '') {
-            $where = "WHERE DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $dataInicio;
-            $params[':data_fim'] = $dataFim;
-        } elseif ($data !== '') {
-            $where = "WHERE DATE(a.criado_em) = :data";
-            $params[':data'] = $data;
-        }
         if ($where === '') {
             $where = "WHERE 1=1";
         }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', [
+            'data' => $data,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+        ]);
         if ($uhNumero !== '') {
             $where .= " AND uh.numero = :uh";
             $params[':uh'] = $uhNumero;
@@ -664,6 +650,18 @@ class AccessModel extends Model
         return (int)($row['total'] ?? 0);
     }
 
+    public function exportReportRows(array $filters, callable $callback, int $batchSize = 1000): int
+    {
+        $total = $this->reportListCount($filters);
+        $batchSize = max(100, min(5000, $batchSize));
+        for ($offset = 0; $offset < $total; $offset += $batchSize) {
+            foreach ($this->reportList($filters, $batchSize, $offset) as $row) {
+                $callback($row);
+            }
+        }
+        return $total;
+    }
+
     public function reportMultipleAccessGroups(array $filters, ?int $limit = null, int $offset = 0): array
     {
         $params = [];
@@ -742,19 +740,28 @@ class AccessModel extends Model
         return (int)($row['total'] ?? 0);
     }
 
+    public function exportMultipleAccessGroups(array $filters, callable $callback, int $batchSize = 1000): int
+    {
+        $total = $this->reportMultipleAccessGroupsCount($filters);
+        $batchSize = max(100, min(5000, $batchSize));
+        for ($offset = 0; $offset < $total; $offset += $batchSize) {
+            foreach ($this->reportMultipleAccessGroups($filters, $batchSize, $offset) as $row) {
+                $callback($row);
+            }
+        }
+        return $total;
+    }
+
     public function uhJourney(string $uhNumero, string $data, string $dataInicio = '', string $dataFim = ''): array
     {
         $where = "WHERE uh.numero = :uh";
         $params = [':uh' => $uhNumero];
 
-        if ($dataInicio !== '' && $dataFim !== '') {
-            $where .= " AND DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $dataInicio;
-            $params[':data_fim'] = $dataFim;
-        } else {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $data;
-        }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', [
+            'data' => $data,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+        ], 'jornada');
         $stmt = $this->db->prepare("
             SELECT a.criado_em, r.nome AS restaurante, o.nome AS operacao, p.nome AS porta,
                    a.pax, a.alerta_duplicidade, a.fora_do_horario, u.nome AS usuario
@@ -776,14 +783,11 @@ class AccessModel extends Model
         $where = "WHERE uh.numero = :uh";
         $params = [':uh' => $uhNumero];
 
-        if ($dataInicio !== '' && $dataFim !== '') {
-            $where .= " AND DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $dataInicio;
-            $params[':data_fim'] = $dataFim;
-        } else {
-            $where .= " AND DATE(a.criado_em) = :data";
-            $params[':data'] = $data;
-        }
+        $this->applyCreatedAtFilter($where, $params, 'a.criado_em', [
+            'data' => $data,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+        ], 'resumo_uh');
         $stmt = $this->db->prepare("
             SELECT r.nome AS restaurante, o.nome AS operacao,
                    MIN(a.criado_em) AS primeira_passagem,
@@ -831,7 +835,7 @@ class AccessModel extends Model
                     END
                 ) AS vip_premium
             FROM unidades_habitacionais uh
-            LEFT JOIN acessos a ON a.uh_id = uh.id AND DATE(a.criado_em) = :data
+            LEFT JOIN acessos a ON a.uh_id = uh.id AND a.criado_em >= :data_start AND a.criado_em < :data_end
             LEFT JOIN operacoes o ON o.id = a.operacao_id
             LEFT JOIN restaurantes r ON r.id = a.restaurante_id
             WHERE uh.ativo = 1
@@ -844,7 +848,11 @@ class AccessModel extends Model
             GROUP BY uh.numero
             ORDER BY CAST(uh.numero AS UNSIGNED)
         ");
-        $stmt->execute([':data' => $data]);
+        [$dataStart, $dataEnd] = $this->dayRange($data);
+        $stmt->execute([
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
+        ]);
         return $stmt->fetchAll();
     }
 
@@ -857,9 +865,14 @@ class AccessModel extends Model
                 SUM(CASE WHEN alerta_duplicidade = 1 THEN 1 ELSE 0 END) AS duplicados,
                 SUM(CASE WHEN fora_do_horario = 1 THEN 1 ELSE 0 END) AS fora_horario
             FROM acessos
-            WHERE DATE(criado_em) = :data
+            WHERE criado_em >= :data_start
+              AND criado_em < :data_end
         ");
-        $stmt->execute([':data' => $date]);
+        [$dataStart, $dataEnd] = $this->dayRange($date);
+        $stmt->execute([
+            ':data_start' => $dataStart,
+            ':data_end' => $dataEnd,
+        ]);
         $row = $stmt->fetch();
         return [
             'total_acessos' => (int)($row['total_acessos'] ?? 0),
@@ -874,15 +887,7 @@ class AccessModel extends Model
         $where = "WHERE 1=1";
         $params = [];
 
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND {$alias}.criado_em >= :data_inicio_start AND {$alias}.criado_em < DATE_ADD(:data_fim_end, INTERVAL 1 DAY)";
-            $params[':data_inicio_start'] = $filters['data_inicio'];
-            $params[':data_fim_end'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND {$alias}.criado_em >= :data_start AND {$alias}.criado_em < DATE_ADD(:data_end, INTERVAL 1 DAY)";
-            $params[':data_start'] = $filters['data'];
-            $params[':data_end'] = $filters['data'];
-        }
+        $this->applyCreatedAtFilter($where, $params, "{$alias}.criado_em", $filters);
         if (!empty($filters['restaurante_id'])) {
             $where .= " AND {$alias}.restaurante_id = :restaurante_id";
             $params[':restaurante_id'] = (int)$filters['restaurante_id'];
@@ -1285,14 +1290,16 @@ class AccessModel extends Model
             SELECT DATE(a.criado_em) AS data_ref, COALESCE(SUM(a.pax), 0) AS total_pax
             FROM acessos a
             JOIN restaurantes r ON r.id = a.restaurante_id
-            WHERE DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim
+            WHERE a.criado_em >= :data_inicio_at
+              AND a.criado_em < :data_fim_at
               AND r.tipo = 'buffet'
             GROUP BY DATE(a.criado_em)
             ORDER BY DATE(a.criado_em) ASC
         ");
+        [$dataInicioAt, $dataFimAt] = $this->dateRange($dataInicio, $dataFim);
         $stmt->execute([
-            ':data_inicio' => $dataInicio,
-            ':data_fim' => $dataFim,
+            ':data_inicio_at' => $dataInicioAt,
+            ':data_fim_at' => $dataFimAt,
         ]);
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
@@ -1312,14 +1319,16 @@ class AccessModel extends Model
             FROM acessos a
             JOIN restaurantes r ON r.id = a.restaurante_id
             JOIN operacoes o ON o.id = a.operacao_id
-            WHERE DATE(a.criado_em) BETWEEN :data_inicio AND :data_fim
+            WHERE a.criado_em >= :data_inicio_at
+              AND a.criado_em < :data_fim_at
               AND r.tipo = 'buffet'
             GROUP BY DATE(a.criado_em), o.nome
             ORDER BY DATE(a.criado_em) ASC, o.nome ASC
         ");
+        [$dataInicioAt, $dataFimAt] = $this->dateRange($dataInicio, $dataFim);
         $stmt->execute([
-            ':data_inicio' => $dataInicio,
-            ':data_fim' => $dataFim,
+            ':data_inicio_at' => $dataInicioAt,
+            ':data_fim_at' => $dataFimAt,
         ]);
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {
@@ -1337,4 +1346,3 @@ class AccessModel extends Model
         return $stmt->fetchAll();
     }
 }
-

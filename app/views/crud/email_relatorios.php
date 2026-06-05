@@ -4,24 +4,25 @@ $config = $this->data['config'] ?? [];
 $recipients = $this->data['recipients'] ?? [];
 $logs = $this->data['logs'] ?? [];
 ?>
-<div class="card card-soft p-4 mb-4">
-    <div class="section-title">
-        <div class="icon"><i class="bi bi-envelope-paper"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Automação</div>
-            <h3 class="fw-bold mb-0">E-mail Diário</h3>
-            <div class="text-muted">Envio automático do resumo operacional (23:00).</div>
+<div class="saas-page email-reports-page">
+    <section class="saas-hero-card">
+        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+            <div>
+                <div class="saas-label">Automação</div>
+                <h3 class="saas-title mb-1">E-mail Diário</h3>
+                <p class="saas-subtitle mb-0">Envio automático do resumo operacional para a liderança.</p>
+            </div>
+            <span class="badge badge-soft"><i class="bi bi-clock-history"></i> Rotina diária</span>
         </div>
-    </div>
-</div>
+    </section>
 
-<?php if ($flash): ?>
-    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-<?php endif; ?>
+    <?php if ($flash): ?>
+        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
+    <?php endif; ?>
 
-<div class="row g-4 mb-4">
-    <div class="col-12 col-lg-6">
-        <div class="card p-4">
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+        <section class="saas-table-card h-100">
             <h5 class="fw-bold mb-3">Configuração de envio</h5>
             <form method="post" action="/?r=emailRelatorios/saveConfig" class="row g-3">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -51,10 +52,10 @@ $logs = $this->data['logs'] ?? [];
                     <button class="btn btn-primary btn-xl">Salvar configuração</button>
                 </div>
             </form>
+        </section>
         </div>
-    </div>
-    <div class="col-12 col-lg-6">
-        <div class="card p-4">
+        <div class="col-12 col-lg-6">
+        <section class="saas-table-card h-100">
             <h5 class="fw-bold mb-3">Destinatários</h5>
             <form method="post" action="/?r=emailRelatorios/addRecipient" class="row g-2 mb-3">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -74,13 +75,13 @@ $logs = $this->data['logs'] ?? [];
                 </div>
             </form>
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
+                <table class="table table-sm align-middle email-responsive-table">
                     <thead><tr><th>E-mail</th><th style="width:220px;">Anexo vouchers</th><th style="width:120px;">Ação</th></tr></thead>
                     <tbody>
                     <?php foreach ($recipients as $r): ?>
                         <tr>
-                            <td><?= h($r['email']) ?></td>
-                            <td>
+                            <td data-label="E-mail"><?= h($r['email']) ?></td>
+                            <td data-label="Anexo vouchers">
                                 <form method="post" action="/?r=emailRelatorios/updateRecipientAttachment" class="d-flex align-items-center gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
@@ -93,7 +94,7 @@ $logs = $this->data['logs'] ?? [];
                                     </button>
                                 </form>
                             </td>
-                            <td>
+                            <td data-label="Ação">
                                 <form method="post" action="/?r=emailRelatorios/removeRecipient" data-confirm="Remover destinatário?" data-confirm-title="Remover destinatário" data-confirm-type="danger">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
@@ -108,13 +109,13 @@ $logs = $this->data['logs'] ?? [];
                     </tbody>
                 </table>
             </div>
+        </section>
         </div>
     </div>
-</div>
 
-<div class="row g-4">
-    <div class="col-12 col-lg-5">
-        <div class="card p-4">
+    <div class="row g-4">
+        <div class="col-12 col-lg-5">
+        <section class="saas-table-card h-100">
             <h5 class="fw-bold mb-3">Envio manual</h5>
             <form method="post" action="/?r=emailRelatorios/sendNow" class="row g-3">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -129,19 +130,19 @@ $logs = $this->data['logs'] ?? [];
             <div class="text-muted small mt-3">
                 Indicadores incluídos: Corais, La Brasa (almoço), Privileged, VIP Premium, Day use, Não informado, reservas temáticas (Giardino, IXU e La Brasa temático), PAX real e no-show.
             </div>
+        </section>
         </div>
-    </div>
-    <div class="col-12 col-lg-7">
-        <div class="card p-4">
+        <div class="col-12 col-lg-7">
+        <section class="saas-table-card h-100">
             <h5 class="fw-bold mb-3">Histórico de envios</h5>
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
+                <table class="table table-sm align-middle email-responsive-table">
                     <thead><tr><th>Data</th><th>Status</th><th>Destinatários</th><th>Enviado em</th><th>Erro</th></tr></thead>
                     <tbody>
                     <?php foreach ($logs as $log): ?>
                         <tr>
-                            <td><?= h($log['data_referencia']) ?></td>
-                            <td>
+                            <td data-label="Data"><?= h($log['data_referencia']) ?></td>
+                            <td data-label="Status">
                                 <?php if (($log['status'] ?? '') === 'success'): ?>
                                     <span class="badge badge-success">Sucesso</span>
                                 <?php elseif (($log['status'] ?? '') === 'partial'): ?>
@@ -150,9 +151,9 @@ $logs = $this->data['logs'] ?? [];
                                     <span class="badge badge-danger">Erro</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?= (int)($log['total_destinatarios'] ?? 0) ?></td>
-                            <td><?= h($log['enviado_em'] ?? '') ?></td>
-                            <td class="small text-muted"><?= h($log['erro'] ?? '') ?></td>
+                            <td data-label="Destinatários"><?= (int)($log['total_destinatarios'] ?? 0) ?></td>
+                            <td data-label="Enviado em"><?= h($log['enviado_em'] ?? '') ?></td>
+                            <td data-label="Erro" class="small text-muted"><?= h($log['erro'] ?? '') ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($logs)): ?>
@@ -161,6 +162,112 @@ $logs = $this->data['logs'] ?? [];
                     </tbody>
                 </table>
             </div>
+        </section>
         </div>
     </div>
 </div>
+
+<style>
+    .email-reports-page {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .email-reports-page > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .email-reports-page .row {
+        margin-left: 0;
+        margin-right: 0;
+        --bs-gutter-x: 1rem;
+    }
+    .email-reports-page .row + .row {
+        margin-top: 0;
+    }
+    .email-reports-page .row > [class*="col-"] {
+        min-width: 0;
+        max-width: 100%;
+        padding-left: calc(var(--bs-gutter-x) * 0.5);
+        padding-right: calc(var(--bs-gutter-x) * 0.5);
+    }
+    .email-reports-page .saas-table-card {
+        min-width: 0;
+    }
+    .email-reports-page .form-control,
+    .email-reports-page .form-select {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .email-reports-page .email-responsive-table td[data-label] {
+        vertical-align: middle;
+    }
+    .email-reports-page .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+    @media (max-width: 768px) {
+        .email-reports-page .saas-headline .badge {
+            width: 100%;
+            justify-content: center;
+        }
+        .email-reports-page .saas-table-card {
+            padding: 1rem;
+            border-radius: 16px;
+        }
+        .email-reports-page .table-responsive {
+            overflow-x: visible;
+        }
+        .email-reports-page .email-responsive-table {
+            border-collapse: separate;
+            border-spacing: 0 0.75rem;
+        }
+        .email-reports-page .email-responsive-table thead {
+            display: none;
+        }
+        .email-reports-page .email-responsive-table,
+        .email-reports-page .email-responsive-table tbody,
+        .email-reports-page .email-responsive-table tr,
+        .email-reports-page .email-responsive-table td {
+            display: block;
+            width: 100%;
+        }
+        .email-reports-page .email-responsive-table tr {
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 14px;
+            padding: 0.4rem 0.75rem;
+            background: var(--surface, #fff);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+        }
+        .email-reports-page .email-responsive-table td {
+            border: 0;
+            padding: 0.55rem 0;
+        }
+        .email-reports-page .email-responsive-table td[data-label] {
+            display: grid;
+            grid-template-columns: minmax(104px, 38%) minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .email-reports-page .email-responsive-table td[data-label]::before {
+            content: attr(data-label);
+            color: var(--text-muted, #64748b);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .email-reports-page .email-responsive-table td[colspan] {
+            text-align: center;
+            padding: 1rem 0.5rem;
+        }
+        .email-reports-page .email-responsive-table form.d-flex {
+            align-items: stretch !important;
+        }
+        .email-reports-page .email-responsive-table form.d-flex .btn {
+            width: 100%;
+        }
+        .email-reports-page .btn-xl {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>

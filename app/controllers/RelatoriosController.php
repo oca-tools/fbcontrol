@@ -45,6 +45,27 @@ class RelatoriosController extends Controller
         ]);
     }
 
+    private function prepareTabularDownload(string $filenameBase, string $type): mixed
+    {
+        $filenameBase = safe_download_filename($filenameBase, 'relatorio');
+        if ($type === 'xlsx') {
+            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filenameBase . '.xls"');
+        } else {
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filenameBase . '.csv"');
+        }
+        header('X-Accel-Buffering: no');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+
+        $out = fopen('php://output', 'w');
+        if ($out === false) {
+            http_response_code(500);
+            exit;
+        }
+        return $out;
+    }
+
     private function resolveVoucherPdfDate(): string
     {
         $data = sanitize_date_param($_GET['data'] ?? '');
@@ -265,7 +286,7 @@ class RelatoriosController extends Controller
             @ob_end_clean();
         }
 
-        $safeFilename = str_replace(['"', "\r", "\n"], '', $filename);
+        $safeFilename = safe_download_filename($filename, 'download');
         header('Content-Type: ' . $contentType);
         header('Content-Disposition: attachment; filename="' . $safeFilename . '"');
         header('Content-Length: ' . filesize($path));
@@ -481,27 +502,18 @@ class RelatoriosController extends Controller
         $accessModel = new AccessModel();
         $colabModel = new CollaboratorMealModel();
         $voucherModel = new VoucherModel();
-        $rows = $accessModel->reportList($filters);
-
-        $colabRows = $colabModel->listByFilters($filters);
-        $voucherRows = $voucherModel->listByFilters($filters);
-
         $type = $this->buildExportType();
-        $this->auditExport('relatorios', $filters, $type, count($rows) + count($colabRows) + count($voucherRows));
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="relatorio_acessos.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="relatorio_acessos.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $totalRows = $accessModel->reportListCount($filters)
+            + $colabModel->countByFilters($filters)
+            + $voucherModel->countByFilters($filters);
+        $this->auditExport('relatorios', $filters, $type, $totalRows);
+        $out = $this->prepareTabularDownload('relatorio_acessos', $type);
         fputcsv($out, [
             'tipo_registro','data_hora','uh','pax','restaurante','operação','porta','usuário',
             'duplicado','fora_horario','colaborador','qtd_refeicoes',
             'hospede','data_estadia','numero_reserva','servico_upselling','assinatura','data_venda'
         ]);
-        foreach ($rows as $r) {
+        $accessModel->exportReportRows($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 'acesso',
                 $r['criado_em'],
@@ -516,8 +528,8 @@ class RelatoriosController extends Controller
                 '', '',
                 '', '', '', '', '', ''
             ]);
-        }
-        foreach ($colabRows as $r) {
+        });
+        $colabModel->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 'colaborador',
                 $r['criado_em'],
@@ -532,8 +544,8 @@ class RelatoriosController extends Controller
                 $r['quantidade'],
                 '', '', '', '', '', ''
             ]);
-        }
-        foreach ($voucherRows as $r) {
+        });
+        $voucherModel->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 'voucher',
                 $r['criado_em'],
@@ -553,7 +565,7 @@ class RelatoriosController extends Controller
                 $r['assinatura'],
                 $r['data_venda']
             ]);
-        }
+        });
         fclose($out);
         exit;
     }
@@ -570,14 +582,7 @@ class RelatoriosController extends Controller
 
         $type = $this->buildExportType();
         $this->auditExport('mapa', ['data' => $data], $type, count($rows));
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="mapa_diario_uh.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="mapa_diario_uh.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $out = $this->prepareTabularDownload('mapa_diario_uh', $type);
         fputcsv($out, ['uh','cafe','almoco','jantar','tematico','privileged','vip_premium']);
         foreach ($rows as $r) {
             fputcsv($out, [
@@ -603,22 +608,15 @@ class RelatoriosController extends Controller
 
         $groupedMultiple = ($filters['status'] ?? '') === 'multiplo';
         $accessModel = new AccessModel();
-        $rows = $groupedMultiple
-            ? $accessModel->reportMultipleAccessGroups($filters)
-            : $accessModel->reportList($filters);
         $type = $this->buildExportType();
-        $this->auditExport('bi', $filters, $type, count($rows));
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="base_bi.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="base_bi.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $totalRows = $groupedMultiple
+            ? $accessModel->reportMultipleAccessGroupsCount($filters)
+            : $accessModel->reportListCount($filters);
+        $this->auditExport('bi', $filters, $type, $totalRows);
+        $out = $this->prepareTabularDownload('base_bi', $type);
         if ($groupedMultiple) {
             fputcsv($out, ['status', 'uh', 'primeira_passagem', 'ultima_passagem', 'acessos', 'pax_total', 'pax_min', 'pax_max', 'dias', 'restaurantes', 'operacoes', 'portas', 'usuarios']);
-            foreach ($rows as $r) {
+            $accessModel->exportMultipleAccessGroups($filters, static function (array $r) use ($out): void {
                 fputcsv($out, [
                     $r['status_operacional'] ?? 'Múltiplo Acesso',
                     $r['uh_numero'],
@@ -634,13 +632,13 @@ class RelatoriosController extends Controller
                     $r['portas'],
                     $r['usuarios'],
                 ]);
-            }
+            });
             fclose($out);
             exit;
         }
 
         fputcsv($out, ['status', 'data_hora', 'uh', 'pax', 'restaurante', 'operacao', 'porta', 'usuario']);
-        foreach ($rows as $r) {
+        $accessModel->exportReportRows($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 $r['status_operacional'] ?? 'OK',
                 $r['criado_em'],
@@ -651,7 +649,7 @@ class RelatoriosController extends Controller
                 $r['porta'] ?? '',
                 $r['usuario'],
             ]);
-        }
+        });
         fclose($out);
         exit;
     }
@@ -669,19 +667,13 @@ class RelatoriosController extends Controller
             'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
-        $rows = (new CollaboratorMealModel())->listByFilters($filters);
+        $model = new CollaboratorMealModel();
         $type = $this->buildExportType();
-        $this->auditExport('colaboradores', $filters, $type, count($rows));
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="colaboradores_refeicoes.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="colaboradores_refeicoes.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $totalRows = $model->countByFilters($filters);
+        $this->auditExport('colaboradores', $filters, $type, $totalRows);
+        $out = $this->prepareTabularDownload('colaboradores_refeicoes', $type);
         fputcsv($out, ['data_hora', 'colaborador', 'quantidade', 'restaurante', 'operacao', 'usuario']);
-        foreach ($rows as $r) {
+        $model->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 $r['criado_em'],
                 $r['nome_colaborador'],
@@ -690,7 +682,7 @@ class RelatoriosController extends Controller
                 $r['operacao'],
                 $r['usuario'],
             ]);
-        }
+        });
         fclose($out);
         exit;
     }
@@ -708,19 +700,13 @@ class RelatoriosController extends Controller
             'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
-        $rows = (new VoucherModel())->listByFilters($filters);
+        $model = new VoucherModel();
         $type = $this->buildExportType();
-        $this->auditExport('vouchers', $filters, $type, count($rows));
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="vouchers_registrados.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="vouchers_registrados.csv"');
-        }
-        $out = fopen('php://output', 'w');
+        $totalRows = $model->countByFilters($filters);
+        $this->auditExport('vouchers', $filters, $type, $totalRows);
+        $out = $this->prepareTabularDownload('vouchers_registrados', $type);
         fputcsv($out, ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo', 'restaurante', 'operacao', 'usuario']);
-        foreach ($rows as $r) {
+        $model->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 $r['criado_em'],
                 $r['nome_hospede'],
@@ -734,7 +720,7 @@ class RelatoriosController extends Controller
                 $r['operacao'],
                 $r['usuario'],
             ]);
-        }
+        });
         fclose($out);
         exit;
     }

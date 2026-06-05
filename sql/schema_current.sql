@@ -64,6 +64,8 @@ CREATE TABLE `acessos_especiais` (
   KEY `idx_acessos_esp_uh_tipo_time` (`uh_id`,`tipo`,`criado_em`),
   KEY `idx_acessos_esp_data` (`criado_em`),
   KEY `idx_acessos_esp_rest_tipo` (`restaurante_id`,`tipo`),
+  KEY `idx_acessos_esp_rest_tipo_data` (`restaurante_id`,`tipo`,`criado_em`),
+  KEY `idx_acessos_esp_user_data` (`usuario_id`,`criado_em`),
   CONSTRAINT `fk_acessos_esp_porta` FOREIGN KEY (`porta_id`) REFERENCES `portas` (`id`),
   CONSTRAINT `fk_acessos_esp_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
   CONSTRAINT `fk_acessos_esp_turno` FOREIGN KEY (`turno_especial_id`) REFERENCES `turnos_especiais` (`id`),
@@ -85,6 +87,9 @@ CREATE TABLE `auditoria` (
   `criado_em` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_auditoria_usuario` (`usuario_id`),
+  KEY `idx_auditoria_data` (`criado_em`,`id`),
+  KEY `idx_auditoria_tabela_data` (`tabela`,`criado_em`),
+  KEY `idx_auditoria_user_data` (`usuario_id`,`criado_em`),
   CONSTRAINT `fk_auditoria_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1054 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -105,6 +110,9 @@ CREATE TABLE `colaborador_refeicoes` (
   KEY `fk_colab_rest` (`restaurante_id`),
   KEY `fk_colab_oper` (`operacao_id`),
   KEY `fk_colab_usuario` (`usuario_id`),
+  KEY `idx_colab_data` (`criado_em`),
+  KEY `idx_colab_rest_oper_data` (`restaurante_id`,`operacao_id`,`criado_em`),
+  KEY `idx_colab_user_data` (`usuario_id`,`criado_em`),
   CONSTRAINT `fk_colab_oper` FOREIGN KEY (`operacao_id`) REFERENCES `operacoes` (`id`),
   CONSTRAINT `fk_colab_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
   CONSTRAINT `fk_colab_turno` FOREIGN KEY (`turno_id`) REFERENCES `turnos` (`id`),
@@ -429,6 +437,45 @@ CREATE TABLE `reservas_tematicas_fechamentos` (
   CONSTRAINT `fk_res_tem_fech_user` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `reservas_tematicas_bloqueios_datas`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `reservas_tematicas_bloqueios_datas` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `restaurante_id` int(11) NOT NULL,
+  `data_reserva` date NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `motivo` varchar(255) DEFAULT NULL,
+  `usuario_id` int(11) NOT NULL,
+  `atualizado_em` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_res_tem_bloq_data` (`restaurante_id`,`data_reserva`),
+  KEY `idx_res_tem_bloq_data_ativo` (`data_reserva`,`ativo`),
+  KEY `fk_res_tem_bloq_user` (`usuario_id`),
+  CONSTRAINT `fk_res_tem_bloq_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
+  CONSTRAINT `fk_res_tem_bloq_user` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `reservas_tematicas_bloqueios_semanais`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `reservas_tematicas_bloqueios_semanais` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `restaurante_id` int(11) NOT NULL,
+  `dia_semana` tinyint(4) NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `motivo` varchar(255) DEFAULT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
+  `criado_em` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `atualizado_em` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_restaurante_dia` (`restaurante_id`,`dia_semana`),
+  KEY `idx_dia_ativo` (`dia_semana`,`ativo`),
+  KEY `fk_bloqueio_semanal_usuario` (`usuario_id`),
+  CONSTRAINT `fk_bloqueio_semanal_restaurante` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
+  CONSTRAINT `fk_bloqueio_semanal_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `reservas_tematicas_grupos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -466,6 +513,9 @@ CREATE TABLE `reservas_tematicas_logs` (
   PRIMARY KEY (`id`),
   KEY `fk_res_tem_log_reserva` (`reserva_id`),
   KEY `fk_res_tem_log_user` (`usuario_id`),
+  KEY `idx_res_tem_logs_data` (`criado_em`),
+  KEY `idx_res_tem_logs_user_data` (`usuario_id`,`criado_em`),
+  KEY `idx_res_tem_logs_reserva_data` (`reserva_id`,`criado_em`),
   CONSTRAINT `fk_res_tem_log_reserva` FOREIGN KEY (`reserva_id`) REFERENCES `reservas_tematicas` (`id`),
   CONSTRAINT `fk_res_tem_log_user` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1692 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -569,11 +619,15 @@ CREATE TABLE `turnos` (
   `porta_id` int(11) DEFAULT NULL,
   `inicio_em` datetime NOT NULL,
   `fim_em` datetime DEFAULT NULL,
+  `modo_demo` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `fk_turnos_user` (`usuario_id`),
   KEY `fk_turnos_rest` (`restaurante_id`),
   KEY `fk_turnos_oper` (`operacao_id`),
   KEY `fk_turnos_porta` (`porta_id`),
+  KEY `idx_turnos_inicio` (`inicio_em`),
+  KEY `idx_turnos_user_fim_inicio` (`usuario_id`,`fim_em`,`inicio_em`),
+  KEY `idx_turnos_rest_oper_inicio` (`restaurante_id`,`operacao_id`,`inicio_em`),
   CONSTRAINT `fk_turnos_oper` FOREIGN KEY (`operacao_id`) REFERENCES `operacoes` (`id`),
   CONSTRAINT `fk_turnos_porta` FOREIGN KEY (`porta_id`) REFERENCES `portas` (`id`),
   CONSTRAINT `fk_turnos_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
@@ -591,10 +645,14 @@ CREATE TABLE `turnos_especiais` (
   `porta_id` int(11) DEFAULT NULL,
   `inicio_em` datetime NOT NULL,
   `fim_em` datetime DEFAULT NULL,
+  `modo_demo` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `fk_turnos_esp_user` (`usuario_id`),
   KEY `fk_turnos_esp_rest` (`restaurante_id`),
   KEY `fk_turnos_esp_porta` (`porta_id`),
+  KEY `idx_turnos_esp_inicio` (`inicio_em`),
+  KEY `idx_turnos_esp_user_fim_inicio` (`usuario_id`,`fim_em`,`inicio_em`),
+  KEY `idx_turnos_esp_rest_tipo_inicio` (`restaurante_id`,`tipo`,`inicio_em`),
   CONSTRAINT `fk_turnos_esp_porta` FOREIGN KEY (`porta_id`) REFERENCES `portas` (`id`),
   CONSTRAINT `fk_turnos_esp_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
   CONSTRAINT `fk_turnos_esp_user` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
@@ -701,6 +759,10 @@ CREATE TABLE `vouchers` (
   KEY `fk_voucher_rest` (`restaurante_id`),
   KEY `fk_voucher_oper` (`operacao_id`),
   KEY `fk_voucher_usuario` (`usuario_id`),
+  KEY `idx_vouchers_data` (`criado_em`),
+  KEY `idx_vouchers_rest_oper_data` (`restaurante_id`,`operacao_id`,`criado_em`),
+  KEY `idx_vouchers_user_data` (`usuario_id`,`criado_em`),
+  KEY `idx_vouchers_data_venda` (`data_venda`),
   CONSTRAINT `fk_voucher_oper` FOREIGN KEY (`operacao_id`) REFERENCES `operacoes` (`id`),
   CONSTRAINT `fk_voucher_rest` FOREIGN KEY (`restaurante_id`) REFERENCES `restaurantes` (`id`),
   CONSTRAINT `fk_voucher_turno` FOREIGN KEY (`turno_id`) REFERENCES `turnos` (`id`),
@@ -716,4 +778,3 @@ CREATE TABLE `vouchers` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-

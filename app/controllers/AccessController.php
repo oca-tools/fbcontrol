@@ -233,6 +233,9 @@ class AccessController extends Controller
         if (!$user) {
             return 0;
         }
+        if (app_demo_mode_enabled()) {
+            return 0;
+        }
         $graceMinutes = 10;
         $closed = 0;
         $closed += (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
@@ -277,7 +280,7 @@ class AccessController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $user = Auth::user();
         if ($this->redirectIfTematicoOnlyHostess($user)) {
             return;
@@ -426,7 +429,7 @@ class AccessController extends Controller
     public function start(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
@@ -518,7 +521,7 @@ class AccessController extends Controller
             set_flash('danger', 'Operação inválida para este restaurante.');
             $this->redirect('/?r=access/index');
         }
-        $outsideHorario = $this->isOutsideHorario($restOp);
+        $outsideHorario = !app_demo_mode_enabled() && $this->isOutsideHorario($restOp);
 
         $rest = $restaurantModel->find($restauranteId);
         if ($rest && (int)$rest['seleciona_porta_no_turno'] === 1 && $portaId <= 0) {
@@ -568,6 +571,7 @@ class AccessController extends Controller
             'restaurante_id' => $restauranteId,
             'operacao_id' => $operacaoId,
             'porta_id' => $portaId > 0 ? $portaId : null,
+            'modo_demo' => app_demo_mode_enabled() ? 1 : 0,
         ], $user['id']);
 
         $this->redirect('/?r=access/index');
@@ -576,7 +580,7 @@ class AccessController extends Controller
     public function register(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $this->autoCloseTimeoutShiftsForCurrentUser();
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
@@ -802,7 +806,7 @@ class AccessController extends Controller
     public function register_tematica(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -907,7 +911,7 @@ class AccessController extends Controller
     public function correct_last(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
         }
@@ -965,7 +969,7 @@ class AccessController extends Controller
     public function register_colaborador(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
         }
@@ -1018,7 +1022,7 @@ class AccessController extends Controller
     public function register_voucher(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'hostess']);
+        Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         $voucherRoute = '/?r=vouchers/index';
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
@@ -1287,6 +1291,3 @@ class AccessController extends Controller
         return in_array($normalized, ['não compareceu', 'nao compareceu'], true);
     }
 }
-
-
-

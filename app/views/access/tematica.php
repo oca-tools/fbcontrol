@@ -8,7 +8,7 @@ $toleranceAlert = $this->data['tolerance_alert'] ?? null;
 $canCancel = (bool)($this->data['can_cancel'] ?? false);
 
 $finalStatuses = ['Finalizada', 'Nao compareceu', 'Cancelada'];
-$statusOptions = ['', 'Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia', 'Excedente'];
+$statusOptions = ['', 'Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia'];
 $statusLabels = [
     '' => 'Todos',
     'Reservada' => 'Reservada',
@@ -16,7 +16,6 @@ $statusLabels = [
     'Nao compareceu' => 'Não compareceu',
     'Cancelada' => 'Cancelada',
     'Divergencia' => 'Divergência',
-    'Excedente' => 'Excedente',
 ];
 
 $normalizeStatus = static function (?string $status): string {

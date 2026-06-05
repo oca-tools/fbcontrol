@@ -1,14 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 160" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 184" role="img" aria-labelledby="title desc">
   <title id="title">FBControl</title>
-  <desc id="desc">Logotipo textual claro do FBControl para fundos escuros</desc>
+  <desc id="desc">Logotipo do FBControl para tema escuro.</desc>
   <defs>
-    <linearGradient id="fb-accent" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#38d4ec"/>
-      <stop offset="1" stop-color="#14a3c7"/>
+    <linearGradient id="mark-bg" x1="28" y1="28" x2="146" y2="146" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffb86b"/>
+      <stop offset="0.54" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#ea580c"/>
     </linearGradient>
+    <linearGradient id="mark-shine" x1="44" y1="31" x2="124" y2="125" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff7ed" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="word-fb" x1="185" y1="48" x2="276" y2="129" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fdba74"/>
+      <stop offset="1" stop-color="#fb923c"/>
+    </linearGradient>
+    <filter id="mark-shadow" x="10" y="12" width="160" height="160" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#020617" flood-opacity="0.34"/>
+    </filter>
   </defs>
-  <rect width="620" height="160" fill="none"/>
-  <text x="310" y="106" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-weight="800" font-size="86" letter-spacing="-1">
-    <tspan fill="url(#fb-accent)">FB</tspan><tspan fill="#f8fafc">Control</tspan>
-  </text>
+
+  <rect width="720" height="184" fill="none"/>
+
+  <g filter="url(#mark-shadow)">
+    <rect x="28" y="28" width="128" height="128" rx="34" fill="url(#mark-bg)"/>
+    <path d="M48 51C64.3 40.7 85.2 37.9 103.9 43.5C122.7 49.2 137.4 62.9 144 80.6V51C144 44.4 138.6 39 132 39H60C53.4 39 48 44.4 48 51Z" fill="url(#mark-shine)"/>
+    <circle cx="87.5" cy="61.5" r="5.7" fill="#fff7ed"/>
+    <path d="M57.5 96.8C60.5 79.8 72.6 69.1 88 69.1C103.5 69.1 115.5 79.8 118.5 96.8H57.5Z" fill="#ffffff"/>
+    <path d="M52 104.2H124.2C127.5 104.2 130.2 106.9 130.2 110.2C130.2 113.5 127.5 116.2 124.2 116.2H52C48.7 116.2 46 113.5 46 110.2C46 106.9 48.7 104.2 52 104.2Z" fill="#fff7ed"/>
+    <path d="M121.4 63.5H142.2L139.2 89.9C138.5 95.5 133.8 99.7 128.6 99.7C123.4 99.7 118.7 95.5 118 89.9L115 63.5H121.4Z" fill="#ffffff"/>
+    <path d="M123.2 77.2H136.9L135.7 88.4C135.3 91.8 132.2 94.4 128.7 94.4C125.2 94.4 122.2 91.8 121.8 88.4L120.6 77.2H123.2Z" fill="#fed7aa"/>
+    <path d="M126.2 99.2H131.2V112.4H139.7C142 112.4 143.8 114.2 143.8 116.5H113.6C113.6 114.2 115.4 112.4 117.7 112.4H126.2V99.2Z" fill="#fff7ed"/>
+  </g>
+
+  <g>
+    <text x="185" y="115" font-family="Space Grotesk, Manrope, Inter, Segoe UI, Arial, sans-serif" font-size="70" font-weight="800" letter-spacing="-2.4">
+      <tspan fill="url(#word-fb)">FB</tspan><tspan fill="#f8fafc">Control</tspan>
+    </text>
+    <path d="M186 131H502" stroke="#fb923c" stroke-width="5" stroke-linecap="round"/>
+    <path d="M516 131H557" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+  </g>
 </svg>

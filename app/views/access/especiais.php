@@ -10,12 +10,122 @@ $doorsByRestaurant = $this->data['doorsByRestaurant'] ?? [];
 $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 ?>
+<style>
+    .special-access-page,
+    .special-access-page .row,
+    .special-access-page [class*="col-"] {
+        min-width: 0;
+    }
+    .special-access-page .card {
+        overflow: hidden;
+    }
+    .special-access-actions {
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+    .special-primary-form {
+        display: grid;
+        gap: 1rem;
+    }
+    .special-primary-form .mb-3 {
+        margin-bottom: 0 !important;
+    }
+    .special-pax-control {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr) 56px;
+        gap: .65rem;
+        align-items: stretch;
+    }
+    .special-pax-control .btn,
+    .special-pax-control .form-control {
+        min-height: 54px;
+    }
+    .special-live-table td,
+    .special-live-table th {
+        vertical-align: middle;
+    }
+    @media (max-width: 991.98px) {
+        .special-access-page .card.p-4 {
+            padding: 1rem !important;
+            border-radius: 18px;
+        }
+        .special-access-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+        .special-access-actions form,
+        .special-access-actions .btn {
+            width: 100%;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .special-access-page h3 {
+            font-size: 1.25rem;
+            line-height: 1.2;
+        }
+        .special-pax-control {
+            grid-template-columns: 52px minmax(0, 1fr) 52px;
+        }
+        .special-live-table,
+        .special-live-table tbody,
+        .special-live-table tr,
+        .special-live-table td {
+            display: block;
+            width: 100%;
+        }
+        .special-live-table thead {
+            display: none;
+        }
+        .special-live-table tr {
+            border: 1px solid var(--ab-border);
+            border-radius: 16px;
+            background: var(--ab-card);
+            padding: .85rem;
+            margin-bottom: .75rem;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
+        }
+        .special-live-table td {
+            border: 0;
+            padding: .35rem 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            white-space: normal;
+            text-align: right;
+        }
+        .special-live-table td::before {
+            content: attr(data-label);
+            color: var(--ab-muted);
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+        }
+        .special-live-table td .tag,
+        .special-live-table td .uh-badge,
+        .special-live-table td .badge {
+            max-width: 62%;
+            white-space: normal;
+            text-align: center;
+        }
+        .special-live-table td[colspan] {
+            display: block;
+            text-align: left;
+        }
+        .special-live-table td[colspan]::before {
+            content: "";
+            display: none;
+        }
+    }
+</style>
 
+<div class="special-access-page">
 <?php if ($mode === 'start'): ?>
     <div class="row justify-content-center">
         <div class="col-12 col-lg-8">
             <div class="card p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                     <div>
                         <div class="text-uppercase text-muted small">Serviços especiais</div>
                         <h3 class="fw-bold mb-1">Iniciar turno especial</h3>
@@ -122,7 +232,7 @@ $preselect = $this->data['preselect'] ?? [];
                         </h3>
                         <div class="text-muted">Serviço: <?= h($turno['tipo']) === 'privileged' ? 'Privileged' : 'temático' ?></div>
                     </div>
-                    <form method="post" action="/?r=turnos/especial_end">
+                    <form method="post" action="/?r=turnos/especial_end" class="special-access-actions">
                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                         <button class="btn btn-outline-danger"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
                     </form>
@@ -132,7 +242,7 @@ $preselect = $this->data['preselect'] ?? [];
                     <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
                 <?php endif; ?>
 
-                <form method="post" action="/?r=especiais/register">
+                <form method="post" action="/?r=especiais/register" class="special-primary-form">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <div class="mb-3">
                         <label class="form-label">Número da UH</label>
@@ -141,7 +251,7 @@ $preselect = $this->data['preselect'] ?? [];
 
                     <div class="mb-3">
                         <label class="form-label">Quantidade de PAX</label>
-                        <div class="d-flex gap-2 align-items-center">
+                        <div class="special-pax-control">
                             <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(-1)">-</button>
                             <input type="number" min="1" name="pax" id="pax" class="form-control input-xl text-center" value="1" <?= ($turno['exige_pax'] ?? 1) == 1 ? 'required' : '' ?>>
                             <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(1)">+</button>
@@ -163,7 +273,7 @@ $preselect = $this->data['preselect'] ?? [];
                     <span class="text-muted small">Ao vivo</span>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle">
+                    <table class="table table-sm align-middle special-live-table">
                         <thead>
                             <tr>
                                 <th>UH</th>
@@ -175,10 +285,10 @@ $preselect = $this->data['preselect'] ?? [];
                         <tbody>
                             <?php foreach ($recentes as $item): ?>
                                 <tr>
-                                    <td><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero']) ?></span></td>
-                                    <td><?= h($item['pax']) ?></td>
-                                    <td><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
-                                    <td>
+                                    <td data-label="UH"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero']) ?></span></td>
+                                    <td data-label="PAX"><?= h($item['pax']) ?></td>
+                                    <td data-label="Serviço"><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
+                                    <td data-label="Status">
                                         <?php if ($item['alerta_duplicidade']): ?>
                                             <span class="badge badge-warning">Duplicado</span>
                                         <?php endif; ?>
@@ -201,6 +311,7 @@ $preselect = $this->data['preselect'] ?? [];
         </div>
     </div>
 <?php endif; ?>
+</div>
 
 <script>
 function adjustPax(delta) {
@@ -210,4 +321,3 @@ function adjustPax(delta) {
     input.value = Math.max(1, value);
 }
 </script>
-

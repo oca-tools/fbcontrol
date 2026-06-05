@@ -203,8 +203,7 @@ class DailyReportEmailModel extends Model
         $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'FBControl'), 'FBControl');
         $fromEmailRaw = trim((string)($config['remetente_email'] ?? ''));
         if ($fromEmailRaw === '') {
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $fromEmailRaw = 'no-reply@' . preg_replace('/^www\./', '', $host);
+            $fromEmailRaw = 'no-reply@' . $this->defaultMailDomain();
         }
         $fromEmail = $this->sanitizeEmail($fromEmailRaw);
         if ($fromEmail === '') {
@@ -338,9 +337,11 @@ class DailyReportEmailModel extends Model
     {
         $whereOp = [];
         $params = [
-            ':d' => $dateRef,
             ':r' => '%' . mb_strtolower($restauranteLike, 'UTF-8') . '%',
         ];
+        [$dateStart, $dateEnd] = $this->dayRange($dateRef);
+        $params[':d_start'] = $dateStart;
+        $params[':d_end'] = $dateEnd;
         foreach ($operacoesLike as $idx => $op) {
             $key = ':op' . $idx;
             $whereOp[] = 'LOWER(o.nome) LIKE ' . $key;
@@ -351,7 +352,8 @@ class DailyReportEmailModel extends Model
             FROM acessos a
             JOIN restaurantes r ON r.id = a.restaurante_id
             JOIN operacoes o ON o.id = a.operacao_id
-            WHERE DATE(a.criado_em) = :d
+            WHERE a.criado_em >= :d_start
+              AND a.criado_em < :d_end
               AND LOWER(r.nome) LIKE :r
               AND (" . implode(' OR ', $whereOp) . ")
         ";
@@ -367,10 +369,15 @@ class DailyReportEmailModel extends Model
             SELECT COALESCE(SUM(a.pax), 0) AS total
             FROM acessos a
             JOIN operacoes o ON o.id = a.operacao_id
-            WHERE DATE(a.criado_em) = :d
+            WHERE a.criado_em >= :d_start
+              AND a.criado_em < :d_end
               AND LOWER(o.nome) LIKE '%privileged%'
         ");
-        $stmt->execute([':d' => $dateRef]);
+        [$dateStart, $dateEnd] = $this->dayRange($dateRef);
+        $stmt->execute([
+            ':d_start' => $dateStart,
+            ':d_end' => $dateEnd,
+        ]);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);
     }
@@ -382,13 +389,18 @@ class DailyReportEmailModel extends Model
             FROM acessos a
             JOIN restaurantes r ON r.id = a.restaurante_id
             JOIN operacoes o ON o.id = a.operacao_id
-            WHERE DATE(a.criado_em) = :d
+            WHERE a.criado_em >= :d_start
+              AND a.criado_em < :d_end
               AND (
                     LOWER(r.nome) LIKE '%vip%premium%'
                  OR LOWER(o.nome) LIKE '%vip%premium%'
               )
         ");
-        $stmt->execute([':d' => $dateRef]);
+        [$dateStart, $dateEnd] = $this->dayRange($dateRef);
+        $stmt->execute([
+            ':d_start' => $dateStart,
+            ':d_end' => $dateEnd,
+        ]);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);
     }
@@ -399,11 +411,14 @@ class DailyReportEmailModel extends Model
             SELECT COALESCE(SUM(a.pax), 0) AS total
             FROM acessos a
             JOIN unidades_habitacionais uh ON uh.id = a.uh_id
-            WHERE DATE(a.criado_em) = :d
+            WHERE a.criado_em >= :d_start
+              AND a.criado_em < :d_end
               AND uh.numero = :uh
         ");
+        [$dateStart, $dateEnd] = $this->dayRange($dateRef);
         $stmt->execute([
-            ':d' => $dateRef,
+            ':d_start' => $dateStart,
+            ':d_end' => $dateEnd,
             ':uh' => $uhNumero,
         ]);
         $row = $stmt->fetch();
@@ -605,8 +620,9 @@ class DailyReportEmailModel extends Model
             }
             $content = chunk_split(base64_encode($raw));
             $body .= '--' . $boundary . $eol;
-            $body .= 'Content-Type: ' . $mime . '; name="' . $file['name'] . '"' . $eol;
-            $body .= 'Content-Disposition: attachment; filename="' . $file['name'] . '"' . $eol;
+            $safeName = safe_download_filename((string)$file['name'], 'anexo');
+            $body .= 'Content-Type: ' . $mime . '; name="' . $safeName . '"' . $eol;
+            $body .= 'Content-Disposition: attachment; filename="' . $safeName . '"' . $eol;
             $body .= 'Content-Transfer-Encoding: base64' . $eol . $eol;
             $body .= $content . $eol;
         }
@@ -642,6 +658,24 @@ class DailyReportEmailModel extends Model
         return filter_var($clean, FILTER_VALIDATE_EMAIL) ? $clean : '';
     }
 
+    private function defaultMailDomain(): string
+    {
+        $config = require dirname(__DIR__, 2) . '/config/config.php';
+        $baseUrl = trim((string)($config['app']['base_url'] ?? ''));
+        $host = '';
+
+        if (preg_match('#^https?://([^/:?#]+)#i', $baseUrl, $matches)) {
+            $host = strtolower((string)$matches[1]);
+        }
+
+        $host = preg_replace('/^www\./', '', $host) ?? '';
+        if (!preg_match('/^[a-z0-9.-]+\.[a-z]{2,}$/i', $host)) {
+            return 'localhost';
+        }
+
+        return $host;
+    }
+
     private function normalizeEmailContent(string $value): string
     {
         $normalized = str_replace("\xEF\xBB\xBF", '', $value);
@@ -654,4 +688,3 @@ class DailyReportEmailModel extends Model
         return normalize_mojibake($normalized);
     }
 }
-

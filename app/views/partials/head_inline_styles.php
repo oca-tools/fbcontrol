@@ -135,10 +135,10 @@
             width: 100%;
         }
         .brand-logo {
-            width: 190px;
+            width: 236px;
             max-width: 100%;
             height: auto;
-            margin: 0 auto 12px;
+            margin: 0 auto 14px;
             display: block;
             align-self: center;
         }
@@ -934,6 +934,15 @@
             background: rgba(249, 115, 22, 0.14);
             color: #c2410c !important;
             font-size: 0.9rem;
+        }
+        html[data-theme='dark'] .sidebar .nav-link i {
+            background: rgba(255, 255, 255, 0.08);
+            color: #f8fafc !important;
+        }
+        html[data-theme='dark'] .sidebar .nav-link.active i,
+        html[data-theme='dark'] .sidebar .nav-link:hover i {
+            background: rgba(255, 255, 255, 0.14);
+            color: #ffffff !important;
         }
         .sidebar .nav-link.active,
         .sidebar .nav-link:hover {

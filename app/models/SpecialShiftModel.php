@@ -54,6 +54,7 @@ class SpecialShiftModel extends Model
                AND re.tipo = t.tipo
                AND re.ativo = 1
             WHERE t.fim_em IS NULL
+              AND COALESCE(t.modo_demo, 0) = 0
               {$whereUser}
             HAVING auto_fim_em IS NOT NULL
         ";
@@ -102,14 +103,15 @@ class SpecialShiftModel extends Model
     public function start(array $data, int $userId): int
     {
         $stmt = $this->db->prepare("
-            INSERT INTO turnos_especiais (usuario_id, restaurante_id, tipo, porta_id, inicio_em)
-            VALUES (:usuario_id, :restaurante_id, :tipo, :porta_id, NOW())
+            INSERT INTO turnos_especiais (usuario_id, restaurante_id, tipo, porta_id, inicio_em, modo_demo)
+            VALUES (:usuario_id, :restaurante_id, :tipo, :porta_id, NOW(), :modo_demo)
         ");
         $stmt->execute([
             ':usuario_id' => $userId,
             ':restaurante_id' => $data['restaurante_id'],
             ':tipo' => $data['tipo'],
             ':porta_id' => $data['porta_id'] ?? null,
+            ':modo_demo' => !empty($data['modo_demo']) ? 1 : 0,
         ]);
         $id = (int)$this->db->lastInsertId();
         $this->audit('create', $userId, [], array_merge($data, ['id' => $id]), 'turnos_especiais', $id);

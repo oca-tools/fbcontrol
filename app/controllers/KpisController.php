@@ -233,7 +233,7 @@ class KpisController extends Controller
             'buffet_pax_dia' => $buffetPaxDia,
             'taxa_buffet_ocupacao' => $taxaBuffetSobreOcupacao,
             'occupancy_timeline' => $timeline,
-            'can_edit_ocupacao' => in_array((string)(Auth::user()['perfil'] ?? ''), ['admin'], true),
+            'can_edit_ocupacao' => in_array((string)(Auth::user()['perfil'] ?? ''), ['admin', 'gerente'], true),
             'flash' => get_flash(),
         ]);
     }
@@ -241,7 +241,7 @@ class KpisController extends Controller
     public function saveOcupacao(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole(['admin', 'gerente']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=kpis/index');
