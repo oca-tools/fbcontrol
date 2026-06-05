@@ -67,16 +67,27 @@
     const menu = document.querySelector('.sidebar-menu');
     if (!menu) return;
     const key = 'oca_sidebar_scroll_v2';
+    const updateOverflowState = () => {
+        const needsScroll = menu.scrollHeight > menu.clientHeight + 2;
+        menu.classList.toggle('has-scroll', needsScroll);
+        if (!needsScroll) {
+            menu.scrollTop = 0;
+        }
+        return needsScroll;
+    };
 
     try {
         const saved = sessionStorage.getItem(key);
-        if (saved !== null) {
+        if (saved !== null && updateOverflowState()) {
             menu.scrollTop = parseInt(saved, 10) || 0;
         }
     } catch (e) {}
+    updateOverflowState();
+    window.addEventListener('resize', updateOverflowState);
 
     let timer = null;
     const persist = () => {
+        if (!updateOverflowState()) return;
         try { sessionStorage.setItem(key, String(menu.scrollTop || 0)); } catch (e) {}
     };
 

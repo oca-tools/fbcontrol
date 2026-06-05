@@ -366,13 +366,16 @@
         .sidebar-menu {
             flex: 1 1 auto;
             min-height: 0;
-            overflow-y: auto;
+            overflow-y: hidden;
             overflow-x: hidden;
             padding-top: 14px;
             padding-right: 4px;
             margin-right: -4px;
             scrollbar-width: thin;
             scrollbar-color: rgba(249,115,22,.45) transparent;
+        }
+        .sidebar-menu.has-scroll {
+            overflow-y: auto;
         }
         .sidebar-menu::-webkit-scrollbar {
             width: 8px;
@@ -2329,6 +2332,18 @@
             input,
             select {
                 font-size: 15px;
+            }
+            body[data-route="access/index"] .app-shell {
+                min-height: auto;
+            }
+            body[data-route="access/index"] .app-main {
+                padding-bottom: 16px;
+            }
+            body[data-route="access/index"] .app-content {
+                padding-bottom: 0 !important;
+            }
+            body[data-route="access/index"] .app-main > footer {
+                margin-top: 0.65rem !important;
             }
         }
         @media (max-width: 1200px) {
