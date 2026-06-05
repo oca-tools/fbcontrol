@@ -16,7 +16,9 @@ Objetivo da release:
 
 ## Banco e migrations
 
-Em ambientes novos, use `sql/schema_current.sql`.
+Em ambientes novos, use `sql/schema_v3_0.sql`.
+
+`sql/schema_current.sql` permanece como snapshot tecnico da estrutura atual, mas o arquivo oficial para instalacao nova da release 3.0 e `sql/schema_v3_0.sql`.
 
 Em bancos existentes, validar/aplicar as migrations versionadas:
 

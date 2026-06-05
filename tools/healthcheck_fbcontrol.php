@@ -6,6 +6,7 @@ chdir($root);
 
 $checks = [];
 $warns = [];
+$infos = [];
 $strict = in_array('--strict', $argv ?? [], true)
     || strtolower((string)getenv('HEALTHCHECK_STRICT')) === 'yes'
     || strtolower((string)getenv('APP_ENV')) === 'production';
@@ -20,6 +21,10 @@ $record = static function (string $name, bool $ok, string $detail = '') use (&$c
 
 $warn = static function (string $message) use (&$warns): void {
     $warns[] = $message;
+};
+
+$info = static function (string $message) use (&$infos): void {
+    $infos[] = $message;
 };
 
 $tableExists = static function (PDO $db, string $table): bool {
@@ -42,7 +47,11 @@ try {
 
     $appEnv = (string)getenv('APP_ENV');
     if ($appEnv === '') {
-        $warn('APP_ENV nao definido no CLI. Em producao, defina APP_ENV=production no Apache/FPM e nos jobs.');
+        if ($strict) {
+            $record('app_env', false, 'APP_ENV nao definido no CLI');
+        } else {
+            $info('APP_ENV nao definido no CLI. Em producao, defina APP_ENV=production no Apache/FPM e nos jobs.');
+        }
     } else {
         $record('app_env', true, $appEnv);
     }
@@ -141,7 +150,7 @@ try {
 
     if ($tableExists($db, 'relatorio_email_config')) {
         $emailModel = new DailyReportEmailModel();
-        $warn($emailModel->dueNow() ? 'Relatorio diario esta devido neste horario.' : 'Relatorio diario nao esta devido neste horario.');
+        $info($emailModel->dueNow() ? 'Relatorio diario esta devido neste horario.' : 'Relatorio diario nao esta devido neste horario.');
     }
 } catch (Throwable $e) {
     $record('fatal', false, $e->getMessage());
@@ -157,6 +166,10 @@ foreach ($checks as $check) {
 
 foreach ($warns as $message) {
     echo '[WARN] ' . $message . PHP_EOL;
+}
+
+foreach ($infos as $message) {
+    echo '[INFO] ' . $message . PHP_EOL;
 }
 
 $failed = array_values(array_filter($checks, static fn (array $check): bool => !$check['ok']));

@@ -8,7 +8,11 @@ Banco real local:
 
 `controle_ab_vps`
 
-Schema de referencia usado:
+Schema consolidado de referencia para instalacoes novas:
+
+1. `sql/schema_v3_0.sql`
+
+Historico de comparacao usado antes da consolidacao 3.0:
 
 1. `sql/schema_v2_1_final.sql`
 2. `sql/migration_v2_1_security_hardening.sql`
@@ -44,6 +48,7 @@ Atualizacao local:
 - A migration foi aplicada no banco local `controle_ab_vps`.
 - `schema_current.sql` foi regenerado depois disso.
 - O schema local atual agora inclui `reservas_tematicas_config.auto_cancel_no_show_min`.
+- Na release 3.0, `schema_v3_0.sql` passou a ser o schema consolidado oficial para instalacoes novas.
 
 ## Numeros do schema real
 
@@ -342,6 +347,10 @@ Ela foi escrita de forma idempotente usando `information_schema`, para poder ser
 
 Para novos ambientes locais ou VPS, a ordem segura e:
 
+1. Importar `schema_v3_0.sql`.
+
+Para bancos existentes que ainda estejam em versoes antigas, a ordem segura de upgrade e:
+
 1. Importar `schema_v2_1_final.sql`.
 2. Aplicar `migration_v2_1_security_hardening.sql`.
 3. Aplicar `migration_v2_1_users_email_non_unique.sql`.
@@ -354,6 +363,7 @@ Observacao:
 
 - `migration_v2_1_lgpd.sql` e redundante se `schema_v2_1_final.sql` for usado, pois LGPD ja esta no schema final.
 - Se partir de schema mais antigo, aplicar `migration_v2_1_lgpd.sql` tambem.
+- Em instalacoes novas, `schema_v3_0.sql` ja inclui as estruturas LGPD e as evolucoes ate a release 3.0.
 
 ## Pontos de atencao
 
@@ -363,14 +373,16 @@ Observacao:
 - Existem fallbacks no codigo que poderiam ser removidos no futuro se o projeto assumir oficialmente esse schema como minimo.
 - A coluna `auto_cancel_no_show_min` era o unico fallback funcional que apontava para uma feature ausente no schema; agora existe migration local para ela.
 
-## Recomendacao
+## Recomendacao historica
 
-Antes de qualquer evolucao maior:
+Antes da consolidacao 3.0, a recomendacao era:
 
 1. Criar um `schema_current.sql` consolidado a partir do banco real atual.
 2. Atualizar o README com a ordem correta de instalacao.
 3. Aplicar `migration_v2_4_auto_no_show_min.sql` nos ambientes onde a tolerancia configuravel for desejada.
 4. Definir o schema minimo suportado pelo codigo.
 5. Depois disso, remover fallbacks antigos com mais seguranca.
+
+Status atual: atendido pela criacao de `schema_v3_0.sql` como schema oficial para ambientes novos, mantendo migrations apenas para upgrades incrementais.
 
 Leitura estrategica: o banco esta saudavel e consistente. O risco nao e corrupcao estrutural; o risco e documentacao de instalacao desatualizada e codigo mantendo compatibilidade com versoes antigas sem uma linha oficial de corte.

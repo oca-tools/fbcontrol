@@ -21,26 +21,22 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 
 ## Instalação rápida
 1. Crie o banco MySQL/MariaDB com charset `utf8mb4`.
-2. Execute `sql/schema_v2_1_final.sql`.
-3. Execute `sql/migration_v2_1_security_hardening.sql`.
-4. Execute `sql/migration_v2_1_users_email_non_unique.sql`.
-5. Execute `sql/migration_v2_2_reservas_tematicas_lote_chd.sql`.
-6. Execute `sql/migration_v2_3_titular_nome.sql`.
-7. Execute `sql/migration_v2_3_grupo_nome.sql`.
-8. Execute `sql/migration_v2_4_auto_no_show_min.sql` se quiser configurar tolerância de no-show automático.
-9. Execute `sql/migration_v2_5_tematic_capacity_by_date.sql` para habilitar capacidade temática por data.
-10. Execute `sql/migration_v2_6_reservas_tematicas_bloqueios_datas.sql`.
-11. Execute `sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql`.
-12. Execute `sql/migration_v2_8_turnos_modo_demo.sql`.
-13. Execute `sql/migration_v2_9_performance_indexes.sql`.
-14. Ajuste variáveis de ambiente ou `config/config.local.php`.
-15. Configure o servidor web apontando para `public`.
-16. Acesse: `/?r=auth/login`.
+2. Execute `sql/schema_v3_0.sql`.
+3. Ajuste variáveis de ambiente ou `config/config.local.php`.
+4. Configure o servidor web apontando para `public`.
+5. Acesse: `/?r=auth/login`.
 
 Exemplo local com MySQL CLI:
 
 ```bash
-mysql -u usuario -p nome_do_banco < sql/schema_v2_1_final.sql
+mysql -u usuario -p nome_do_banco < sql/schema_v3_0.sql
+```
+
+## Upgrade de bancos antigos
+
+Para atualizar bancos já existentes, não recrie o schema. Aplique as migrations em ordem, validando backup antes:
+
+```bash
 mysql -u usuario -p nome_do_banco < sql/migration_v2_1_security_hardening.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_1_users_email_non_unique.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_2_reservas_tematicas_lote_chd.sql
@@ -54,13 +50,7 @@ mysql -u usuario -p nome_do_banco < sql/migration_v2_8_turnos_modo_demo.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_9_performance_indexes.sql
 ```
 
-Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos antigos. As tabelas LGPD já estão em `schema_v2_1_final.sql`.
-
-Alternativa para ambiente novo:
-
-- `sql/schema_current.sql` contém um snapshot consolidado da estrutura local atual, sem dados.
-- Esse snapshot já inclui a coluna `auto_cancel_no_show_min`.
-- Se partir de `schema_v2_1_final.sql`, aplique as migrations listadas acima para chegar ao mesmo estado.
+Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v3_0.sql`.
 
 ## Rotas úteis
 - `/?r=access/index` (registro/turno)

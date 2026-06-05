@@ -94,6 +94,6 @@ php tools/run_checks.php
 
 ## Observacoes
 
-- O schema consolidado atual e `sql/schema_v2_1_final.sql`.
+- O schema consolidado atual para instalacao nova e `sql/schema_v3_0.sql`.
 - Nao sobrescreva `config/config.local.php` em deploy incremental.
 - `public/uploads/` deve permanecer persistente entre releases.

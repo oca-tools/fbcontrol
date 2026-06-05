@@ -230,14 +230,14 @@ Status apos saneamento local:
 
 ## P3 - Melhorias e oportunidades
 
-### Consolidar `schema_current.sql`
+### Consolidar schema de instalacao
 
-Hoje o schema real depende de schema final + varias migrations.
+Status: concluido na release 3.0 com `sql/schema_v3_0.sql`.
 
-Oportunidade:
+Uso recomendado:
 
-- Criar um snapshot consolidado atual.
-- Deixar migrations apenas para upgrades incrementais.
+- `sql/schema_v3_0.sql` para ambientes novos.
+- Migrations versionadas apenas para upgrades incrementais de bancos existentes.
 
 ### Criar testes pequenos de regra
 
@@ -300,7 +300,7 @@ Objetivo: reduzir risco antes de mexer em feature.
 Tarefas:
 
 - Atualizar README de instalacao.
-- Criar `schema_current.sql`.
+- Manter `schema_v3_0.sql` como schema consolidado de instalacao nova.
 - Remover/mover `.bak*` da release operacional.
 - Documentar symlinks locais e uso direto da release no Windows.
 - Criar migration ou decisao formal sobre `auto_cancel_no_show_min`.

@@ -42,7 +42,7 @@ try {
         'docs/RELEASE_3_0.md',
         'docs/INSTALACAO_VPS.md',
         'docs/LGPD_OPERACAO.md',
-        'sql/schema_current.sql',
+        'sql/schema_v3_0.sql',
         'sql/migration_v2_9_performance_indexes.sql',
         'tools/run_checks.php',
         'tools/healthcheck_fbcontrol.php',
@@ -54,7 +54,7 @@ try {
         $record('file_' . str_replace(['/', '.', '-'], '_', $file), is_file($file), $file);
     }
 
-    $schema = is_file('sql/schema_current.sql') ? (string)file_get_contents('sql/schema_current.sql') : '';
+    $schema = is_file('sql/schema_v3_0.sql') ? (string)file_get_contents('sql/schema_v3_0.sql') : '';
     foreach ([
         'reservas_tematicas_bloqueios_datas',
         'reservas_tematicas_bloqueios_semanais',
