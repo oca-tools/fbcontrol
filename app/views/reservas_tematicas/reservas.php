@@ -1531,6 +1531,25 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
         let dayRestante = 0;
         let dayFechados = 0;
         let dayTurnos = 0;
+
+        Object.entries(data).forEach(([restId, turnosData]) => {
+            const totals = { capacidade: 0, reservado: 0, restante: 0, fechado: 0, turnos: 0 };
+            Object.values(turnosData || {}).forEach((info) => {
+                const fechado = !!info?.fechado;
+                totals.capacidade += parseInt(info?.capacidade || 0, 10);
+                totals.reservado += parseInt(info?.reservado || 0, 10);
+                totals.restante += parseInt(info?.restante || 0, 10);
+                totals.fechado += fechado ? 1 : 0;
+                totals.turnos += 1;
+            });
+            restTotals[restId] = totals;
+            dayCapacidade += totals.capacidade;
+            dayReservado += totals.reservado;
+            dayRestante += totals.restante;
+            dayFechados += totals.fechado;
+            dayTurnos += totals.turnos;
+        });
+
         document.querySelectorAll('.js-availability-cell[data-rest-id][data-turno-id]').forEach((cell) => {
             const restId = cell.getAttribute('data-rest-id');
             const turnoId = cell.getAttribute('data-turno-id');
@@ -1540,19 +1559,6 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
             const reservado = parseInt(info.reservado || 0, 10);
             const capacidade = parseInt(info.capacidade || 0, 10);
             const lotado = !fechado && capacidade > 0 && restante <= 0;
-            if (!restTotals[restId]) {
-                restTotals[restId] = { capacidade: 0, reservado: 0, restante: 0, fechado: 0, turnos: 0 };
-            }
-            restTotals[restId].capacidade += capacidade;
-            restTotals[restId].reservado += reservado;
-            restTotals[restId].restante += restante;
-            restTotals[restId].fechado += fechado ? 1 : 0;
-            restTotals[restId].turnos += 1;
-            dayCapacidade += capacidade;
-            dayReservado += reservado;
-            dayRestante += restante;
-            dayFechados += fechado ? 1 : 0;
-            dayTurnos += 1;
             cell.dataset.restante = String(restante);
             cell.dataset.reservado = String(reservado);
             cell.dataset.capacidade = String(capacidade);
