@@ -249,15 +249,18 @@
         }
     }
 
-    document.querySelectorAll('a.js-export-btn').forEach((link) => {
-        link.addEventListener('click', (event) => {
-            if (link.getAttribute('data-progress-download') === '1') {
-                downloadWithProgress(link, event);
-                return;
-            }
-            const msg = link.getAttribute('data-toast') || 'Exportado com sucesso. O download foi iniciado.';
-            showExportToast(msg);
-        });
+    document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const link = target ? target.closest('a.js-export-btn') : null;
+        if (!link) {
+            return;
+        }
+        if (link.getAttribute('data-progress-download') === '1') {
+            downloadWithProgress(link, event);
+            return;
+        }
+        const msg = link.getAttribute('data-toast') || 'Exportado com sucesso. O download foi iniciado.';
+        showExportToast(msg);
     });
 
     document.querySelectorAll('.alert.alert-success').forEach((el) => {
