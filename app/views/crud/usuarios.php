@@ -313,7 +313,7 @@ $userTabs = [
                                         <?= (int)$item['ativo'] === 1 ? 'Ativo' : 'Desativado' ?>
                                     </span>
                                     <?php if ($isRemovedUser): ?>
-                                        <span class="badge badge-danger">Usuário removido</span>
+                                        <span class="badge badge-danger">Registro legado anonimizado</span>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -382,7 +382,7 @@ $userTabs = [
                                 </div>
                                 <div class="col-12 col-md-2 d-grid gap-2">
                                     <button class="btn btn-outline-primary w-100">Salvar</button>
-                                    <button class="btn btn-outline-danger w-100" type="submit" formaction="/?r=usuarios/delete" data-confirm="Excluir usuário? Os dados pessoais serão anonimizados e o histórico será mantido." data-confirm-title="Excluir usuário" data-confirm-type="danger">Excluir</button>
+                                    <button class="btn btn-outline-danger w-100" type="submit" formaction="/?r=usuarios/delete" data-confirm="Desativar usuário? O acesso será bloqueado, mas nome e histórico serão preservados para auditoria." data-confirm-title="Desativar usuário" data-confirm-type="danger">Desativar</button>
                                 </div>
                             </div>
                         </form>

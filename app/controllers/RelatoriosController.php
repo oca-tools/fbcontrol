@@ -66,22 +66,48 @@ class RelatoriosController extends Controller
         return $out;
     }
 
-    private function resolveVoucherPdfDate(): string
+    private function resolveVoucherPdfFilters(): array
     {
         $data = sanitize_date_param($_GET['data'] ?? '');
         $inicio = sanitize_date_param($_GET['data_inicio'] ?? '');
         $fim = sanitize_date_param($_GET['data_fim'] ?? '');
+        $filters = [
+            'data' => '',
+            'data_inicio' => '',
+            'data_fim' => '',
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
+        ];
 
-        if ($data !== '' && ($inicio === '' || $fim === '' || $inicio === $fim)) {
-            return $data;
+        if ($inicio !== '' || $fim !== '') {
+            if ($inicio === '') {
+                $inicio = $fim;
+            }
+            if ($fim === '') {
+                $fim = $inicio;
+            }
+            if ($inicio > $fim) {
+                return [];
+            }
+            $filters['data_inicio'] = $inicio;
+            $filters['data_fim'] = $fim;
+            return $filters;
         }
-        if ($inicio !== '' && $fim !== '' && $inicio === $fim) {
-            return $inicio;
+
+        if ($data === '') {
+            $data = date('Y-m-d');
         }
-        if ($data === '' && $inicio === '' && $fim === '') {
-            return date('Y-m-d');
+        $filters['data'] = $data;
+        return $filters;
+    }
+
+    private function voucherPdfPeriodLabel(array $filters): string
+    {
+        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
+            return (string)$filters['data_inicio'] . '_a_' . (string)$filters['data_fim'];
         }
-        return '';
+
+        return (string)($filters['data'] ?? date('Y-m-d'));
     }
 
     private function isAsyncExportRequest(): bool
@@ -185,13 +211,9 @@ class RelatoriosController extends Controller
         ];
     }
 
-    private function voucherExportAttachmentsForDate(string $dateRef, array $filters = []): array
+    private function voucherExportAttachments(array $filters = []): array
     {
-        $rows = (new VoucherModel())->listByFilters(array_merge($filters, [
-            'data' => $dateRef,
-            'data_inicio' => '',
-            'data_fim' => '',
-        ]));
+        $rows = (new VoucherModel())->listByFilters($filters);
 
         $uploadRoot = realpath(dirname(__DIR__, 2) . '/public/uploads/vouchers');
         if ($uploadRoot === false) {
@@ -730,26 +752,23 @@ class RelatoriosController extends Controller
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $dateRef = $this->resolveVoucherPdfDate();
-        if ($dateRef === '') {
+        $filters = $this->resolveVoucherPdfFilters();
+        if (empty($filters)) {
             if ($this->isAsyncExportRequest()) {
-                json_response(['ok' => false, 'message' => 'Informe uma data única para baixar os PDFs dos vouchers.'], 422);
+                json_response(['ok' => false, 'message' => 'Informe um intervalo de datas válido para baixar os PDFs dos vouchers.'], 422);
             }
-            set_flash('warning', 'Informe uma data única para baixar os PDFs dos vouchers.');
+            set_flash('warning', 'Informe um intervalo de datas válido para baixar os PDFs dos vouchers.');
             $this->redirect('/?r=relatorios/index');
         }
 
-        $filters = [
-            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
-            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
-        ];
-        $attachmentBundle = $this->voucherExportAttachmentsForDate($dateRef, $filters);
+        $periodLabel = $this->voucherPdfPeriodLabel($filters);
+        $attachmentBundle = $this->voucherExportAttachments($filters);
         $files = $attachmentBundle['files'];
         $stats = $attachmentBundle['stats'];
-        $this->auditExport('vouchers_pdfs', array_merge($filters, ['data' => $dateRef]), count($files) > 1 ? 'zip' : 'pdf', count($files));
+        $this->auditExport('vouchers_pdfs', $filters, count($files) > 1 ? 'zip' : 'pdf', count($files));
 
         if (empty($files)) {
-            $message = 'Não há PDFs de vouchers para a data selecionada.';
+            $message = 'Não há PDFs de vouchers para o período selecionado.';
             if (($stats['images'] ?? 0) > 0 && !class_exists('Imagick')) {
                 $message = 'Há imagens de vouchers, mas a extensão Imagick não está disponível para convertê-las em PDF.';
             } elseif (($stats['images_skipped'] ?? 0) > 0) {
@@ -759,7 +778,7 @@ class RelatoriosController extends Controller
                 json_response(['ok' => false, 'message' => $message], 404);
             }
             set_flash('warning', $message);
-            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'data' => $dateRef]));
+            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
             $this->redirect('/?' . $query);
         }
 
@@ -773,7 +792,7 @@ class RelatoriosController extends Controller
         $zipPath = tempnam(sys_get_temp_dir(), 'vouchers_pdfs_');
         if ($zipPath === false) {
             set_flash('danger', 'Não foi possível preparar o arquivo ZIP dos vouchers.');
-            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'data' => $dateRef]));
+            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
             $this->redirect('/?' . $query);
         }
         $zipFile = $zipPath . '.zip';
@@ -785,7 +804,7 @@ class RelatoriosController extends Controller
                 @unlink($zipFile);
                 $this->cleanupTemporaryVoucherFiles($files);
                 set_flash('danger', 'Não foi possível criar o arquivo ZIP dos vouchers.');
-                $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'data' => $dateRef]));
+                $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
                 $this->redirect('/?' . $query);
             }
 
@@ -796,18 +815,18 @@ class RelatoriosController extends Controller
                 @unlink($zipFile);
                 $this->cleanupTemporaryVoucherFiles($files);
                 set_flash('danger', 'Não foi possível finalizar o arquivo ZIP dos vouchers.');
-                $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'data' => $dateRef]));
+                $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
                 $this->redirect('/?' . $query);
             }
         } elseif (!$this->createStoredZip($files, $zipFile)) {
             @unlink($zipFile);
             $this->cleanupTemporaryVoucherFiles($files);
             set_flash('danger', 'Não foi possível criar o arquivo ZIP dos vouchers.');
-            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index', 'data' => $dateRef]));
+            $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
             $this->redirect('/?' . $query);
         }
 
-        $this->streamDownload($zipFile, 'vouchers_pdfs_' . $dateRef . '.zip', 'application/zip');
+        $this->streamDownload($zipFile, 'vouchers_pdfs_' . $periodLabel . '.zip', 'application/zip');
         @unlink($zipFile);
         $this->cleanupTemporaryVoucherFiles($files);
         exit;

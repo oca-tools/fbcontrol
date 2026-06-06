@@ -812,7 +812,7 @@ $paginationPages = static function (int $current, int $total): array {
     </div>
     <div class="d-flex justify-content-end gap-2 mb-3">
         <a class="btn btn-outline-primary js-export-btn" data-progress-download="1" data-toast="Preparando PDFs dos vouchers. O download será iniciado." href="/?r=relatorios/export_voucher_pdfs&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
-            <i class="bi bi-file-earmark-zip me-1"></i>Exportar PDFs
+            <i class="bi bi-file-earmark-zip me-1"></i>Exportar PDFs/ZIP
         </a>
         <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatorios/export_vouchers&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&operacao_id=<?= h($filters['operacao_id']) ?>">
             <i class="bi bi-download me-1"></i>Exportar CSV

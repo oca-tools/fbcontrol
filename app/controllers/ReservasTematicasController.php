@@ -156,6 +156,16 @@ class ReservasTematicasController extends Controller
         return in_array($uhNumero, ['998', '999'], true);
     }
 
+    private function canEditReservaTematica(array $reserva, array $user): bool
+    {
+        $perfil = (string)($user['perfil'] ?? '');
+        if (in_array($perfil, ['admin', 'gerente'], true)) {
+            return true;
+        }
+
+        return (int)($reserva['usuario_id'] ?? 0) === (int)($user['id'] ?? 0);
+    }
+
     public function reservas(): void
     {
         $this->requireReservaAccess();
@@ -269,7 +279,7 @@ class ReservasTematicasController extends Controller
                     'status' => $this->normalizeReservaStatus((string)($row['status'] ?? '')),
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
-                    'edit_url' => '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0),
+                    'edit_url' => $this->canEditReservaTematica($row, $user) ? '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0) : '',
                 ];
             }
 
@@ -546,6 +556,10 @@ class ReservasTematicasController extends Controller
                     set_flash('danger', 'Reserva não encontrada.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
+                if (!$this->canEditReservaTematica($current, $user)) {
+                    set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
+                    $this->redirect('/?r=reservasTematicas/reservas');
+                }
 
                 $duplicateId = null;
                 if (!$this->isDuplicateAllowedUh($uhNumero)) {
@@ -664,6 +678,10 @@ class ReservasTematicasController extends Controller
         $editId = (int)($_GET['edit'] ?? 0);
         $editItem = $editId > 0 ? $reservaModel->find($editId) : null;
         if ($editItem) {
+            if (!$this->canEditReservaTematica($editItem, $user)) {
+                set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
+                $this->redirect('/?r=reservasTematicas/reservas');
+            }
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
             $editItem['uh_numero'] = $uhRow['numero'] ?? '';
             $agesMap = $reservaModel->getChdAgesMap([$editId]);

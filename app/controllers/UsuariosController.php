@@ -179,14 +179,14 @@ class UsuariosController extends Controller
             $this->redirect('/?r=usuarios/index');
         }
         if ($id === (int)$viewer['id']) {
-            set_flash('warning', 'Você não pode excluir seu próprio usuário.');
+            set_flash('warning', 'Você não pode desativar seu próprio usuário.');
             $this->redirect('/?r=usuarios/index');
         }
 
         $model = new UserModel();
         $target = $model->find($id);
         if (!$target || !$this->mayManageTarget($viewer, $target)) {
-            set_flash('danger', 'Você não tem permissão para excluir este usuário.');
+            set_flash('danger', 'Você não tem permissão para desativar este usuário.');
             $this->redirect('/?r=usuarios/index');
         }
         $adminId = (int)$viewer['id'];
@@ -194,9 +194,9 @@ class UsuariosController extends Controller
         $assignOpModel = new UserRestaurantOperationModel();
         $assignModel->clearByUser($id, $adminId);
         $assignOpModel->clearByUser($id, $adminId);
-        $model->anonymizeAndDeactivate($id, $adminId);
+        $model->deactivate($id, $adminId);
 
-        set_flash('success', 'Usuário excluído com anonimização e mantido para auditoria.');
+        set_flash('success', 'Usuário desativado. Nome e histórico foram preservados para auditoria.');
         $this->redirect('/?r=usuarios/index&tab=desativados');
     }
 

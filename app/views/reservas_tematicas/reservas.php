@@ -1793,7 +1793,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
                             <span>${escapeHtml(item.status || 'Reservada')}</span>
                         </div>
                     </div>
-                    <a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url || '#')}">Editar</a>
+                    ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft">Somente autor</span>'}
                 </div>
             `).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
