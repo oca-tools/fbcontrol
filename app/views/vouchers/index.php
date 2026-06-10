@@ -152,35 +152,23 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-12">
-                    <label class="form-label">Nome completo do hóspede</label>
-                    <input type="text" name="nome_hospede" class="form-control input-xl" required>
-                </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label">Data da venda</label>
-                    <input type="date" name="data_venda" class="form-control input-xl" required>
+                    <input type="date" name="data_venda" class="form-control input-xl" value="<?= h(date('Y-m-d')) ?>" required>
                 </div>
                 <div class="col-12 col-md-6">
-                    <label class="form-label">Período da estadia</label>
-                    <input type="text" name="data_estadia" class="form-control input-xl" placeholder="Ex: 23/09 a 30/09" required>
+                    <label class="form-label">Nome do hóspede</label>
+                    <input type="text" name="nome_hospede" class="form-control input-xl" placeholder="Nome no voucher" required>
                 </div>
                 <div class="col-12 col-md-6">
-                    <label class="form-label">Número da reserva</label>
-                    <input type="text" name="numero_reserva" class="form-control input-xl" required>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Assinatura responsável</label>
-                    <input type="text" name="assinatura" class="form-control input-xl" required>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Serviço upselling contratado</label>
-                    <input type="text" name="servico_upselling" class="form-control input-xl" placeholder="Ex: Almoço Restaurante Corais" required>
+                    <label class="form-label">Localizador</label>
+                    <input type="text" name="numero_reserva" class="form-control input-xl" placeholder="Número ou código da reserva" required>
                 </div>
                 <div class="col-12">
                     <div class="voucher-file-box">
-                    <label class="form-label">Anexo do voucher (PDF ou imagem)</label>
+                    <label class="form-label">Anexo do voucher (obrigatório)</label>
                     <input type="hidden" name="MAX_FILE_SIZE" value="<?= (int)$voucherReceiveLimitBytes ?>">
-                    <input type="file" name="voucher_anexo" class="form-control" accept="application/pdf,image/png,image/jpeg,image/webp" data-voucher-file data-max-bytes="<?= (int)$voucherReceiveLimitBytes ?>" data-target-bytes="<?= (int)$voucherTargetLimitBytes ?>">
+                    <input type="file" name="voucher_anexo" class="form-control" accept="application/pdf,image/png,image/jpeg,image/webp" data-voucher-file data-max-bytes="<?= (int)$voucherReceiveLimitBytes ?>" data-target-bytes="<?= (int)$voucherTargetLimitBytes ?>" required>
                     <div class="form-text">Formatos aceitos: PDF, JPG, PNG ou WEBP. Imagens acima de <?= h($voucherTargetLimitLabel) ?> serão compactadas automaticamente. Limite de envio: <?= h($voucherReceiveLimitLabel) ?>.</div>
                     <div class="form-text text-muted" data-voucher-file-status></div>
                     </div>

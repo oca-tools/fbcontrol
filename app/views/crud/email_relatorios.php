@@ -128,7 +128,7 @@ $logs = $this->data['logs'] ?? [];
                 </div>
             </form>
             <div class="text-muted small mt-3">
-                Indicadores incluídos: Corais, La Brasa (almoço), Privileged, VIP Premium, Day use, Não informado, reservas temáticas (Giardino, IXU e La Brasa temático), PAX real e no-show.
+                Indicadores incluídos: Corais, La Brasa (almoço), Privileged, VIP Premium, Day use, Não informado por operação, reservas temáticas (Giardino, IXU e La Brasa temático), PAX real e no-show.
             </div>
         </section>
         </div>

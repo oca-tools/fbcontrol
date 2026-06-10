@@ -118,6 +118,8 @@ $rowHorario = static function ($hora): string {
     }
     .tematica-details-modal {
         width: min(94vw, 560px);
+        max-height: min(88vh, 760px);
+        overflow: auto;
         border-radius: 22px;
         background: var(--ab-card);
         color: var(--ab-ink);
@@ -131,6 +133,11 @@ $rowHorario = static function ($hora): string {
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: 1rem;
+        position: sticky;
+        top: -1.1rem;
+        z-index: 2;
+        padding-top: 0.2rem;
+        background: linear-gradient(180deg, var(--ab-card) 82%, color-mix(in srgb, var(--ab-card) 0%, transparent));
     }
     .tematica-detail-grid {
         display: grid;
@@ -157,6 +164,14 @@ $rowHorario = static function ($hora): string {
     }
     .tematica-mobile-meta {
         display: none;
+    }
+    .tematica-modal-actions {
+        position: sticky;
+        bottom: -1.1rem;
+        z-index: 2;
+        padding-top: 0.85rem;
+        padding-bottom: 0.15rem;
+        background: linear-gradient(0deg, var(--ab-card) 82%, color-mix(in srgb, var(--ab-card) 0%, transparent));
     }
     @media (max-width: 767.98px) {
         .tematica-day-support .table-responsive {
@@ -451,7 +466,7 @@ $rowHorario = static function ($hora): string {
                 <input type="text" class="form-control input-xl" id="modalObservacaoOperacao" placeholder="Opcional">
             </div>
         </div>
-        <div class="d-flex flex-wrap gap-2 mt-3">
+        <div class="d-flex flex-wrap gap-2 mt-3 tematica-modal-actions">
             <button type="button" class="btn btn-success btn-xl flex-grow-1" id="modalConfirmarReserva">
                 <i class="bi bi-check2-circle me-1"></i>Confirmar entrada
             </button>

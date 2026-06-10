@@ -406,7 +406,8 @@ class AccessController extends Controller
 
         $accessModel = new AccessModel();
         $canCancel = $accessModel->countByTurno((int)$shift['id']) === 0;
-        $lastEditableAccess = $accessModel->findLastEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2);
+        $lastEditableAccesses = $accessModel->findEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2, 2);
+        $lastEditableAccess = $lastEditableAccesses[0] ?? null;
 
         $this->view('access/index', [
             'mode' => 'register',
@@ -421,6 +422,7 @@ class AccessController extends Controller
             'is_corais_jantar' => (($shift['restaurante'] ?? '') === 'Restaurante Corais') && (stripos($shift['operacao'] ?? '', 'Jantar') !== false),
             'can_cancel' => $canCancel,
             'last_editable_access' => $lastEditableAccess,
+            'last_editable_accesses' => $lastEditableAccesses,
             'allow_hostess_tutorial' => $allowHostessTutorial,
             'show_hostess_tutorial' => $showHostessTutorial,
         ]);
@@ -931,38 +933,63 @@ class AccessController extends Controller
             $this->redirect('/?r=access/index');
         }
 
+        $accessId = (int)($_POST['access_id'] ?? 0);
         $newPax = (int)($_POST['pax_corrigido'] ?? 0);
+        $newUhNumero = trim((string)($_POST['uh_corrigida'] ?? ''));
         if ($newPax <= 0) {
             set_flash('danger', 'Informe um valor de PAX válido.');
             $this->redirect('/?r=access/index');
         }
+        if ($newUhNumero === '') {
+            set_flash('danger', 'Informe a UH corrigida.');
+            $this->redirect('/?r=access/index');
+        }
 
         $accessModel = new AccessModel();
-        $last = $accessModel->findLastEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2);
-        if (!$last) {
+        $editable = $accessModel->findEditableByTurnoUser((int)$shift['id'], (int)Auth::user()['id'], 2, 2);
+        if (empty($editable)) {
             set_flash('warning', 'Não há lançamento elegível para correção (janela de 2 minutos).');
             $this->redirect('/?r=access/index');
         }
 
-        $uhNumero = (string)$last['uh_numero'];
+        $last = null;
+        foreach ($editable as $candidate) {
+            if ((int)$candidate['id'] === $accessId) {
+                $last = $candidate;
+                break;
+            }
+        }
+        if (!$last) {
+            set_flash('danger', 'Lançamento fora da janela de correção.');
+            $this->redirect('/?r=access/index');
+        }
+
         $unitModel = new UnitModel();
-        $maxPax = $unitModel->maxPaxForNumero($uhNumero);
+        $newUh = $unitModel->findByNumero($newUhNumero);
+        if (!$newUh) {
+            set_flash('danger', 'UH corrigida inválida ou inexistente.');
+            $this->redirect('/?r=access/index');
+        }
+
+        $newUhNumero = (string)$newUh['numero'];
+        $maxPax = $unitModel->maxPaxForNumero($newUhNumero);
         if ($maxPax !== null && $newPax > $maxPax) {
             set_flash('danger', 'PAX corrigido excede o limite da UH. Máximo: ' . $maxPax . '.');
             $this->redirect('/?r=access/index');
         }
 
         $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
-        $currentTotal = $accessModel->sumPaxByUhOperacaoDate($uhNumero, (int)$shift['operacao_id'], $today);
-        $projectedTotal = $currentTotal - (int)$last['pax'] + $newPax;
+        $currentTotal = $accessModel->sumPaxByUhOperacaoDate($newUhNumero, (int)$shift['operacao_id'], $today);
+        $sameUh = (string)$last['uh_numero'] === $newUhNumero;
+        $projectedTotal = $currentTotal - ($sameUh ? (int)$last['pax'] : 0) + $newPax;
         if ($maxPax !== null && $projectedTotal > $maxPax) {
-            $resta = max(0, $maxPax - ($currentTotal - (int)$last['pax']));
+            $resta = max(0, $maxPax - ($currentTotal - ($sameUh ? (int)$last['pax'] : 0)));
             set_flash('danger', 'Correção inválida: excede limite diário da UH nesta operação. Restante permitido: ' . $resta . '.');
             $this->redirect('/?r=access/index');
         }
 
-        $accessModel->updatePax((int)$last['id'], $newPax, (int)Auth::user()['id']);
-        set_flash('success', '?ltimo lançamento corrigido com sucesso.');
+        $accessModel->updatePaxUh((int)$last['id'], (int)$newUh['id'], $newPax, (int)Auth::user()['id']);
+        set_flash('success', 'Lançamento corrigido com sucesso.');
         $this->redirect('/?r=access/index');
     }
 
@@ -1053,10 +1080,24 @@ class AccessController extends Controller
         $assinatura = trim(strip_tags((string)($_POST['assinatura'] ?? '')));
         $dataVenda = trim((string)($_POST['data_venda'] ?? ''));
 
-        if ($nomeHospede === '' || $dataEstadia === '' || $numeroReserva === '' || $servico === '' || $assinatura === '' || $dataVenda === '') {
-            set_flash('danger', 'Preencha todos os campos do voucher.');
+        if ($dataVenda === '') {
+            set_flash('danger', 'Informe a data da venda do voucher.');
             $this->redirect($voucherRoute);
         }
+
+        if ($nomeHospede === '' || $numeroReserva === '') {
+            set_flash('danger', 'Informe nome do hóspede e localizador do voucher.');
+            $this->redirect($voucherRoute);
+        }
+
+        if (empty($_FILES['voucher_anexo']) || (int)($_FILES['voucher_anexo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            set_flash('danger', 'Anexe o voucher para concluir o registro.');
+            $this->redirect($voucherRoute);
+        }
+
+        $dataEstadia = $dataEstadia !== '' ? $dataEstadia : 'Não informado';
+        $servico = $servico !== '' ? $servico : 'Voucher anexado';
+        $assinatura = $assinatura !== '' ? $assinatura : (string)(Auth::user()['nome'] ?? 'Operador');
 
         $voucherPath = null;
         if (!empty($_FILES['voucher_anexo']) && $_FILES['voucher_anexo']['error'] !== UPLOAD_ERR_NO_FILE) {

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $flash = $this->data['flash'] ?? null;
 $restaurantes = $this->data['restaurantes'] ?? [];
 $printRestaurantes = $this->data['print_restaurantes'] ?? $restaurantes;
@@ -343,7 +343,8 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         border-color: rgba(148, 163, 184, 0.28);
         background: rgba(241, 245, 249, 0.86);
     }
-    html[data-theme='dark'] .tematic-operacao-page .reservation-status-pill {
+    html[data-theme='dark'] .tematic-operacao-page .reservation-status-pill,
+    html[data-theme='dark'] .reservation-detail-modal .reservation-status-pill {
         color: #f8fafc;
         background: rgba(30, 41, 59, 0.78);
         border-color: rgba(148, 163, 184, 0.26);
@@ -382,74 +383,205 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         gap: 0.45rem;
         color: var(--ab-muted);
     }
-    .tematic-operacao-page .reservation-detail-modal {
+    .reservation-detail-modal {
         border: 0;
-        border-radius: 22px;
+        border-radius: 26px;
         overflow: hidden;
-        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+        box-shadow: 0 30px 90px rgba(15, 23, 42, 0.32);
+        background: var(--ab-card);
     }
-    .tematic-operacao-page .reservation-detail-modal .modal-header {
-        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        background: rgba(255, 247, 237, 0.72);
+    .modal-dialog-scrollable .reservation-detail-modal > form {
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - var(--bs-modal-margin) * 2);
+        min-height: 0;
     }
-    .tematic-operacao-page .reservation-detail-modal .modal-footer {
+    .reservation-detail-modal .modal-header {
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.05rem 1.15rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        background:
+            linear-gradient(135deg, color-mix(in srgb, var(--ab-accent) 10%, transparent), transparent 62%),
+            color-mix(in srgb, var(--ab-card) 92%, var(--ab-soft-bg) 8%);
+    }
+    .reservation-detail-modal .modal-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0;
+        -webkit-overflow-scrolling: touch;
+    }
+    .reservation-detail-modal .modal-footer {
         border-top: 1px solid rgba(148, 163, 184, 0.2);
-        background: color-mix(in srgb, var(--ab-card) 92%, var(--ab-soft-bg) 8%);
+        padding: 0.9rem 1rem;
+        background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
     }
-    html[data-theme='dark'] .tematic-operacao-page .reservation-detail-modal .modal-header {
+    html[data-theme='dark'] .reservation-detail-modal .modal-header {
         background: rgba(30, 41, 59, 0.82);
     }
-    .tematic-operacao-page .reservation-modal-summary {
+    .reservation-modal-kicker {
+        color: var(--ab-muted);
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+    .reservation-modal-subtitle {
+        color: var(--ab-muted);
+        font-size: 0.86rem;
+        margin-top: 0.18rem;
+    }
+    .reservation-modal-summary {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.8rem;
-        align-items: start;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 18px;
-        padding: 0.9rem;
-        margin-bottom: 0.9rem;
+        gap: 1rem;
+        align-items: stretch;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 22px;
+        padding: 1rem;
+        margin-bottom: 1rem;
         background:
-            linear-gradient(135deg, color-mix(in srgb, var(--ab-card) 88%, var(--ab-soft-bg) 12%), var(--ab-card)),
+            linear-gradient(135deg, color-mix(in srgb, var(--ab-accent) 6%, transparent), transparent 56%),
             var(--ab-card);
     }
-    .tematic-operacao-page .reservation-modal-title {
+    .reservation-modal-layout {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.42fr) minmax(0, 0.58fr);
+        min-height: 520px;
+    }
+    .reservation-modal-profile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.15rem;
+        border-right: 1px solid rgba(148, 163, 184, 0.18);
+        background:
+            radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--ab-accent) 14%, transparent), transparent 34%),
+            linear-gradient(160deg, color-mix(in srgb, var(--ab-soft-bg) 70%, var(--ab-card) 30%), var(--ab-card));
+    }
+    .reservation-modal-editor {
+        min-width: 0;
+        padding: 1.15rem;
+        background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+    }
+    .reservation-profile-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+    }
+    .reservation-profile-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 52px;
+        color: #fff;
+        background: linear-gradient(135deg, #0f766e, #f97316);
+        box-shadow: 0 14px 34px rgba(15, 118, 110, 0.24);
+        font-weight: 900;
+        letter-spacing: 0;
+    }
+    .reservation-profile-title {
         min-width: 0;
     }
-    .tematic-operacao-page .reservation-modal-title strong {
+    .reservation-profile-title strong {
         display: block;
         color: var(--ab-ink);
-        font-size: 1.05rem;
+        font-size: 1.22rem;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+    }
+    .reservation-profile-title span {
+        display: block;
+        color: var(--ab-muted);
+        font-size: 0.86rem;
+        margin-top: 0.25rem;
+    }
+    .reservation-profile-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+    .reservation-profile-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+    .reservation-profile-stat {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        padding: 0.85rem;
+        background: color-mix(in srgb, var(--ab-card) 72%, transparent);
+    }
+    .reservation-profile-stat span {
+        display: block;
+        color: var(--ab-muted);
+        font-size: 0.68rem;
+        font-weight: 850;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .reservation-profile-stat strong {
+        display: block;
+        margin-top: 0.18rem;
+        color: var(--ab-ink);
+        font-size: 1.35rem;
+        line-height: 1;
+    }
+    .reservation-profile-note {
+        margin-top: auto;
+        border: 1px dashed rgba(148, 163, 184, 0.32);
+        border-radius: 18px;
+        padding: 0.85rem;
+        color: var(--ab-muted);
+        font-size: 0.82rem;
+        background: color-mix(in srgb, var(--ab-card) 56%, transparent);
+    }
+    .reservation-editor-grid {
+        display: grid;
+        gap: 0.85rem;
+    }
+    .reservation-modal-title {
+        min-width: 0;
+    }
+    .reservation-modal-title strong {
+        display: block;
+        color: var(--ab-ink);
+        font-size: 1.15rem;
         line-height: 1.2;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .tematic-operacao-page .reservation-modal-title span {
+    .reservation-modal-title span {
         display: block;
         color: var(--ab-muted);
         margin-top: 0.25rem;
         font-size: 0.82rem;
     }
-    .tematic-operacao-page .reservation-modal-badges {
+    .reservation-modal-badges {
         display: flex;
         flex-wrap: wrap;
         gap: 0.4rem;
         margin-top: 0.55rem;
     }
-    .tematic-operacao-page .reservation-modal-count {
+    .reservation-modal-count {
         display: grid;
         grid-template-columns: repeat(2, minmax(70px, 1fr));
-        gap: 0.45rem;
-        min-width: 170px;
+        gap: 0.55rem;
+        min-width: 190px;
     }
-    .tematic-operacao-page .reservation-modal-count .mini-stat {
+    .reservation-modal-count .mini-stat {
         border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 14px;
+        border-radius: 16px;
         background: color-mix(in srgb, var(--ab-soft-bg) 68%, var(--ab-card) 32%);
-        padding: 0.5rem;
+        padding: 0.65rem 0.7rem;
         text-align: center;
     }
-    .tematic-operacao-page .reservation-modal-count .mini-stat span {
+    .reservation-modal-count .mini-stat span {
         display: block;
         color: var(--ab-muted);
         font-size: 0.64rem;
@@ -457,40 +589,89 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         letter-spacing: 0.04em;
         text-transform: uppercase;
     }
-    .tematic-operacao-page .reservation-modal-count .mini-stat strong {
+    .reservation-modal-count .mini-stat strong {
         display: block;
         margin-top: 0.12rem;
         color: var(--ab-ink);
-        font-size: 1rem;
+        font-size: 1.18rem;
     }
-    .tematic-operacao-page .reservation-form-section {
+    .reservation-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+    .reservation-form-section {
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 18px;
-        padding: 0.85rem;
-        background: color-mix(in srgb, var(--ab-soft-bg) 58%, var(--ab-card) 42%);
-        margin-bottom: 0.85rem;
+        border-radius: 20px;
+        padding: 0.95rem;
+        background: color-mix(in srgb, var(--ab-soft-bg) 42%, var(--ab-card) 58%);
+        margin-bottom: 0;
     }
-    .tematic-operacao-page .reservation-form-section-title {
+    .reservation-form-section-title {
         display: flex;
         align-items: center;
-        gap: 0.45rem;
+        justify-content: space-between;
+        gap: 0.55rem;
         color: var(--ab-ink);
         font-weight: 850;
         margin-bottom: 0.7rem;
     }
-    .tematic-operacao-page .reservation-form-section-title i {
-        color: var(--ab-accent);
+    .reservation-form-section-title span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
     }
-    .tematic-operacao-page .modal-status-actions,
-    .tematic-operacao-page .modal-submit-actions {
+    .reservation-form-section-title span::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--ab-accent);
+        box-shadow: 0 0 0 5px color-mix(in srgb, var(--ab-accent) 12%, transparent);
+    }
+    .reservation-form-section-title small {
+        color: var(--ab-muted);
+        font-size: 0.72rem;
+        font-weight: 750;
+        text-transform: uppercase;
+    }
+    .reservation-detail-modal .form-label {
+        color: var(--ab-muted);
+        font-size: 0.7rem;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .reservation-detail-modal .form-control,
+    .reservation-detail-modal .form-select {
+        min-height: 46px;
+        border-radius: 14px;
+        border-color: rgba(148, 163, 184, 0.28);
+        background-color: var(--ab-card);
+    }
+    .reservation-detail-modal textarea.form-control {
+        min-height: 92px;
+    }
+    .reservation-detail-modal .modal-status-actions,
+    .reservation-detail-modal .modal-submit-actions {
         min-width: 0;
     }
-    .tematic-operacao-page .pax-real-group .btn {
+    .reservation-detail-modal .pax-real-group .btn {
         min-width: 118px;
     }
-    html[data-theme='dark'] .tematic-operacao-page .reservation-modal-summary,
-    html[data-theme='dark'] .tematic-operacao-page .reservation-form-section,
-    html[data-theme='dark'] .tematic-operacao-page .reservation-modal-count .mini-stat {
+    .reservation-detail-modal .modal-status-actions .btn {
+        border-style: dashed;
+    }
+    .reservation-detail-modal .modal-submit-actions .btn-primary {
+        box-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
+    }
+    html[data-theme='dark'] .reservation-modal-summary,
+    html[data-theme='dark'] .reservation-modal-profile,
+    html[data-theme='dark'] .reservation-modal-editor,
+    html[data-theme='dark'] .reservation-form-section,
+    html[data-theme='dark'] .reservation-modal-count .mini-stat,
+    html[data-theme='dark'] .reservation-profile-stat,
+    html[data-theme='dark'] .reservation-profile-note {
         background: rgba(15, 23, 42, 0.48);
     }
     .tematic-operacao-page .btn {
@@ -802,82 +983,137 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         .tematic-operacao-page .reservation-pagination-controls {
             justify-content: center;
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-footer > div {
+        .reservation-detail-modal .modal-footer > div {
             width: 100%;
         }
-        .tematic-operacao-page .reservation-detail-modal {
+        .reservation-detail-modal {
             border-radius: 18px;
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-header {
-            padding: 0.75rem 0.9rem;
+        .modal-dialog-scrollable .reservation-detail-modal > form {
+            max-height: calc(100dvh - 1rem);
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-title {
+        .reservation-detail-modal .modal-header {
+            flex: 0 0 auto;
+            padding: 0.85rem 0.95rem;
+        }
+        .reservation-detail-modal .modal-title {
             font-size: 1rem;
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-body {
-            padding: 0.8rem;
+        .reservation-modal-subtitle {
+            font-size: 0.78rem;
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-footer {
+        .reservation-detail-modal .modal-body {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 0;
+        }
+        .reservation-detail-modal .modal-footer {
+            flex: 0 0 auto;
             position: sticky;
             bottom: 0;
             z-index: 2;
             padding: 0.7rem;
         }
-        .tematic-operacao-page .reservation-detail-modal .modal-footer .btn {
+        .reservation-detail-modal .modal-footer .btn {
             flex: 1 1 auto;
             min-height: 38px;
             padding: 0.42rem 0.55rem;
             font-size: 0.82rem;
         }
-        .tematic-operacao-page .reservation-modal-summary {
+        .reservation-modal-summary {
             grid-template-columns: 1fr;
             gap: 0.6rem;
             padding: 0.7rem;
             margin-bottom: 0.7rem;
             border-radius: 16px;
         }
-        .tematic-operacao-page .reservation-modal-count {
+        .reservation-modal-count {
             min-width: 0;
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        .tematic-operacao-page .reservation-modal-title strong {
+        .reservation-modal-grid {
+            grid-template-columns: 1fr;
+            gap: 0.65rem;
+        }
+        .reservation-modal-layout {
+            grid-template-columns: 1fr;
+            min-height: 0;
+        }
+        .reservation-modal-profile {
+            border-right: 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+            padding: 0.9rem;
+            gap: 0.75rem;
+        }
+        .reservation-profile-avatar {
+            width: 44px;
+            height: 44px;
+            flex-basis: 44px;
+            border-radius: 15px;
+        }
+        .reservation-profile-title strong {
+            font-size: 1.05rem;
+        }
+        .reservation-profile-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+        }
+        .reservation-profile-stat {
+            padding: 0.65rem;
+            border-radius: 15px;
+        }
+        .reservation-profile-stat strong {
+            font-size: 1.12rem;
+        }
+        .reservation-profile-note {
+            display: none;
+        }
+        .reservation-modal-editor {
+            padding: 0.8rem 0.8rem 1rem;
+        }
+        .reservation-modal-title strong {
             white-space: normal;
             font-size: 1rem;
         }
-        .tematic-operacao-page .reservation-modal-title span {
+        .reservation-modal-title span {
             font-size: 0.78rem;
         }
-        .tematic-operacao-page .reservation-form-section {
+        .reservation-form-section {
             border-radius: 15px;
             margin-bottom: 0.65rem;
             padding: 0.72rem;
         }
-        .tematic-operacao-page .reservation-form-section-title {
+        .reservation-form-section-title {
             margin-bottom: 0.55rem;
             font-size: 0.9rem;
+            align-items: flex-start;
         }
-        .tematic-operacao-page .pax-real-group {
+        .reservation-form-section-title small {
+            font-size: 0.64rem;
+            text-align: right;
+        }
+        .reservation-detail-modal .pax-real-group {
             flex-wrap: nowrap;
         }
-        .tematic-operacao-page .pax-real-group .btn {
+        .reservation-detail-modal .pax-real-group .btn {
             min-width: 96px;
             padding-left: 0.45rem;
             padding-right: 0.45rem;
             font-size: 0.78rem;
         }
-        .tematic-operacao-page .modal-status-actions,
-        .tematic-operacao-page .modal-submit-actions {
+        .reservation-detail-modal .modal-status-actions,
+        .reservation-detail-modal .modal-submit-actions {
             display: grid !important;
             gap: 0.45rem !important;
         }
-        .tematic-operacao-page .modal-status-actions {
+        .reservation-detail-modal .modal-status-actions {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-        .tematic-operacao-page .modal-submit-actions {
+        .reservation-detail-modal .modal-submit-actions {
             grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
         }
-        .tematic-operacao-page .modal-status-actions .btn,
-        .tematic-operacao-page .modal-submit-actions .btn {
+        .reservation-detail-modal .modal-status-actions .btn,
+        .reservation-detail-modal .modal-submit-actions .btn {
             width: 100%;
             min-width: 0;
             white-space: normal;
@@ -1117,6 +1353,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 data-turno-id="<?= (int)($item['turno_id'] ?? 0) ?>"
                 data-turno-hora="<?= h((string)($item['turno_hora'] ?? '')) ?>"
                 data-status-atual="<?= h($status) ?>"
+                data-usuario="<?= h(normalize_mojibake((string)($item['usuario'] ?? ''))) ?>"
                 data-obs-operacao="<?= h(normalize_mojibake((string)($item['observacao_operacao'] ?? ''))) ?>"
                 role="button"
                 tabindex="0"
@@ -1209,6 +1446,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                         <th>PAX real</th>
                         <th>Restaurante</th>
                         <th>Turno</th>
+                        <th>Criado por</th>
                         <th>Observação original</th>
                         <th>Observação operacional</th>
                     </tr>
@@ -1225,6 +1463,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                                 (string)($row['turno_hora'] ?? ''),
                                 (string)$labelStatus($rowStatus),
                                 (string)$rowRest,
+                                normalize_mojibake((string)($row['usuario'] ?? '')),
                                 normalize_mojibake((string)($row['observacao_reserva'] ?? '')),
                                 normalize_mojibake((string)($row['observacao_operacao'] ?? '')),
                             ])), 'UTF-8');
@@ -1239,6 +1478,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                             <td data-label="PAX real"><?= h((string)($row['pax_real'] ?? '-')) ?></td>
                             <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($rowRest) ?>"><?= h($rowRest) ?></span></td>
                             <td data-label="Turno"><span class="tag badge-soft"><?= h($row['turno_hora']) ?></span></td>
+                            <td data-label="Criado por"><?= h(normalize_mojibake((string)($row['usuario'] ?? '-'))) ?></td>
                             <td data-label="Obs. original">
                                 <?= h(normalize_mojibake((string)($row['observacao_reserva'] ?? '-'))) ?>
                                 <?php if (!empty($row['observacao_tags'])): ?>
@@ -1249,7 +1489,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($reservas)): ?>
-                        <tr><td colspan="9" class="text-muted empty-state">Nenhuma reserva encontrada para este período.</td></tr>
+                        <tr><td colspan="10" class="text-muted empty-state">Nenhuma reserva encontrada para este período.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -1260,7 +1500,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
 </div>
 
 <div class="modal fade" id="reservaDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content reservation-detail-modal">
             <form method="post" action="/?r=reservasTematicas/operacao" id="reservaDetailForm">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -1269,90 +1509,104 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 <input type="hidden" name="confirm_final" id="modalConfirmFinal" value="0">
                 <div class="modal-header">
                     <div>
-                        <div class="text-uppercase text-muted small">Operação temática</div>
+                        <div class="reservation-modal-kicker">Operação temática</div>
                         <h5 class="modal-title mb-0">Detalhes da reserva</h5>
+                        <div class="reservation-modal-subtitle" id="modalHeaderContext">Conferência e ajustes operacionais</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="reservation-modal-summary">
-                        <div class="reservation-modal-title">
-                            <strong id="modalTitularDisplay">-</strong>
-                            <span id="modalContextDisplay">Restaurante e turno</span>
-                            <div class="reservation-modal-badges">
-                                <span class="uh-badge" id="modalUhDisplay">UH -</span>
-                                <span class="reservation-status-pill status-muted" id="modalStatusDisplay">Reservada</span>
-                            </div>
-                        </div>
-                        <div class="reservation-modal-count">
-                            <div class="mini-stat">
-                                <span>Reservada</span>
-                                <strong id="modalPaxDisplay">0</strong>
-                            </div>
-                            <div class="mini-stat">
-                                <span>Real</span>
-                                <strong id="modalPaxRealDisplay">-</strong>
-                            </div>
-                        </div>
-                    </div>
-
-                    <input class="form-control d-none" id="modalTitular" readonly>
-                    <input class="form-control d-none" id="modalUh" readonly>
-                    <input class="form-control d-none" id="modalPax" readonly>
-
-                    <div class="reservation-form-section">
-                        <div class="reservation-form-section-title"><i class="bi bi-people"></i>Dados de conferência</div>
-                        <div class="row g-2">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">PAX real</label>
-                                <div class="input-group pax-real-group">
-                                    <input class="form-control" type="number" min="0" name="pax_real" id="modalPaxReal">
-                                    <button class="btn btn-outline-primary" type="button" id="useReservedPaxBtn">Usar reservado</button>
+                    <div class="reservation-modal-layout">
+                        <aside class="reservation-modal-profile">
+                            <div class="reservation-profile-top">
+                                <div class="reservation-profile-avatar" id="modalAvatarDisplay">--</div>
+                                <div class="reservation-profile-title">
+                                    <strong id="modalTitularDisplay">-</strong>
+                                    <span id="modalContextDisplay">Restaurante e turno</span>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Status</label>
-                                <select class="form-select" name="status" id="modalStatus" required>
-                                    <?php foreach ($statusOptions as $status): ?>
-                                        <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                            <div class="reservation-profile-badges">
+                                <span class="uh-badge" id="modalUhDisplay">UH -</span>
+                                <span class="reservation-status-pill status-muted" id="modalStatusDisplay">Reservada</span>
+                                <span class="tag badge-soft" id="modalUsuarioDisplay">Criado por -</span>
                             </div>
-                        </div>
-                    </div>
+                            <div class="reservation-profile-stats">
+                                <div class="reservation-profile-stat">
+                                    <span>Reservada</span>
+                                    <strong id="modalPaxDisplay">0</strong>
+                                </div>
+                                <div class="reservation-profile-stat">
+                                    <span>Real</span>
+                                    <strong id="modalPaxRealDisplay">-</strong>
+                                </div>
+                            </div>
+                            <div class="reservation-profile-note">
+                                Qualquer alteração salva aqui fica registrada em auditoria para administração e gerência.
+                            </div>
+                        </aside>
 
-                    <div class="reservation-form-section">
-                        <div class="reservation-form-section-title"><i class="bi bi-shop-window"></i>Restaurante e turno</div>
-                        <div class="row g-2">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Restaurante</label>
-                                <select class="form-select" name="restaurante_id" id="modalRestaurante" required>
-                                    <?php foreach ($restaurantes as $rest): ?>
-                                        <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Turno</label>
-                                <select class="form-select" name="turno_id" id="modalTurno" required>
-                                    <?php foreach ($turnos as $turno): ?>
-                                        <option value="<?= (int)$turno['id'] ?>"><?= h($turno['hora']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                        <section class="reservation-modal-editor">
+                            <input class="form-control d-none" id="modalTitular" readonly>
+                            <input class="form-control d-none" id="modalUh" readonly>
+                            <input class="form-control d-none" id="modalPax" readonly>
 
-                    <div class="reservation-form-section mb-0">
-                        <div class="reservation-form-section-title"><i class="bi bi-card-text"></i>Observações</div>
-                        <div class="mb-2">
-                            <label class="form-label">Observação operacional</label>
-                            <textarea class="form-control" name="observacao_operacao" id="modalObsOperacao" rows="3"></textarea>
-                        </div>
-                        <div>
-                            <label class="form-label">Justificativa (obrigatória em turno encerrado)</label>
-                            <input class="form-control" type="text" name="justificativa" id="modalJustificativa" placeholder="Descreva o motivo da alteração">
-                        </div>
+                            <div class="reservation-editor-grid">
+                                <div class="reservation-form-section">
+                                    <div class="reservation-form-section-title"><span>Conferência</span><small>PAX e status</small></div>
+                                    <div class="row g-2">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">PAX real</label>
+                                            <div class="input-group pax-real-group">
+                                                <input class="form-control" type="number" min="0" name="pax_real" id="modalPaxReal">
+                                                <button class="btn btn-outline-primary" type="button" id="useReservedPaxBtn">Usar reservado</button>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">Status</label>
+                                            <select class="form-select" name="status" id="modalStatus" required>
+                                                <?php foreach ($statusOptions as $status): ?>
+                                                    <option value="<?= h($status) ?>"><?= h($labelStatus($status)) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="reservation-form-section">
+                                    <div class="reservation-form-section-title"><span>Destino</span><small>Restaurante e turno</small></div>
+                                    <div class="row g-2">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">Restaurante</label>
+                                            <select class="form-select" name="restaurante_id" id="modalRestaurante" required>
+                                                <?php foreach ($restaurantes as $rest): ?>
+                                                    <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">Turno</label>
+                                            <select class="form-select" name="turno_id" id="modalTurno" required>
+                                                <?php foreach ($turnos as $turno): ?>
+                                                    <option value="<?= (int)$turno['id'] ?>"><?= h($turno['hora']) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="reservation-form-section">
+                                    <div class="reservation-form-section-title"><span>Observações</span><small>Auditoria</small></div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Observação operacional</label>
+                                        <textarea class="form-control" name="observacao_operacao" id="modalObsOperacao" rows="3"></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Justificativa (obrigatória em turno encerrado)</label>
+                                        <input class="form-control" type="text" name="justificativa" id="modalJustificativa" placeholder="Descreva o motivo da alteração">
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
                 <div class="modal-footer d-flex flex-wrap gap-2 justify-content-between">
@@ -1614,6 +1868,9 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     const modalStatusDisplay = document.getElementById('modalStatusDisplay');
     const modalPaxDisplay = document.getElementById('modalPaxDisplay');
     const modalPaxRealDisplay = document.getElementById('modalPaxRealDisplay');
+    const modalUsuarioDisplay = document.getElementById('modalUsuarioDisplay');
+    const modalHeaderContext = document.getElementById('modalHeaderContext');
+    const modalAvatarDisplay = document.getElementById('modalAvatarDisplay');
     const useReservedPaxBtn = document.getElementById('useReservedPaxBtn');
     const detailForm = document.getElementById('reservaDetailForm');
 
@@ -1634,15 +1891,27 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     const syncModalSummary = () => {
         const status = modalStatus?.value || 'Reservada';
         const paxReal = modalPaxReal?.value || '';
-        if (modalTitularDisplay) modalTitularDisplay.textContent = modalTitular?.value || '-';
+        const titular = modalTitular?.value || '-';
+        if (modalTitularDisplay) modalTitularDisplay.textContent = titular;
+        if (modalAvatarDisplay) {
+            const initials = titular
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part.charAt(0).toUpperCase())
+                .join('');
+            modalAvatarDisplay.textContent = initials || '--';
+        }
         if (modalContextDisplay) {
             const restText = modalRest?.selectedOptions?.[0]?.textContent?.trim() || '-';
             const turnoText = modalTurno?.selectedOptions?.[0]?.textContent?.trim() || '-';
             modalContextDisplay.textContent = `${restText} · ${turnoText}`;
+            if (modalHeaderContext) modalHeaderContext.textContent = `${restText} · ${turnoText}`;
         }
         if (modalUhDisplay) modalUhDisplay.textContent = `UH ${modalUh?.value || '-'}`;
         if (modalPaxDisplay) modalPaxDisplay.textContent = modalPax?.value || '0';
         if (modalPaxRealDisplay) modalPaxRealDisplay.textContent = paxReal !== '' ? paxReal : '-';
+        if (modalUsuarioDisplay) modalUsuarioDisplay.textContent = `Criado por ${modalUsuarioDisplay.dataset.usuario || '-'}`;
         if (modalStatusDisplay) {
             modalStatusDisplay.textContent = statusLabelMap[status] || status;
             modalStatusDisplay.className = `reservation-status-pill ${statusClassMap[status] || 'status-muted'}`;
@@ -1663,6 +1932,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             modalRest.value = row.dataset.restauranteId || '';
             modalTurno.value = row.dataset.turnoId || '';
             modalObs.value = row.dataset.obsOperacao || '';
+            if (modalUsuarioDisplay) modalUsuarioDisplay.dataset.usuario = row.dataset.usuario || '-';
             modalConfirmFinal.value = '0';
             syncModalSummary();
             modalInstance.show();

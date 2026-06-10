@@ -159,7 +159,7 @@ class ReservasTematicasController extends Controller
     private function canEditReservaTematica(array $reserva, array $user): bool
     {
         $perfil = (string)($user['perfil'] ?? '');
-        if (in_array($perfil, ['admin', 'gerente'], true)) {
+        if (in_array($perfil, ['admin', 'gerente', 'supervisor'], true)) {
             return true;
         }
 
@@ -279,6 +279,7 @@ class ReservasTematicasController extends Controller
                     'status' => $this->normalizeReservaStatus((string)($row['status'] ?? '')),
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
+                    'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
                     'edit_url' => $this->canEditReservaTematica($row, $user) ? '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0) : '',
                 ];
             }

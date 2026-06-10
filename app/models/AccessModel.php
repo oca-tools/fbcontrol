@@ -117,7 +117,7 @@ class AccessModel extends Model
         $end->setDate((int)$now->format('Y'), (int)$now->format('m'), (int)$now->format('d'));
 
 
-        // ObservAção: Operações que atravessam meia-noite podem precisar de ajuste futuro.
+        // Observação: operações que atravessam meia-noite podem precisar de ajuste futuro.
         if ($end < $start) {
             $end->modify('+1 day');
             if ($now < $start) {
@@ -283,9 +283,10 @@ class AccessModel extends Model
         return (int)($row['total'] ?? 0);
     }
 
-    public function findLastEditableByTurnoUser(int $turnoId, int $userId, int $windowMinutes = 2): ?array
+    public function findEditableByTurnoUser(int $turnoId, int $userId, int $windowMinutes = 2, int $limit = 2): array
     {
         $windowMinutes = max(1, (int)$windowMinutes);
+        $limit = max(1, min(5, (int)$limit));
         $stmt = $this->db->prepare("
             SELECT a.*, uh.numero AS uh_numero
             FROM acessos a
@@ -294,13 +295,19 @@ class AccessModel extends Model
               AND a.usuario_id = :usuario_id
               AND a.criado_em >= (NOW() - INTERVAL {$windowMinutes} MINUTE)
             ORDER BY a.id DESC
-            LIMIT 1
+            LIMIT :limit
         ");
         $stmt->bindValue(':turno_id', $turnoId, PDO::PARAM_INT);
         $stmt->bindValue(':usuario_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
-        $row = $stmt->fetch();
-        return $row ?: null;
+        return $stmt->fetchAll();
+    }
+
+    public function findLastEditableByTurnoUser(int $turnoId, int $userId, int $windowMinutes = 2): ?array
+    {
+        $rows = $this->findEditableByTurnoUser($turnoId, $userId, $windowMinutes, 1);
+        return $rows[0] ?? null;
     }
 
     public function updatePax(int $accessId, int $newPax, int $userId): void
@@ -318,6 +325,24 @@ class AccessModel extends Model
 
         $after = $this->findById($accessId) ?? [];
         $this->audit('update_pax_2min', $userId, $before, $after, 'acessos', $accessId);
+    }
+
+    public function updatePaxUh(int $accessId, int $uhId, int $newPax, int $userId): void
+    {
+        $before = $this->findById($accessId) ?? [];
+        if (!$before) {
+            return;
+        }
+
+        $stmt = $this->db->prepare("UPDATE acessos SET uh_id = :uh_id, pax = :pax WHERE id = :id");
+        $stmt->execute([
+            ':uh_id' => $uhId,
+            ':pax' => $newPax,
+            ':id' => $accessId,
+        ]);
+
+        $after = $this->findById($accessId) ?? [];
+        $this->audit('update_pax_uh_2min', $userId, $before, $after, 'acessos', $accessId);
     }
 
     public function findById(int $id): ?array

@@ -455,6 +455,37 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
         }
     }
 
+    function visibleUrlForAjax(url) {
+        try {
+            const visible = new URL(url.toString(), window.location.origin);
+            const route = (visible.searchParams.get('r') || '').replace(/^\/+/, '');
+            if (!route) {
+                return visible.toString();
+            }
+            const cleanRoutes = new Set([
+                'auditoria/index',
+                'dashboard',
+                'dashboard/index',
+                'dashboard/restaurant',
+                'kpis/index',
+                'relatorios/index',
+                'relatoriosTematicos/index',
+            ]);
+            if (!cleanRoutes.has(route)) {
+                return visible.toString();
+            }
+            const cleanRoute = route.endsWith('/index') ? route.slice(0, -6) : route;
+            const keep = new URLSearchParams();
+            keep.set('r', cleanRoute);
+            if (route === 'dashboard/restaurant' && visible.searchParams.get('id')) {
+                keep.set('id', visible.searchParams.get('id'));
+            }
+            return visible.pathname + '?' + keep.toString();
+        } catch (e) {
+            return url.toString();
+        }
+    }
+
     async function replaceTarget(url, selector, options = {}) {
         const target = document.querySelector(selector);
         if (!target) {
@@ -501,7 +532,7 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
             if (doc.title) {
                 document.title = doc.title;
             }
-            window.history.pushState({ ajaxFilter: true, selector }, '', url.toString());
+            window.history.pushState({ ajaxFilter: true, selector, fullUrl: url.toString() }, '', visibleUrlForAjax(url));
             document.dispatchEvent(new CustomEvent('fbcontrol:partial-update', {
                 detail: { url: url.toString(), selector },
             }));

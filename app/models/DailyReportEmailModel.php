@@ -319,7 +319,10 @@ class DailyReportEmailModel extends Model
             'PAX PRIVILEGED' => $this->sumPrivileged($dateRef),
             'PAX VIP PREMIUM' => $this->sumVipPremium($dateRef),
             'PAX DAY USE' => $this->sumByUhTecnica($dateRef, '999'),
-            'PAX NÃO INFORMADO' => $this->sumByUhTecnica($dateRef, '998'),
+            'PAX NÃO INFORMADO CAFÉ DA MANHÃ' => $this->sumByUhTecnicaOperacao($dateRef, '998', ['cafe da manha', 'café da manhã', 'cafe', 'café']),
+            'PAX NÃO INFORMADO ALMOÇO' => $this->sumByUhTecnicaOperacao($dateRef, '998', ['almoco', 'almoço']),
+            'PAX NÃO INFORMADO JANTAR' => $this->sumByUhTecnicaOperacao($dateRef, '998', ['jantar']),
+            'PAX NÃO INFORMADO TOTAL' => $this->sumByUhTecnica($dateRef, '998'),
             'VOUCHERS REGISTRADOS' => $this->sumVouchers($dateRef),
             'PAX RESERVADA GIARDINO' => $this->sumTematicaReservada($dateRef, 'giardino'),
             'PAX REAL GIARDINO' => $this->sumTematicaReal($dateRef, 'giardino'),
@@ -421,6 +424,34 @@ class DailyReportEmailModel extends Model
             ':d_end' => $dateEnd,
             ':uh' => $uhNumero,
         ]);
+        $row = $stmt->fetch();
+        return (int)($row['total'] ?? 0);
+    }
+
+    private function sumByUhTecnicaOperacao(string $dateRef, string $uhNumero, array $operacoesLike): int
+    {
+        $whereOp = [];
+        $params = [':uh' => $uhNumero];
+        [$dateStart, $dateEnd] = $this->dayRange($dateRef);
+        $params[':d_start'] = $dateStart;
+        $params[':d_end'] = $dateEnd;
+        foreach ($operacoesLike as $idx => $op) {
+            $key = ':op' . $idx;
+            $whereOp[] = 'LOWER(o.nome) LIKE ' . $key;
+            $params[$key] = '%' . mb_strtolower($op, 'UTF-8') . '%';
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT COALESCE(SUM(a.pax), 0) AS total
+            FROM acessos a
+            JOIN unidades_habitacionais uh ON uh.id = a.uh_id
+            JOIN operacoes o ON o.id = a.operacao_id
+            WHERE a.criado_em >= :d_start
+              AND a.criado_em < :d_end
+              AND uh.numero = :uh
+              AND (" . implode(' OR ', $whereOp) . ")
+        ");
+        $stmt->execute($params);
         $row = $stmt->fetch();
         return (int)($row['total'] ?? 0);
     }

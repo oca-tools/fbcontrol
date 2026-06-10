@@ -12,6 +12,7 @@ $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 $canCancel = $this->data['can_cancel'] ?? false;
 $lastEditableAccess = $this->data['last_editable_access'] ?? null;
+$lastEditableAccesses = $this->data['last_editable_accesses'] ?? ($lastEditableAccess ? [$lastEditableAccess] : []);
 $tematicaConflict = $this->data['tematica_conflict'] ?? null;
 $duplicateConfirm = $this->data['duplicate_confirm'] ?? null;
 // Tutorial legado desativado: agora usamos o tutorial guiado global por página/perfil.
@@ -721,29 +722,42 @@ $showHostessTutorial = false;
                     <button type="submit" class="btn btn-success btn-xl w-100"><i class="bi bi-check2-circle me-1"></i>Registrar</button>
                 </form>
 
-                <?php if (!empty($lastEditableAccess)): ?>
+                <?php if (!empty($lastEditableAccesses)): ?>
                     <hr class="my-4">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <div class="text-uppercase text-muted small">Correção rápida (2 min)</div>
                             <div class="small text-muted">
-                                Último lançamento: UH <?= h(uh_label($lastEditableAccess['uh_numero'])) ?> - PAX atual <?= (int)$lastEditableAccess['pax'] ?>
+                                Ajuste UH ou PAX dos dois últimos lançamentos feitos neste turno.
                             </div>
                         </div>
                         <span class="badge badge-warning">Janela curta</span>
                     </div>
-                    <form method="post" action="/?r=access/correct_last" class="row g-2 align-items-end">
-                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                        <div class="col-7">
-                            <label class="form-label mb-1">Novo PAX</label>
-                            <input type="number" min="1" name="pax_corrigido" class="form-control input-xl" value="<?= (int)$lastEditableAccess['pax'] ?>" required>
-                        </div>
-                        <div class="col-5">
-                            <button type="submit" class="btn btn-outline-primary btn-xl w-100" data-confirm="Confirmar correção do último lançamento?" data-confirm-title="Corrigir lançamento">
-                                Corrigir
-                            </button>
-                        </div>
-                    </form>
+                    <div class="d-grid gap-2">
+                        <?php foreach ($lastEditableAccesses as $idx => $editable): ?>
+                            <form method="post" action="/?r=access/correct_last" class="row g-2 align-items-end quick-correction-row">
+                                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                <input type="hidden" name="access_id" value="<?= (int)$editable['id'] ?>">
+                                <div class="col-12 small text-muted">
+                                    <?= $idx === 0 ? 'Mais recente' : 'Registro anterior' ?>:
+                                    UH <?= h(uh_label($editable['uh_numero'])) ?> - PAX <?= (int)$editable['pax'] ?>
+                                </div>
+                                <div class="col-5">
+                                    <label class="form-label mb-1">UH</label>
+                                    <input type="text" inputmode="numeric" name="uh_corrigida" class="form-control input-xl" value="<?= h($editable['uh_numero']) ?>" required>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label mb-1">PAX</label>
+                                    <input type="number" min="1" name="pax_corrigido" class="form-control input-xl" value="<?= (int)$editable['pax'] ?>" required>
+                                </div>
+                                <div class="col-3">
+                                    <button type="submit" class="btn btn-outline-primary btn-xl w-100" data-confirm="Confirmar correção deste lançamento?" data-confirm-title="Corrigir lançamento">
+                                        OK
+                                    </button>
+                                </div>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -1140,4 +1154,3 @@ $showHostessTutorial = false;
     </script>
 <?php endif; ?>
 </div>
-

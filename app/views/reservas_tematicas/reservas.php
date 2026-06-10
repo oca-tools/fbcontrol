@@ -1727,16 +1727,6 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     turnoSelect?.addEventListener('change', updateSelectedSlot);
 
     const showTurnoPopup = (html) => {
-        if (window.Swal) {
-            window.Swal.fire({
-                title: 'Detalhes do turno',
-                html,
-                width: 920,
-                confirmButtonText: 'Fechar'
-            });
-            return;
-        }
-
         if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
             let modalEl = document.getElementById('availabilityDetailModal');
             if (!modalEl) {
@@ -1746,14 +1736,17 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
                 modalEl.tabIndex = -1;
                 modalEl.innerHTML = `
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                        <div class="modal-content">
+                        <div class="modal-content availability-modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Detalhes do turno</h5>
+                                <div>
+                                    <div class="text-uppercase text-muted small">Reservas do turno</div>
+                                    <h5 class="modal-title fw-bold mb-0">Detalhes de ocupação</h5>
+                                </div>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                             </div>
                             <div class="modal-body" id="availabilityDetailModalBody"></div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>
+                                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Fechar</button>
                             </div>
                         </div>
                     </div>
@@ -1763,6 +1756,16 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
             const bodyEl = modalEl.querySelector('#availabilityDetailModalBody');
             if (bodyEl) bodyEl.innerHTML = html;
             window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            return;
+        }
+
+        if (window.Swal) {
+            window.Swal.fire({
+                title: 'Detalhes do turno',
+                html,
+                width: 920,
+                confirmButtonText: 'Fechar'
+            });
             return;
         }
 
@@ -1797,6 +1800,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
                             <span>${escapeHtml(String(item.pax ?? 0))} PAX</span>
                             <span>${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
                             <span>${escapeHtml(item.status || 'Reservada')}</span>
+                            <span>Criado por ${escapeHtml(item.usuario || '-')}</span>
                         </div>
                     </div>
                     ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft">Somente autor</span>'}
