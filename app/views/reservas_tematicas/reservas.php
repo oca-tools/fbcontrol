@@ -794,9 +794,12 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     gap: 0.65rem;
     align-items: center;
     border: 1px solid color-mix(in srgb, var(--ab-border) 80%, transparent);
-    border-radius: 14px;
-    padding: 0.75rem;
-    background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+    border-radius: 16px;
+    padding: 0.78rem;
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--ab-accent) 4%, transparent), transparent 62%),
+        color-mix(in srgb, var(--ab-card) 96%, var(--ab-soft-bg) 4%);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
 .availability-detail-title {
@@ -808,17 +811,68 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 .availability-detail-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
-    margin-top: 0.4rem;
+    gap: 0.42rem;
+    margin-top: 0.48rem;
 }
 
-.availability-detail-meta span {
+.availability-detail-meta .detail-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ab-soft-bg) 82%, var(--ab-card) 18%);
-    color: var(--ab-muted);
-    font-size: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--ab-border) 54%, transparent);
+    background: color-mix(in srgb, var(--ab-soft-bg) 76%, var(--ab-card) 24%);
+    color: var(--ab-ink);
+    font-size: 0.74rem;
+    font-weight: 820;
+    line-height: 1;
+    padding: 0.36rem 0.58rem;
+    white-space: nowrap;
+}
+
+.availability-detail-meta .detail-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.65;
+}
+
+.availability-detail-meta .detail-badge.is-uh {
+    color: #0f766e;
+    background: color-mix(in srgb, #ccfbf1 74%, var(--ab-card) 26%);
+    border-color: color-mix(in srgb, #0f766e 22%, transparent);
+}
+
+.availability-detail-meta .detail-badge.is-pax {
+    color: #1d4ed8;
+    background: color-mix(in srgb, #dbeafe 76%, var(--ab-card) 24%);
+    border-color: color-mix(in srgb, #1d4ed8 20%, transparent);
+}
+
+.availability-detail-meta .detail-badge.is-chd {
+    color: #7c3aed;
+    background: color-mix(in srgb, #ede9fe 78%, var(--ab-card) 22%);
+    border-color: color-mix(in srgb, #7c3aed 18%, transparent);
+}
+
+.availability-detail-meta .detail-badge.is-status {
+    color: #c2410c;
+    background: color-mix(in srgb, #ffedd5 80%, var(--ab-card) 20%);
+    border-color: color-mix(in srgb, #f97316 24%, transparent);
+}
+
+.availability-detail-meta .detail-badge.is-user {
+    color: #475569;
+    background: color-mix(in srgb, #f1f5f9 86%, var(--ab-card) 14%);
+    border-color: color-mix(in srgb, #64748b 18%, transparent);
+}
+
+.availability-detail-action {
+    min-width: 72px;
+    border-radius: 999px;
     font-weight: 760;
-    padding: 0.24rem 0.5rem;
 }
 
 .availability-detail-empty {
@@ -828,6 +882,17 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     color: var(--ab-muted);
     text-align: center;
     background: color-mix(in srgb, var(--ab-soft-bg) 62%, transparent);
+}
+
+html[data-theme='dark'] .availability-detail-item {
+    background: rgba(15, 23, 42, 0.58);
+    box-shadow: none;
+}
+
+html[data-theme='dark'] .availability-detail-meta .detail-badge {
+    background: rgba(30, 41, 59, 0.78);
+    border-color: rgba(148, 163, 184, 0.18);
+    color: #e2e8f0;
 }
 
 .batch-rows {
@@ -1074,6 +1139,17 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 
     .availability-modal-content .modal-footer .btn {
         width: 100%;
+    }
+
+    .availability-detail-item {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: 0.7rem;
+    }
+
+    .availability-detail-action {
+        width: 100%;
+        justify-content: center;
     }
 
     .reservation-person-panel {
@@ -1796,14 +1872,14 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
                     <div>
                         <div class="availability-detail-title">${escapeHtml(item.titular_nome || '-')}</div>
                         <div class="availability-detail-meta">
-                            <span>UH ${escapeHtml(item.uh_numero || '-')}</span>
-                            <span>${escapeHtml(String(item.pax ?? 0))} PAX</span>
-                            <span>${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
-                            <span>${escapeHtml(item.status || 'Reservada')}</span>
-                            <span>Criado por ${escapeHtml(item.usuario || '-')}</span>
+                            <span class="detail-badge is-uh">UH ${escapeHtml(item.uh_numero || '-')}</span>
+                            <span class="detail-badge is-pax">${escapeHtml(String(item.pax ?? 0))} PAX</span>
+                            <span class="detail-badge is-chd">${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
+                            <span class="detail-badge is-status">${escapeHtml(item.status || 'Reservada')}</span>
+                            <span class="detail-badge is-user">Criado por ${escapeHtml(item.usuario || '-')}</span>
                         </div>
                     </div>
-                    ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft">Somente autor</span>'}
+                    ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm availability-detail-action" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft availability-detail-action">Somente autor</span>'}
                 </div>
             `).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
