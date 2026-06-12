@@ -8,9 +8,9 @@ O principal risco agora e manutencao: regras importantes ainda estao concentrada
 
 Prioridade recomendada:
 
-1. Continuar modularizando aos poucos os fluxos criticos.
-2. Evoluir o smoke check inicial para testes pequenos de regras sensiveis.
-3. Preparar deploy/schema do v2.4 no VPS quando aprovado.
+1. Concluir saneamento de auditoria e aplicar a migration de seguranca.
+2. Evoluir o smoke check para testes pequenos de regras sensiveis.
+3. Modularizar os fluxos criticos com cobertura minima.
 4. So depois evoluir produto com features novas.
 
 ## Classificacao de risco
@@ -24,41 +24,37 @@ Prioridade recomendada:
 
 ## P0 - Riscos criticos
 
-### Nenhum P0 confirmado
+### Segredos em payloads de auditoria
 
-Nao encontrei, nesta rodada, um risco critico imediato como:
+Status no codigo: **CORRIGIDO**.
 
-- Erro de sintaxe em PHP ativo.
-- Divergencia estrutural entre banco real e migrations aplicadas.
-- Upload sem validacao basica.
-- Ausencia geral de CSRF.
-- Senhas sem hash.
-- Roteamento permitindo action arbitraria herdada.
+O cadastro de usuario enviava o campo `senha` recebido pelo controller para `Model::audit`.
+Snapshots de usuario tambem podiam duplicar hashes de senha dentro de `dados_antes` e
+`dados_depois`.
 
-Validacoes realizadas:
+Controles implementados:
 
-- 94 arquivos PHP ativos passaram em `php -l`.
-- Banco real bateu com `schema_v2_1_final.sql` + migrations.
-- Upload de foto e voucher valida tamanho, extensao e MIME.
-- Senhas usam `password_hash` e `password_verify`.
-- POST tem CSRF global no bootstrap.
+- Redacao recursiva de senhas, tokens e outros segredos no nucleo `Model::audit`.
+- `SecurityLogModel` usa a mesma redacao.
+- O cadastro registra apenas `senha_definida = true`.
+- `tools/check_audit_sanitizer.php` impede regressao basica.
+- `tools/sanitize_audit_sensitive_data.php` limpa payloads historicos em dry-run ou `--apply`.
+
+Acao obrigatoria no deploy:
+
+1. Fazer backup do banco.
+2. Aplicar `sql/migration_v3_1_audit_security.sql`.
+3. Executar `php tools/sanitize_audit_sensitive_data.php`.
+4. Revisar a contagem e executar novamente com `--apply`.
 
 ## P1 - Riscos altos
 
-### README e instalacao desatualizados
+### README e instalacao
 
-O `README.md` menciona arquivos antigos como `schema_v1_1_final.sql` e migrations v2.0 que nao aparecem na release atual.
+Status: **RESOLVIDO**.
 
-Impacto:
-
-- Novo deploy pode ser feito na ordem errada.
-- Ambiente local de outro desenvolvedor pode nascer incompleto.
-- Risco de usar `schema_v2_1_final.sql` sozinho e perder tabelas/colunas das migrations v2.2/v2.3.
-
-Acao recomendada:
-
-- Atualizar README com a ordem real:
-  `schema_v2_1_final.sql`, security hardening, users email non unique, reservas lote/CHD, titular nome, grupo nome.
+O `README.md` aponta para `sql/schema_v3_0.sql` em instalacoes novas e lista as migrations de
+upgrade em ordem. O fluxo de upgrade tambem documenta o saneamento da auditoria.
 
 ### `auto_cancel_no_show_min` preparado no codigo, ausente no schema original
 
@@ -82,44 +78,27 @@ Acao pendente:
 
 ### E-mail compartilhado por varias hostess
 
-No banco local, 10 hostess ativas usam `hostessoca@gmail.com`.
+Status: **RISCO ACEITO TEMPORARIAMENTE**.
 
-Impacto:
+O login desambigua contas por senha e associa operacoes ao `usuario_id`, mas isso identifica a
+credencial aceita, nao garante qual pessoa utilizou o equipamento. A politica e os controles
+obrigatorios estao em `docs/FBCONTROL_POLITICA_EMAIL_COMPARTILHADO.md`.
 
-- Auditoria de login por e-mail perde valor.
-- Recuperacao/gestao de identidade fica confusa.
-- `UserModel::authenticateByEmailAndPassword` trata multiplos usuarios com mesmo e-mail, o que exige cuidado operacional.
+Evolucao recomendada:
 
-Observacao:
-
-- O sistema parece ter sido ajustado para permitir e-mail nao unico.
-- Isso pode ser uma decisao operacional, nao necessariamente bug.
-
-Acao recomendada:
-
-- Definir politica: e-mail compartilhado e permitido oficialmente ou e um workaround?
-- Se for permitido, documentar.
-- Se nao for, criar login por usuario/codigo ou exigir e-mail unico por pessoa.
+- Criar identificador individual de login (usuario, matricula ou codigo).
+- Manter o e-mail compartilhado apenas como contato operacional.
 
 ### Arquivos `.bak` dentro da release
 
-Foram encontrados 41 arquivos `.bak*`, somando cerca de 1,8 MB. Eles foram movidos para `apps/fbcontrol/_archive_bak_20260427` no ambiente local.
+Status: **RESOLVIDO NO FLUXO OFICIAL**.
 
-Impacto:
+`tools/build_release.php` empacota apenas arquivos rastreados e exclui `.bak*`.
+`tools/check_release_hygiene.php --strict` bloqueia artefatos rastreados.
 
-- Busca no codigo fica poluida.
-- Risco de editar arquivo errado.
-- Deploy carrega historico operacional desnecessario.
-- Pode vazar logica antiga ou informacao sensivel no pacote.
-
-Status apos saneamento local:
-
-- Backups movidos para fora da release operacional.
-- Inventario mantido em `docs/FBCONTROL_BACKUPS_BAK_INVENTARIO.md`.
-
-Acao pendente:
-
-- Adicionar uma verificacao de deploy para bloquear `.bak*`.
+Limitacao: essa garantia depende do builder oficial. Compactar manualmente a pasta inteira pode
+incluir arquivos nao rastreados, portanto deploys devem usar exclusivamente o builder ou
+`git archive`.
 
 ## P2 - Dividas tecnicas importantes
 
@@ -299,6 +278,8 @@ Objetivo: reduzir risco antes de mexer em feature.
 
 Tarefas:
 
+- Aplicar a migration de auditoria e sanear payloads historicos.
+- Manter a politica de e-mail compartilhado como risco aceito e revisado.
 - Atualizar README de instalacao.
 - Manter `schema_v3_0.sql` como schema consolidado de instalacao nova.
 - Remover/mover `.bak*` da release operacional.
@@ -311,24 +292,7 @@ Resultado esperado:
 - Codigo fica menos poluido.
 - Schema minimo fica claro.
 
-### Fase 1 - Refatoracao sem mudar comportamento
-
-Objetivo: quebrar arquivos gigantes em partes menores.
-
-Tarefas:
-
-- Continuar separando `header.php` em partials.
-- Separar scripts globais do `footer.php`.
-- Manter bootstraps web/CLI compartilhados pequenos e sem regra de negocio.
-- Extrair helpers de permissao.
-- Criar camada inicial de service para reservas tematicas.
-
-Resultado esperado:
-
-- Menos risco em alteracoes futuras.
-- Mais clareza para novas features.
-
-### Fase 2 - Testes de regras criticas
+### Fase 1 - Testes de regras criticas
 
 Objetivo: proteger fluxos que geram dinheiro/operacao.
 
@@ -342,6 +306,23 @@ Tarefas:
 Resultado esperado:
 
 - Mudancas deixam de depender so de teste manual.
+
+### Fase 2 - Refatoracao sem mudar comportamento
+
+Objetivo: quebrar arquivos gigantes em partes menores com cobertura minima.
+
+Tarefas:
+
+- Continuar separando `header.php` em partials.
+- Separar scripts globais do `footer.php`.
+- Manter bootstraps web/CLI compartilhados pequenos e sem regra de negocio.
+- Extrair helpers de permissao.
+- Criar camada inicial de service para reservas tematicas.
+
+Resultado esperado:
+
+- Menos risco em alteracoes futuras.
+- Mais clareza para novas features.
 
 ### Fase 3 - Produto e inteligencia operacional
 

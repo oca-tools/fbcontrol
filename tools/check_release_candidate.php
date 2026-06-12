@@ -44,11 +44,15 @@ try {
         'docs/LGPD_OPERACAO.md',
         'sql/schema_v3_0.sql',
         'sql/migration_v2_9_performance_indexes.sql',
+        'sql/migration_v3_1_audit_security.sql',
         'tools/run_checks.php',
         'tools/healthcheck_fbcontrol.php',
         'tools/check_db_context.php',
         'tools/check_release_hygiene.php',
         'tools/build_release.php',
+        'tools/check_audit_sanitizer.php',
+        'tools/apply_audit_security_migration.php',
+        'tools/sanitize_audit_sensitive_data.php',
     ];
     foreach ($requiredFiles as $file) {
         $record('file_' . str_replace(['/', '.', '-'], '_', $file), is_file($file), $file);

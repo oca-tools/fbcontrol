@@ -73,6 +73,19 @@ try {
     }
 
     $stmt = $db->query("
+        SELECT IS_NULLABLE
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'auditoria'
+          AND COLUMN_NAME = 'usuario_id'
+    ");
+    $record(
+        'nullable_auditoria_usuario_id',
+        $stmt->fetchColumn() === 'YES',
+        'eventos pre-login exigem usuario_id nulo'
+    );
+
+    $stmt = $db->query("
         SELECT COUNT(*)
         FROM usuarios
         WHERE perfil = 'admin'

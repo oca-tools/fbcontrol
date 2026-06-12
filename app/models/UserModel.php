@@ -95,7 +95,10 @@ class UserModel extends Model
         ]);
 
         $id = (int)$this->db->lastInsertId();
-        $this->audit('create', $userId, [], array_merge($data, ['id' => $id]), 'usuarios', $id);
+        $auditData = $data;
+        unset($auditData['senha']);
+        $auditData['senha_definida'] = true;
+        $this->audit('create', $userId, [], array_merge($auditData, ['id' => $id]), 'usuarios', $id);
         return $id;
     }
 

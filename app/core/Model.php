@@ -2,6 +2,15 @@
 class Model
 {
     protected PDO $db;
+    private const AUDIT_REDACTED_VALUE = '[REDACTED]';
+    private const AUDIT_SENSITIVE_SEGMENTS = [
+        'senha',
+        'password',
+        'passwd',
+        'token',
+        'authorization',
+        'secret',
+    ];
 
     public function __construct()
     {
@@ -46,8 +55,35 @@ class Model
         }
     }
 
+    public static function sanitizeAuditPayload(array $payload): array
+    {
+        $sanitized = [];
+        foreach ($payload as $key => $value) {
+            $rawKey = trim((string)$key);
+            $snakeKey = preg_replace('/(?<!^)[A-Z]/', '_$0', $rawKey);
+            $normalizedKey = strtolower(str_replace('-', '_', (string)$snakeKey));
+            $segments = array_filter(explode('_', $normalizedKey), static fn(string $part): bool => $part !== '');
+            $isSensitive = $normalizedKey === 'apikey'
+                || $normalizedKey === 'api_key'
+                || count(array_intersect($segments, self::AUDIT_SENSITIVE_SEGMENTS)) > 0;
+
+            if ($isSensitive) {
+                $sanitized[$key] = self::AUDIT_REDACTED_VALUE;
+                continue;
+            }
+
+            $sanitized[$key] = is_array($value)
+                ? self::sanitizeAuditPayload($value)
+                : $value;
+        }
+
+        return $sanitized;
+    }
+
     protected function audit(string $action, int $userId, array $before, array $after, string $table, ?int $recordId = null): void
     {
+        $before = self::sanitizeAuditPayload($before);
+        $after = self::sanitizeAuditPayload($after);
         $stmt = $this->db->prepare("
             INSERT INTO auditoria (tabela, registro_id, acao, usuario_id, dados_antes, dados_depois, criado_em)
             VALUES (:tabela, :registro_id, :acao, :usuario_id, :dados_antes, :dados_depois, NOW())

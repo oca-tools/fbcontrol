@@ -4,6 +4,7 @@ class SecurityLogModel extends Model
     public function log(string $action, ?int $userId = null, array $context = []): void
     {
         try {
+            $context = self::sanitizeAuditPayload($context);
             $stmt = $this->db->prepare("
                 INSERT INTO auditoria (tabela, registro_id, acao, usuario_id, dados_antes, dados_depois, criado_em)
                 VALUES (:tabela, :registro_id, :acao, :usuario_id, :dados_antes, :dados_depois, NOW())
@@ -21,4 +22,3 @@ class SecurityLogModel extends Model
         }
     }
 }
-

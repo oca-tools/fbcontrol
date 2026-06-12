@@ -48,9 +48,26 @@ mysql -u usuario -p nome_do_banco < sql/migration_v2_6_reservas_tematicas_bloque
 mysql -u usuario -p nome_do_banco < sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_8_turnos_modo_demo.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_9_performance_indexes.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
 ```
 
 Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v3_0.sql`.
+
+Como alternativa idempotente ao comando MySQL, a migration pode usar a configuracao do aplicativo:
+
+```bash
+php tools/apply_audit_security_migration.php
+```
+
+Depois de aplicar `migration_v3_1_audit_security.sql`, revise e saneie payloads historicos:
+
+```bash
+php tools/sanitize_audit_sensitive_data.php
+php tools/sanitize_audit_sensitive_data.php --apply
+```
+
+O primeiro comando e somente leitura e informa quantas linhas precisam de redacao. Execute
+`--apply` apenas depois de confirmar que existe backup recente do banco.
 
 ## Rotas úteis
 - `/?r=access/index` (registro/turno)
@@ -106,6 +123,12 @@ Validação completa multiplataforma:
 ```bash
 php tools/run_checks.php
 php tools/check_release_candidate.php
+```
+
+Teste especifico da redacao de auditoria:
+
+```bash
+php tools/check_audit_sanitizer.php
 ```
 
 Higiene de release:

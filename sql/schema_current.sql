@@ -81,7 +81,7 @@ CREATE TABLE `auditoria` (
   `tabela` varchar(80) NOT NULL,
   `registro_id` int(11) DEFAULT NULL,
   `acao` varchar(40) NOT NULL,
-  `usuario_id` int(11) NOT NULL,
+  `usuario_id` int(11) DEFAULT NULL,
   `dados_antes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`dados_antes`)),
   `dados_depois` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`dados_depois`)),
   `criado_em` datetime NOT NULL,

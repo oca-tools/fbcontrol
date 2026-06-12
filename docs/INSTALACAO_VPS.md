@@ -78,9 +78,16 @@ No servidor, rode:
 
 ```bash
 cd /var/www/apps/fbcontrol/current
+mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
+php tools/apply_audit_security_migration.php
+php tools/sanitize_audit_sensitive_data.php
+php tools/sanitize_audit_sensitive_data.php --apply
 php tools/healthcheck_fbcontrol.php --strict
 php tools/check_db_context.php
 ```
+
+Antes do `--apply`, confirme que o backup do banco foi concluido. O dry-run nao altera dados e
+mostra somente contagens, sem imprimir senhas ou tokens.
 
 Se o healthcheck avisar que ha turnos ou reservas elegiveis para rotina automatica, confirme se os crons acima foram cadastrados no usuario correto e se estao gerando logs em `/var/log`.
 

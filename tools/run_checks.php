@@ -51,6 +51,7 @@ $lint = static function () use ($root, $php): int {
 
 $failed = 0;
 $failed += $lint();
+$failed += $run('Audit sanitizer', [$php, 'tools/check_audit_sanitizer.php']);
 $failed += $run('Smoke check', [$php, 'tools/smoke_fbcontrol.php']);
 $failed += $run('DB context', [$php, 'tools/check_db_context.php']);
 $failed += $run('Release hygiene', [$php, 'tools/check_release_hygiene.php']);

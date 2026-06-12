@@ -33,6 +33,9 @@ Release de polimento, escala e governanca.
 - Upload de foto de perfil e voucher com validacoes reforcadas.
 - Uso de `HTTP_HOST` removido de fallback sensivel de e-mail.
 - Scanner SAST local ampliado para casos de host header e request URI.
+- Auditoria passou a redigir senhas, tokens e outros segredos de forma recursiva.
+- Adicionada ferramenta de saneamento de payloads historicos da auditoria.
+- Eventos de seguranca anteriores ao login podem registrar `usuario_id` nulo.
 
 ### Operacao
 
