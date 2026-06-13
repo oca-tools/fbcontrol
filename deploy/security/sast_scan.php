@@ -8,6 +8,9 @@ if ($root === false) {
 }
 
 $targets = ['app', 'public', 'config'];
+$startsWith = static function (string $haystack, string $needle): bool {
+    return $needle === '' || strpos($haystack, $needle) === 0;
+};
 $rules = [
     [
         'id' => 'RCE_EVAL',
@@ -52,6 +55,18 @@ $rules = [
         'message' => 'REQUEST_URI deve passar por sanitizacao antes de ser reutilizado.',
         'ignore_if_contains' => ['sanitize_local_redirect_path'],
     ],
+    [
+        'id' => 'SCRIPT_JSON_XSS',
+        'severity' => 'HIGH',
+        'pattern' => '/<\?=\s*json_encode\s*\(/i',
+        'message' => 'JSON bruto dentro de script pode permitir encerramento da tag e XSS armazenado.',
+    ],
+    [
+        'id' => 'DIRECT_VOUCHER_URL',
+        'severity' => 'HIGH',
+        'pattern' => '/href\s*=\s*["\'][^"\']*voucher_anexo_path/i',
+        'message' => 'Voucher sensivel nao deve ser servido diretamente pelo diretorio publico.',
+    ],
 ];
 
 $findings = [];
@@ -72,7 +87,7 @@ foreach ($iter as $file) {
 
     $inTarget = false;
     foreach ($targets as $target) {
-        if (str_starts_with($relative, $target . '/')) {
+        if ($startsWith($relative, $target . '/')) {
             $inTarget = true;
             break;
         }
@@ -92,7 +107,7 @@ foreach ($iter as $file) {
 
     foreach ($lines as $lineNum => $line) {
         $trim = ltrim($line);
-        if (str_starts_with($trim, '//') || str_starts_with($trim, '#')) {
+        if ($startsWith($trim, '//') || $startsWith($trim, '#')) {
             continue;
         }
         foreach ($rules as $rule) {

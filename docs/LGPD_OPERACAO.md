@@ -5,7 +5,7 @@ Este guia define rotina operacional minima para conformidade diaria.
 ## 1) Responsaveis
 
 - Controlador: Grand Oca Maragogi Resort.
-- Operador: OCA Tools (servico de software e hospedagem, conforme contrato).
+- Operador técnico: responsável contratado pela hospedagem, manutenção e suporte do software, conforme contrato vigente.
 - Encarregado (DPO): preencher no modulo `/?r=lgpd/index`.
 
 ## 2) Base legal e finalidade
@@ -13,6 +13,8 @@ Este guia define rotina operacional minima para conformidade diaria.
 - Finalidade principal: controle operacional de acesso A&B, auditoria e relatorios de operacao.
 - Dados tratados: identificacao de UH, registros de turno, auditoria de uso, reservas tematicas e incidentes.
 - Minimizar dados pessoais: nao coletar campos sem necessidade operacional.
+- Campos livres devem evitar CPF, documentos, telefones, dados de saúde, dados financeiros e qualquer informação que não seja necessária à operação.
+- Vouchers e anexos devem circular apenas por relatórios e usuários autorizados.
 
 ## 3) Fluxo de solicitacao de titular
 
@@ -43,8 +45,16 @@ SLA sugerido:
 - Politicas em `lgpd_retencao_politicas`.
 - A rotina atual elimina registros vencidos somente em tabelas operacionais permitidas pelo sistema: auditoria, historico de e-mails diarios, eventos LGPD e sessoes ativas.
 - Anonimizacao de bases operacionais deve ser tratada como solicitacao registrada e analisada caso a caso; nao e executada automaticamente nesta versao.
+- Eventos internos de LGPD devem guardar metadados e status, nao documentos, e-mails ou textos livres completos.
 - Job diario: `app/cron/lgpd_retention.php`.
 - Toda limpeza deve gerar trilha de evento em `lgpd_eventos`.
+
+Saneamento de eventos historicos:
+
+```bash
+php tools/sanitize_lgpd_event_details.php
+php tools/sanitize_lgpd_event_details.php --apply
+```
 
 Cron recomendado:
 
@@ -66,6 +76,7 @@ Cron recomendado:
 - [ ] Testar restauracao de backup.
 - [ ] Revisar logs de autenticacao suspeita.
 - [ ] Atualizar contatos de controlador e DPO no modulo LGPD.
+- [ ] Revisar se eventos LGPD historicos ja foram saneados.
 
 ## 8) Observacao juridica
 

@@ -296,12 +296,22 @@ Resultado esperado:
 
 Objetivo: proteger fluxos que geram dinheiro/operacao.
 
+Status: **COBERTURA INICIAL IMPLEMENTADA**.
+
+`tools/test_critical_rules.php` usa tabelas temporarias e valida sem alterar dados reais:
+
+- duplicidade exata dentro da janela de 10 minutos;
+- multiplo acesso apenas no segundo registro, com PAX diferente e intervalo maior que 15 minutos;
+- exclusao das UHs tecnicas 998/999;
+- capacidade tematica com PAX real e reservas canceladas;
+- permissao de edicao por autoria e hierarquia;
+- encerramento por inatividade e protecao do modo demonstracao em turnos regulares e especiais.
+
 Tarefas:
 
-- Evoluir `tools/smoke_fbcontrol.php` ou criar base simples de testes PHP.
-- Testar regras de duplicidade, PAX, capacidade e turno.
-- Criar fixtures pequenas de banco ou mocks simples.
-- Testar permissao hostess/restaurante/operacao.
+- Ampliar gradualmente os cenarios conforme bugs reais forem corrigidos.
+- Adicionar cobertura de bloqueios semanais e por data.
+- Testar permissoes de vinculo entre hostess, restaurante e operacao.
 
 Resultado esperado:
 
@@ -311,20 +321,103 @@ Resultado esperado:
 
 Objetivo: quebrar arquivos gigantes em partes menores com cobertura minima.
 
+Status: **PRIMEIRO CICLO IMPLEMENTADO**.
+
+Entregas:
+
+- `ReservaTematicaPolicy` concentra autoria, UHs tecnicas e idades CHD.
+- `ShiftAutoCloseService` concentra encerramento automatico regular e especial.
+- `TematicAccessService` unifica classificacao de restaurantes, operacoes e acesso da hostess.
+- Scripts globais foram isolados em `footer_scripts.php`.
+- Estilos globais foram isolados em `style_global.php`.
+
 Tarefas:
 
-- Continuar separando `header.php` em partials.
-- Separar scripts globais do `footer.php`.
-- Manter bootstraps web/CLI compartilhados pequenos e sem regra de negocio.
-- Extrair helpers de permissao.
-- Criar camada inicial de service para reservas tematicas.
+- Continuar subdividindo scripts e estilos por responsabilidade.
+- Extrair proximas regras de reservas tematicas conforme a cobertura crescer.
+- Reduzir controllers grandes sem misturar mudanca visual ou funcional.
 
 Resultado esperado:
 
 - Menos risco em alteracoes futuras.
 - Mais clareza para novas features.
 
-### Fase 3 - Produto e inteligencia operacional
+### Fase 3 - Performance e escala
+
+Objetivo: manter consultas e exportacoes previsiveis com crescimento do historico.
+
+Status: **PRIMEIRO CICLO IMPLEMENTADO**.
+
+Entregas:
+
+- exportacoes lineares usam cursor por chave estavel, sem custo acumulado de `OFFSET`;
+- indices compostos cobrem filtros combinados de acessos e buscas tematicas;
+- `tools/check_query_performance.php` valida indices, planos `EXPLAIN` e total exportado;
+- schema consolidado e migration incremental permanecem alinhados.
+
+Tarefas:
+
+- acompanhar planos no VPS conforme o volume real crescer;
+- avaliar paginação por cursor na interface quando páginas muito profundas se tornarem comuns;
+- evoluir agregados anuais para tabelas de resumo somente quando medições justificarem.
+
+Resultado esperado:
+
+- exportacoes extensas sem crescimento quadratico de leitura;
+- regressões de indice detectadas antes do deploy.
+
+### Fase 3.1 - Endurecimento de seguranca
+
+Objetivo: reduzir a superficie de ataque antes de novas evolucoes funcionais.
+
+Status: **PRIMEIRO CICLO IMPLEMENTADO**.
+
+Entregas:
+
+- revalidacao periodica do usuario autenticado para encerrar sessoes de contas desativadas;
+- codificacao segura de dados PHP inseridos em JavaScript;
+- anexos de vouchers servidos somente por rota autenticada;
+- bloqueio HTTP direto ao diretorio de vouchers;
+- validacao restrita de caminhos e extensoes de fotos e vouchers;
+- limites de diretorio com separador completo, evitando confusao por prefixos semelhantes;
+- protecao contra clickjacking com `DENY` e `frame-ancestors 'none'`;
+- scanner SAST ampliado para JSON bruto em scripts e links diretos de vouchers;
+- testes automatizados dos controles de seguranca adicionados ao runner principal.
+
+Revisao executada:
+
+- nenhum uso de `eval`, desserializacao insegura ou execucao de comandos foi encontrado no codigo web;
+- consultas com trechos dinamicos usam valores internos ou listas permitidas;
+- CSRF global, consultas preparadas e validacao de MIME existentes foram mantidos.
+
+Tarefas:
+
+- validar no VPS se o Apache respeita o bloqueio direto em `/uploads/vouchers/`;
+- acompanhar logs de sessao encerrada por usuario desativado;
+- repetir a auditoria sempre que novas rotas de upload ou download forem adicionadas.
+
+### Fase 3.2 - LGPD e minimizacao operacional
+
+Objetivo: reduzir duplicacao de dados pessoais em logs internos e orientar operadores.
+
+Status: **PRIMEIRO CICLO IMPLEMENTADO**.
+
+Entregas:
+
+- eventos internos de LGPD passam a redigir documentos, e-mails, nomes de titulares e textos livres;
+- formulários rápidos de status não carregam mais documento/e-mail/detalhes em campos ocultos;
+- campos livres do módulo LGPD foram limitados e higienizados;
+- exportação tabular de vouchers não expõe mais o caminho técnico do anexo;
+- aviso de privacidade ganhou seção objetiva de minimização para a operação;
+- `tools/sanitize_lgpd_event_details.php` permite medir e sanear eventos históricos.
+
+Tarefas:
+
+- executar o saneamento de eventos LGPD no VPS em modo dry-run e depois com `--apply`;
+- revisar contatos de controlador/encarregado antes do uso formal;
+- alinhar o aviso com a redação jurídica dos termos de check-in.
+
+### Fase 4 - Produto e inteligencia operacional
 
 Objetivo: transformar dados em acao.
 

@@ -227,6 +227,7 @@ class RelatoriosController extends Controller
                 ],
             ];
         }
+        $uploadRootPrefix = rtrim($uploadRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
         $files = [];
         $stats = [
@@ -243,7 +244,7 @@ class RelatoriosController extends Controller
             }
 
             $fullPath = realpath(dirname(__DIR__, 2) . '/public' . $publicPath);
-            if ($fullPath === false || strpos($fullPath, $uploadRoot) !== 0 || !is_file($fullPath)) {
+            if ($fullPath === false || strpos($fullPath, $uploadRootPrefix) !== 0 || !is_file($fullPath)) {
                 continue;
             }
 
@@ -727,7 +728,7 @@ class RelatoriosController extends Controller
         $totalRows = $model->countByFilters($filters);
         $this->auditExport('vouchers', $filters, $type, $totalRows);
         $out = $this->prepareTabularDownload('vouchers_registrados', $type);
-        fputcsv($out, ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo', 'restaurante', 'operacao', 'usuario']);
+        fputcsv($out, ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo_registrado', 'restaurante', 'operacao', 'usuario']);
         $model->exportByFilters($filters, static function (array $r) use ($out): void {
             fputcsv($out, [
                 $r['criado_em'],
@@ -737,7 +738,7 @@ class RelatoriosController extends Controller
                 $r['servico_upselling'],
                 $r['assinatura'],
                 $r['data_venda'],
-                $r['voucher_anexo_path'] ?? '',
+                safe_public_upload_url((string)($r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'não',
                 $r['restaurante'],
                 $r['operacao'],
                 $r['usuario'],

@@ -76,6 +76,12 @@ $record('export_ignore_uploads', strpos($gitattributes, 'public/uploads/** expor
 $record('keep_uploads_htaccess', strpos($gitattributes, 'public/uploads/.htaccess -export-ignore') !== false, '.htaccess de uploads preservado');
 
 $record('uploads_htaccess_exists', is_file('public/uploads/.htaccess'), 'protege uploads no Apache');
+$uploadsHtaccess = $read('public/uploads/.htaccess');
+$record(
+    'voucher_direct_access_blocked',
+    strpos($uploadsHtaccess, 'RewriteRule ^vouchers') !== false && strpos($uploadsHtaccess, '[F,L]') !== false,
+    'bloqueia acesso HTTP direto aos vouchers'
+);
 
 foreach ($checks as $check) {
     echo ($check['ok'] ? '[OK] ' : '[FAIL] ') . $check['name'];

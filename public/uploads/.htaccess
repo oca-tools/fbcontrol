@@ -1,4 +1,6 @@
 Options -Indexes
+RewriteEngine On
+RewriteRule ^vouchers(?:/|$) - [F,L]
 
 <FilesMatch "\.(php|phtml|php[0-9]?|phar|cgi|pl|py|sh|asp|aspx|jsp|exe|dll|bat|cmd)$">
     Require all denied

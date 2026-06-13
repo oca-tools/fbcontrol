@@ -634,10 +634,10 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
     const gridColor = isDark ? 'rgba(148,163,184,.14)' : 'rgba(100,116,139,.14)';
     const textColor = isDark ? '#e2e8f0' : '#0f172a';
 
-    const hourlyFlowRows = <?= json_encode($hourlyOperationFlow, JSON_UNESCAPED_UNICODE) ?> || [];
-    const opMix = <?= json_encode($operationMix, JSON_UNESCAPED_UNICODE) ?> || [];
-    const restMix = <?= json_encode($restaurantMix, JSON_UNESCAPED_UNICODE) ?> || [];
-    const timeline = <?= json_encode($occupancyTimeline, JSON_UNESCAPED_UNICODE) ?> || [];
+    const hourlyFlowRows = <?= json_for_html($hourlyOperationFlow) ?> || [];
+    const opMix = <?= json_for_html($operationMix) ?> || [];
+    const restMix = <?= json_for_html($restaurantMix) ?> || [];
+    const timeline = <?= json_for_html($occupancyTimeline) ?> || [];
 
     const flowEl = document.getElementById('kpiHourlyOperationChart');
     if (flowEl) {

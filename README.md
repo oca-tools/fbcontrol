@@ -48,6 +48,7 @@ mysql -u usuario -p nome_do_banco < sql/migration_v2_6_reservas_tematicas_bloque
 mysql -u usuario -p nome_do_banco < sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_8_turnos_modo_demo.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_9_performance_indexes.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_0_query_performance.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
 ```
 
@@ -56,6 +57,7 @@ Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos m
 Como alternativa idempotente ao comando MySQL, a migration pode usar a configuracao do aplicativo:
 
 ```bash
+php tools/apply_query_performance_indexes.php
 php tools/apply_audit_security_migration.php
 ```
 
@@ -104,6 +106,15 @@ php tools/check_db_context.php
 
 Use antes de revisar login, relatórios ou deploy. Ela confirma se o runtime está conectado em um banco coerente, com tabelas/migrations críticas e administrador ativo. No ambiente local com dados reais importados do VPS, o banco esperado é `controle_ab_vps`; o banco `controle_ab` pode existir como base antiga/de teste e não deve ser usado para validar credenciais ou dados operacionais.
 
+Checagem de consultas e exportacoes:
+
+```bash
+php tools/check_query_performance.php
+```
+
+Ela confirma os indices compostos, registra os planos `EXPLAIN` representativos e compara
+a contagem esperada com a quantidade realmente percorrida pelas exportacoes por cursor.
+
 Healthcheck operacional:
 
 ```bash
@@ -130,6 +141,15 @@ Teste especifico da redacao de auditoria:
 ```bash
 php tools/check_audit_sanitizer.php
 ```
+
+Testes isolados das regras operacionais criticas:
+
+```bash
+php tools/test_critical_rules.php
+```
+
+Esse teste usa apenas tabelas temporarias na conexao local. Nenhuma linha das tabelas
+operacionais e inserida, alterada ou removida.
 
 Higiene de release:
 

@@ -37,11 +37,25 @@ class CollaboratorMealModel extends Model
         return $where;
     }
 
-    public function listByFilters(array $filters, ?int $limit = null, int $offset = 0): array
+    public function listByFilters(
+        array $filters,
+        ?int $limit = null,
+        int $offset = 0,
+        ?string $afterCreatedAt = null,
+        int $afterId = 0
+    ): array
     {
         $params = [];
         $where = $this->buildWhere($filters, $params);
-        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
+        if ($afterCreatedAt !== null) {
+            $where .= " AND (c.criado_em > :cursor_created_after OR (c.criado_em = :cursor_created_equal AND c.id > :cursor_id))";
+            $params[':cursor_created_after'] = $afterCreatedAt;
+            $params[':cursor_created_equal'] = $afterCreatedAt;
+            $params[':cursor_id'] = $afterId;
+        }
+        $paginationSql = $limit !== null
+            ? ($afterCreatedAt !== null ? " LIMIT :limit" : " LIMIT :limit OFFSET :offset")
+            : "";
 
         $stmt = $this->db->prepare("
             SELECT c.*, r.nome AS restaurante, o.nome AS operacao, u.nome AS usuario
@@ -50,7 +64,7 @@ class CollaboratorMealModel extends Model
             JOIN operacoes o ON o.id = c.operacao_id
             JOIN usuarios u ON u.id = c.usuario_id
             $where
-            ORDER BY c.criado_em ASC
+            ORDER BY c.criado_em ASC, c.id ASC
             $paginationSql
         ");
         foreach ($params as $key => $value) {
@@ -58,7 +72,9 @@ class CollaboratorMealModel extends Model
         }
         if ($limit !== null) {
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
-            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            if ($afterCreatedAt === null) {
+                $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            }
         }
         $stmt->execute();
         return $stmt->fetchAll();
@@ -80,13 +96,29 @@ class CollaboratorMealModel extends Model
 
     public function exportByFilters(array $filters, callable $callback, int $batchSize = 1000): int
     {
-        $total = $this->countByFilters($filters);
+        $targetTotal = $this->countByFilters($filters);
         $batchSize = max(100, min(5000, $batchSize));
-        for ($offset = 0; $offset < $total; $offset += $batchSize) {
-            foreach ($this->listByFilters($filters, $batchSize, $offset) as $row) {
+        $processed = 0;
+        $afterCreatedAt = null;
+        $afterId = 0;
+
+        while ($processed < $targetTotal) {
+            $rows = $this->listByFilters($filters, $batchSize, 0, $afterCreatedAt, $afterId);
+            if (!$rows) {
+                break;
+            }
+
+            foreach ($rows as $row) {
+                if ($processed >= $targetTotal) {
+                    break 2;
+                }
                 $callback($row);
+                $processed++;
+                $afterCreatedAt = (string)$row['criado_em'];
+                $afterId = (int)$row['id'];
             }
         }
-        return $total;
+
+        return $processed;
     }
 }

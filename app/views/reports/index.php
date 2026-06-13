@@ -849,8 +849,8 @@ $paginationPages = static function (int $current, int $total): array {
                         <td><?= h($row['assinatura']) ?></td>
                         <td><?= h($row['data_venda']) ?></td>
                         <td>
-                            <?php if (!empty($row['voucher_anexo_path'])): ?>
-                                <a class="btn btn-outline-primary btn-sm" href="<?= h($row['voucher_anexo_path']) ?>" target="_blank">Abrir</a>
+                            <?php if (safe_public_upload_url((string)($row['voucher_anexo_path'] ?? ''), 'vouchers') !== ''): ?>
+                                <a class="btn btn-outline-primary btn-sm" href="/?r=vouchers/attachment&id=<?= (int)$row['id'] ?>" target="_blank" rel="noopener noreferrer">Abrir</a>
                             <?php else: ?>
                                 <span class="text-muted">—</span>
                             <?php endif; ?>

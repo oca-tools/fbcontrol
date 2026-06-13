@@ -191,6 +191,7 @@ class Auth
 
     public static function logout(): void
     {
+        $flash = $_SESSION['flash'] ?? null;
         self::clearSessionRegistry();
         $_SESSION = [];
 
@@ -199,7 +200,14 @@ class Auth
             setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], (bool)$params['secure'], (bool)$params['httponly']);
         }
 
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+
+        if (is_array($flash) && $flash !== []) {
+            session_start();
+            $_SESSION['flash'] = $flash;
+        }
     }
 
     public static function enforceSingleSession(): void
@@ -302,6 +310,69 @@ class Auth
         $_SESSION['last_activity_at'] = $now;
     }
 
+    public static function enforceCurrentUserState(int $refreshSeconds = 60): void
+    {
+        if (!self::check()) {
+            return;
+        }
+
+        $now = time();
+        $lastCheck = (int)($_SESSION['user_state_checked_at'] ?? 0);
+        if ($lastCheck > 0 && ($now - $lastCheck) < max(15, $refreshSeconds)) {
+            return;
+        }
+
+        $userId = (int)($_SESSION['user']['id'] ?? 0);
+        if ($userId <= 0) {
+            self::logout();
+            header('Location: /?r=auth/login');
+            exit;
+        }
+
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("
+                SELECT id, nome, email, perfil, ativo, foto_path
+                FROM usuarios
+                WHERE id = :id
+                LIMIT 1
+            ");
+            $stmt->execute([':id' => $userId]);
+            $current = $stmt->fetch();
+        } catch (Throwable $e) {
+            // Indisponibilidade temporaria do banco nao deve invalidar uma sessao ativa.
+            return;
+        }
+
+        $sessionUser = is_array($current) ? self::sessionUserFromRecord($current) : null;
+        if ($sessionUser === null) {
+            if (function_exists('set_flash')) {
+                set_flash('warning', 'Sua conta foi desativada. Entre em contato com a administração.');
+            }
+            self::logout();
+            header('Location: /?r=auth/login');
+            exit;
+        }
+
+        $_SESSION['user'] = $sessionUser;
+        $_SESSION['user_state_checked_at'] = $now;
+    }
+
+    public static function sessionUserFromRecord(array $current): ?array
+    {
+        if ((int)($current['id'] ?? 0) <= 0 || (int)($current['ativo'] ?? 0) !== 1) {
+            return null;
+        }
+
+        return [
+            'id' => (int)$current['id'],
+            'nome' => (string)($current['nome'] ?? ''),
+            'email' => (string)($current['email'] ?? ''),
+            'perfil' => strtolower(trim((string)($current['perfil'] ?? ''))),
+            'foto_path' => $current['foto_path'] ?? null,
+        ];
+    }
+
     public static function requireRole(array $roles): void
     {
         $user = self::user();
@@ -317,4 +388,3 @@ class Auth
         }
     }
 }
-

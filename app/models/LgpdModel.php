@@ -31,6 +31,50 @@ class LgpdModel extends Model
         return self::RETENTION_ALLOWED_TABLES;
     }
 
+    public static function sanitizePrivacyEventDetails(array $details): array
+    {
+        $sensitiveKeys = [
+            'titular_nome',
+            'titular_documento',
+            'titular_email',
+            'documento',
+            'email',
+            'controlador_email',
+            'encarregado_email',
+            'encarregado_telefone',
+            'canal_titular_email',
+        ];
+        $freeTextKeys = [
+            'detalhes',
+            'resposta_resumo',
+            'dados_afetados',
+            'medidas_adotadas',
+        ];
+
+        $sanitize = static function ($value) use (&$sanitize, $sensitiveKeys, $freeTextKeys) {
+            if (!is_array($value)) {
+                return $value;
+            }
+
+            $clean = [];
+            foreach ($value as $key => $item) {
+                $normalizedKey = strtolower((string)$key);
+                if (in_array($normalizedKey, $sensitiveKeys, true)) {
+                    $clean[$key] = '[REDACTED]';
+                    continue;
+                }
+                if (in_array($normalizedKey, $freeTextKeys, true)) {
+                    $clean[$key] = is_scalar($item) && trim((string)$item) !== '' ? '[TEXT_REDACTED]' : '';
+                    continue;
+                }
+                $clean[$key] = is_array($item) ? $sanitize($item) : $item;
+            }
+            return $clean;
+        };
+
+        return $sanitize($details);
+    }
+
     public function getConfig(): array
     {
         $stmt = $this->db->query("SELECT * FROM lgpd_config WHERE id = 1 LIMIT 1");
@@ -537,6 +581,12 @@ class LgpdModel extends Model
 
     private function logEvent(string $type, string $reference, string $action, ?int $userId, array $details): void
     {
+        $details = self::sanitizePrivacyEventDetails($details);
+        $detailsJson = json_encode($details, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($detailsJson)) {
+            $detailsJson = '{}';
+        }
+
         $stmt = $this->db->prepare("
             INSERT INTO lgpd_eventos (tipo, referencia, acao, detalhes_json, usuario_id, criado_em)
             VALUES (:tipo, :referencia, :acao, :detalhes_json, :usuario_id, NOW())
@@ -545,7 +595,7 @@ class LgpdModel extends Model
             ':tipo' => substr($type, 0, 30),
             ':referencia' => substr($reference, 0, 120),
             ':acao' => substr($action, 0, 40),
-            ':detalhes_json' => json_encode($details, JSON_UNESCAPED_UNICODE),
+            ':detalhes_json' => $detailsJson,
             ':usuario_id' => $userId ?: null,
         ]);
     }

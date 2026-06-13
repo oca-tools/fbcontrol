@@ -626,13 +626,27 @@ class AccessModel extends Model
         return $stmt->fetchAll();
     }
 
-    public function reportList(array $filters, ?int $limit = null, int $offset = 0): array
+    public function reportList(
+        array $filters,
+        ?int $limit = null,
+        int $offset = 0,
+        ?string $afterCreatedAt = null,
+        int $afterId = 0
+    ): array
     {
         $params = [];
         $where = $this->buildKpiWhere($filters, $params, 'a');
+        if ($afterCreatedAt !== null) {
+            $where .= " AND (a.criado_em > :cursor_created_after OR (a.criado_em = :cursor_created_equal AND a.id > :cursor_id))";
+            $params[':cursor_created_after'] = $afterCreatedAt;
+            $params[':cursor_created_equal'] = $afterCreatedAt;
+            $params[':cursor_id'] = $afterId;
+        }
         $statusCase = $this->statusCaseSql('a');
         $multiple = $this->multipleAccessExistsSql('a');
-        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
+        $paginationSql = $limit !== null
+            ? ($afterCreatedAt !== null ? " LIMIT :limit" : " LIMIT :limit OFFSET :offset")
+            : "";
 
         $stmt = $this->db->prepare("
             SELECT a.*, uh.numero AS uh_numero, r.nome AS restaurante, p.nome AS porta,
@@ -646,7 +660,7 @@ class AccessModel extends Model
             JOIN operacoes o ON o.id = a.operacao_id
             JOIN usuarios u ON u.id = a.usuario_id
             $where
-            ORDER BY a.criado_em ASC
+            ORDER BY a.criado_em ASC, a.id ASC
             $paginationSql
         ");
         foreach ($params as $key => $value) {
@@ -654,7 +668,9 @@ class AccessModel extends Model
         }
         if ($limit !== null) {
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
-            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            if ($afterCreatedAt === null) {
+                $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            }
         }
         $stmt->execute();
         return $stmt->fetchAll();
@@ -677,14 +693,30 @@ class AccessModel extends Model
 
     public function exportReportRows(array $filters, callable $callback, int $batchSize = 1000): int
     {
-        $total = $this->reportListCount($filters);
+        $targetTotal = $this->reportListCount($filters);
         $batchSize = max(100, min(5000, $batchSize));
-        for ($offset = 0; $offset < $total; $offset += $batchSize) {
-            foreach ($this->reportList($filters, $batchSize, $offset) as $row) {
+        $processed = 0;
+        $afterCreatedAt = null;
+        $afterId = 0;
+
+        while ($processed < $targetTotal) {
+            $rows = $this->reportList($filters, $batchSize, 0, $afterCreatedAt, $afterId);
+            if (!$rows) {
+                break;
+            }
+
+            foreach ($rows as $row) {
+                if ($processed >= $targetTotal) {
+                    break 2;
+                }
                 $callback($row);
+                $processed++;
+                $afterCreatedAt = (string)$row['criado_em'];
+                $afterId = (int)$row['id'];
             }
         }
-        return $total;
+
+        return $processed;
     }
 
     public function reportMultipleAccessGroups(array $filters, ?int $limit = null, int $offset = 0): array

@@ -18,6 +18,7 @@ require_once __DIR__ . '/core/Model.php';
 spl_autoload_register(static function ($class): void {
     $paths = [
         __DIR__ . '/models/' . $class . '.php',
+        __DIR__ . '/services/' . $class . '.php',
     ];
 
     foreach ($paths as $path) {
@@ -29,4 +30,3 @@ spl_autoload_register(static function ($class): void {
 });
 
 return $config;
-

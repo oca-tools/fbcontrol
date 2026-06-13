@@ -202,8 +202,8 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                                 <td data-label="Reserva"><?= h($row['numero_reserva']) ?></td>
                                 <td data-label="Data"><?= h($row['data_venda']) ?></td>
                                 <td data-label="Anexo">
-                                    <?php if (!empty($row['voucher_anexo_path'])): ?>
-                                        <a class="btn btn-outline-primary btn-sm" href="<?= h($row['voucher_anexo_path']) ?>" target="_blank">Abrir</a>
+                                    <?php if (safe_public_upload_url((string)($row['voucher_anexo_path'] ?? ''), 'vouchers') !== ''): ?>
+                                        <a class="btn btn-outline-primary btn-sm" href="/?r=vouchers/attachment&id=<?= (int)$row['id'] ?>" target="_blank" rel="noopener noreferrer">Abrir</a>
                                     <?php else: ?>
                                         <span class="text-muted">—</span>
                                     <?php endif; ?>

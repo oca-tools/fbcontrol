@@ -7,80 +7,6 @@ class AccessController extends Controller
     private const VOUCHER_TARGET_BYTES = 5242880;
     private const VOUCHER_RECEIVE_BYTES = 10485760;
 
-    private function isTematicoRestaurantName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        return strpos($name, 'giardino') !== false
-            || strpos($name, 'la brasa') !== false
-            || strpos($name, "ix'u") !== false
-            || strpos($name, 'ixu') !== false
-            || strpos($name, 'ix') !== false;
-    }
-
-    private function isTematicoOperationName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        $name = strtr($name, [
-            'á' => 'a',
-            'à' => 'a',
-            'â' => 'a',
-            'ã' => 'a',
-            'é' => 'e',
-            'ê' => 'e',
-            'í' => 'i',
-            'ó' => 'o',
-            'ô' => 'o',
-            'õ' => 'o',
-            'ú' => 'u',
-            'ç' => 'c',
-        ]);
-        return strpos($name, 'tematico') !== false;
-    }
-
-    private function isLaBrasaRestaurantName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        return strpos($name, 'la brasa') !== false;
-    }
-
-    private function isTematicoShift(array $shift): bool
-    {
-        $restaurante = (string)($shift['restaurante'] ?? '');
-        $operacao = (string)($shift['operacao'] ?? '');
-        if (!$this->isTematicoRestaurantName($restaurante)) {
-            return false;
-        }
-        if ($this->isLaBrasaRestaurantName($restaurante)) {
-            return $this->isTematicoOperationName($operacao);
-        }
-        return true;
-    }
-
-    private function isHostessTematicoOnlyUser(?array $user): bool
-    {
-        if (!$user || ($user['perfil'] ?? '') !== 'hostess') {
-            return false;
-        }
-
-        $assigned = (new UserRestaurantModel())->byUser((int)$user['id']);
-        if (empty($assigned)) {
-            return false;
-        }
-
-        $hasTematico = false;
-        $hasRegistroBuffet = false;
-        foreach ($assigned as $rest) {
-            $name = (string)($rest['nome'] ?? '');
-            if ($this->isTematicoRestaurantName($name)) {
-                $hasTematico = true;
-                continue;
-            }
-            $hasRegistroBuffet = true;
-        }
-
-        return $hasTematico && !$hasRegistroBuffet;
-    }
-
     private function redirectIfTematicoOnlyHostess(?array $user = null): bool
     {
         // Fluxo v2: hostess de tematico tambem opera pelo modulo Registro.
@@ -227,22 +153,6 @@ class AccessController extends Controller
         return $ok;
     }
 
-    private function autoCloseTimeoutShiftsForCurrentUser(): int
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return 0;
-        }
-        if (app_demo_mode_enabled()) {
-            return 0;
-        }
-        $graceMinutes = 10;
-        $closed = 0;
-        $closed += (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
-        $closed += (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
-        return $closed;
-    }
-
     private function saveTematicaConflict(array $payload): void
     {
         $_SESSION[self::TEMATICA_CONFLICT_KEY] = $payload;
@@ -286,7 +196,7 @@ class AccessController extends Controller
             return;
         }
 
-        $closedByTimeout = $this->autoCloseTimeoutShiftsForCurrentUser();
+        $closedByTimeout = (new ShiftAutoCloseService())->closeForCurrentUser();
         if ($closedByTimeout > 0 && !isset($_SESSION['flash'])) {
             set_flash('warning', 'Turno encerrado automaticamente por tempo excedido (limite + 10 min).');
         }
@@ -366,7 +276,7 @@ class AccessController extends Controller
             }
         }
 
-        if ($this->isTematicoShift($shift)) {
+        if (TematicAccessService::isTematicShift($shift)) {
             $dateRef = trim((string)($_GET['data'] ?? date('Y-m-d')));
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateRef)) {
                 $dateRef = date('Y-m-d');
@@ -432,7 +342,7 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $this->autoCloseTimeoutShiftsForCurrentUser();
+        (new ShiftAutoCloseService())->closeForCurrentUser();
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
         }
@@ -583,7 +493,7 @@ class AccessController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $this->autoCloseTimeoutShiftsForCurrentUser();
+        (new ShiftAutoCloseService())->closeForCurrentUser();
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
         }
@@ -603,7 +513,7 @@ class AccessController extends Controller
             set_flash('danger', 'Inicie um turno para registrar acessos.');
             $this->redirect('/?r=access/index');
         }
-        if ($this->isTematicoShift($shift)) {
+        if (TematicAccessService::isTematicShift($shift)) {
             set_flash('info', 'Neste turno temático, confirme as reservas na tela de operação temática do Registro.');
             $this->redirect('/?r=access/index');
         }
@@ -824,7 +734,7 @@ class AccessController extends Controller
             set_flash('danger', 'Inicie um turno para operar reservas temáticas.');
             $this->redirect('/?r=access/index');
         }
-        if (!$this->isTematicoShift($shift)) {
+        if (!TematicAccessService::isTematicShift($shift)) {
             set_flash('danger', 'Este turno não é temático.');
             $this->redirect('/?r=access/index');
         }

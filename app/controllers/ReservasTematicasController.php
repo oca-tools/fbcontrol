@@ -8,11 +8,7 @@ class ReservasTematicasController extends Controller
         if (!$user) {
             Auth::requireRole(['admin']);
         }
-        $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
-            return;
-        }
-        if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
+        if ((new TematicAccessService())->canAccessModule($user)) {
             return;
         }
         $this->forbidden();
@@ -20,99 +16,22 @@ class ReservasTematicasController extends Controller
 
     private function requireReservaAccess(): void
     {
-        $this->requireAuth();
-        $user = Auth::user();
-        if (!$user) {
-            Auth::requireRole(['admin']);
-        }
-        $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
-            return;
-        }
-        if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
-            return;
-        }
-        $this->forbidden();
+        $this->requireModuleAccess();
     }
 
     private function requireOperacaoAccess(): void
     {
-        $this->requireAuth();
-        $user = Auth::user();
-        if (!$user) {
-            Auth::requireRole(['admin']);
-        }
-        $perfil = $user['perfil'] ?? '';
-        if (in_array($perfil, ['admin', 'supervisor', 'gerente'], true)) {
-            return;
-        }
-        if ($perfil === 'hostess' && ($this->hostessHasCorais((int)$user['id']) || $this->hostessHasTematico((int)$user['id']))) {
-            return;
-        }
-        $this->forbidden();
-    }
-
-    private function hostessHasCorais(int $userId): bool
-    {
-        $assignModel = new UserRestaurantModel();
-        $restaurants = $assignModel->byUser($userId);
-        foreach ($restaurants as $rest) {
-            if (stripos($rest['nome'], 'Corais') !== false) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function hostessHasTematico(int $userId): bool
-    {
-        $assignModel = new UserRestaurantModel();
-        $restaurants = $assignModel->byUser($userId);
-        foreach ($restaurants as $rest) {
-            $name = mb_strtolower($rest['nome'], 'UTF-8');
-            if (strpos($name, 'giardino') !== false) {
-                return true;
-            }
-            if (strpos($name, 'la brasa') !== false) {
-                return true;
-            }
-            if (strpos($name, 'ix') !== false || strpos($name, 'ixu') !== false) {
-                return true;
-            }
-        }
-        return false;
+        $this->requireModuleAccess();
     }
 
     private function hostessTematicRestaurants(int $userId): array
     {
-        $assignModel = new UserRestaurantModel();
-        $restaurants = $assignModel->byUser($userId);
-        $filtered = [];
-        foreach ($restaurants as $rest) {
-            $name = mb_strtolower($rest['nome'], 'UTF-8');
-            if (strpos($name, 'giardino') !== false || strpos($name, 'la brasa') !== false || strpos($name, 'ix') !== false || strpos($name, 'ixu') !== false) {
-                $filtered[] = $rest;
-            }
-        }
-        return $filtered;
+        return (new TematicAccessService())->tematicRestaurantsForUser($userId);
     }
 
     private function getTematicRestaurants(): array
     {
-        $model = new RestaurantModel();
-        $all = $model->all();
-        $allowed = ['giardino', 'la brasa', 'ix\'u', 'ixu'];
-        $filtered = [];
-        foreach ($all as $rest) {
-            $name = mb_strtolower($rest['nome'], 'UTF-8');
-            foreach ($allowed as $term) {
-                if (strpos($name, $term) !== false) {
-                    $filtered[] = $rest;
-                    break;
-                }
-            }
-        }
-        return $filtered;
+        return (new TematicAccessService())->allTematicRestaurants();
     }
 
     private function isWithinReservaWindow(array $periodos): bool
@@ -138,34 +57,6 @@ class ReservasTematicasController extends Controller
         return false;
     }
 
-    private function autoCloseTimeoutShiftsForCurrentUser(): int
-    {
-        $user = Auth::user();
-        if (!$user || app_demo_mode_enabled()) {
-            return 0;
-        }
-
-        $graceMinutes = 10;
-        return (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id'])
-            + (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
-    }
-
-    private function isDuplicateAllowedUh(?string $uhNumero): bool
-    {
-        $uhNumero = trim((string)$uhNumero);
-        return in_array($uhNumero, ['998', '999'], true);
-    }
-
-    private function canEditReservaTematica(array $reserva, array $user): bool
-    {
-        $perfil = (string)($user['perfil'] ?? '');
-        if (in_array($perfil, ['admin', 'gerente', 'supervisor'], true)) {
-            return true;
-        }
-
-        return (int)($reserva['usuario_id'] ?? 0) === (int)($user['id'] ?? 0);
-    }
-
     public function reservas(): void
     {
         $this->requireReservaAccess();
@@ -183,7 +74,7 @@ class ReservasTematicasController extends Controller
         $turnos = $turnoModel->allActive();
         $periodos = $periodoModel->allActive();
         $isHostess = ($user['perfil'] ?? '') === 'hostess';
-        if ($isHostess && !$this->hostessHasCorais((int)$user['id'])) {
+        if ($isHostess && !(new TematicAccessService())->hostessHasCorais((int)$user['id'])) {
             $permitidos = array_map(static fn($rest) => (int)$rest['id'], $this->hostessTematicRestaurants((int)$user['id']));
             $restaurantes = array_values(array_filter(
                 $restaurantes,
@@ -280,7 +171,7 @@ class ReservasTematicasController extends Controller
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
                     'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
-                    'edit_url' => $this->canEditReservaTematica($row, $user) ? '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0) : '',
+                    'edit_url' => ReservaTematicaPolicy::canEdit($row, $user) ? '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0) : '',
                 ];
             }
 
@@ -309,29 +200,6 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
-            $parseChdAges = static function (string $raw): array {
-                $raw = trim($raw);
-                if ($raw === '') {
-                    return [];
-                }
-                $ages = [];
-                foreach ((preg_split('/(?:y+|[,\s;]+)/i', $raw) ?: []) as $part) {
-                    $part = trim($part);
-                    if ($part === '') {
-                        continue;
-                    }
-                    if (!ctype_digit($part)) {
-                        throw new RuntimeException('Idade de CHD inválida. Use o formato 1y2y4y.');
-                    }
-                    $age = (int)$part;
-                    if ($age < 0 || $age > 17) {
-                        throw new RuntimeException('As idades de CHD devem estar entre 0 e 17.');
-                    }
-                    $ages[] = $age;
-                }
-                return $ages;
-            };
-
             $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
             $dataReserva = $_POST['data_reserva'] ?? date('Y-m-d');
             $turnoId = (int)($_POST['turno_id'] ?? 0);
@@ -345,7 +213,7 @@ class ReservasTematicasController extends Controller
             $chdIdadesRaw = trim((string)($_POST['chd_idades'] ?? ''));
             $chdIdades = [];
             try {
-                $chdIdades = $parseChdAges($chdIdadesRaw);
+                $chdIdades = ReservaTematicaPolicy::parseChdAges($chdIdadesRaw);
             } catch (RuntimeException $e) {
                 set_flash('warning', $e->getMessage());
                 $this->redirect('/?r=reservasTematicas/reservas');
@@ -438,7 +306,7 @@ class ReservasTematicasController extends Controller
                     }
 
                     try {
-                        $idadesItem = $parseChdAges((string)($batchIdades[$idx] ?? ''));
+                        $idadesItem = ReservaTematicaPolicy::parseChdAges((string)($batchIdades[$idx] ?? ''));
                     } catch (RuntimeException $e) {
                         set_flash('warning', $e->getMessage());
                         $this->redirect('/?r=reservasTematicas/reservas');
@@ -460,7 +328,7 @@ class ReservasTematicasController extends Controller
                         set_flash('danger', 'PAX acima do limite da UH ' . $uhNumeroItem . '.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
-                    if (!$this->isDuplicateAllowedUh($uhNumeroItem) && $reservaModel->findDuplicateId((int)$uhItem['id'], $dataReserva, $turnoId, $restauranteId)) {
+                    if (!ReservaTematicaPolicy::isDuplicateAllowedUh($uhNumeroItem) && $reservaModel->findDuplicateId((int)$uhItem['id'], $dataReserva, $turnoId, $restauranteId)) {
                         set_flash('warning', 'Já existe reserva para UH ' . $uhNumeroItem . ' neste turno.');
                         $this->redirect('/?r=reservasTematicas/reservas');
                     }
@@ -557,13 +425,13 @@ class ReservasTematicasController extends Controller
                     set_flash('danger', 'Reserva não encontrada.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
-                if (!$this->canEditReservaTematica($current, $user)) {
+                if (!ReservaTematicaPolicy::canEdit($current, $user)) {
                     set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
                     $this->redirect('/?r=reservasTematicas/reservas');
                 }
 
                 $duplicateId = null;
-                if (!$this->isDuplicateAllowedUh($uhNumero)) {
+                if (!ReservaTematicaPolicy::isDuplicateAllowedUh($uhNumero)) {
                     $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
                 }
                 if ($duplicateId && (int)$duplicateId !== (int)$current['id']) {
@@ -622,7 +490,7 @@ class ReservasTematicasController extends Controller
             }
 
             $duplicateId = null;
-            if (!$this->isDuplicateAllowedUh($uhNumero)) {
+            if (!ReservaTematicaPolicy::isDuplicateAllowedUh($uhNumero)) {
                 $duplicateId = $reservaModel->findDuplicateId((int)$uh['id'], $dataReserva, $turnoId, $restauranteId);
             }
             if ($duplicateId) {
@@ -679,7 +547,7 @@ class ReservasTematicasController extends Controller
         $editId = (int)($_GET['edit'] ?? 0);
         $editItem = $editId > 0 ? $reservaModel->find($editId) : null;
         if ($editItem) {
-            if (!$this->canEditReservaTematica($editItem, $user)) {
+            if (!ReservaTematicaPolicy::canEdit($editItem, $user)) {
                 set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
@@ -708,7 +576,7 @@ class ReservasTematicasController extends Controller
     {
         $this->requireOperacaoAccess();
         $user = Auth::user();
-        $closedByTimeout = $this->autoCloseTimeoutShiftsForCurrentUser();
+        $closedByTimeout = (new ShiftAutoCloseService())->closeForCurrentUser();
         if ($closedByTimeout > 0 && !isset($_SESSION['flash'])) {
             set_flash('warning', 'Turno encerrado automaticamente por tempo excedido (limite + 10 min).');
         }

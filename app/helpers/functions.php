@@ -115,6 +115,41 @@ function h(string $value): string
     return htmlspecialchars(normalize_mojibake($value), ENT_QUOTES, 'UTF-8');
 }
 
+function json_for_html($value): string
+{
+    $json = json_encode(
+        $value,
+        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    );
+    return $json === false ? 'null' : $json;
+}
+
+function safe_public_upload_url(string $value, string $category = ''): string
+{
+    $value = trim(str_replace('\\', '/', $value));
+    if ($value === '' || preg_match('/[\x00-\x1F\x7F]/', $value)) {
+        return '';
+    }
+
+    $categories = $category !== '' ? [preg_quote($category, '/')] : ['profiles', 'vouchers'];
+    $categoryPattern = implode('|', $categories);
+    if (!preg_match('#^/uploads/(?:' . $categoryPattern . ')/[A-Za-z0-9][A-Za-z0-9._-]{0,190}$#', $value)) {
+        return '';
+    }
+
+    $extension = strtolower((string)pathinfo($value, PATHINFO_EXTENSION));
+    $allowedExtensions = [
+        'profiles' => ['jpg', 'jpeg', 'png', 'webp'],
+        'vouchers' => ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+    ];
+    $pathCategory = preg_match('#^/uploads/([^/]+)/#', $value, $matches) ? (string)$matches[1] : '';
+    if (!isset($allowedExtensions[$pathCategory]) || !in_array($extension, $allowedExtensions[$pathCategory], true)) {
+        return '';
+    }
+
+    return $value;
+}
+
 function ini_size_to_bytes(string $value): int
 {
     $value = trim($value);

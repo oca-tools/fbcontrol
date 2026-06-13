@@ -126,8 +126,9 @@ $user = Auth::user();
     <div class="col-12 col-lg-4">
         <div class="card p-4">
             <div class="d-flex align-items-center gap-3">
-                <?php if (!empty($user['foto_path'])): ?>
-                    <img src="<?= h($user['foto_path']) ?>" alt="Foto" class="hostess-profile-photo">
+                <?php $safeHostessPhoto = safe_public_upload_url((string)($user['foto_path'] ?? ''), 'profiles'); ?>
+                <?php if ($safeHostessPhoto !== ''): ?>
+                    <img src="<?= h($safeHostessPhoto) ?>" alt="Foto" class="hostess-profile-photo">
                 <?php else: ?>
                     <div class="d-flex align-items-center justify-content-center bg-light hostess-profile-placeholder">
                         <i class="bi bi-person" style="font-size:1.5rem;"></i>

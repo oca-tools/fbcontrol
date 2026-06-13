@@ -1,6 +1,14 @@
 <?php
 class VoucherModel extends Model
 {
+    public function find(int $id): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM vouchers WHERE id = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function create(array $data, int $userId): int
     {
         $stmt = $this->db->prepare("
@@ -44,11 +52,25 @@ class VoucherModel extends Model
         return $where;
     }
 
-    public function listByFilters(array $filters, ?int $limit = null, int $offset = 0): array
+    public function listByFilters(
+        array $filters,
+        ?int $limit = null,
+        int $offset = 0,
+        ?string $afterCreatedAt = null,
+        int $afterId = 0
+    ): array
     {
         $params = [];
         $where = $this->buildWhere($filters, $params);
-        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
+        if ($afterCreatedAt !== null) {
+            $where .= " AND (v.criado_em > :cursor_created_after OR (v.criado_em = :cursor_created_equal AND v.id > :cursor_id))";
+            $params[':cursor_created_after'] = $afterCreatedAt;
+            $params[':cursor_created_equal'] = $afterCreatedAt;
+            $params[':cursor_id'] = $afterId;
+        }
+        $paginationSql = $limit !== null
+            ? ($afterCreatedAt !== null ? " LIMIT :limit" : " LIMIT :limit OFFSET :offset")
+            : "";
 
         $stmt = $this->db->prepare("
             SELECT v.*, r.nome AS restaurante, o.nome AS operacao, u.nome AS usuario
@@ -57,7 +79,7 @@ class VoucherModel extends Model
             JOIN operacoes o ON o.id = v.operacao_id
             JOIN usuarios u ON u.id = v.usuario_id
             $where
-            ORDER BY v.criado_em ASC
+            ORDER BY v.criado_em ASC, v.id ASC
             $paginationSql
         ");
         foreach ($params as $key => $value) {
@@ -65,7 +87,9 @@ class VoucherModel extends Model
         }
         if ($limit !== null) {
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
-            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            if ($afterCreatedAt === null) {
+                $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            }
         }
         $stmt->execute();
         return $stmt->fetchAll();
@@ -89,13 +113,29 @@ class VoucherModel extends Model
 
     public function exportByFilters(array $filters, callable $callback, int $batchSize = 1000): int
     {
-        $total = $this->countByFilters($filters);
+        $targetTotal = $this->countByFilters($filters);
         $batchSize = max(100, min(5000, $batchSize));
-        for ($offset = 0; $offset < $total; $offset += $batchSize) {
-            foreach ($this->listByFilters($filters, $batchSize, $offset) as $row) {
+        $processed = 0;
+        $afterCreatedAt = null;
+        $afterId = 0;
+
+        while ($processed < $targetTotal) {
+            $rows = $this->listByFilters($filters, $batchSize, 0, $afterCreatedAt, $afterId);
+            if (!$rows) {
+                break;
+            }
+
+            foreach ($rows as $row) {
+                if ($processed >= $targetTotal) {
+                    break 2;
+                }
                 $callback($row);
+                $processed++;
+                $afterCreatedAt = (string)$row['criado_em'];
+                $afterId = (int)$row['id'];
             }
         }
-        return $total;
+
+        return $processed;
     }
 }

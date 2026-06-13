@@ -57,26 +57,9 @@ class RelatoriosTematicosController extends Controller
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $reservaModel = new ReservaTematicaModel();
-        $restauranteModel = new RestaurantModel();
         $turnoModel = new ReservaTematicaTurnoModel();
 
-        $allRests = $restauranteModel->all();
-        $tematicos = [];
-        foreach ($allRests as $rest) {
-            $name = mb_strtolower($rest['nome'], 'UTF-8');
-            if (strpos($name, 'giardino') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-            if (strpos($name, 'la brasa') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-            if (strpos($name, 'ix') !== false || strpos($name, 'ixu') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-        }
+        $tematicos = (new TematicAccessService())->allTematicRestaurants();
 
         $filters = $this->buildFilters($tematicos, true);
 
@@ -118,25 +101,7 @@ class RelatoriosTematicosController extends Controller
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $reservaModel = new ReservaTematicaModel();
-        $restauranteModel = new RestaurantModel();
-
-        $allRests = $restauranteModel->all();
-        $tematicos = [];
-        foreach ($allRests as $rest) {
-            $name = mb_strtolower($rest['nome'], 'UTF-8');
-            if (strpos($name, 'giardino') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-            if (strpos($name, 'la brasa') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-            if (strpos($name, 'ix') !== false || strpos($name, 'ixu') !== false) {
-                $tematicos[] = $rest;
-                continue;
-            }
-        }
+        $tematicos = (new TematicAccessService())->allTematicRestaurants();
 
         $filters = $this->buildFilters($tematicos, false);
 

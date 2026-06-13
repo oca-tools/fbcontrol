@@ -11,8 +11,9 @@
     </div>
     <div class="sidebar-user-card">
         <div class="d-flex align-items-center gap-2">
-            <?php if (!empty($user['foto_path'])): ?>
-                <img src="<?= h($user['foto_path']) ?>" alt="Foto do usuário" class="sidebar-user-avatar">
+            <?php $safeProfilePhoto = safe_public_upload_url((string)($user['foto_path'] ?? ''), 'profiles'); ?>
+            <?php if ($safeProfilePhoto !== ''): ?>
+                <img src="<?= h($safeProfilePhoto) ?>" alt="Foto do usuário" class="sidebar-user-avatar">
             <?php else: ?>
                 <div class="sidebar-user-fallback">
                     <i class="bi bi-person"></i>

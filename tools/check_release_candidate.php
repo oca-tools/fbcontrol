@@ -44,6 +44,7 @@ try {
         'docs/LGPD_OPERACAO.md',
         'sql/schema_v3_0.sql',
         'sql/migration_v2_9_performance_indexes.sql',
+        'sql/migration_v3_0_query_performance.sql',
         'sql/migration_v3_1_audit_security.sql',
         'tools/run_checks.php',
         'tools/healthcheck_fbcontrol.php',
@@ -53,6 +54,17 @@ try {
         'tools/check_audit_sanitizer.php',
         'tools/apply_audit_security_migration.php',
         'tools/sanitize_audit_sensitive_data.php',
+        'tools/test_critical_rules.php',
+        'tools/test_security_controls.php',
+        'tools/test_lgpd_controls.php',
+        'tools/sanitize_lgpd_event_details.php',
+        'tools/check_query_performance.php',
+        'tools/apply_query_performance_indexes.php',
+        'app/services/ReservaTematicaPolicy.php',
+        'app/services/ShiftAutoCloseService.php',
+        'app/services/TematicAccessService.php',
+        'app/views/partials/footer_scripts.php',
+        'app/views/partials/style_global.php',
     ];
     foreach ($requiredFiles as $file) {
         $record('file_' . str_replace(['/', '.', '-'], '_', $file), is_file($file), $file);
@@ -65,6 +77,8 @@ try {
         'modo_demo',
         'idx_vouchers_data',
         'idx_turnos_inicio',
+        'idx_acessos_rest_oper_data',
+        'idx_res_tem_duplicate_lookup',
     ] as $needle) {
         $record('schema_contains_' . $needle, strpos($schema, $needle) !== false, $needle);
     }

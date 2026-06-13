@@ -42,8 +42,9 @@
     <div class="offcanvas-body">
         <?php if ($user['perfil'] === 'hostess'): ?>
             <div class="d-flex align-items-center gap-2 mb-3">
-                <?php if (!empty($user['foto_path'])): ?>
-                    <img src="<?= h($user['foto_path']) ?>" alt="Foto" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                <?php $safeMobileProfilePhoto = safe_public_upload_url((string)($user['foto_path'] ?? ''), 'profiles'); ?>
+                <?php if ($safeMobileProfilePhoto !== ''): ?>
+                    <img src="<?= h($safeMobileProfilePhoto) ?>" alt="Foto" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
                 <?php else: ?>
                     <div class="d-flex align-items-center justify-content-center bg-light" style="width:44px;height:44px;border-radius:50%;">
                         <i class="bi bi-person"></i>

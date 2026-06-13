@@ -131,7 +131,7 @@ class LgpdController extends Controller
             'titular_nome' => $this->sanitizeText($_POST['titular_nome'] ?? '', 160),
             'titular_documento' => $this->sanitizeText($_POST['titular_documento'] ?? '', 40),
             'titular_email' => $this->sanitizeEmail($_POST['titular_email'] ?? ''),
-            'detalhes' => trim((string)($_POST['detalhes'] ?? '')),
+            'detalhes' => $this->sanitizeLongText($_POST['detalhes'] ?? '', 2000),
             'recebido_em' => $this->normalizeDateTime($_POST['recebido_em'] ?? ''),
             'prazo_resposta_em' => $this->normalizeDateTime($_POST['prazo_resposta_em'] ?? ''),
         ];
@@ -169,20 +169,26 @@ class LgpdController extends Controller
             $this->redirect('/?r=lgpd/index');
         }
 
+        $model = new LgpdModel();
+        $current = $model->findRequest($id);
+        if (!$current) {
+            set_flash('warning', 'Solicitação não encontrada.');
+            $this->redirect('/?r=lgpd/index');
+        }
+
         $payload = [
-            'tipo' => $this->normalizeRequestType($_POST['tipo'] ?? ''),
-            'titular_nome' => $this->sanitizeText($_POST['titular_nome'] ?? '', 160),
-            'titular_documento' => $this->sanitizeText($_POST['titular_documento'] ?? '', 40),
-            'titular_email' => $this->sanitizeEmail($_POST['titular_email'] ?? ''),
-            'detalhes' => trim((string)($_POST['detalhes'] ?? '')),
+            'tipo' => $this->normalizeRequestType($_POST['tipo'] ?? ($current['tipo'] ?? '')),
+            'titular_nome' => $this->sanitizeText($_POST['titular_nome'] ?? ($current['titular_nome'] ?? ''), 160),
+            'titular_documento' => $this->sanitizeText($_POST['titular_documento'] ?? ($current['titular_documento'] ?? ''), 40),
+            'titular_email' => $this->sanitizeEmail($_POST['titular_email'] ?? ($current['titular_email'] ?? '')),
+            'detalhes' => $this->sanitizeLongText($_POST['detalhes'] ?? ($current['detalhes'] ?? ''), 2000),
             'status' => $this->normalizeRequestStatus($_POST['status'] ?? ''),
-            'prazo_resposta_em' => $this->normalizeDateTime($_POST['prazo_resposta_em'] ?? ''),
+            'prazo_resposta_em' => $this->normalizeDateTime($_POST['prazo_resposta_em'] ?? ($current['prazo_resposta_em'] ?? '')),
             'concluido_em' => $this->normalizeDateTime($_POST['concluido_em'] ?? ''),
-            'resposta_resumo' => trim((string)($_POST['resposta_resumo'] ?? '')),
+            'resposta_resumo' => $this->sanitizeLongText($_POST['resposta_resumo'] ?? ($current['resposta_resumo'] ?? ''), 2000),
         ];
 
         try {
-            $model = new LgpdModel();
             $ok = $model->updateRequest($id, $payload, (int)Auth::user()['id']);
             set_flash($ok ? 'success' : 'warning', $ok ? 'Solicitação atualizada.' : 'Solicitação não encontrada.');
         } catch (Throwable $e) {
@@ -211,8 +217,8 @@ class LgpdController extends Controller
             'data_incidente' => $this->normalizeDateTime($_POST['data_incidente'] ?? ''),
             'detectado_em' => $this->normalizeDateTime($_POST['detectado_em'] ?? ''),
             'titulares_afetados' => max(0, (int)($_POST['titulares_afetados'] ?? 0)),
-            'dados_afetados' => trim((string)($_POST['dados_afetados'] ?? '')),
-            'medidas_adotadas' => trim((string)($_POST['medidas_adotadas'] ?? '')),
+            'dados_afetados' => $this->sanitizeLongText($_POST['dados_afetados'] ?? '', 2000),
+            'medidas_adotadas' => $this->sanitizeLongText($_POST['medidas_adotadas'] ?? '', 2000),
             'comunicado_anpd' => (int)($_POST['comunicado_anpd'] ?? 0) === 1 ? 1 : 0,
             'comunicado_titulares' => (int)($_POST['comunicado_titulares'] ?? 0) === 1 ? 1 : 0,
             'comunicado_em' => $this->normalizeDateTime($_POST['comunicado_em'] ?? ''),
@@ -252,24 +258,30 @@ class LgpdController extends Controller
             $this->redirect('/?r=lgpd/index');
         }
 
+        $model = new LgpdModel();
+        $current = $model->findIncident($id);
+        if (!$current) {
+            set_flash('warning', 'Incidente não encontrado.');
+            $this->redirect('/?r=lgpd/index');
+        }
+
         $payload = [
-            'titulo' => $this->sanitizeText($_POST['titulo'] ?? '', 190),
-            'categoria' => $this->sanitizeText($_POST['categoria'] ?? '', 80),
+            'titulo' => $this->sanitizeText($_POST['titulo'] ?? ($current['titulo'] ?? ''), 190),
+            'categoria' => $this->sanitizeText($_POST['categoria'] ?? ($current['categoria'] ?? ''), 80),
             'status' => $this->normalizeIncidentStatus($_POST['status'] ?? ''),
-            'risco_nivel' => $this->normalizeIncidentRisk($_POST['risco_nivel'] ?? ''),
-            'data_incidente' => $this->normalizeDateTime($_POST['data_incidente'] ?? ''),
-            'detectado_em' => $this->normalizeDateTime($_POST['detectado_em'] ?? ''),
-            'titulares_afetados' => max(0, (int)($_POST['titulares_afetados'] ?? 0)),
-            'dados_afetados' => trim((string)($_POST['dados_afetados'] ?? '')),
-            'medidas_adotadas' => trim((string)($_POST['medidas_adotadas'] ?? '')),
-            'comunicado_anpd' => (int)($_POST['comunicado_anpd'] ?? 0) === 1 ? 1 : 0,
-            'comunicado_titulares' => (int)($_POST['comunicado_titulares'] ?? 0) === 1 ? 1 : 0,
-            'comunicado_em' => $this->normalizeDateTime($_POST['comunicado_em'] ?? ''),
+            'risco_nivel' => $this->normalizeIncidentRisk($_POST['risco_nivel'] ?? ($current['risco_nivel'] ?? '')),
+            'data_incidente' => $this->normalizeDateTime($_POST['data_incidente'] ?? ($current['data_incidente'] ?? '')),
+            'detectado_em' => $this->normalizeDateTime($_POST['detectado_em'] ?? ($current['detectado_em'] ?? '')),
+            'titulares_afetados' => max(0, (int)($_POST['titulares_afetados'] ?? ($current['titulares_afetados'] ?? 0))),
+            'dados_afetados' => $this->sanitizeLongText($_POST['dados_afetados'] ?? ($current['dados_afetados'] ?? ''), 2000),
+            'medidas_adotadas' => $this->sanitizeLongText($_POST['medidas_adotadas'] ?? ($current['medidas_adotadas'] ?? ''), 2000),
+            'comunicado_anpd' => (int)($_POST['comunicado_anpd'] ?? ($current['comunicado_anpd'] ?? 0)) === 1 ? 1 : 0,
+            'comunicado_titulares' => (int)($_POST['comunicado_titulares'] ?? ($current['comunicado_titulares'] ?? 0)) === 1 ? 1 : 0,
+            'comunicado_em' => $this->normalizeDateTime($_POST['comunicado_em'] ?? ($current['comunicado_em'] ?? '')),
             'encerrado_em' => $this->normalizeDateTime($_POST['encerrado_em'] ?? ''),
         ];
 
         try {
-            $model = new LgpdModel();
             $ok = $model->updateIncident($id, $payload, (int)Auth::user()['id']);
             set_flash($ok ? 'success' : 'warning', $ok ? 'Incidente atualizado.' : 'Incidente não encontrado.');
         } catch (Throwable $e) {
@@ -355,6 +367,17 @@ class LgpdController extends Controller
         if ($text === '') {
             return '';
         }
+        return mb_substr($text, 0, $maxLen, 'UTF-8');
+    }
+
+    private function sanitizeLongText($value, int $maxLen): string
+    {
+        $text = trim((string)$value);
+        if ($text === '') {
+            return '';
+        }
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', ' ', $text) ?? $text;
+        $text = preg_replace('/[ \t]+/u', ' ', $text) ?? $text;
         return mb_substr($text, 0, $maxLen, 'UTF-8');
     }
 

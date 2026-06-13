@@ -64,6 +64,18 @@ $canalTitular = $canalEmail !== '' ? $canalEmail : ($controladorEmail !== '' ? $
     </section>
 
     <section class="saas-table-card">
+        <h5 class="mb-3">Minimização na rotina</h5>
+        <p class="mb-2">
+            Os operadores devem registrar apenas os dados necessários para executar, conferir e auditar a operação.
+        </p>
+        <ul class="mb-0">
+            <li>Evite inserir documentos pessoais, telefones, informações médicas ou dados financeiros em observações livres.</li>
+            <li>Anexos de vouchers devem ser usados somente quando necessários para comprovação operacional.</li>
+            <li>Relatórios e exportações devem ser compartilhados apenas com lideranças e áreas autorizadas.</li>
+        </ul>
+    </section>
+
+    <section class="saas-table-card">
         <h5 class="mb-3">Finalidades e bases legais</h5>
         <ul class="mb-0">
             <li>Execução de procedimentos operacionais de hospedagem e alimentação.</li>

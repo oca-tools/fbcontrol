@@ -182,14 +182,6 @@ $dbError = (string)($this->data['db_error'] ?? '');
                                 <form method="post" action="/?r=lgpd/updateRequest" class="d-flex gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                                    <input type="hidden" name="tipo" value="<?= h((string)$r['tipo']) ?>">
-                                    <input type="hidden" name="titular_nome" value="<?= h((string)$r['titular_nome']) ?>">
-                                    <input type="hidden" name="titular_documento" value="<?= h((string)$r['titular_documento']) ?>">
-                                    <input type="hidden" name="titular_email" value="<?= h((string)$r['titular_email']) ?>">
-                                    <input type="hidden" name="detalhes" value="<?= h((string)$r['detalhes']) ?>">
-                                    <input type="hidden" name="prazo_resposta_em" value="<?= h((string)$r['prazo_resposta_em']) ?>">
-                                    <input type="hidden" name="concluido_em" value="">
-                                    <input type="hidden" name="resposta_resumo" value="<?= h((string)$r['resposta_resumo']) ?>">
                                     <select name="status" class="form-select form-select-sm">
                                         <option value="aberta" <?= (($r['status'] ?? '') === 'aberta') ? 'selected' : '' ?>>Aberta</option>
                                         <option value="em_tratamento" <?= (($r['status'] ?? '') === 'em_tratamento') ? 'selected' : '' ?>>Em tratamento</option>
@@ -246,18 +238,6 @@ $dbError = (string)($this->data['db_error'] ?? '');
                                 <form method="post" action="/?r=lgpd/updateIncident" class="d-flex gap-2">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                     <input type="hidden" name="id" value="<?= (int)$i['id'] ?>">
-                                    <input type="hidden" name="titulo" value="<?= h((string)$i['titulo']) ?>">
-                                    <input type="hidden" name="categoria" value="<?= h((string)$i['categoria']) ?>">
-                                    <input type="hidden" name="risco_nivel" value="<?= h((string)$i['risco_nivel']) ?>">
-                                    <input type="hidden" name="data_incidente" value="<?= h((string)$i['data_incidente']) ?>">
-                                    <input type="hidden" name="detectado_em" value="<?= h((string)$i['detectado_em']) ?>">
-                                    <input type="hidden" name="titulares_afetados" value="<?= (int)$i['titulares_afetados'] ?>">
-                                    <input type="hidden" name="dados_afetados" value="<?= h((string)$i['dados_afetados']) ?>">
-                                    <input type="hidden" name="medidas_adotadas" value="<?= h((string)$i['medidas_adotadas']) ?>">
-                                    <input type="hidden" name="comunicado_anpd" value="<?= (int)$i['comunicado_anpd'] ?>">
-                                    <input type="hidden" name="comunicado_titulares" value="<?= (int)$i['comunicado_titulares'] ?>">
-                                    <input type="hidden" name="comunicado_em" value="<?= h((string)$i['comunicado_em']) ?>">
-                                    <input type="hidden" name="encerrado_em" value="">
                                     <select name="status" class="form-select form-select-sm">
                                         <option value="aberto" <?= (($i['status'] ?? '') === 'aberto') ? 'selected' : '' ?>>Aberto</option>
                                         <option value="investigacao" <?= (($i['status'] ?? '') === 'investigacao') ? 'selected' : '' ?>>Investigação</option>

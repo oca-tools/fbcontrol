@@ -652,6 +652,10 @@ class ReservaTematicaModel extends Model
             $where .= " AND rsv.turno_id = :turno_id";
             $params[':turno_id'] = $filters['turno_id'];
         }
+        if (!empty($filters['_after_id'])) {
+            $where .= " AND rsv.id > :cursor_id";
+            $params[':cursor_id'] = (int)$filters['_after_id'];
+        }
         if (!empty($filters['uh_numero'])) {
             $where .= " AND uh.numero = :uh";
             $params[':uh'] = $filters['uh_numero'];
@@ -748,13 +752,17 @@ class ReservaTematicaModel extends Model
             }
         }
 
-        $order = "ORDER BY rsv.data_reserva DESC, t.ordem, t.hora, r.nome";
-        if (!empty($filters['order']) && $filters['order'] === 'status') {
+        $order = !empty($filters['_cursor_order'])
+            ? "ORDER BY rsv.id ASC"
+            : "ORDER BY rsv.data_reserva DESC, t.ordem, t.hora, r.nome";
+        if (empty($filters['_cursor_order']) && !empty($filters['order']) && $filters['order'] === 'status') {
             $order = "ORDER BY rsv.status, t.ordem, t.hora, uh.numero";
-        } elseif (!empty($filters['order']) && $filters['order'] === 'turno') {
+        } elseif (empty($filters['_cursor_order']) && !empty($filters['order']) && $filters['order'] === 'turno') {
             $order = "ORDER BY t.ordem, t.hora, uh.numero, rsv.status";
         }
-        $paginationSql = $limit !== null ? " LIMIT :limit OFFSET :offset" : "";
+        $paginationSql = $limit !== null
+            ? (!empty($filters['_cursor_order']) ? " LIMIT :limit" : " LIMIT :limit OFFSET :offset")
+            : "";
         $stmt = $this->db->prepare("
             SELECT
                 rsv.*,
@@ -782,7 +790,9 @@ class ReservaTematicaModel extends Model
         }
         if ($limit !== null) {
             $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
-            $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            if (empty($filters['_cursor_order'])) {
+                $stmt->bindValue(':offset', max(0, $offset), PDO::PARAM_INT);
+            }
         }
         $stmt->execute();
         return $stmt->fetchAll();
@@ -809,14 +819,31 @@ class ReservaTematicaModel extends Model
 
     public function exportByFilters(array $filters, callable $callback, int $batchSize = 1000): int
     {
-        $total = $this->countByFilters($filters);
+        $targetTotal = $this->countByFilters($filters);
         $batchSize = max(100, min(5000, $batchSize));
-        for ($offset = 0; $offset < $total; $offset += $batchSize) {
-            foreach ($this->listByFilters($filters, $batchSize, $offset) as $row) {
+        $processed = 0;
+        $afterId = 0;
+
+        while ($processed < $targetTotal) {
+            $cursorFilters = $filters;
+            $cursorFilters['_cursor_order'] = true;
+            $cursorFilters['_after_id'] = $afterId;
+            $rows = $this->listByFilters($cursorFilters, $batchSize);
+            if (!$rows) {
+                break;
+            }
+
+            foreach ($rows as $row) {
+                if ($processed >= $targetTotal) {
+                    break 2;
+                }
                 $callback($row);
+                $processed++;
+                $afterId = (int)$row['id'];
             }
         }
-        return $total;
+
+        return $processed;
     }
 
     public function summary(array $filters): array
@@ -1454,8 +1481,6 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 }
-
-
 
 
 

@@ -1,74 +1,11 @@
 <?php
 class TurnosController extends Controller
 {
-    private function isTematicoRestaurantName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        return strpos($name, 'giardino') !== false
-            || strpos($name, 'la brasa') !== false
-            || strpos($name, "ix'u") !== false
-            || strpos($name, 'ixu') !== false
-            || strpos($name, 'ix') !== false;
-    }
-
-    private function isTematicoOperationName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        $name = strtr($name, [
-            'á' => 'a',
-            'à' => 'a',
-            'â' => 'a',
-            'ã' => 'a',
-            'é' => 'e',
-            'ê' => 'e',
-            'í' => 'i',
-            'ó' => 'o',
-            'ô' => 'o',
-            'õ' => 'o',
-            'ú' => 'u',
-            'ç' => 'c',
-        ]);
-        return strpos($name, 'tematico') !== false;
-    }
-
-    private function isLaBrasaRestaurantName(string $name): bool
-    {
-        $name = mb_strtolower(normalize_mojibake($name), 'UTF-8');
-        return strpos($name, 'la brasa') !== false;
-    }
-
-    private function isTematicoShift(array $shift): bool
-    {
-        $restaurante = (string)($shift['restaurante'] ?? '');
-        $operacao = (string)($shift['operacao'] ?? '');
-        if (!$this->isTematicoRestaurantName($restaurante)) {
-            return false;
-        }
-        if ($this->isLaBrasaRestaurantName($restaurante)) {
-            return $this->isTematicoOperationName($operacao);
-        }
-        return true;
-    }
-
-    private function autoCloseTimeoutShiftsForCurrentUser(): void
-    {
-        $user = Auth::user();
-        if (!$user) {
-            return;
-        }
-        if (app_demo_mode_enabled()) {
-            return;
-        }
-        $graceMinutes = 10;
-        (new ShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
-        (new SpecialShiftModel())->autoCloseExpired($graceMinutes, (int)$user['id']);
-    }
-
     public function start(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $this->autoCloseTimeoutShiftsForCurrentUser();
+        (new ShiftAutoCloseService())->closeForCurrentUser();
 
         $shiftModel = new ShiftModel();
         $active = $shiftModel->getActiveByUser(Auth::user()['id']);
@@ -228,7 +165,7 @@ class TurnosController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $this->autoCloseTimeoutShiftsForCurrentUser();
+        (new ShiftAutoCloseService())->closeForCurrentUser();
 
         $shiftModel = new ShiftModel();
         $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
@@ -267,7 +204,7 @@ class TurnosController extends Controller
 
         $shiftModel->end((int)$shift['id'], Auth::user()['id']);
         $summary = $shiftModel->summary((int)$shift['id']);
-        $isTematico = $this->isTematicoShift($shift);
+        $isTematico = TematicAccessService::isTematicShift($shift);
         $tematicaSummary = null;
         if ($isTematico) {
             $dataRef = date('Y-m-d', strtotime((string)($shift['inicio_em'] ?? 'now')));
@@ -296,7 +233,7 @@ class TurnosController extends Controller
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $this->autoCloseTimeoutShiftsForCurrentUser();
+        (new ShiftAutoCloseService())->closeForCurrentUser();
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('/?r=access/index');
@@ -313,7 +250,7 @@ class TurnosController extends Controller
             $this->redirect('/?r=access/index');
         }
 
-        if ($this->isTematicoShift($shift)) {
+        if (TematicAccessService::isTematicShift($shift)) {
             $manual = (new ReservaTematicaLogModel())->countManualByUserSince((int)Auth::user()['id'], (string)($shift['inicio_em'] ?? ''));
             if ($manual > 0) {
                 set_flash('warning', 'Não é possível cancelar o turno após confirmar reservas temáticas.');

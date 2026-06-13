@@ -33,6 +33,8 @@ Em bancos existentes, validar/aplicar as migrations versionadas:
 9. `sql/migration_v2_7_reservas_tematicas_bloqueios_semanais.sql`
 10. `sql/migration_v2_8_turnos_modo_demo.sql`
 11. `sql/migration_v2_9_performance_indexes.sql`
+12. `sql/migration_v3_0_query_performance.sql`
+13. `sql/migration_v3_1_audit_security.sql`
 
 ## Validacao local
 
@@ -64,6 +66,7 @@ cd /var/www/apps/fbcontrol/current
 php tools/healthcheck_fbcontrol.php --strict
 php tools/check_db_context.php
 php deploy/security/sast_scan.php
+php tools/sanitize_lgpd_event_details.php
 ```
 
 Confirmar tambem:
@@ -91,7 +94,8 @@ Confirmar tambem:
 3. Preservar `config/config.php` live, `public/uploads` e logs.
 4. Aplicar migrations pendentes.
 5. Rodar `php tools/healthcheck_fbcontrol.php --strict`.
-6. Rodar smoke manual no navegador:
+6. Rodar `php tools/sanitize_lgpd_event_details.php` e aplicar com `--apply` se houver eventos antigos a minimizar.
+7. Rodar smoke manual no navegador:
    - login admin;
    - dashboard;
    - registro;
@@ -99,7 +103,7 @@ Confirmar tambem:
    - relatorios;
    - usuarios;
    - privacidade.
-7. Confirmar crons em ate 5 minutos.
+8. Confirmar crons em ate 5 minutos.
 
 ## Rollback
 

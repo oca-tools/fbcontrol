@@ -43,7 +43,7 @@ session_set_cookie_params([
 session_start();
 
 header('Content-Type: text/html; charset=utf-8');
-header('X-Frame-Options: SAMEORIGIN');
+header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
@@ -58,7 +58,7 @@ $csp = [
     "default-src 'self'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'self'",
+    "frame-ancestors 'none'",
     "frame-src 'none'",
     "object-src 'none'",
     "manifest-src 'self'",
@@ -76,6 +76,9 @@ header('Content-Security-Policy: ' . implode('; ', $csp));
 $config = require __DIR__ . '/../app/bootstrap_web.php';
 
 if (Auth::check()) {
+    Auth::enforceCurrentUserState(
+        max(15, (int)(getenv('APP_SESSION_USER_REFRESH_SECONDS') ?: 60))
+    );
     $timeout = max(30, (int)($config['app']['session_timeout_min'] ?? 30));
     Auth::enforceIdleTimeout($timeout);
     $strictSessionGuards = in_array(

@@ -596,20 +596,15 @@ class DailyReportEmailModel extends Model
         if ($uploadRoot === false) {
             return [];
         }
+        $uploadRootPrefix = rtrim($uploadRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         foreach ($rows as $row) {
-            $publicPath = (string)($row['voucher_anexo_path'] ?? '');
+            $publicPath = safe_public_upload_url((string)($row['voucher_anexo_path'] ?? ''), 'vouchers');
             if ($publicPath === '') {
                 continue;
             }
-            $normalized = str_replace('\\', '/', $publicPath);
-            $normalized = preg_replace('#^https?://[^/]+#i', '', $normalized);
-            if (strpos($normalized, '/public/') === 0) {
-                $fullPath = dirname(__DIR__, 2) . $normalized;
-            } else {
-                $fullPath = dirname(__DIR__, 2) . '/public/' . ltrim($normalized, '/');
-            }
+            $fullPath = dirname(__DIR__, 2) . '/public' . $publicPath;
             $real = realpath($fullPath);
-            if ($real === false || strpos($real, $uploadRoot) !== 0) {
+            if ($real === false || strpos($real, $uploadRootPrefix) !== 0) {
                 continue;
             }
             if (!is_file($real) || !is_readable($real)) {
