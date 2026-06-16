@@ -70,8 +70,8 @@ $summary['uhs_total'] = count(array_filter(array_keys($summary['uhs']), static f
 
 ksort($turnos);
 
-$documentTitle = $tipo === 'detalhada' ? 'Impressao operacional de reservas' : 'Resumo de reservas tematicas';
-$documentSubtitle = 'Lista preparada para apoio rapido da operacao, montagem do ambiente e conferencia do servico.';
+$documentTitle = $tipo === 'detalhada' ? 'Impressão operacional de reservas' : 'Resumo de reservas temáticas';
+$documentSubtitle = 'Lista preparada para apoio rápido da operação, montagem do ambiente e conferência do serviço.';
 $documentMeta = [
     'Data' => !empty($filters['data']) ? format_date_br((string)$filters['data']) : format_date_br(date('Y-m-d')),
     'Restaurante' => normalize_mojibake((string)($filters['restaurante_nome'] ?? 'Todos')),
@@ -90,7 +90,7 @@ $documentMeta = [
     <div class="export-page">
         <div class="export-shell">
             <header class="export-hero">
-                <div class="export-kicker">FBControl · Operacao Tematica</div>
+                <div class="export-kicker">FBControl · Operação temática</div>
                 <h1 class="export-title"><?= h($documentTitle) ?></h1>
                 <div class="export-subtitle"><?= h($documentSubtitle) ?></div>
             </header>
@@ -118,12 +118,12 @@ $documentMeta = [
                 <article class="summary-card">
                     <div class="summary-number"><?= (int)$summary['uhs_total'] ?></div>
                     <div class="summary-label">UHs</div>
-                    <div class="summary-note">Habitacoes diferentes no periodo</div>
+                    <div class="summary-note">Habitações diferentes no período</div>
                 </article>
                 <article class="summary-card">
                     <div class="summary-number"><?= (int)$summary['observacoes'] ?></div>
-                    <div class="summary-label">Atencoes</div>
-                    <div class="summary-note">Reservas com observacoes ou tags</div>
+                    <div class="summary-label">Atenções</div>
+                    <div class="summary-note">Reservas com observações ou tags</div>
                 </article>
             </section>
 
@@ -138,7 +138,7 @@ $documentMeta = [
                             <div class="turno-header">
                                 <div>
                                     <h2 class="turno-title">Turno <?= h($grupo['turno']) ?></h2>
-                                    <div class="turno-subtitle">Leitura pensada para salao, cozinha e conferencia manual durante o servico.</div>
+                                    <div class="turno-subtitle">Leitura pensada para salão, cozinha e conferência manual durante o serviço.</div>
                                 </div>
                                 <div class="turno-stats">
                                     <span class="stat-pill"><strong><?= count($grupo['reservas']) ?></strong> reservas</span>
@@ -152,20 +152,20 @@ $documentMeta = [
                                     <thead>
                                         <tr>
                                             <th style="width:88px;">UH</th>
-                                            <th>Hospede / grupo</th>
+                                            <th>Hóspede / grupo</th>
                                             <th style="width:180px;">PAX</th>
                                             <th style="width:120px;">Status</th>
-                                            <th>Observacoes operacionais</th>
+                                            <th>Observações operacionais</th>
                                             <th class="check-column">Checagem</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach ($grupo['reservas'] as $item): ?>
                                             <tr>
-                                                <td>
+                                                <td data-label="UH">
                                                     <span class="uh-badge">UH <?= h($item['uh']) ?></span>
                                                 </td>
-                                                <td>
+                                                <td data-label="Hóspede / grupo">
                                                     <div class="guest-name"><?= h($item['titular']) ?></div>
                                                     <div class="chip-row">
                                                         <?php if ($item['grupo'] !== ''): ?>
@@ -175,17 +175,17 @@ $documentMeta = [
                                                         <span class="chip">Restaurante <?= h($item['restaurante']) ?></span>
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-label="PAX">
                                                     <div class="chip-row">
                                                         <span class="chip"><strong><?= (int)$item['pax'] ?></strong> PAX</span>
                                                         <span class="chip"><strong><?= (int)$item['adultos'] ?></strong> adultos</span>
                                                         <span class="chip"><strong><?= (int)$item['chd'] ?></strong> CHD</span>
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-label="Status">
                                                     <span class="chip status"><?= h($item['status']) ?></span>
                                                 </td>
-                                                <td>
+                                                <td data-label="Observações">
                                                     <div class="notes-block">
                                                         <?php if ($item['obs_reserva'] !== ''): ?>
                                                             <div class="note-line">
@@ -195,7 +195,7 @@ $documentMeta = [
                                                         <?php endif; ?>
                                                         <?php if ($item['obs_operacao'] !== ''): ?>
                                                             <div class="note-line">
-                                                                <span class="note-label">Operacao</span>
+                                                                <span class="note-label">Operação</span>
                                                                 <div><?= h($item['obs_operacao']) ?></div>
                                                             </div>
                                                         <?php endif; ?>
@@ -207,13 +207,13 @@ $documentMeta = [
                                                         <?php endif; ?>
                                                         <?php if ($item['obs_reserva'] === '' && $item['obs_operacao'] === '' && $item['tags'] === ''): ?>
                                                             <div class="note-line">
-                                                                <span class="note-label">Observacoes</span>
+                                                                <span class="note-label">Observações</span>
                                                                 <div>Sem apontamentos adicionais.</div>
                                                             </div>
                                                         <?php endif; ?>
                                                     </div>
                                                 </td>
-                                                <td class="check-column">
+                                                <td class="check-column" data-label="Checagem">
                                                     <div class="check-box"></div>
                                                 </td>
                                             </tr>
@@ -228,7 +228,7 @@ $documentMeta = [
 
             <div class="toolbar no-print">
                 <div class="toolbar-note">
-                    Esta impressao prioriza leitura rapida, totais por turno e espaco de checagem manual para a equipe operacional.
+                    Esta impressão prioriza leitura rápida, totais por turno e espaço de checagem manual para a equipe operacional.
                 </div>
                 <div class="toolbar-actions">
                     <button type="button" class="ghost" onclick="window.close()">Fechar</button>

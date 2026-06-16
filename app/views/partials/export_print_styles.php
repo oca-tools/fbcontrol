@@ -12,30 +12,31 @@
 
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
+
     body {
         font-family: "Segoe UI", Tahoma, Arial, sans-serif;
         background: linear-gradient(180deg, #fff8f3 0%, #ffffff 24%);
         color: var(--ink);
-        font-size: 12px;
-        line-height: 1.45;
+        font-size: 11.5px;
+        line-height: 1.38;
     }
 
     .export-page {
         max-width: 1240px;
         margin: 0 auto;
-        padding: 22px;
+        padding: 14px;
     }
 
     .export-shell {
         background: var(--card);
         border: 1px solid rgba(28, 43, 54, 0.08);
-        border-radius: 22px;
-        box-shadow: 0 24px 60px rgba(28, 43, 54, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 20px 44px rgba(28, 43, 54, 0.08);
         overflow: hidden;
     }
 
     .export-hero {
-        padding: 24px 28px 18px;
+        padding: 18px 22px 14px;
         background:
             radial-gradient(circle at top right, rgba(239, 107, 46, 0.16), transparent 34%),
             linear-gradient(135deg, #17384d 0%, #1d4d67 100%);
@@ -47,27 +48,27 @@
         letter-spacing: 0.12em;
         font-size: 10px;
         opacity: 0.82;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     .export-title {
-        font-size: 28px;
+        font-size: 24px;
         line-height: 1.1;
         font-weight: 700;
-        margin: 0 0 8px;
+        margin: 0 0 6px;
     }
 
     .export-subtitle {
-        font-size: 13px;
-        max-width: 760px;
+        font-size: 12px;
+        max-width: 700px;
         color: rgba(255, 255, 255, 0.86);
     }
 
     .export-meta {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 10px;
-        padding: 18px 28px 10px;
+        gap: 8px;
+        padding: 12px 18px 8px;
         background: linear-gradient(180deg, rgba(243, 246, 248, 0.95) 0%, rgba(255, 255, 255, 1) 100%);
         border-bottom: 1px solid var(--line);
     }
@@ -75,9 +76,9 @@
     .meta-card {
         background: #fff;
         border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 12px 14px;
-        min-height: 72px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        min-height: 60px;
     }
 
     .meta-label {
@@ -89,7 +90,7 @@
     }
 
     .meta-value {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
         color: var(--ink);
     }
@@ -97,23 +98,23 @@
     .summary-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
-        padding: 18px 28px 24px;
+        gap: 10px;
+        padding: 12px 18px 16px;
     }
 
     .summary-card {
         border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 14px 16px;
+        border-radius: 14px;
+        padding: 12px 14px;
         background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
     }
 
     .summary-number {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 800;
         color: var(--accent-dark);
         line-height: 1;
-        margin-bottom: 7px;
+        margin-bottom: 5px;
     }
 
     .summary-label {
@@ -125,19 +126,19 @@
     }
 
     .summary-note {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--ink);
     }
 
     .content-wrap {
-        padding: 0 28px 28px;
+        padding: 0 18px 18px;
     }
 
     .turno-section {
         border: 1px solid var(--line);
-        border-radius: 18px;
+        border-radius: 16px;
         overflow: hidden;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
         background: #fff;
         break-inside: avoid;
     }
@@ -147,22 +148,22 @@
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        padding: 16px 18px;
+        padding: 12px 14px;
         background: linear-gradient(90deg, var(--accent-soft) 0%, rgba(255,255,255,0.96) 82%);
         border-bottom: 1px solid var(--line);
     }
 
     .turno-title {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 800;
         margin: 0;
         color: var(--ink);
     }
 
     .turno-subtitle {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--muted);
-        margin-top: 3px;
+        margin-top: 2px;
     }
 
     .turno-stats {
@@ -179,17 +180,17 @@
         border-radius: 999px;
         border: 1px solid rgba(239, 107, 46, 0.24);
         background: #fff;
-        padding: 8px 12px;
-        font-size: 11px;
+        padding: 6px 10px;
+        font-size: 10px;
         color: var(--ink);
     }
 
     .stat-pill strong {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .turno-table-wrap {
-        padding: 12px 14px 14px;
+        padding: 8px 10px 10px;
     }
 
     table.export-table {
@@ -205,17 +206,24 @@
         letter-spacing: 0.08em;
         color: var(--muted);
         background: var(--soft);
-        padding: 11px 12px;
+        padding: 8px 9px;
         border-top: 1px solid var(--line);
         border-bottom: 1px solid var(--line);
     }
 
-    .export-table thead th:first-child { border-left: 1px solid var(--line); border-top-left-radius: 12px; }
-    .export-table thead th:last-child { border-right: 1px solid var(--line); border-top-right-radius: 12px; }
+    .export-table thead th:first-child {
+        border-left: 1px solid var(--line);
+        border-top-left-radius: 12px;
+    }
+
+    .export-table thead th:last-child {
+        border-right: 1px solid var(--line);
+        border-top-right-radius: 12px;
+    }
 
     .export-table tbody td {
         vertical-align: top;
-        padding: 12px;
+        padding: 9px;
         border-bottom: 1px solid var(--line);
         border-left: 1px solid var(--line);
         background: #fff;
@@ -230,7 +238,7 @@
         align-items: center;
         justify-content: center;
         min-width: 60px;
-        padding: 7px 12px;
+        padding: 6px 10px;
         border-radius: 999px;
         background: #1d4d67;
         color: #fff;
@@ -239,9 +247,9 @@
     }
 
     .guest-name {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
-        margin-bottom: 7px;
+        margin-bottom: 5px;
     }
 
     .chip-row {
@@ -257,8 +265,8 @@
         border-radius: 999px;
         background: #f4f7f9;
         border: 1px solid var(--line);
-        padding: 5px 9px;
-        font-size: 11px;
+        padding: 4px 8px;
+        font-size: 10px;
         color: var(--ink);
     }
 
@@ -271,14 +279,14 @@
 
     .notes-block {
         display: grid;
-        gap: 8px;
+        gap: 6px;
     }
 
     .note-line {
-        min-height: 28px;
+        min-height: 24px;
         border: 1px dashed rgba(28, 43, 54, 0.18);
         border-radius: 10px;
-        padding: 8px 10px;
+        padding: 6px 8px;
         background: #fcfdfd;
     }
 
@@ -288,11 +296,11 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--muted);
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
 
     .check-column {
-        width: 84px;
+        width: 72px;
         text-align: center;
     }
 
@@ -301,13 +309,13 @@
         height: 24px;
         border: 2px solid rgba(29, 77, 103, 0.35);
         border-radius: 6px;
-        margin: 4px auto 0;
+        margin: 2px auto 0;
     }
 
     .empty-state {
         border: 1px dashed var(--line);
         border-radius: 18px;
-        padding: 38px 28px;
+        padding: 28px 20px;
         text-align: center;
         color: var(--muted);
         background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%);
@@ -318,7 +326,7 @@
         flex-wrap: wrap;
         justify-content: space-between;
         gap: 12px;
-        padding: 18px 28px 24px;
+        padding: 14px 18px 18px;
     }
 
     .toolbar-note {
@@ -335,7 +343,7 @@
     .toolbar-actions button {
         border: 0;
         border-radius: 999px;
-        padding: 11px 16px;
+        padding: 10px 14px;
         font-weight: 700;
         cursor: pointer;
         color: #fff;
@@ -350,6 +358,158 @@
         box-shadow: none;
     }
 
+    @media screen and (max-width: 760px) {
+        body {
+            font-size: 11px;
+            background: #fff;
+        }
+
+        .export-page {
+            padding: 0;
+        }
+
+        .export-shell {
+            border-radius: 0;
+            border-left: 0;
+            border-right: 0;
+            box-shadow: none;
+        }
+
+        .export-hero {
+            padding: 16px 14px 12px;
+        }
+
+        .export-title {
+            font-size: 20px;
+        }
+
+        .export-subtitle {
+            font-size: 11px;
+        }
+
+        .export-meta,
+        .summary-grid,
+        .content-wrap,
+        .toolbar {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+
+        .export-meta,
+        .summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .meta-card,
+        .summary-card {
+            min-height: 0;
+        }
+
+        .turno-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .turno-stats {
+            justify-content: flex-start;
+        }
+
+        .turno-table-wrap {
+            padding: 8px;
+        }
+
+        .export-table,
+        .export-table tbody,
+        .export-table tr,
+        .export-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .export-table thead {
+            display: none;
+        }
+
+        .export-table tbody tr {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            background: #fff;
+            box-shadow: 0 8px 18px rgba(28, 43, 54, 0.04);
+        }
+
+        .export-table tbody td {
+            border: 0;
+            border-bottom: 1px solid rgba(217, 226, 232, 0.9);
+            padding: 10px 10px 10px 112px;
+            position: relative;
+            min-height: 44px;
+        }
+
+        .export-table tbody tr td:last-child {
+            border-right: 0;
+        }
+
+        .export-table tbody td:last-child {
+            border-bottom: 0;
+        }
+
+        .export-table tbody td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            width: 92px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+        }
+
+        .uh-badge {
+            min-width: 0;
+        }
+
+        .guest-name {
+            font-size: 13px;
+        }
+
+        .chip-row {
+            gap: 5px;
+        }
+
+        .check-column {
+            text-align: left;
+        }
+
+        .check-box {
+            margin: 0;
+        }
+
+        .toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .toolbar-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .toolbar-actions button {
+            flex: 1 1 0;
+        }
+    }
+
+    @media screen and (max-width: 420px) {
+        .export-meta,
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     @page {
         size: A4 landscape;
         margin: 10mm;
@@ -358,24 +518,29 @@
     @media print {
         body {
             background: #fff;
-            font-size: 11px;
+            font-size: 10.5px;
         }
+
         .export-page {
             max-width: none;
             padding: 0;
         }
+
         .export-shell {
             border: 0;
             border-radius: 0;
             box-shadow: none;
         }
+
         .toolbar,
         .no-print {
             display: none !important;
         }
+
         .turno-section {
             page-break-inside: avoid;
         }
+
         .summary-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
         }

@@ -96,6 +96,14 @@ $paginationPages = static function (int $current, int $total): array {
     justify-content: flex-end;
 }
 
+.rt-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    align-items: center;
+}
+
 .rt-filter-panel {
     padding: 1rem;
     margin-bottom: 1rem;
@@ -395,14 +403,6 @@ $paginationPages = static function (int $current, int $total): array {
             <h3 class="fw-bold mb-0">Relatórios das Reservas Temáticas</h3>
             <div class="text-muted">Acompanhe reservas, comparecimentos e no-shows.</div>
         </div>
-    </div>
-    <div class="rt-actions">
-        <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
-            <i class="bi bi-download me-1"></i>CSV
-        </a>
-        <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel
-        </a>
     </div>
 </div>
 
@@ -708,9 +708,17 @@ $paginationPages = static function (int $current, int $total): array {
                 <h5 class="fw-bold mb-0">Reservas temáticas</h5>
             </div>
         </div>
-        <button type="button" class="btn btn-outline-primary rt-section-toggle" data-toggle-rt-section="#rtDetailCard" aria-expanded="true">
-            <i class="bi bi-chevron-down"></i><span data-rt-toggle-label>Ocultar base</span>
-        </button>
+        <div class="rt-detail-actions">
+            <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
+                <i class="bi bi-download me-1"></i>Exportar CSV
+            </a>
+            <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
+            </a>
+            <button type="button" class="btn btn-outline-primary rt-section-toggle" data-toggle-rt-section="#rtDetailCard" aria-expanded="true">
+                <i class="bi bi-chevron-down"></i><span data-rt-toggle-label>Ocultar base</span>
+            </button>
+        </div>
     </div>
     <div class="rt-collapsed-hint">Base detalhada recolhida para manter os relatórios rápidos no celular.</div>
     <div class="rt-collapsible-body">
