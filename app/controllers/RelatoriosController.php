@@ -45,25 +45,56 @@ class RelatoriosController extends Controller
         ]);
     }
 
-    private function prepareTabularDownload(string $filenameBase, string $type): mixed
+    private function exportDocument(array $config, string $type, callable $producer): int
     {
-        $filenameBase = safe_download_filename($filenameBase, 'relatorio');
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filenameBase . '.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filenameBase . '.csv"');
-        }
-        header('X-Accel-Buffering: no');
-        header('Cache-Control: no-store, no-cache, must-revalidate');
+        return (new TabularExportService())->download(
+            (string)($config['filename'] ?? 'relatorio'),
+            $type,
+            $config['headers'] ?? [],
+            $producer,
+            [
+                'title' => $config['title'] ?? 'Exportacao FBControl',
+                'subtitle' => $config['subtitle'] ?? 'Base gerada pelo sistema.',
+                'sheet_name' => $config['sheet_name'] ?? 'Exportacao',
+                'meta' => $config['meta'] ?? [],
+            ]
+        );
+    }
 
-        $out = fopen('php://output', 'w');
-        if ($out === false) {
-            http_response_code(500);
-            exit;
+    private function filtersMeta(array $filters, array $restaurantes, array $operacoes, array $labels = []): array
+    {
+        $meta = [];
+        if (!empty($filters['data'])) {
+            $meta[$labels['data'] ?? 'Data'] = format_date_br((string)$filters['data']);
         }
-        return $out;
+        if (!empty($filters['data_inicio']) || !empty($filters['data_fim'])) {
+            $inicio = !empty($filters['data_inicio']) ? format_date_br((string)$filters['data_inicio']) : '-';
+            $fim = !empty($filters['data_fim']) ? format_date_br((string)$filters['data_fim']) : '-';
+            $meta[$labels['periodo'] ?? 'Periodo'] = $inicio . ' a ' . $fim;
+        }
+        if (!empty($filters['uh_numero'])) {
+            $meta[$labels['uh'] ?? 'UH'] = (string)$filters['uh_numero'];
+        }
+        if (!empty($filters['restaurante_id'])) {
+            foreach ($restaurantes as $restaurante) {
+                if ((int)$restaurante['id'] === (int)$filters['restaurante_id']) {
+                    $meta[$labels['restaurante'] ?? 'Restaurante'] = normalize_mojibake((string)$restaurante['nome']);
+                    break;
+                }
+            }
+        }
+        if (!empty($filters['operacao_id'])) {
+            foreach ($operacoes as $operacao) {
+                if ((int)$operacao['id'] === (int)$filters['operacao_id']) {
+                    $meta[$labels['operacao'] ?? 'Operacao'] = normalize_mojibake((string)$operacao['nome']);
+                    break;
+                }
+            }
+        }
+        if (!empty($filters['status'])) {
+            $meta[$labels['status'] ?? 'Status'] = normalize_mojibake((string)$filters['status']);
+        }
+        return $meta;
     }
 
     private function resolveVoucherPdfFilters(): array
@@ -525,71 +556,81 @@ class RelatoriosController extends Controller
         $accessModel = new AccessModel();
         $colabModel = new CollaboratorMealModel();
         $voucherModel = new VoucherModel();
+        $restaurantes = (new RestaurantModel())->all();
+        $operacoes = (new OperationModel())->all();
         $type = $this->buildExportType();
         $totalRows = $accessModel->reportListCount($filters)
             + $colabModel->countByFilters($filters)
             + $voucherModel->countByFilters($filters);
         $this->auditExport('relatorios', $filters, $type, $totalRows);
-        $out = $this->prepareTabularDownload('relatorio_acessos', $type);
-        fputcsv($out, [
-            'tipo_registro','data_hora','uh','pax','restaurante','operação','porta','usuário',
-            'duplicado','fora_horario','colaborador','qtd_refeicoes',
-            'hospede','data_estadia','numero_reserva','servico_upselling','assinatura','data_venda'
-        ]);
-        $accessModel->exportReportRows($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                'acesso',
-                $r['criado_em'],
-                $r['uh_numero'],
-                $r['pax'],
-                $r['restaurante'],
-                $r['operacao'],
-                $r['porta'] ?? '',
-                $r['usuario'],
-                $r['alerta_duplicidade'] ? 'sim' : 'não',
-                $r['fora_do_horario'] ? 'sim' : 'não',
-                '', '',
-                '', '', '', '', '', ''
-            ]);
+        $this->exportDocument([
+            'filename' => 'relatorio_acessos',
+            'title' => 'Relatorio operacional consolidado',
+            'subtitle' => 'Acessos, refeicoes de colaboradores e vouchers no mesmo arquivo.',
+            'sheet_name' => 'Operacional',
+            'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
+            'headers' => [
+                'tipo_registro','data_hora','uh','pax','restaurante','operacao','porta','usuario',
+                'duplicado','fora_horario','colaborador','qtd_refeicoes',
+                'hospede','data_estadia','numero_reserva','servico_upselling','assinatura','data_venda'
+            ],
+        ], $type, static function (callable $writeRow) use ($accessModel, $colabModel, $voucherModel, $filters): int {
+            $processed = 0;
+            $processed += $accessModel->exportReportRows($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    'acesso',
+                    $r['criado_em'],
+                    $r['uh_numero'],
+                    $r['pax'],
+                    $r['restaurante'],
+                    $r['operacao'],
+                    $r['porta'] ?? '',
+                    $r['usuario'],
+                    $r['alerta_duplicidade'] ? 'sim' : 'nao',
+                    $r['fora_do_horario'] ? 'sim' : 'nao',
+                    '', '',
+                    '', '', '', '', '', ''
+                ]);
+            });
+            $processed += $colabModel->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    'colaborador',
+                    $r['criado_em'],
+                    '',
+                    '',
+                    $r['restaurante'],
+                    $r['operacao'],
+                    '',
+                    $r['usuario'],
+                    '', '',
+                    $r['nome_colaborador'],
+                    $r['quantidade'],
+                    '', '', '', '', '', ''
+                ]);
+            });
+            $processed += $voucherModel->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    'voucher',
+                    $r['criado_em'],
+                    '',
+                    '',
+                    $r['restaurante'],
+                    $r['operacao'],
+                    '',
+                    $r['usuario'],
+                    '', '',
+                    '',
+                    '',
+                    $r['nome_hospede'],
+                    $r['data_estadia'],
+                    $r['numero_reserva'],
+                    $r['servico_upselling'],
+                    $r['assinatura'],
+                    $r['data_venda']
+                ]);
+            });
+            return $processed;
         });
-        $colabModel->exportByFilters($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                'colaborador',
-                $r['criado_em'],
-                '',
-                '',
-                $r['restaurante'],
-                $r['operacao'],
-                '',
-                $r['usuario'],
-                '', '',
-                $r['nome_colaborador'],
-                $r['quantidade'],
-                '', '', '', '', '', ''
-            ]);
-        });
-        $voucherModel->exportByFilters($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                'voucher',
-                $r['criado_em'],
-                '',
-                '',
-                $r['restaurante'],
-                $r['operacao'],
-                '',
-                $r['usuario'],
-                '', '',
-                '',
-                '',
-                $r['nome_hospede'],
-                $r['data_estadia'],
-                $r['numero_reserva'],
-                $r['servico_upselling'],
-                $r['assinatura'],
-                $r['data_venda']
-            ]);
-        });
-        fclose($out);
         exit;
     }
 
@@ -602,23 +643,32 @@ class RelatoriosController extends Controller
 
         $accessModel = new AccessModel();
         $rows = $accessModel->dailyMap($data);
+        $restaurantes = (new RestaurantModel())->all();
+        $operacoes = (new OperationModel())->all();
 
         $type = $this->buildExportType();
         $this->auditExport('mapa', ['data' => $data], $type, count($rows));
-        $out = $this->prepareTabularDownload('mapa_diario_uh', $type);
-        fputcsv($out, ['uh','cafe','almoco','jantar','tematico','privileged','vip_premium']);
-        foreach ($rows as $r) {
-            fputcsv($out, [
-                $r['uh_numero'],
-                $r['cafe'] ? 'sim' : 'não',
-                $r['almoco'] ? 'sim' : 'não',
-                $r['jantar'] ? 'sim' : 'não',
-                $r['tematico'] ? 'sim' : 'não',
-                $r['privileged'] ? 'sim' : 'não',
-                !empty($r['vip_premium']) ? 'sim' : 'não',
-            ]);
-        }
-        fclose($out);
+        $this->exportDocument([
+            'filename' => 'mapa_diario_uh',
+            'title' => 'Mapa diario de UH',
+            'subtitle' => 'Consolidado de presencas por unidade habitacional.',
+            'sheet_name' => 'Mapa UH',
+            'meta' => $this->filtersMeta(['data' => $data], $restaurantes, $operacoes),
+            'headers' => ['uh','cafe','almoco','jantar','tematico','privileged','vip_premium'],
+        ], $type, static function (callable $writeRow) use ($rows): int {
+            foreach ($rows as $r) {
+                $writeRow([
+                    $r['uh_numero'],
+                    $r['cafe'] ? 'sim' : 'nao',
+                    $r['almoco'] ? 'sim' : 'nao',
+                    $r['jantar'] ? 'sim' : 'nao',
+                    $r['tematico'] ? 'sim' : 'nao',
+                    $r['privileged'] ? 'sim' : 'nao',
+                    !empty($r['vip_premium']) ? 'sim' : 'nao',
+                ]);
+            }
+            return count($rows);
+        });
         exit;
     }
 
@@ -631,49 +681,64 @@ class RelatoriosController extends Controller
 
         $groupedMultiple = ($filters['status'] ?? '') === 'multiplo';
         $accessModel = new AccessModel();
+        $restaurantes = (new RestaurantModel())->all();
+        $operacoes = (new OperationModel())->all();
         $type = $this->buildExportType();
         $totalRows = $groupedMultiple
             ? $accessModel->reportMultipleAccessGroupsCount($filters)
             : $accessModel->reportListCount($filters);
         $this->auditExport('bi', $filters, $type, $totalRows);
-        $out = $this->prepareTabularDownload('base_bi', $type);
         if ($groupedMultiple) {
-            fputcsv($out, ['status', 'uh', 'primeira_passagem', 'ultima_passagem', 'acessos', 'pax_total', 'pax_min', 'pax_max', 'dias', 'restaurantes', 'operacoes', 'portas', 'usuarios']);
-            $accessModel->exportMultipleAccessGroups($filters, static function (array $r) use ($out): void {
-                fputcsv($out, [
-                    $r['status_operacional'] ?? 'Múltiplo Acesso',
-                    $r['uh_numero'],
-                    $r['primeira_passagem'],
-                    $r['ultima_passagem'],
-                    $r['total_acessos'],
-                    $r['total_pax'],
-                    $r['menor_pax'],
-                    $r['maior_pax'],
-                    $r['dias'],
-                    $r['restaurantes'],
-                    $r['operacoes'],
-                    $r['portas'],
-                    $r['usuarios'],
-                ]);
+            $this->exportDocument([
+                'filename' => 'base_bi',
+                'title' => 'Base completa para BI',
+                'subtitle' => 'Agrupamentos de multiplos acessos para analise operacional.',
+                'sheet_name' => 'BI Multiplo',
+                'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
+                'headers' => ['status', 'uh', 'primeira_passagem', 'ultima_passagem', 'acessos', 'pax_total', 'pax_min', 'pax_max', 'dias', 'restaurantes', 'operacoes', 'portas', 'usuarios'],
+            ], $type, static function (callable $writeRow) use ($accessModel, $filters): int {
+                return $accessModel->exportMultipleAccessGroups($filters, static function (array $r) use ($writeRow): void {
+                    $writeRow([
+                        $r['status_operacional'] ?? 'Multiplo Acesso',
+                        $r['uh_numero'],
+                        $r['primeira_passagem'],
+                        $r['ultima_passagem'],
+                        $r['total_acessos'],
+                        $r['total_pax'],
+                        $r['menor_pax'],
+                        $r['maior_pax'],
+                        $r['dias'],
+                        $r['restaurantes'],
+                        $r['operacoes'],
+                        $r['portas'],
+                        $r['usuarios'],
+                    ]);
+                });
             });
-            fclose($out);
             exit;
         }
 
-        fputcsv($out, ['status', 'data_hora', 'uh', 'pax', 'restaurante', 'operacao', 'porta', 'usuario']);
-        $accessModel->exportReportRows($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                $r['status_operacional'] ?? 'OK',
-                $r['criado_em'],
-                $r['uh_numero'],
-                $r['pax'],
-                $r['restaurante'],
-                $r['operacao'],
-                $r['porta'] ?? '',
-                $r['usuario'],
-            ]);
+        $this->exportDocument([
+            'filename' => 'base_bi',
+            'title' => 'Base completa para BI',
+            'subtitle' => 'Eventos detalhados do periodo filtrado.',
+            'sheet_name' => 'BI Detalhado',
+            'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
+            'headers' => ['status', 'data_hora', 'uh', 'pax', 'restaurante', 'operacao', 'porta', 'usuario'],
+        ], $type, static function (callable $writeRow) use ($accessModel, $filters): int {
+            return $accessModel->exportReportRows($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    $r['status_operacional'] ?? 'OK',
+                    $r['criado_em'],
+                    $r['uh_numero'],
+                    $r['pax'],
+                    $r['restaurante'],
+                    $r['operacao'],
+                    $r['porta'] ?? '',
+                    $r['usuario'],
+                ]);
+            });
         });
-        fclose($out);
         exit;
     }
 
@@ -691,22 +756,30 @@ class RelatoriosController extends Controller
         ];
 
         $model = new CollaboratorMealModel();
+        $restaurantes = (new RestaurantModel())->all();
+        $operacoes = (new OperationModel())->all();
         $type = $this->buildExportType();
         $totalRows = $model->countByFilters($filters);
         $this->auditExport('colaboradores', $filters, $type, $totalRows);
-        $out = $this->prepareTabularDownload('colaboradores_refeicoes', $type);
-        fputcsv($out, ['data_hora', 'colaborador', 'quantidade', 'restaurante', 'operacao', 'usuario']);
-        $model->exportByFilters($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                $r['criado_em'],
-                $r['nome_colaborador'],
-                $r['quantidade'],
-                $r['restaurante'],
-                $r['operacao'],
-                $r['usuario'],
-            ]);
+        $this->exportDocument([
+            'filename' => 'colaboradores_refeicoes',
+            'title' => 'Refeicoes de colaboradores',
+            'subtitle' => 'Historico operacional por restaurante e operacao.',
+            'sheet_name' => 'Colaboradores',
+            'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
+            'headers' => ['data_hora', 'colaborador', 'quantidade', 'restaurante', 'operacao', 'usuario'],
+        ], $type, static function (callable $writeRow) use ($model, $filters): int {
+            return $model->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    $r['criado_em'],
+                    $r['nome_colaborador'],
+                    $r['quantidade'],
+                    $r['restaurante'],
+                    $r['operacao'],
+                    $r['usuario'],
+                ]);
+            });
         });
-        fclose($out);
         exit;
     }
 
@@ -724,27 +797,35 @@ class RelatoriosController extends Controller
         ];
 
         $model = new VoucherModel();
+        $restaurantes = (new RestaurantModel())->all();
+        $operacoes = (new OperationModel())->all();
         $type = $this->buildExportType();
         $totalRows = $model->countByFilters($filters);
         $this->auditExport('vouchers', $filters, $type, $totalRows);
-        $out = $this->prepareTabularDownload('vouchers_registrados', $type);
-        fputcsv($out, ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo_registrado', 'restaurante', 'operacao', 'usuario']);
-        $model->exportByFilters($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                $r['criado_em'],
-                $r['nome_hospede'],
-                $r['data_estadia'],
-                $r['numero_reserva'],
-                $r['servico_upselling'],
-                $r['assinatura'],
-                $r['data_venda'],
-                safe_public_upload_url((string)($r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'não',
-                $r['restaurante'],
-                $r['operacao'],
-                $r['usuario'],
-            ]);
+        $this->exportDocument([
+            'filename' => 'vouchers_registrados',
+            'title' => 'Vouchers registrados',
+            'subtitle' => 'Exportacao tabular para conferencia de vouchers e upselling.',
+            'sheet_name' => 'Vouchers',
+            'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
+            'headers' => ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo_registrado', 'restaurante', 'operacao', 'usuario'],
+        ], $type, static function (callable $writeRow) use ($model, $filters): int {
+            return $model->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    $r['criado_em'],
+                    $r['nome_hospede'],
+                    $r['data_estadia'],
+                    $r['numero_reserva'],
+                    $r['servico_upselling'],
+                    $r['assinatura'],
+                    $r['data_venda'],
+                    safe_public_upload_url((string)($r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'nao',
+                    $r['restaurante'],
+                    $r['operacao'],
+                    $r['usuario'],
+                ]);
+            });
         });
-        fclose($out);
         exit;
     }
 

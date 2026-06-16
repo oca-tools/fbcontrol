@@ -335,7 +335,7 @@ Leitura de produto: apesar de ser um sistema operacional interno, ha uma preocup
 ## Pontos de atencao
 
 - Muitos calculos de produto estao distribuidos entre controllers e models.
-- Alguns exports usam extensao `.xls`, mas geram conteudo tabular simples via `fputcsv`; funciona, mas nao e XLSX real.
+- As exportacoes tabulares principais usam uma camada dedicada de workbook, com `xlsx` real quando `ZipArchive` esta disponivel e fallback compativel para Excel em ambientes restritos.
 - A ocupacao diaria e manual; se houver PMS/CM externo, integracao futura agregaria muito valor.
 - Os paineis dependem de convencoes de nome como "Corais", "Giardino", "IX", "La Brasa" e "Tematico".
 - Existem arquivos `.bak` versionados tambem nos controllers de relatorio/tematicos/LGPD.

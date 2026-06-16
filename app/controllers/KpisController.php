@@ -313,21 +313,30 @@ class KpisController extends Controller
             'rows' => count($rows),
             'filters' => $filters,
         ]);
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="kpis_tendencia.csv"');
-        $out = fopen('php://output', 'w');
-        fputcsv($out, ['data', 'registros', 'pax_total', 'uhs_unicas', 'duplicados', 'fora_horario']);
-        foreach ($rows as $r) {
-            fputcsv($out, [
-                $r['data_ref'],
-                $r['registros'],
-                $r['pax_total'],
-                $r['uhs_unicas'],
-                $r['duplicados'],
-                $r['fora_horario'],
-            ]);
-        }
-        fclose($out);
+        (new TabularExportService())->download('kpis_tendencia', 'csv', [
+            'data', 'registros', 'pax_total', 'uhs_unicas', 'duplicados', 'fora_horario'
+        ], static function (callable $writeRow) use ($rows): int {
+            foreach ($rows as $r) {
+                $writeRow([
+                    $r['data_ref'],
+                    $r['registros'],
+                    $r['pax_total'],
+                    $r['uhs_unicas'],
+                    $r['duplicados'],
+                    $r['fora_horario'],
+                ]);
+            }
+            return count($rows);
+        }, [
+            'title' => 'Tendencia diaria de KPIs',
+            'subtitle' => 'Serie historica exportada para analise externa.',
+            'sheet_name' => 'KPIs',
+            'meta' => [
+                'Periodo' => (!empty($filters['data_inicio']) || !empty($filters['data_fim']))
+                    ? ((string)($filters['data_inicio'] ?: '-')) . ' a ' . ((string)($filters['data_fim'] ?: '-'))
+                    : format_date_br((string)($filters['data'] ?? date('Y-m-d'))),
+            ],
+        ]);
         exit;
     }
 

@@ -1154,14 +1154,14 @@ class ReservasTematicasController extends Controller
         $restaurantModel = new RestaurantModel();
         $turnoModel = new ReservaTematicaTurnoModel();
         $filters = [
-            'data' => $_GET['data'] ?? date('Y-m-d'),
-            'restaurante_id' => $_GET['restaurante_id'] ?? '',
-            'turno_id' => $_GET['turno_id'] ?? '',
-            'uh_numero' => $_GET['uh_numero'] ?? '',
-            'titular' => $_GET['titular'] ?? '',
-            'q' => $_GET['q'] ?? '',
-            'status' => $_GET['status'] ?? '',
-            'order' => $_GET['order'] ?? '',
+            'data' => sanitize_date_param($_GET['data'] ?? '', date('Y-m-d')),
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'turno_id' => sanitize_int_param($_GET['turno_id'] ?? ''),
+            'uh_numero' => sanitize_uh_param($_GET['uh_numero'] ?? ''),
+            'titular' => normalize_mojibake(trim((string)($_GET['titular'] ?? ''))),
+            'q' => normalize_mojibake(trim((string)($_GET['q'] ?? ''))),
+            'status' => normalize_mojibake(trim((string)($_GET['status'] ?? ''))),
+            'order' => in_array((string)($_GET['order'] ?? ''), ['hora', 'status', 'turno'], true) ? (string)$_GET['order'] : '',
         ];
         $tipo = $_GET['tipo'] ?? 'detalhada';
         $reservas = $reservaModel->listByFilters($filters);

@@ -30,25 +30,56 @@ class RelatoriosTematicosController extends Controller
         return $type === 'xlsx' ? 'xlsx' : 'csv';
     }
 
-    private function prepareTabularDownload(string $filenameBase, string $type): mixed
+    private function exportDocument(array $config, string $type, callable $producer): int
     {
-        $filenameBase = safe_download_filename($filenameBase, 'relatorio_tematicos');
-        if ($type === 'xlsx') {
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filenameBase . '.xls"');
-        } else {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filenameBase . '.csv"');
-        }
-        header('X-Accel-Buffering: no');
-        header('Cache-Control: no-store, no-cache, must-revalidate');
+        return (new TabularExportService())->download(
+            (string)($config['filename'] ?? 'relatorio_tematicos'),
+            $type,
+            $config['headers'] ?? [],
+            $producer,
+            [
+                'title' => $config['title'] ?? 'Exportacao tematica',
+                'subtitle' => $config['subtitle'] ?? 'Base gerada pelo sistema.',
+                'sheet_name' => $config['sheet_name'] ?? 'Tematicos',
+                'meta' => $config['meta'] ?? [],
+            ]
+        );
+    }
 
-        $out = fopen('php://output', 'w');
-        if ($out === false) {
-            http_response_code(500);
-            exit;
+    private function filtersMeta(array $filters, array $restaurantes, array $turnos): array
+    {
+        $meta = [];
+        if (!empty($filters['data'])) {
+            $meta['Data'] = format_date_br((string)$filters['data']);
         }
-        return $out;
+        if (!empty($filters['data_inicio']) || !empty($filters['data_fim'])) {
+            $inicio = !empty($filters['data_inicio']) ? format_date_br((string)$filters['data_inicio']) : '-';
+            $fim = !empty($filters['data_fim']) ? format_date_br((string)$filters['data_fim']) : '-';
+            $meta['Periodo'] = $inicio . ' a ' . $fim;
+        }
+        if (!empty($filters['restaurante_id'])) {
+            foreach ($restaurantes as $restaurante) {
+                if ((int)$restaurante['id'] === (int)$filters['restaurante_id']) {
+                    $meta['Restaurante'] = normalize_mojibake((string)$restaurante['nome']);
+                    break;
+                }
+            }
+        }
+        if (!empty($filters['turno_id'])) {
+            foreach ($turnos as $turno) {
+                if ((int)$turno['id'] === (int)$filters['turno_id']) {
+                    $meta['Turno'] = normalize_mojibake((string)($turno['hora'] ?? ''));
+                    break;
+                }
+            }
+        }
+        if (!empty($filters['status'])) {
+            $meta['Status'] = normalize_mojibake((string)$filters['status']);
+        }
+        if (!empty($filters['grupo_nome'])) {
+            $meta['Grupo'] = normalize_mojibake((string)$filters['grupo_nome']);
+        }
+        return $meta;
     }
 
     public function index(): void
@@ -102,6 +133,7 @@ class RelatoriosTematicosController extends Controller
 
         $reservaModel = new ReservaTematicaModel();
         $tematicos = (new TematicAccessService())->allTematicRestaurants();
+        $turnos = (new ReservaTematicaTurnoModel())->all();
 
         $filters = $this->buildFilters($tematicos, false);
 
@@ -112,35 +144,41 @@ class RelatoriosTematicosController extends Controller
             'rows' => $totalRows,
             'filters' => $filters,
         ]);
-        $out = $this->prepareTabularDownload('relatorio_tematicos', $type);
-        fputcsv($out, [
-            'data_reserva','turno','restaurante','grupo_id','grupo_nome','responsavel_grupo','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status',
-            'obs_reserva','tags','obs_operacao','usuario','criado_em'
-        ]);
-        $reservaModel->exportByFilters($filters, static function (array $r) use ($out): void {
-            fputcsv($out, [
-                $r['data_reserva'],
-                $r['turno_hora'],
-                $r['restaurante'],
-                $r['grupo_id'] ?? '',
-                $r['grupo_nome_display'] ?? $r['grupo_nome'] ?? '',
-                $r['grupo_responsavel'] ?? '',
-                $r['uh_numero'],
-                $r['titular_nome_display'] ?? $r['titular_nome'] ?? '',
-                $r['pax_adulto_calc'] ?? '',
-                $r['pax_chd_calc'] ?? '',
-                $r['qtd_chd_calc'] ?? '',
-                $r['pax'],
-                $r['pax_real'] ?? '',
-                $r['status'],
-                $r['observacao_reserva'] ?? '',
-                $r['observacao_tags'] ?? '',
-                $r['observacao_operacao'] ?? '',
-                $r['usuario'],
-                $r['criado_em'],
-            ]);
+        $this->exportDocument([
+            'filename' => 'relatorio_tematicos',
+            'title' => 'Reservas tematicas',
+            'subtitle' => 'Base detalhada para operacao, supervisao e auditoria.',
+            'sheet_name' => 'Tematicos',
+            'meta' => $this->filtersMeta($filters, $tematicos, $turnos),
+            'headers' => [
+                'data_reserva','turno','restaurante','grupo_id','grupo_nome','responsavel_grupo','uh','titular','pax_adulto','pax_chd','qtd_chd','pax_reservada','pax_real','status',
+                'obs_reserva','tags','obs_operacao','usuario','criado_em'
+            ],
+        ], $type, static function (callable $writeRow) use ($reservaModel, $filters): int {
+            return $reservaModel->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+                $writeRow([
+                    $r['data_reserva'],
+                    $r['turno_hora'],
+                    $r['restaurante'],
+                    $r['grupo_id'] ?? '',
+                    $r['grupo_nome_display'] ?? $r['grupo_nome'] ?? '',
+                    $r['grupo_responsavel'] ?? '',
+                    $r['uh_numero'],
+                    $r['titular_nome_display'] ?? $r['titular_nome'] ?? '',
+                    $r['pax_adulto_calc'] ?? '',
+                    $r['pax_chd_calc'] ?? '',
+                    $r['qtd_chd_calc'] ?? '',
+                    $r['pax'],
+                    $r['pax_real'] ?? '',
+                    $r['status'],
+                    $r['observacao_reserva'] ?? '',
+                    $r['observacao_tags'] ?? '',
+                    $r['observacao_operacao'] ?? '',
+                    $r['usuario'],
+                    $r['criado_em'],
+                ]);
+            });
         });
-        fclose($out);
         exit;
     }
 }

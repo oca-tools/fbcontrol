@@ -263,6 +263,19 @@ function sanitize_date_param(?string $value, string $default = ''): string
     return date('Y-m-d', $ts);
 }
 
+function format_date_br(?string $value, string $fallback = '-'): string
+{
+    $normalized = sanitize_date_param($value ?? '');
+    if ($normalized === '') {
+        return $fallback;
+    }
+    $ts = strtotime($normalized);
+    if ($ts === false) {
+        return $fallback;
+    }
+    return date('d/m/Y', $ts);
+}
+
 function sanitize_int_param($value, int $min = 1): string
 {
     if ($value === null || $value === '') {

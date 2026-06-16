@@ -64,7 +64,8 @@ $record(
     'voucher_export_does_not_expose_storage_path',
     $exportVoucherBlock !== ''
         && strpos($exportVoucherBlock, 'anexo_registrado') !== false
-        && strpos($exportVoucherBlock, "safe_public_upload_url((string)(\$r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'não'") !== false,
+        && strpos($exportVoucherBlock, "safe_public_upload_url((string)(\$r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'nao'") !== false
+        && strpos($exportVoucherBlock, "\$r['voucher_anexo_path']") !== false,
     'export_vouchers'
 );
 

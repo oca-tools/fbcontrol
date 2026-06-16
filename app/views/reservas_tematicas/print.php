@@ -2,81 +2,240 @@
 $reservas = $this->data['reservas'] ?? [];
 $filters = $this->data['filters'] ?? [];
 $tipo = $this->data['tipo'] ?? 'detalhada';
-$colspan = $tipo === 'detalhada' ? 8 : 6;
-$totalPax = 0;
-foreach ($reservas as $r) {
-    $totalPax += (int)($r['pax'] ?? 0);
+
+$summary = [
+    'reservas' => 0,
+    'pax' => 0,
+    'chd' => 0,
+    'adultos' => 0,
+    'uhs' => [],
+    'observacoes' => 0,
+];
+$turnos = [];
+
+foreach ($reservas as $row) {
+    $turno = normalize_mojibake((string)($row['turno_hora'] ?? '--:--'));
+    if (!isset($turnos[$turno])) {
+        $turnos[$turno] = [
+            'turno' => $turno,
+            'reservas' => [],
+            'total_pax' => 0,
+            'total_chd' => 0,
+            'total_adultos' => 0,
+        ];
+    }
+
+    $pax = (int)($row['pax'] ?? 0);
+    $chd = (int)($row['qtd_chd_calc'] ?? $row['pax_chd_calc'] ?? 0);
+    $adultos = (int)($row['pax_adulto_calc'] ?? max(0, $pax - $chd));
+    $obsReserva = trim(normalize_mojibake((string)($row['observacao_reserva'] ?? '')));
+    $obsOperacao = trim(normalize_mojibake((string)($row['observacao_operacao'] ?? '')));
+    $tags = trim(normalize_mojibake((string)($row['observacao_tags'] ?? '')));
+    $titular = trim(normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')));
+    $grupo = trim(normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? '')));
+    $status = trim(normalize_mojibake((string)($row['status_reserva'] ?? $row['status'] ?? 'Reservada')));
+
+    $turnos[$turno]['reservas'][] = [
+        'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
+        'uh' => normalize_mojibake((string)($row['uh_numero'] ?? '')),
+        'titular' => $titular !== '' && $titular !== '-' ? $titular : 'Nao informado',
+        'grupo' => $grupo !== '' && $grupo !== '-' ? $grupo : '',
+        'pax' => $pax,
+        'adultos' => $adultos,
+        'chd' => $chd,
+        'status' => $status !== '' ? $status : 'Reservada',
+        'obs_reserva' => $obsReserva,
+        'obs_operacao' => $obsOperacao,
+        'tags' => $tags,
+        'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
+    ];
+
+    $turnos[$turno]['total_pax'] += $pax;
+    $turnos[$turno]['total_chd'] += $chd;
+    $turnos[$turno]['total_adultos'] += $adultos;
+
+    $summary['reservas']++;
+    $summary['pax'] += $pax;
+    $summary['chd'] += $chd;
+    $summary['adultos'] += $adultos;
+    $summary['uhs'][(string)($row['uh_numero'] ?? '')] = true;
+    if ($obsReserva !== '' || $obsOperacao !== '' || $tags !== '') {
+        $summary['observacoes']++;
+    }
 }
+
+$summary['uhs_total'] = count(array_filter(array_keys($summary['uhs']), static function ($value): bool {
+    return trim((string)$value) !== '';
+}));
+
+ksort($turnos);
+
+$documentTitle = $tipo === 'detalhada' ? 'Impressao operacional de reservas' : 'Resumo de reservas tematicas';
+$documentSubtitle = 'Lista preparada para apoio rapido da operacao, montagem do ambiente e conferencia do servico.';
+$documentMeta = [
+    'Data' => !empty($filters['data']) ? format_date_br((string)$filters['data']) : format_date_br(date('Y-m-d')),
+    'Restaurante' => normalize_mojibake((string)($filters['restaurante_nome'] ?? 'Todos')),
+    'Turno' => normalize_mojibake((string)($filters['turno_hora'] ?? 'Todos')),
+    'Status' => !empty($filters['status']) ? normalize_mojibake((string)$filters['status']) : 'Todos',
+];
 ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <title>Listagem de Reservas Temáticas</title>
-    <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #111; }
-        h1 { font-size: 18px; margin: 0 0 8px; }
-        .meta { margin-bottom: 12px; color: #555; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-        th { background: #f2f2f2; }
-        .badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; border: 1px solid #ddd; }
-        @media print {
-            .no-print { display: none; }
-        }
-    </style>
+    <title><?= h($documentTitle) ?></title>
+    <?php require __DIR__ . '/../partials/export_print_styles.php'; ?>
 </head>
 <body>
-    <h1>Reservas Temáticas</h1>
-    <div class="meta">
-        Data: <?= htmlspecialchars($filters['data'] ?? '') ?>
-        | Restaurante: <?= htmlspecialchars($filters['restaurante_nome'] ?? 'Todos') ?>
-        | Turno: <?= htmlspecialchars($filters['turno_hora'] ?? 'Todos') ?>
-        | Tipo: <?= htmlspecialchars($tipo) ?>
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Restaurante</th>
-                <th>Data</th>
-                <th>Turno</th>
-                <th>UH</th>
-                <th>PAX</th>
-                <th>Status</th>
-                <?php if ($tipo === 'detalhada'): ?>
-                    <th>Observação original</th>
-                    <th>Observação operacional</th>
+    <div class="export-page">
+        <div class="export-shell">
+            <header class="export-hero">
+                <div class="export-kicker">FBControl · Operacao Tematica</div>
+                <h1 class="export-title"><?= h($documentTitle) ?></h1>
+                <div class="export-subtitle"><?= h($documentSubtitle) ?></div>
+            </header>
+
+            <section class="export-meta">
+                <?php foreach ($documentMeta as $label => $value): ?>
+                    <article class="meta-card">
+                        <div class="meta-label"><?= h($label) ?></div>
+                        <div class="meta-value"><?= h($value) ?></div>
+                    </article>
+                <?php endforeach; ?>
+            </section>
+
+            <section class="summary-grid">
+                <article class="summary-card">
+                    <div class="summary-number"><?= (int)$summary['reservas'] ?></div>
+                    <div class="summary-label">Reservas</div>
+                    <div class="summary-note">Total de registros impressos</div>
+                </article>
+                <article class="summary-card">
+                    <div class="summary-number"><?= (int)$summary['pax'] ?></div>
+                    <div class="summary-label">PAX total</div>
+                    <div class="summary-note"><?= (int)$summary['adultos'] ?> adultos e <?= (int)$summary['chd'] ?> CHD</div>
+                </article>
+                <article class="summary-card">
+                    <div class="summary-number"><?= (int)$summary['uhs_total'] ?></div>
+                    <div class="summary-label">UHs</div>
+                    <div class="summary-note">Habitacoes diferentes no periodo</div>
+                </article>
+                <article class="summary-card">
+                    <div class="summary-number"><?= (int)$summary['observacoes'] ?></div>
+                    <div class="summary-label">Atencoes</div>
+                    <div class="summary-note">Reservas com observacoes ou tags</div>
+                </article>
+            </section>
+
+            <div class="content-wrap">
+                <?php if (empty($turnos)): ?>
+                    <div class="empty-state">
+                        Nenhuma reserva encontrada para os filtros informados.
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($turnos as $grupo): ?>
+                        <section class="turno-section">
+                            <div class="turno-header">
+                                <div>
+                                    <h2 class="turno-title">Turno <?= h($grupo['turno']) ?></h2>
+                                    <div class="turno-subtitle">Leitura pensada para salao, cozinha e conferencia manual durante o servico.</div>
+                                </div>
+                                <div class="turno-stats">
+                                    <span class="stat-pill"><strong><?= count($grupo['reservas']) ?></strong> reservas</span>
+                                    <span class="stat-pill"><strong><?= (int)$grupo['total_pax'] ?></strong> PAX</span>
+                                    <span class="stat-pill"><strong><?= (int)$grupo['total_chd'] ?></strong> CHD</span>
+                                </div>
+                            </div>
+
+                            <div class="turno-table-wrap">
+                                <table class="export-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:88px;">UH</th>
+                                            <th>Hospede / grupo</th>
+                                            <th style="width:180px;">PAX</th>
+                                            <th style="width:120px;">Status</th>
+                                            <th>Observacoes operacionais</th>
+                                            <th class="check-column">Checagem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($grupo['reservas'] as $item): ?>
+                                            <tr>
+                                                <td>
+                                                    <span class="uh-badge">UH <?= h($item['uh']) ?></span>
+                                                </td>
+                                                <td>
+                                                    <div class="guest-name"><?= h($item['titular']) ?></div>
+                                                    <div class="chip-row">
+                                                        <?php if ($item['grupo'] !== ''): ?>
+                                                            <span class="chip">Grupo: <?= h($item['grupo']) ?></span>
+                                                        <?php endif; ?>
+                                                        <span class="chip">Criado por <?= h($item['usuario']) ?></span>
+                                                        <span class="chip">Restaurante <?= h($item['restaurante']) ?></span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="chip-row">
+                                                        <span class="chip"><strong><?= (int)$item['pax'] ?></strong> PAX</span>
+                                                        <span class="chip"><strong><?= (int)$item['adultos'] ?></strong> adultos</span>
+                                                        <span class="chip"><strong><?= (int)$item['chd'] ?></strong> CHD</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span class="chip status"><?= h($item['status']) ?></span>
+                                                </td>
+                                                <td>
+                                                    <div class="notes-block">
+                                                        <?php if ($item['obs_reserva'] !== ''): ?>
+                                                            <div class="note-line">
+                                                                <span class="note-label">Reserva</span>
+                                                                <div><?= h($item['obs_reserva']) ?></div>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if ($item['obs_operacao'] !== ''): ?>
+                                                            <div class="note-line">
+                                                                <span class="note-label">Operacao</span>
+                                                                <div><?= h($item['obs_operacao']) ?></div>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if ($item['tags'] !== ''): ?>
+                                                            <div class="note-line">
+                                                                <span class="note-label">Tags</span>
+                                                                <div><?= h($item['tags']) ?></div>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if ($item['obs_reserva'] === '' && $item['obs_operacao'] === '' && $item['tags'] === ''): ?>
+                                                            <div class="note-line">
+                                                                <span class="note-label">Observacoes</span>
+                                                                <div>Sem apontamentos adicionais.</div>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td class="check-column">
+                                                    <div class="check-box"></div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    <?php endforeach; ?>
                 <?php endif; ?>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($reservas as $row): ?>
-                <tr>
-                    <td><?= htmlspecialchars($row['restaurante']) ?></td>
-                    <td><?= htmlspecialchars($row['data_reserva']) ?></td>
-                    <td><?= htmlspecialchars($row['turno_hora']) ?></td>
-                    <td><?= htmlspecialchars($row['uh_numero']) ?></td>
-                    <td><?= htmlspecialchars($row['pax']) ?></td>
-                    <td><?= htmlspecialchars($row['status']) ?></td>
-                    <?php if ($tipo === 'detalhada'): ?>
-                        <td><?= htmlspecialchars($row['observacao_reserva'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($row['observacao_operacao'] ?? '-') ?></td>
-                    <?php endif; ?>
-                </tr>
-            <?php endforeach; ?>
-            <?php if (empty($reservas)): ?>
-                <tr><td colspan="<?= (int)$colspan ?>">Nenhuma reserva encontrada.</td></tr>
-            <?php else: ?>
-                <tr>
-                    <td colspan="<?= (int)($colspan - 3) ?>" style="font-weight:700;">Total de PAX</td>
-                    <td style="font-weight:700;"><?= (int)$totalPax ?></td>
-                    <td colspan="2"></td>
-                </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-    <div class="no-print" style="margin-top: 12px;">
-        <button onclick="window.print()">Imprimir</button>
+            </div>
+
+            <div class="toolbar no-print">
+                <div class="toolbar-note">
+                    Esta impressao prioriza leitura rapida, totais por turno e espaco de checagem manual para a equipe operacional.
+                </div>
+                <div class="toolbar-actions">
+                    <button type="button" class="ghost" onclick="window.close()">Fechar</button>
+                    <button type="button" onclick="window.print()">Imprimir agora</button>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

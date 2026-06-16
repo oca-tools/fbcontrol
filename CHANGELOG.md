@@ -14,6 +14,8 @@ Release de polimento, escala e governanca.
 - Permissoes ajustadas para gerente A&B em modulos operacionais e administrativos relevantes.
 - Usuarios com abas de ativos/desativados e melhor experiencia mobile.
 - Relatorios e BI com exportacoes mais eficientes e paginacao server-side onde necessario.
+- Exportacoes Excel profissionalizadas com workbook real, cabecalho visual, metadados e fallback compativel.
+- Impressao operacional tematica redesenhada para leitura rapida por turno, PAX e observacoes.
 - Filtros de dashboard/BI com preservacao de posicao de tela em fluxos extensos.
 - Regras de fechamento automatico de turnos regulares e especiais.
 - No-show automatico para reservas tematicas via cron.
