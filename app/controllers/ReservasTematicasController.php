@@ -960,7 +960,7 @@ class ReservasTematicasController extends Controller
                     $this->redirect('/?r=reservasTematicas/admin');
                 }
 
-                $result = $turnoModel->removeOrInactivate($removeTurnoId);
+                $result = $turnoModel->removeOrInactivate($removeTurnoId, (int)Auth::user()['id']);
                 if (($result['result'] ?? '') === 'deleted') {
                     set_flash('success', 'Turno removido com sucesso.');
                 } else {
@@ -1047,7 +1047,7 @@ class ReservasTematicasController extends Controller
 
             if ($action === 'config_turnos') {
                 $items = $_POST['turnos'] ?? [];
-                $turnoModel->updateBatch($items);
+                $turnoModel->updateBatch($items, (int)Auth::user()['id']);
                 set_flash('success', 'Turnos atualizados.');
                 $this->redirect('/?r=reservasTematicas/admin');
             }
@@ -1069,14 +1069,14 @@ class ReservasTematicasController extends Controller
                     $this->redirect('/?r=reservasTematicas/admin');
                 }
 
-                $turnoModel->create($hora, $ativo, $ordem);
+                $turnoModel->create($hora, $ativo, $ordem, (int)Auth::user()['id']);
                 set_flash('success', 'Novo turno adicionado.');
                 $this->redirect('/?r=reservasTematicas/admin');
             }
 
             if ($action === 'config_periodos') {
                 $items = $_POST['periodos'] ?? [];
-                $periodoModel->updateBatch($items);
+                $periodoModel->updateBatch($items, (int)Auth::user()['id']);
                 set_flash('success', 'Períodos atualizados.');
                 $this->redirect('/?r=reservasTematicas/admin');
             }
@@ -1110,7 +1110,7 @@ class ReservasTematicasController extends Controller
                     $this->redirect('/?r=reservasTematicas/admin');
                 }
 
-                $periodoModel->create($inicio, $fim, $ativo, $ordem);
+                $periodoModel->create($inicio, $fim, $ativo, $ordem, (int)Auth::user()['id']);
                 set_flash('success', 'Novo período adicionado.');
                 $this->redirect('/?r=reservasTematicas/admin');
             }

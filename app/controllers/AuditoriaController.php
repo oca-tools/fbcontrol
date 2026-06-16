@@ -22,7 +22,7 @@ class AuditoriaController extends Controller
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole(['admin', 'gerente']);
 
         $graceMinutes = 10;
         (new ShiftModel())->autoCloseExpired($graceMinutes, null);

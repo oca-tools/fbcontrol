@@ -26,9 +26,10 @@ class ReservaTematicaTurnoModel extends Model
         ")->fetchAll();
     }
 
-    public function updateBatch(array $items): void
+    public function updateBatch(array $items, int $userId): void
     {
         foreach ($items as $id => $data) {
+            $before = $this->find((int)$id) ?? [];
             $stmt = $this->db->prepare("
                 UPDATE reservas_tematicas_turnos
                 SET hora = :hora,
@@ -42,10 +43,21 @@ class ReservaTematicaTurnoModel extends Model
                 ':ordem' => (int)($data['ordem'] ?? 0),
                 ':id' => (int)$id,
             ]);
+            $after = $this->find((int)$id) ?? [];
+            if ($before !== $after) {
+                $this->audit(
+                    'update_turno_tematico',
+                    $userId,
+                    $before,
+                    $after,
+                    'reservas_tematicas_turnos',
+                    (int)$id
+                );
+            }
         }
     }
 
-    public function create(string $hora, int $ativo = 1, int $ordem = 0): int
+    public function create(string $hora, int $ativo = 1, int $ordem = 0, int $userId = 0): int
     {
         $stmt = $this->db->prepare("
             INSERT INTO reservas_tematicas_turnos (hora, ativo, ordem)
@@ -57,11 +69,18 @@ class ReservaTematicaTurnoModel extends Model
             ':ordem' => $ordem,
         ]);
 
-        return (int)$this->db->lastInsertId();
+        $id = (int)$this->db->lastInsertId();
+        if ($userId > 0) {
+            $after = $this->find($id) ?? [];
+            $this->audit('create_turno_tematico', $userId, [], $after, 'reservas_tematicas_turnos', $id);
+        }
+
+        return $id;
     }
 
-    public function removeOrInactivate(int $id): array
+    public function removeOrInactivate(int $id, int $userId): array
     {
+        $before = $this->find($id) ?? [];
         $refs = $this->referenceCounters($id);
 
         // Reservas/grupos são histórico operacional real. Fechamentos acidentais não devem impedir exclusão.
@@ -72,6 +91,8 @@ class ReservaTematicaTurnoModel extends Model
                 WHERE id = :id
             ");
             $stmt->execute([':id' => $id]);
+            $after = $this->find($id) ?? [];
+            $this->audit('inactivate_turno_tematico', $userId, $before, $after, 'reservas_tematicas_turnos', $id);
             return ['result' => 'inactivated', 'refs' => $refs];
         }
 
@@ -93,6 +114,7 @@ class ReservaTematicaTurnoModel extends Model
             $stmtTurno->execute([':id' => $id]);
 
             $this->db->commit();
+            $this->audit('delete_turno_tematico', $userId, $before, [], 'reservas_tematicas_turnos', $id);
             return ['result' => 'deleted', 'refs' => $refs];
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {
@@ -105,6 +127,8 @@ class ReservaTematicaTurnoModel extends Model
                     WHERE id = :id
                 ");
                 $stmt->execute([':id' => $id]);
+                $after = $this->find($id) ?? [];
+                $this->audit('inactivate_turno_tematico', $userId, $before, $after, 'reservas_tematicas_turnos', $id);
                 return ['result' => 'inactivated', 'refs' => $refs];
             }
             throw $e;
@@ -154,5 +178,3 @@ class ReservaTematicaTurnoModel extends Model
         return (bool)$stmt->fetchColumn();
     }
 }
-
-

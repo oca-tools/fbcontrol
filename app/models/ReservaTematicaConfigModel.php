@@ -4,6 +4,67 @@ class ReservaTematicaConfigModel extends Model
     private ?bool $hasAutoCancelNoShowMinColumnCache = null;
     private ?bool $hasDateCapacityTableCache = null;
 
+    private function findConfigRow(int $restauranteId): ?array
+    {
+        $autoCancelField = $this->hasAutoCancelNoShowMinColumn()
+            ? "c.auto_cancel_no_show_min"
+            : "0 AS auto_cancel_no_show_min";
+        $stmt = $this->db->prepare("
+            SELECT c.*, $autoCancelField, r.nome AS restaurante
+            FROM reservas_tematicas_config c
+            JOIN restaurantes r ON r.id = c.restaurante_id
+            WHERE c.restaurante_id = :restaurante_id
+            LIMIT 1
+        ");
+        $stmt->execute([':restaurante_id' => $restauranteId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    private function findTurnoConfigRow(int $restauranteId, int $turnoId): ?array
+    {
+        $stmt = $this->db->prepare("
+            SELECT ct.*, r.nome AS restaurante, t.hora AS turno_hora
+            FROM reservas_tematicas_config_turnos ct
+            JOIN restaurantes r ON r.id = ct.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = ct.turno_id
+            WHERE ct.restaurante_id = :restaurante_id
+              AND ct.turno_id = :turno_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            ':restaurante_id' => $restauranteId,
+            ':turno_id' => $turnoId,
+        ]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    private function findDateConfigRow(int $restauranteId, string $dateRef, int $turnoId): ?array
+    {
+        if (!$this->hasDateCapacityTable()) {
+            return null;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT cd.*, r.nome AS restaurante, t.hora AS turno_hora
+            FROM reservas_tematicas_capacidades_datas cd
+            JOIN restaurantes r ON r.id = cd.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = cd.turno_id
+            WHERE cd.restaurante_id = :restaurante_id
+              AND cd.data_reserva = :data_reserva
+              AND cd.turno_id = :turno_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            ':restaurante_id' => $restauranteId,
+            ':data_reserva' => $dateRef,
+            ':turno_id' => $turnoId,
+        ]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     private function hasAutoCancelNoShowMinColumn(): bool
     {
         if ($this->hasAutoCancelNoShowMinColumnCache !== null) {
@@ -96,21 +157,36 @@ class ReservaTematicaConfigModel extends Model
 
         foreach ($turnosByRestaurant as $restId => $turnos) {
             foreach ((array)$turnos as $turnoId => $capacidade) {
+                $restauranteId = (int)$restId;
+                $turnoIdInt = (int)$turnoId;
+                $before = $this->findDateConfigRow($restauranteId, $dateRef, $turnoIdInt) ?? [];
                 $stmt->execute([
-                    ':restaurante_id' => (int)$restId,
+                    ':restaurante_id' => $restauranteId,
                     ':data_reserva' => $dateRef,
-                    ':turno_id' => (int)$turnoId,
+                    ':turno_id' => $turnoIdInt,
                     ':capacidade' => max(0, (int)$capacidade),
                     ':capacidade_upd' => max(0, (int)$capacidade),
                     ':usuario_id' => $userId,
                     ':usuario_id_upd' => $userId,
                 ]);
+                $after = $this->findDateConfigRow($restauranteId, $dateRef, $turnoIdInt) ?? [];
+                if ($before !== $after) {
+                    $this->audit(
+                        empty($before) ? 'create_date_capacity' : 'update_date_capacity',
+                        $userId,
+                        $before,
+                        $after,
+                        'reservas_tematicas_capacidades_datas',
+                        isset($after['id']) ? (int)$after['id'] : null
+                    );
+                }
             }
         }
     }
 
     public function updateConfig(int $restauranteId, int $capacidadeTotal, array $turnos, int $userId, int $autoCancelNoShowMin = 0): void
     {
+        $beforeConfig = $this->findConfigRow($restauranteId) ?? [];
         if ($this->hasAutoCancelNoShowMinColumn()) {
             $stmt = $this->db->prepare("
                 INSERT INTO reservas_tematicas_config (restaurante_id, capacidade_total, auto_cancel_no_show_min, ativo)
@@ -138,8 +214,21 @@ class ReservaTematicaConfigModel extends Model
                 ':capacidade_total_upd' => $capacidadeTotal,
             ]);
         }
+        $afterConfig = $this->findConfigRow($restauranteId) ?? [];
+        if ($beforeConfig !== $afterConfig) {
+            $this->audit(
+                empty($beforeConfig) ? 'create_capacity_config' : 'update_capacity_config',
+                $userId,
+                $beforeConfig,
+                $afterConfig,
+                'reservas_tematicas_config',
+                isset($afterConfig['id']) ? (int)$afterConfig['id'] : null
+            );
+        }
 
         foreach ($turnos as $turnoId => $capacidade) {
+            $turnoIdInt = (int)$turnoId;
+            $beforeTurno = $this->findTurnoConfigRow($restauranteId, $turnoIdInt) ?? [];
             $stmt = $this->db->prepare("
                 INSERT INTO reservas_tematicas_config_turnos (restaurante_id, turno_id, capacidade)
                 VALUES (:restaurante_id, :turno_id, :capacidade)
@@ -147,10 +236,21 @@ class ReservaTematicaConfigModel extends Model
             ");
             $stmt->execute([
                 ':restaurante_id' => $restauranteId,
-                ':turno_id' => (int)$turnoId,
+                ':turno_id' => $turnoIdInt,
                 ':capacidade' => (int)$capacidade,
                 ':capacidade_upd' => (int)$capacidade,
             ]);
+            $afterTurno = $this->findTurnoConfigRow($restauranteId, $turnoIdInt) ?? [];
+            if ($beforeTurno !== $afterTurno) {
+                $this->audit(
+                    empty($beforeTurno) ? 'create_turn_capacity' : 'update_turn_capacity',
+                    $userId,
+                    $beforeTurno,
+                    $afterTurno,
+                    'reservas_tematicas_config_turnos',
+                    isset($afterTurno['id']) ? (int)$afterTurno['id'] : null
+                );
+            }
         }
     }
 
@@ -168,4 +268,3 @@ class ReservaTematicaConfigModel extends Model
         return $this->hasDateCapacityTableCache;
     }
 }
-

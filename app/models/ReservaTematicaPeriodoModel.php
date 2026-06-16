@@ -1,6 +1,14 @@
 <?php
 class ReservaTematicaPeriodoModel extends Model
 {
+    public function find(int $id): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM reservas_tematicas_periodos WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function all(): array
     {
         return $this->db->query("
@@ -18,9 +26,10 @@ class ReservaTematicaPeriodoModel extends Model
         ")->fetchAll();
     }
 
-    public function updateBatch(array $items): void
+    public function updateBatch(array $items, int $userId): void
     {
         foreach ($items as $id => $data) {
+            $before = $this->find((int)$id) ?? [];
             $stmt = $this->db->prepare("
                 UPDATE reservas_tematicas_periodos
                 SET hora_inicio = :hora_inicio,
@@ -36,10 +45,21 @@ class ReservaTematicaPeriodoModel extends Model
                 ':ordem' => (int)($data['ordem'] ?? 0),
                 ':id' => (int)$id,
             ]);
+            $after = $this->find((int)$id) ?? [];
+            if ($before !== $after) {
+                $this->audit(
+                    'update_periodo_tematico',
+                    $userId,
+                    $before,
+                    $after,
+                    'reservas_tematicas_periodos',
+                    (int)$id
+                );
+            }
         }
     }
 
-    public function create(string $horaInicio, string $horaFim, int $ativo = 1, int $ordem = 0): int
+    public function create(string $horaInicio, string $horaFim, int $ativo = 1, int $ordem = 0, int $userId = 0): int
     {
         $stmt = $this->db->prepare("
             INSERT INTO reservas_tematicas_periodos (hora_inicio, hora_fim, ativo, ordem)
@@ -52,8 +72,12 @@ class ReservaTematicaPeriodoModel extends Model
             ':ordem' => $ordem,
         ]);
 
-        return (int)$this->db->lastInsertId();
+        $id = (int)$this->db->lastInsertId();
+        if ($userId > 0) {
+            $after = $this->find($id) ?? [];
+            $this->audit('create_periodo_tematico', $userId, [], $after, 'reservas_tematicas_periodos', $id);
+        }
+
+        return $id;
     }
 }
-
-

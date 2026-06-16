@@ -91,7 +91,7 @@
                     <a <?= $navAttrs('kpis/index') ?> href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
                 <?php endif; ?>
                 <a <?= $navAttrs('relatorios/index') ?> href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
-                <?php if (in_array($user['perfil'], ['admin'], true)): ?>
+                <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                     <a <?= $navAttrs('auditoria/index') ?> href="/?r=auditoria/index"><i class="bi bi-shield-check"></i> Auditoria</a>
                 <?php endif; ?>
                 <?php if (in_array($user['perfil'], ['admin'], true)): ?>
