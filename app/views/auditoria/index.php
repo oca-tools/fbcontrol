@@ -59,21 +59,32 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     <?php
 };
 
-$renderExpandableText = static function (?string $value, string $empty = '-') : void {
+$renderExpandableText = static function (?string $value, string $empty = '-', bool $forceDetails = false, string $summaryLabel = 'Ver detalhes') : void {
     $text = trim((string)$value);
     if ($text === '') {
         echo '<span class="text-muted">' . h($empty) . '</span>';
         return;
     }
 
-    if (mb_strlen($text, 'UTF-8') <= 120) {
+    $prettyText = $text;
+    $bodyClass = 'audit-expandable-body';
+    $decoded = json_decode($text, true);
+    if (json_last_error() === JSON_ERROR_NONE && (is_array($decoded) || is_object($decoded))) {
+        $pretty = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (is_string($pretty) && $pretty !== '') {
+            $prettyText = $pretty;
+            $bodyClass .= ' is-json';
+        }
+    }
+
+    if (!$forceDetails && mb_strlen($text, 'UTF-8') <= 120) {
         echo h($text);
         return;
     }
     ?>
     <details class="audit-expandable">
-        <summary>Ver detalhes</summary>
-        <div class="audit-expandable-body"><?= nl2br(h($text)) ?></div>
+        <summary><?= h($summaryLabel) ?></summary>
+        <div class="<?= h($bodyClass) ?>"><?= str_contains($bodyClass, 'is-json') ? '<pre>' . h($prettyText) . '</pre>' : nl2br(h($prettyText)) ?></div>
     </details>
     <?php
 };
@@ -223,6 +234,15 @@ $renderExpandableText = static function (?string $value, string $empty = '-') : 
         overflow-wrap: anywhere;
     }
 
+    .audit-page .audit-table-card tbody td.audit-cell-expandable {
+        display: block;
+    }
+
+    .audit-page .audit-table-card tbody td.audit-cell-expandable::before {
+        display: block;
+        margin-bottom: 0.42rem;
+    }
+
     .audit-page .audit-expandable {
         width: 100%;
     }
@@ -265,6 +285,21 @@ $renderExpandableText = static function (?string $value, string $empty = '-') : 
         font-size: 0.79rem;
         line-height: 1.45;
         overflow-wrap: anywhere;
+    }
+
+    .audit-page .audit-expandable-body.is-json {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .audit-page .audit-expandable-body.is-json pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        font-size: 0.74rem;
+        line-height: 1.42;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
 
     .audit-page .pagination {
@@ -360,7 +395,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-') : 
                         <td data-label="Reserva">#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
                         <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
                         <td data-label="Turno"><?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5)) ?></td>
-                        <td data-label="Justificativa" class="small text-muted"><?php $renderExpandableText($log['justificativa'] ?? '', 'Sem justificativa'); ?></td>
+                        <td data-label="Justificativa" class="small text-muted audit-cell-expandable"><?php $renderExpandableText($log['justificativa'] ?? '', 'Sem justificativa'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($thematicLogs['rows'] ?? [])): ?>
@@ -442,7 +477,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-') : 
                         <td data-label="Área"><?= h($log['tabela']) ?></td>
                         <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
                         <td data-label="Registro"><?= h((string)($log['registro_id'] ?? '-')) ?></td>
-                        <td data-label="Dados" class="small text-muted"><?php $renderExpandableText($log['dados_depois'] ?? '', 'Sem dados'); ?></td>
+                        <td data-label="Dados" class="small text-muted audit-cell-expandable"><?php $renderExpandableText($log['dados_depois'] ?? '', 'Sem dados', true, 'Ver log'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($generalLogs['rows'] ?? [])): ?>
