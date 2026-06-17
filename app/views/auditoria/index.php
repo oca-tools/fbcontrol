@@ -58,6 +58,25 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     </div>
     <?php
 };
+
+$renderExpandableText = static function (?string $value, string $empty = '-') : void {
+    $text = trim((string)$value);
+    if ($text === '') {
+        echo '<span class="text-muted">' . h($empty) . '</span>';
+        return;
+    }
+
+    if (mb_strlen($text, 'UTF-8') <= 120) {
+        echo h($text);
+        return;
+    }
+    ?>
+    <details class="audit-expandable">
+        <summary>Ver detalhes</summary>
+        <div class="audit-expandable-body"><?= nl2br(h($text)) ?></div>
+    </details>
+    <?php
+};
 ?>
 
 <style>
@@ -87,6 +106,10 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
 }
 
 @media (max-width: 576px) {
+    .audit-page {
+        overflow-x: clip;
+    }
+
     .audit-page .card-soft {
         padding: 0.9rem !important;
         margin-bottom: 0.85rem !important;
@@ -116,6 +139,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
     .audit-page .audit-table-card {
         padding: 0.85rem !important;
         border-radius: 16px;
+        overflow: hidden;
     }
 
     .audit-page .audit-filter-card .row {
@@ -147,16 +171,24 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
         background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
         margin-bottom: 0.65rem;
         padding: 0.65rem;
+        overflow: hidden;
     }
 
     .audit-page .audit-table-card tbody td {
         display: grid;
-        grid-template-columns: minmax(92px, 0.38fr) minmax(0, 1fr);
+        grid-template-columns: minmax(78px, 88px) minmax(0, 1fr);
         gap: 0.55rem;
-        align-items: center;
+        align-items: start;
         border: 0;
         padding: 0.34rem 0;
         word-break: break-word;
+        overflow-wrap: anywhere;
+        min-width: 0;
+    }
+
+    .audit-page .audit-table-card tbody td > * {
+        min-width: 0;
+        max-width: 100%;
     }
 
     .audit-page .audit-table-card tbody td::before {
@@ -177,9 +209,74 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
         content: none;
     }
 
+    .audit-page .audit-table-card .badge,
+    .audit-page .audit-table-card .tag {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.2;
+    }
+
+    .audit-page .audit-table-card .small.text-muted {
+        overflow-wrap: anywhere;
+    }
+
+    .audit-page .audit-expandable {
+        width: 100%;
+    }
+
+    .audit-page .audit-expandable summary {
+        list-style: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: var(--ab-accent);
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--ab-accent) 30%, transparent);
+        background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
+    }
+
+    .audit-page .audit-expandable summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .audit-page .audit-expandable summary::after {
+        content: '+';
+        font-size: 0.92rem;
+        line-height: 1;
+    }
+
+    .audit-page .audit-expandable[open] summary::after {
+        content: '−';
+    }
+
+    .audit-page .audit-expandable-body {
+        margin-top: 0.5rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--ab-soft-bg) 76%, var(--ab-card) 24%);
+        color: var(--ab-ink);
+        font-size: 0.79rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
     .audit-page .pagination {
         justify-content: center;
         width: 100%;
+        flex-wrap: wrap;
+        row-gap: 0.35rem;
+    }
+
+    .audit-page .page-link {
+        min-width: 2rem;
+        text-align: center;
     }
 }
 </style>
@@ -263,7 +360,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
                         <td data-label="Reserva">#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
                         <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
                         <td data-label="Turno"><?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5)) ?></td>
-                        <td data-label="Justificativa" class="small text-muted"><?= h($log['justificativa'] ?? '') ?></td>
+                        <td data-label="Justificativa" class="small text-muted"><?php $renderExpandableText($log['justificativa'] ?? '', 'Sem justificativa'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($thematicLogs['rows'] ?? [])): ?>
@@ -345,7 +442,7 @@ $renderPagination = static function (array $pagination, array $filters) use ($pa
                         <td data-label="Área"><?= h($log['tabela']) ?></td>
                         <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
                         <td data-label="Registro"><?= h((string)($log['registro_id'] ?? '-')) ?></td>
-                        <td data-label="Dados" class="small text-muted"><?= h(mb_substr((string)($log['dados_depois'] ?? ''), 0, 180, 'UTF-8')) ?></td>
+                        <td data-label="Dados" class="small text-muted"><?php $renderExpandableText($log['dados_depois'] ?? '', 'Sem dados'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($generalLogs['rows'] ?? [])): ?>
