@@ -16,9 +16,6 @@ $logs = $this->data['logs'] ?? [];
         </div>
     </section>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
 
     <div class="row g-4">
         <div class="col-12 col-lg-6">

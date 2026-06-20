@@ -131,11 +131,13 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
         <?php endif; ?>
     </div>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
     <?php if ($isHostess && !$canReserve): ?>
-        <div class="alert alert-warning mb-0">Fora do horário permitido para reservas. A criação está bloqueada para hostess.</div>
+        <script type="application/json" data-app-alert="1"><?= json_for_html([
+            'type' => 'warning',
+            'message' => 'Fora do horário permitido para reservas. A criação está bloqueada para hostess.',
+            'modal' => true,
+            'buttonText' => 'Entendi',
+        ]) ?></script>
     <?php endif; ?>
 </section>
 
@@ -1397,7 +1399,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 </div>
             </div>
 
-            <form method="post" action="/?r=reservasTematicas/reservas">
+            <form method="post" action="/?r=reservasTematicas/reservas" data-no-lock="1" data-ajax-alerts="1">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" id="reservaActionInput" value="<?= $editItem ? 'update' : 'create' ?>">
                 <?php if ($editItem): ?>
@@ -1875,13 +1877,11 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
         if (selectedBlocked) {
             turnoSelect.value = '';
-            if (window.Swal) {
-                window.Swal.fire({
-                    icon: 'info',
-                    title: 'Turno indisponível',
-                    text: 'Esse turno não aceita reservas para a data e restaurante selecionados.'
-                });
-            }
+            window.fbAlerts?.info('Esse turno não aceita reservas para a data e restaurante selecionados.', {
+                title: 'Turno indisponível',
+                modal: true,
+                buttonText: 'Escolher outro'
+            });
         }
     };
 
@@ -1950,19 +1950,14 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             return;
         }
 
-        if (window.Swal) {
-            window.Swal.fire({
-                title: 'Detalhes do turno',
-                html,
-                width: 920,
-                confirmButtonText: 'Fechar'
-            });
-            return;
-        }
-
         const textFallback = document.createElement('div');
         textFallback.innerHTML = html;
-        window.alert(textFallback.textContent || 'Detalhes do turno');
+        window.fbAlerts?.modal({
+            type: 'info',
+            title: 'Detalhes do turno',
+            message: textFallback.textContent || 'Detalhes do turno',
+            buttonText: 'Fechar'
+        });
     };
 
     const openAvailabilityDetail = async (triggerEl) => {
@@ -2011,11 +2006,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             showTurnoPopup(html);
         } catch (err) {
             const msg = err?.message || 'Erro ao carregar detalhes.';
-            if (window.Swal) {
-                window.Swal.fire({ icon: 'error', title: 'Não foi possível abrir', text: msg });
-            } else {
-                window.alert(msg);
-            }
+            window.fbAlerts?.error(msg, 'Não foi possível abrir');
         }
     };
 
@@ -2129,22 +2120,219 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     btnModeSingle?.addEventListener('click', () => setReservaMode('single'));
     btnModeBatch?.addEventListener('click', () => setReservaMode('batch'));
 
-    reservaForm?.addEventListener('submit', (event) => {
-        if (!actionInput || actionInput.value !== 'create_batch') return;
-        const defaultName = (batchDefaultTitular?.value || '').trim();
-        if (defaultName !== '') {
+    let reservaSubmitting = false;
+    const setReservaSubmitting = (submitting) => {
+        reservaSubmitting = submitting;
+        reservaForm?.querySelectorAll('button[type="submit"], button:not([type])').forEach((btn) => {
+            if (submitting) {
+                btn.setAttribute('disabled', 'disabled');
+            } else {
+                btn.removeAttribute('disabled');
+            }
+        });
+    };
+
+    const extractReservaAlertFromHtml = (html) => {
+        if (!html || !window.DOMParser) return {};
+        try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const flashNode = doc.getElementById('appFlashPayload');
+            if (flashNode && flashNode.textContent) {
+                const flash = JSON.parse(flashNode.textContent);
+                if (flash && flash.message) {
+                    return {
+                        type: flash.type || 'info',
+                        message: String(flash.message)
+                    };
+                }
+            }
+
+            const appAlert = doc.querySelector('script[type="application/json"][data-app-alert="1"]');
+            if (appAlert && appAlert.textContent) {
+                const payload = JSON.parse(appAlert.textContent);
+                if (payload && payload.message) {
+                    return {
+                        type: payload.type || 'info',
+                        message: String(payload.message)
+                    };
+                }
+            }
+
+            const legacyAlert = doc.querySelector('.alert, .app-inline-note, .app-alert-modal-message');
+            return legacyAlert ? {
+                type: legacyAlert.classList.contains('is-warning') || legacyAlert.className.includes('warning') ? 'warning' : 'danger',
+                message: (legacyAlert.textContent || '').replace(/\s+/g, ' ').trim()
+            } : {};
+        } catch (error) {
+            return {};
+        }
+    };
+
+    const reservaMessagesByCode = {
+        capacidade_turno_atingida: 'Limite de reservas excedido para este turno. Ajuste o horário, quantidade de pessoas ou escolha outro turno.',
+        capacidade_nao_configurada: 'Capacidade não configurada para este turno. Configure a capacidade antes de registrar reservas.',
+        capacidade_destino_atingida: 'Limite de reservas excedido no turno de destino. Escolha outro turno ou ajuste a capacidade.',
+        capacidade_destino_nao_configurada: 'Capacidade não configurada para o turno de destino. Configure a capacidade antes de mover a reserva.',
+        restaurante_fechado: 'Este restaurante está fechado na data selecionada. Escolha outro restaurante ou outra data.',
+        fora_janela_reserva: 'Fora do horário permitido para reservas.',
+        uh_invalida: 'UH não encontrada. Confira o número da habitação antes de salvar.',
+        uh_obrigatoria: 'Informe a UH da reserva.',
+        titular_obrigatorio: 'Informe o titular da reserva.',
+        pax_invalido: 'Informe uma quantidade válida de PAX.',
+        pax_grupo_invalido: 'Preencha a quantidade de PAX em todas as UHs do grupo.',
+        grupo_sem_titular: 'Informe o titular do grupo.',
+        grupo_sem_uh: 'Adicione ao menos uma UH no grupo.',
+        reserva_duplicada_uh: 'Esta UH já possui reserva nesse restaurante, data e turno.',
+        chd_maior_que_pax: 'As idades de CHD não podem exceder a quantidade total de PAX.',
+        chd_grupo_maior_que_pax: 'A quantidade de CHD não pode ser maior que o PAX da UH.',
+        uh_duplicada_grupo: 'Há UHs repetidas no grupo. Remova a duplicidade antes de salvar.',
+        uh_grupo_invalida: 'Uma ou mais UHs do grupo não foram encontradas. Confira os números informados.',
+        idades_chd_invalidas: 'Revise o formato das idades CHD. Use o padrão 3y7y, por exemplo.'
+    };
+
+    const decodeJsonFragment = (value) => {
+        if (!value) return '';
+        try {
+            return JSON.parse(`"${String(value).replace(/"/g, '\\"')}"`);
+        } catch (error) {
+            return String(value).replace(/\\u([0-9a-f]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/\\"/g, '"').replace(/\\n/g, ' ');
+        }
+    };
+
+    const extractReservaJsonField = (text, field) => {
+        if (!text) return '';
+        const pattern = new RegExp(`"${field}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, 'i');
+        const match = String(text).match(pattern);
+        return match ? decodeJsonFragment(match[1]).trim() : '';
+    };
+
+    const buildReservaSmartMessage = (code, payload) => {
+        if (!code || !payload || typeof payload !== 'object') return '';
+        const intValue = (field) => {
+            const value = Number.parseInt(String(payload[field] ?? '0'), 10);
+            return Number.isFinite(value) ? Math.max(0, value) : 0;
+        };
+        if (code === 'capacidade_turno_atingida' || code === 'capacidade_destino_atingida') {
+            const disponivel = intValue('pax_disponivel');
+            const tentativa = intValue('pax_tentativa');
+            const capacidade = intValue('capacidade');
+            const reservado = intValue('pax_reservado');
+            const prefix = code === 'capacidade_destino_atingida'
+                ? 'Limite excedido no turno de destino.'
+                : 'Limite de reservas excedido para este turno.';
+            return `${prefix} Disponíveis: ${disponivel} vaga(s). Tentativa: ${tentativa} PAX. Capacidade: ${capacidade} PAX, já reservados: ${reservado} PAX.`;
+        }
+        if (code === 'capacidade_nao_configurada' || code === 'capacidade_destino_nao_configurada') {
+            const tentativa = intValue('pax_tentativa');
+            const base = reservaMessagesByCode[code] || '';
+            return tentativa > 0 ? `${base} Tentativa atual: ${tentativa} PAX.` : base;
+        }
+        return '';
+    };
+
+    const normalizeReservaResponsePayload = (payload, rawText = '', response = null) => {
+        const normalized = (payload && typeof payload === 'object') ? payload : {};
+        const code = String(normalized.code || extractReservaJsonField(rawText, 'code') || '').trim();
+        const rawMessage = String(normalized.message || extractReservaJsonField(rawText, 'message') || '').replace(/\s+/g, ' ').trim();
+        const isGenericFailure = rawMessage === '' || rawMessage.includes('Revise os dados e tente novamente');
+        const smartMessage = buildReservaSmartMessage(code, normalized.payload);
+        const message = smartMessage
+            || (code && reservaMessagesByCode[code] && isGenericFailure ? reservaMessagesByCode[code] : '')
+            || rawMessage
+            || reservaMessagesByCode[code]
+            || '';
+
+        return {
+            ...normalized,
+            ok: normalized.ok === undefined ? response?.ok === true : normalized.ok,
+            type: normalized.type || (response?.ok ? 'success' : 'danger'),
+            code,
+            message: message.trim() || (response && response.status === 404
+                ? 'A rota de envio da reserva não foi encontrada pelo servidor. Atualize a página e tente novamente; se persistir, acione a administração.'
+                : response && response.status >= 500
+                ? 'O servidor encontrou um erro ao salvar a reserva. Tente novamente ou acione a administração.'
+                : '')
+        };
+    };
+
+    const parseReservaResponse = async (response) => {
+        const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+        const text = await response.text();
+        if (contentType.includes('application/json') || text.trim().startsWith('{')) {
+            try {
+                return normalizeReservaResponsePayload(JSON.parse(text), text, response);
+            } catch (error) {
+                return normalizeReservaResponsePayload({ ok: false, type: 'danger' }, text, response);
+            }
+        }
+
+        const alert = extractReservaAlertFromHtml(text);
+        const type = alert.type || (response.ok ? 'success' : 'danger');
+        const ok = response.ok && !['danger', 'warning'].includes(type);
+        return normalizeReservaResponsePayload({
+            ok,
+            type,
+            message: alert.message || '',
+            redirected: response.redirected,
+            redirect: response.url || ''
+        }, text, response);
+    };
+
+    reservaForm?.addEventListener('submit', async (event) => {
+        if (!window.fetch || reservaSubmitting) {
+            if (reservaSubmitting) event.preventDefault();
             return;
         }
 
+        if (actionInput && actionInput.value === 'create_batch') {
+            const defaultName = (batchDefaultTitular?.value || '').trim();
+            if (defaultName === '') {
+                event.preventDefault();
+                window.fbAlerts?.warning('Informe o titular do grupo.', { modal: true, buttonText: 'Corrigir' });
+                return;
+            }
+        }
+
         event.preventDefault();
-        if (window.Swal) {
-            window.Swal.fire({
-                icon: 'warning',
-                title: 'Titular pendente',
-                text: 'Informe o titular do grupo.'
+        setReservaSubmitting(true);
+        try {
+            const submitUrl = new URL('/?r=reservasTematicas/reservas', window.location.origin);
+            const response = await fetch(submitUrl.toString(), {
+                method: 'POST',
+                body: new FormData(reservaForm),
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'fetch'
+                }
             });
-        } else {
-            window.alert('Informe o titular do grupo.');
+            const payload = await parseReservaResponse(response);
+            if (!response.ok || payload.ok === false) {
+                await (window.fbAlerts?.show({
+                    type: payload.type || 'danger',
+                    message: payload.message || 'Não foi possível salvar a reserva. Revise os dados e tente novamente.',
+                    modal: true,
+                    buttonText: 'Corrigir'
+                }) || Promise.resolve());
+                return;
+            }
+
+            const successMessage = payload.message || 'Reserva salva com sucesso.';
+            const showAfterRedirect = window.fbAlerts?.afterRedirect
+                ? window.fbAlerts.afterRedirect(successMessage, { type: 'success', title: 'Reserva confirmada' })
+                : false;
+            if (!showAfterRedirect) {
+                window.fbAlerts?.success(successMessage, 'Reserva confirmada');
+            }
+            window.fbAlerts?.clearSavedForms?.();
+            const redirect = payload.redirect || '/?r=reservasTematicas/reservas';
+            setTimeout(() => {
+                window.location.assign(redirect);
+            }, showAfterRedirect ? 80 : 900);
+        } catch (error) {
+            await (window.fbAlerts?.error('Falha de comunicação ao salvar. Verifique sua conexão e tente novamente.') || Promise.resolve());
+        } finally {
+            setReservaSubmitting(false);
         }
     });
 

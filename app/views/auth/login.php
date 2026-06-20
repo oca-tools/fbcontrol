@@ -232,9 +232,6 @@ $flash = $this->data['flash'] ?? null;
             <h2>Entrar na plataforma</h2>
             <p>Use suas credenciais para continuar.</p>
 
-            <?php if ($flash): ?>
-                <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-            <?php endif; ?>
 
             <form method="post" action="/?r=auth/login" autocomplete="on">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">

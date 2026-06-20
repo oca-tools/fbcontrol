@@ -29,14 +29,13 @@ $preselect = $this->data['preselect'] ?? [];
                 <i class="bi bi-door-open shift-start-icon"></i>
             </div>
 
-            <?php if ($flash): ?>
-                <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-            <?php endif; ?>
-
             <?php if ($needConfirm): ?>
-                    <div class="alert alert-warning">
-                        O turno está sendo iniciado fora do horário. Confirme para continuar.
-                    </div>
+                    <script type="application/json" data-app-alert="1"><?= json_for_html([
+                        'type' => 'warning',
+                        'message' => 'O turno está sendo iniciado fora do horário. Confirme para continuar.',
+                        'modal' => true,
+                        'buttonText' => 'Entendi',
+                    ]) ?></script>
             <?php endif; ?>
 
             <form method="post" action="/?r=turnos/start">

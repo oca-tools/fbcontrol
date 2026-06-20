@@ -112,9 +112,6 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
     </div>
 </div>
 
-<?php if ($flash): ?>
-    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-<?php endif; ?>
 
 <div class="row g-4">
     <div class="col-12 col-lg-6">

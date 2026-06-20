@@ -145,9 +145,6 @@ $user = Auth::user();
                 <span class="stat-chip"><i class="bi bi-flag"></i><?= (int)$completed ?> turnos concluídos</span>
             </div>
 
-            <?php if ($flash): ?>
-                <div class="alert alert-<?= h($flash['type']) ?> mt-3"><?= h($flash['message']) ?></div>
-            <?php endif; ?>
 
             <form class="mt-3" method="post" action="/?r=hostess/foto" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">

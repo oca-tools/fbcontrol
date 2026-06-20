@@ -93,6 +93,272 @@
     });
 })();
 
+// Alertas globais: erro em modal bloqueante; sucesso/aviso leve em toast.
+(function () {
+    const wrap = document.getElementById('appAlertWrap');
+    if (!wrap) return;
+
+    const labels = {
+        success: 'Tudo certo',
+        danger: 'Ação não concluída',
+        error: 'Ação não concluída',
+        warning: 'Atenção',
+        info: 'Informação',
+        primary: 'Informação'
+    };
+    const icons = {
+        success: 'bi-check-lg',
+        danger: 'bi-exclamation-triangle-fill',
+        error: 'bi-exclamation-triangle-fill',
+        warning: 'bi-exclamation-lg',
+        info: 'bi-info-lg',
+        primary: 'bi-info-lg'
+    };
+
+    function normalizeType(type) {
+        if (type === 'error') return 'danger';
+        return ['success', 'danger', 'warning', 'info', 'primary'].includes(type) ? type : 'info';
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        })[char]);
+    }
+
+    function toast(payload) {
+        const cfg = Object.assign({ type: 'info', timeout: 2600 }, payload || {});
+        cfg.type = normalizeType(cfg.type);
+        const node = document.createElement('div');
+        node.className = 'app-toast';
+        node.setAttribute('data-type', cfg.type);
+        node.innerHTML =
+            '<span class="app-toast-icon"><i class="bi ' + (icons[cfg.type] || icons.info) + '"></i></span>' +
+            '<div>' +
+                '<div class="app-toast-title">' + escapeHtml(cfg.title || labels[cfg.type] || labels.info) + '</div>' +
+                '<div class="app-toast-message">' + escapeHtml(cfg.message || '') + '</div>' +
+            '</div>';
+        wrap.appendChild(node);
+        const remove = () => {
+            node.style.opacity = '0';
+            node.style.transform = 'translateY(-6px) scale(.98)';
+            node.style.transition = 'all .18s ease';
+            setTimeout(() => node.remove(), 200);
+        };
+        window.setTimeout(remove, Math.max(1200, Number(cfg.timeout) || 2600));
+        return node;
+    }
+
+    function modal(payload) {
+        const cfg = Object.assign({ type: 'danger', buttonText: 'Entendi' }, payload || {});
+        cfg.type = normalizeType(cfg.type);
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'app-alert-overlay';
+            overlay.innerHTML =
+                '<div class="app-alert-modal" data-type="' + cfg.type + '" role="dialog" aria-modal="true" aria-labelledby="appAlertTitle" aria-describedby="appAlertMessage" tabindex="-1">' +
+                    '<div class="app-alert-modal-head">' +
+                        '<span class="app-alert-modal-icon"><i class="bi ' + (icons[cfg.type] || icons.info) + '"></i></span>' +
+                        '<div class="app-alert-modal-body">' +
+                            '<div class="app-alert-modal-title" id="appAlertTitle">' + escapeHtml(cfg.title || labels[cfg.type] || labels.info) + '</div>' +
+                            '<div class="app-alert-modal-message" id="appAlertMessage">' + escapeHtml(cfg.message || '') + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="app-alert-modal-actions">' +
+                        '<button type="button" class="btn btn-primary js-app-alert-ok">' + escapeHtml(cfg.buttonText || 'Entendi') + '</button>' +
+                    '</div>' +
+                '</div>';
+
+            let done = false;
+            const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                document.removeEventListener('keydown', onKey, true);
+                document.body.classList.remove('app-alert-modal-open');
+                overlay.remove();
+                if (previousFocus && typeof previousFocus.focus === 'function') {
+                    previousFocus.focus();
+                }
+                resolve(true);
+            };
+            const onKey = (event) => {
+                if (event.key === 'Escape' && cfg.type !== 'danger') {
+                    event.preventDefault();
+                    finish();
+                    return;
+                }
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    finish();
+                }
+            };
+
+            document.body.classList.add('app-alert-modal-open');
+            document.body.appendChild(overlay);
+            const ok = overlay.querySelector('.js-app-alert-ok');
+            ok?.addEventListener('click', finish);
+            document.addEventListener('keydown', onKey, true);
+            window.setTimeout(() => (ok || overlay.querySelector('.app-alert-modal'))?.focus(), 30);
+        });
+    }
+
+    function show(payload) {
+        const cfg = Object.assign({ type: 'info' }, payload || {});
+        cfg.type = normalizeType(cfg.type);
+        if (cfg.modal || cfg.type === 'danger') {
+            return modal(cfg);
+        }
+        return Promise.resolve(toast(cfg));
+    }
+
+    function showFromFlash(payload) {
+        if (!payload || !payload.message) return;
+        const type = normalizeType(payload.type || 'info');
+        show({
+            type,
+            message: payload.message,
+            modal: type === 'danger',
+            timeout: type === 'success' ? 5000 : 3200,
+            buttonText: type === 'danger' ? 'Corrigir' : 'Entendi'
+        });
+    }
+
+    const redirectAlertKey = 'fbcontrol_redirect_alert_v1';
+
+    function saveRedirectAlert(payload) {
+        if (!payload || !payload.message) return false;
+        try {
+            sessionStorage.setItem(redirectAlertKey, JSON.stringify(payload));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    window.fbAlerts = {
+        show,
+        toast,
+        modal,
+        error(message, title) {
+            return modal({ type: 'danger', title: title || labels.danger, message, buttonText: 'Corrigir' });
+        },
+        success(message, title) {
+            return toast({ type: 'success', title: title || labels.success, message, timeout: 5000 });
+        },
+        warning(message, options) {
+            return show(Object.assign({ type: 'warning', message, timeout: 3200 }, options || {}));
+        },
+        info(message, options) {
+            return show(Object.assign({ type: 'info', message, timeout: 3200 }, options || {}));
+        },
+        afterRedirect(message, options) {
+            return saveRedirectAlert(Object.assign({ type: 'success', message, timeout: 5000 }, options || {}));
+        }
+    };
+
+    const flashNode = document.getElementById('appFlashPayload');
+    let flashPayload = null;
+    if (flashNode && flashNode.textContent) {
+        try {
+            flashPayload = JSON.parse(flashNode.textContent);
+            showFromFlash(flashPayload);
+        } catch (e) {}
+    }
+
+    try {
+        const pendingAlert = JSON.parse(sessionStorage.getItem(redirectAlertKey) || 'null');
+        sessionStorage.removeItem(redirectAlertKey);
+        if (pendingAlert && pendingAlert.message) {
+            window.setTimeout(() => showFromFlash(pendingAlert), 160);
+        }
+    } catch (e) {
+        try { sessionStorage.removeItem(redirectAlertKey); } catch (ignore) {}
+    }
+
+    document.querySelectorAll('script[type="application/json"][data-app-alert="1"]').forEach((node) => {
+        try {
+            const payload = JSON.parse(node.textContent || '{}');
+            if (payload && payload.message) {
+                show(payload);
+            }
+        } catch (e) {}
+    });
+
+    const formDraftPrefix = 'fbcontrol_form_draft_v1:';
+    const formDraftEnabled = (() => {
+        const type = normalizeType(flashPayload?.type || '');
+        return type === 'danger' || type === 'warning';
+    })();
+
+    function formKey(form, index) {
+        const action = form.getAttribute('action') || window.location.pathname + window.location.search;
+        return formDraftPrefix + window.location.pathname + '|' + (form.getAttribute('method') || 'get').toLowerCase() + '|' + action + '|' + index;
+    }
+
+    function serializeForm(form) {
+        const rows = [];
+        form.querySelectorAll('input, select, textarea').forEach((field) => {
+            if (!field.name || field.disabled || field.type === 'password' || field.type === 'file' || field.type === 'hidden') return;
+            if ((field.type === 'checkbox' || field.type === 'radio')) {
+                rows.push({ name: field.name, type: field.type, value: field.value, checked: field.checked });
+                return;
+            }
+            rows.push({ name: field.name, type: field.type || field.tagName.toLowerCase(), value: field.value });
+        });
+        return rows;
+    }
+
+    const cssEscape = window.CSS && typeof window.CSS.escape === 'function'
+        ? (value) => window.CSS.escape(value)
+        : (value) => String(value).replace(/["\\]/g, '\\$&');
+
+    function restoreForm(form, rows) {
+        if (!Array.isArray(rows)) return;
+        rows.forEach((row) => {
+            const fields = Array.from(form.querySelectorAll('[name="' + cssEscape(row.name || '') + '"]'));
+            if (!fields.length) return;
+            if (row.type === 'checkbox' || row.type === 'radio') {
+                fields.forEach((field) => {
+                    if (field.value === row.value) field.checked = !!row.checked;
+                });
+                return;
+            }
+            if (fields[0]) {
+                fields[0].value = row.value ?? '';
+                fields[0].dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
+
+    const persistedForms = Array.from(document.querySelectorAll('form[method="post"]:not([data-no-preserve])'));
+    persistedForms.forEach((form, index) => {
+        const key = formKey(form, index);
+        if (formDraftEnabled) {
+            try {
+                restoreForm(form, JSON.parse(sessionStorage.getItem(key) || '[]'));
+            } catch (e) {}
+        } else {
+            try { sessionStorage.removeItem(key); } catch (e) {}
+        }
+        form.addEventListener('submit', () => {
+            try { sessionStorage.setItem(key, JSON.stringify(serializeForm(form))); } catch (e) {}
+        }, true);
+    });
+
+    window.fbAlerts.clearSavedForms = function () {
+        try {
+            Object.keys(sessionStorage).forEach((key) => {
+                if (key.indexOf(formDraftPrefix) === 0) sessionStorage.removeItem(key);
+            });
+        } catch (e) {}
+    };
+})();
+
 // Popup positivo para ações de exportação.
 (function () {
     const wrap = document.getElementById('exportToastWrap');

@@ -320,6 +320,17 @@ function json_response(array $data, int $status = 200): void
     exit;
 }
 
+function request_expects_json(): bool
+{
+    $requestedWith = strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+    if (in_array($requestedWith, ['xmlhttprequest', 'fetch'], true)) {
+        return true;
+    }
+
+    $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+    return strpos($accept, 'application/json') !== false;
+}
+
 function restaurant_badge_class(string $name): string
 {
     $n = mb_strtolower(normalize_mojibake($name), 'UTF-8');

@@ -15,6 +15,9 @@ class Controller
      */
     protected function view(string $view, array $data = []): void
     {
+        if (!array_key_exists('flash', $data)) {
+            $data['flash'] = get_flash();
+        }
         $this->data = $data;
         $config = require __DIR__ . '/../../config/config.php';
         $appName = $config['app']['name'];

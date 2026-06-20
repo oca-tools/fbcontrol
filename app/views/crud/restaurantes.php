@@ -70,9 +70,6 @@
         <div class="card p-4">
             <div class="text-uppercase text-muted small">Cadastro</div>
             <h4 class="fw-bold">Novo Restaurante</h4>
-            <?php if ($flash): ?>
-                <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-            <?php endif; ?>
             <form method="post" action="/?r=restaurantes/create">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <div class="mb-3">

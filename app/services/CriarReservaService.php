@@ -356,7 +356,14 @@ final class CriarReservaService implements CriarReservaServiceInterface
         if ($capacidadeDoTurno <= 0) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_CAPACIDADE_NAO_CONFIGURADA,
-                ReservasTematicasConstants::MESSAGE_CAPACIDADE_NAO_CONFIGURADA
+                ReservasTematicasConstants::MESSAGE_CAPACIDADE_NAO_CONFIGURADA,
+                [
+                    'capacidade' => $capacidadeDoTurno,
+                    'pax_tentativa' => $paxNovo,
+                    'data_reserva' => $dataReserva,
+                    'restaurante_id' => $restauranteId,
+                    'turno_id' => $turnoId,
+                ]
             );
         }
 
@@ -374,7 +381,17 @@ final class CriarReservaService implements CriarReservaServiceInterface
         if (!$capacidadeDoTurnoPermite) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_CAPACIDADE_TURNO_ATINGIDA,
-                ReservasTematicasConstants::MESSAGE_CAPACIDADE_TURNO_ATINGIDA
+                ReservasTematicasConstants::MESSAGE_CAPACIDADE_TURNO_ATINGIDA,
+                [
+                    'capacidade' => $capacidadeDoTurno,
+                    'pax_reservado' => max(0, $paxReservadoNoTurno),
+                    'pax_disponivel' => max(0, $capacidadeDoTurno - $paxReservadoNoTurno),
+                    'pax_tentativa' => $paxNovo,
+                    'pax_projetado' => $paxReservadoNoTurno + $paxNovo,
+                    'data_reserva' => $dataReserva,
+                    'restaurante_id' => $restauranteId,
+                    'turno_id' => $turnoId,
+                ]
             );
         }
 

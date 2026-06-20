@@ -40,9 +40,6 @@ $canalTitular = $canalEmail !== '' ? $canalEmail : ($controladorEmail !== '' ? $
         </p>
     </section>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
 
     <section class="saas-table-card">
         <h5 class="mb-3">Quem controla os dados</h5>

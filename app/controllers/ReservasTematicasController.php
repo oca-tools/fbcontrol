@@ -191,6 +191,14 @@ class ReservasTematicasController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+                if (request_expects_json()) {
+                    json_response([
+                        'ok' => false,
+                        'type' => 'danger',
+                        'code' => 'csrf_invalido',
+                        'message' => 'Sessão expirada. Atualize a página e tente novamente.',
+                    ], 419);
+                }
                 set_flash('danger', 'Token inválido.');
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
@@ -303,6 +311,14 @@ class ReservasTematicasController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+                if (request_expects_json()) {
+                    json_response([
+                        'ok' => false,
+                        'type' => 'danger',
+                        'code' => 'csrf_invalido',
+                        'message' => 'Sessão expirada. Atualize a página e tente novamente.',
+                    ], 419);
+                }
                 set_flash('danger', 'Token inválido.');
                 $this->redirect('/?r=reservasTematicas/operacao');
             }
@@ -658,6 +674,15 @@ class ReservasTematicasController extends Controller
     private function aplicarResultadoReservaTematica(ServiceResult $resultado, string $redirect): void
     {
         if ($resultado->isSuccess()) {
+            if (request_expects_json()) {
+                json_response([
+                    'ok' => true,
+                    'type' => 'success',
+                    'message' => $resultado->message(),
+                    'redirect' => $redirect,
+                    'payload' => $resultado->payload(),
+                ]);
+            }
             set_flash('success', $resultado->message());
             $this->redirect($redirect);
         }
@@ -675,6 +700,8 @@ class ReservasTematicasController extends Controller
             ReservasTematicasConstants::CODE_STATUS_DEFINITIVO_BLOQUEADO,
             ReservasTematicasConstants::CODE_TURNO_FECHADO_BLOQUEADO,
             ReservasTematicasConstants::CODE_JUSTIFICATIVA_OBRIGATORIA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_NAO_CONFIGURADA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_TURNO_ATINGIDA,
             ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_NAO_CONFIGURADA,
             ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA,
             ReservasTematicasConstants::CODE_PAX_REAL_INVALIDO,
@@ -683,8 +710,58 @@ class ReservasTematicasController extends Controller
             ReservasTematicasConstants::CODE_ACAO_RAPIDA_INVALIDA,
         ];
 
-        set_flash(in_array($resultado->code(), $warningCodes, true) ? 'warning' : 'danger', $resultado->message());
+        $type = in_array($resultado->code(), $warningCodes, true) ? 'warning' : 'danger';
+        $message = $this->mensagemReservaTematicaParaUsuario($resultado);
+        if (request_expects_json()) {
+            json_response([
+                'ok' => false,
+                'type' => $type,
+                'code' => $resultado->code(),
+                'message' => $message,
+                'payload' => $resultado->payload(),
+            ], $type === 'danger' ? 422 : 409);
+        }
+
+        set_flash($type, $message);
         $this->redirect($redirect);
+    }
+
+    private function mensagemReservaTematicaParaUsuario(ServiceResult $resultado): string
+    {
+        $payload = $resultado->payload();
+        if (in_array($resultado->code(), [
+            ReservasTematicasConstants::CODE_CAPACIDADE_TURNO_ATINGIDA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA,
+        ], true)) {
+            $disponivel = max(0, (int)($payload['pax_disponivel'] ?? 0));
+            $tentativa = max(0, (int)($payload['pax_tentativa'] ?? 0));
+            $capacidade = max(0, (int)($payload['capacidade'] ?? 0));
+            $reservado = max(0, (int)($payload['pax_reservado'] ?? 0));
+            $prefixo = $resultado->code() === ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA
+                ? 'Limite excedido no turno de destino.'
+                : 'Limite de reservas excedido para este turno.';
+
+            return $prefixo . ' Disponíveis: ' . $disponivel . ' vaga(s). Tentativa: ' . $tentativa . ' PAX. Capacidade: ' . $capacidade . ' PAX, já reservados: ' . $reservado . ' PAX.';
+        }
+
+        if (in_array($resultado->code(), [
+            ReservasTematicasConstants::CODE_CAPACIDADE_NAO_CONFIGURADA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_NAO_CONFIGURADA,
+        ], true)) {
+            $tentativa = max(0, (int)($payload['pax_tentativa'] ?? 0));
+            $sufixo = $tentativa > 0 ? ' Tentativa atual: ' . $tentativa . ' PAX.' : '';
+            return $resultado->message() . $sufixo;
+        }
+
+        $messages = [
+            ReservasTematicasConstants::CODE_CAPACIDADE_TURNO_ATINGIDA => ReservasTematicasConstants::MESSAGE_CAPACIDADE_TURNO_ATINGIDA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_NAO_CONFIGURADA => ReservasTematicasConstants::MESSAGE_CAPACIDADE_NAO_CONFIGURADA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA => ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_ATINGIDA,
+            ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_NAO_CONFIGURADA => ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_NAO_CONFIGURADA,
+        ];
+
+        $message = $messages[$resultado->code()] ?? $resultado->message();
+        return trim($message) !== '' ? $message : 'Não foi possível salvar a reserva. Revise os dados e tente novamente.';
     }
 
     private function normalizeReservaStatus(string $status): string

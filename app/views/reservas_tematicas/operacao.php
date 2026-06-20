@@ -1142,9 +1142,6 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <span class="badge badge-soft">Jornada 2</span>
     </div>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mt-3 mb-0"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
 </div>
 
 <div class="summary-grid mb-4" aria-label="Resumo das reservas do dia">

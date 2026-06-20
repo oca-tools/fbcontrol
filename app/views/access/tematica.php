@@ -299,11 +299,8 @@ $rowHorario = static function ($hora): string {
                 </div>
             </div>
 
-            <?php if ($flash): ?>
-                <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-            <?php endif; ?>
             <?php if ($toleranceAlert): ?>
-                <div class="alert alert-warning"><?= h($toleranceAlert) ?></div>
+                <div class="app-inline-note is-warning"><?= h($toleranceAlert) ?></div>
             <?php endif; ?>
 
             <form method="get" action="/" class="row g-3 align-items-end mb-3">
@@ -688,3 +685,4 @@ $rowHorario = static function ($hora): string {
     });
 })();
 </script>
+

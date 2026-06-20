@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $filters = $this->data['filters'] ?? [];
 $restaurantes = $this->data['restaurantes'] ?? [];
 $operacoes = $this->data['operacoes'] ?? [];
@@ -314,7 +314,7 @@ $paginationPages = static function (int $current, int $total): array {
 </script>
 
 <?php if (!empty($filters['data_inicio']) && !empty($filters['data_fim']) && $filters['data_inicio'] !== $filters['data_fim']): ?>
-    <div class="alert alert-warning">Mapa diário é exibido apenas para uma data única. Para visualizar o mapa, informe apenas a Data (única).</div>
+    <div class="app-inline-note is-warning">Mapa diário é exibido apenas para uma data única. Para visualizar o mapa, informe apenas a Data (única).</div>
 <?php endif; ?>
 
 <div class="row g-4 mb-4 split-full reports-metric-grid">
@@ -899,3 +899,4 @@ $paginationPages = static function (int $current, int $total): array {
     });
 })();
 </script>
+

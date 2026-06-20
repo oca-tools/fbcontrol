@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $flash = $this->data['flash'] ?? null;
 $mode = $this->data['mode'] ?? 'register';
 $turno = $this->data['turno'] ?? null;
@@ -134,15 +134,12 @@ $preselect = $this->data['preselect'] ?? [];
                     <span class="turno-pill">Checklist rápido</span>
                 </div>
 
-                <?php if ($flash): ?>
-                    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-                <?php endif; ?>
                 <?php if ($toleranceAlert): ?>
-                    <div class="alert alert-warning"><?= h($toleranceAlert) ?></div>
+                    <div class="app-inline-note is-warning"><?= h($toleranceAlert) ?></div>
                 <?php endif; ?>
 
                 <?php if ($needConfirm): ?>
-                    <div class="alert alert-warning">
+                    <div class="app-inline-note is-warning">
                         O turno está sendo iniciado antes do horário. Confirme para continuar.
                     </div>
                 <?php endif; ?>
@@ -238,9 +235,6 @@ $preselect = $this->data['preselect'] ?? [];
                     </form>
                 </div>
 
-                <?php if ($flash): ?>
-                    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-                <?php endif; ?>
 
                 <form method="post" action="/?r=especiais/register" class="special-primary-form">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -321,3 +315,4 @@ function adjustPax(delta) {
     input.value = Math.max(1, value);
 }
 </script>
+

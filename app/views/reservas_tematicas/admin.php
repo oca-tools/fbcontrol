@@ -482,9 +482,6 @@ foreach ($configs as $cfg) {
         <span class="badge badge-soft">Administração</span>
     </div>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mt-3"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
 </div>
 
 <?php if ($canManageBloqueios): ?>

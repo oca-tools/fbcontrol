@@ -25,11 +25,13 @@ $dbError = (string)($this->data['db_error'] ?? '');
         </div>
     </section>
 
-    <?php if ($flash): ?>
-        <div class="alert alert-<?= h($flash['type']) ?> mb-0"><?= h($flash['message']) ?></div>
-    <?php endif; ?>
     <?php if ($dbError !== ''): ?>
-        <div class="alert alert-warning mb-0"><?= h($dbError) ?></div>
+        <script type="application/json" data-app-alert="1"><?= json_for_html([
+            'type' => 'warning',
+            'message' => $dbError,
+            'modal' => true,
+            'buttonText' => 'Entendi',
+        ]) ?></script>
     <?php endif; ?>
 
     <section class="saas-kpi-grid">

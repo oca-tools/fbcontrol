@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $filters = $this->data['filters'] ?? [];
 $flowFilters = $this->data['flow_filters'] ?? [];
 $summary = $this->data['summary'] ?? [];
@@ -486,7 +486,7 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                         </div>
                     </form>
                 <?php else: ?>
-                    <div class="alert alert-info mb-3">Somente <strong>admin/gerente</strong> pode editar ocupação diária.</div>
+                    <div class="app-inline-note is-info mb-3">Somente <strong>admin/gerente</strong> pode editar ocupação diária.</div>
                 <?php endif; ?>
 
                 <div class="row g-3 mt-1">
@@ -581,7 +581,8 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
                     </div>
                 </div>
                 <?php foreach ($insights as $insight): ?>
-                    <div class="alert alert-<?= h($insight['type']) ?> py-2 px-3 mb-2">
+                    <?php $insightType = in_array((string)($insight['type'] ?? ''), ['success', 'warning', 'danger', 'info'], true) ? (string)$insight['type'] : 'info'; ?>
+                    <div class="app-inline-note is-<?= h($insightType) ?> py-2 px-3 mb-2">
                         <div class="fw-bold small"><?= h($insight['title']) ?></div>
                         <div class="small"><?= h($insight['text']) ?></div>
                     </div>
@@ -774,3 +775,4 @@ $canEditOcupacao = (bool)($this->data['can_edit_ocupacao'] ?? false);
     }
 })();
 </script>
+

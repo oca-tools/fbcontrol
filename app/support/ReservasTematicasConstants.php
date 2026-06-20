@@ -95,10 +95,10 @@ final class ReservasTematicasConstants
 
     public const MESSAGE_ACAO_OPERACAO_INVALIDA = 'Ação de operação inválida.';
     public const MESSAGE_ACAO_RAPIDA_INVALIDA = 'Ação rápida inválida.';
-    public const MESSAGE_CAPACIDADE_DESTINO_ATINGIDA = 'Capacidade do turno atingida para o destino selecionado. Ajuste a capacidade do turno se necessário.';
-    public const MESSAGE_CAPACIDADE_DESTINO_NAO_CONFIGURADA = 'Capacidade não configurada para o destino selecionado. Ajuste a capacidade antes de mover a reserva.';
-    public const MESSAGE_CAPACIDADE_NAO_CONFIGURADA = 'Capacidade não configurada para este turno. Ajuste a capacidade antes de registrar reservas.';
-    public const MESSAGE_CAPACIDADE_TURNO_ATINGIDA = 'Capacidade do turno atingida. Ajuste a capacidade do turno se necessário.';
+    public const MESSAGE_CAPACIDADE_DESTINO_ATINGIDA = 'Limite de reservas excedido no turno de destino. Escolha outro turno ou ajuste a capacidade.';
+    public const MESSAGE_CAPACIDADE_DESTINO_NAO_CONFIGURADA = 'Capacidade não configurada para o turno de destino. Configure a capacidade antes de mover a reserva.';
+    public const MESSAGE_CAPACIDADE_NAO_CONFIGURADA = 'Capacidade não configurada para este turno. Configure a capacidade antes de registrar reservas.';
+    public const MESSAGE_CAPACIDADE_TURNO_ATINGIDA = 'Limite de reservas excedido para este turno. Ajuste o horário, quantidade de pessoas ou escolha outro turno.';
     public const MESSAGE_CHD_MAIOR_QUE_PAX = 'As idades de CHD não podem exceder a quantidade total de PAX.';
     public const MESSAGE_CONFIRMAR_STATUS_DEFINITIVO = 'Confirme o status definitivo para continuar.';
     public const MESSAGE_EDICAO_NAO_AUTORIZADA = 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.';

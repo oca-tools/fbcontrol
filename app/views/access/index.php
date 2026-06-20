@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $flash = $this->data['flash'] ?? null;
 $mode = $this->data['mode'] ?? 'register';
 $turno = $this->data['turno'] ?? null;
@@ -170,15 +170,12 @@ $showHostessTutorial = false;
                     </div>
                 </div>
 
-                <?php if ($flash): ?>
-                    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-                <?php endif; ?>
                 <?php if ($toleranceAlert): ?>
-                    <div class="alert alert-warning"><?= h($toleranceAlert) ?></div>
+                    <div class="app-inline-note is-warning"><?= h($toleranceAlert) ?></div>
                 <?php endif; ?>
 
 <?php if ($needConfirm): ?>
-                    <div class="alert alert-warning">
+                    <div class="app-inline-note is-warning">
                         O turno está sendo iniciado fora do horário. Confirme para continuar.
                     </div>
                 <?php endif; ?>
@@ -242,7 +239,7 @@ $showHostessTutorial = false;
                         <?php endif; ?>
 
                         <div class="col-12">
-                            <div class="alert alert-secondary mb-0">
+                            <div class="app-inline-note is-secondary mb-0">
                                 <strong>Checklist:</strong> confirme restaurante, operação e porta antes de iniciar.
                             </div>
                         </div>
@@ -288,12 +285,12 @@ $showHostessTutorial = false;
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-12 col-md-6">
-                            <div class="alert alert-info mb-0 small">
+                            <div class="app-inline-note is-info mb-0 small">
                                 <strong>Dica:</strong> confira o resumo antes de confirmar o início do turno.
                             </div>
                         </div>
                         <div class="col-12 col-md-6">
-                            <div class="alert alert-warning mb-0 small">
+                            <div class="app-inline-note is-warning mb-0 small">
                                 <strong>Atenção:</strong> fora do horário, o sistema solicita confirmação adicional.
                             </div>
                         </div>
@@ -611,17 +608,14 @@ $showHostessTutorial = false;
                     </div>
                 </div>
 
-                <?php if ($flash): ?>
-                    <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-                <?php endif; ?>
                 <?php if ($restOp): ?>
-                    <div id="shiftCountdown" class="alert alert-info">
+                    <div id="shiftCountdown" class="app-inline-note is-info">
                         Tempo restante do turno: calculando...
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($tematicaConflict)): ?>
-                    <div class="alert alert-warning">
+                    <div class="app-inline-note is-warning">
                         <div class="fw-semibold mb-1">Reserva temática encontrada para UH <?= h($tematicaConflict['uh_numero'] ?? '') ?>.</div>
                         <div class="small mb-2">
                             Restaurante: <strong><?= h($tematicaConflict['restaurante'] ?? '-') ?></strong>
@@ -650,7 +644,7 @@ $showHostessTutorial = false;
                 <?php endif; ?>
 
                 <?php if (!empty($duplicateConfirm)): ?>
-                    <div class="alert alert-warning">
+                    <div class="app-inline-note is-warning">
                         <div class="fw-semibold mb-1">Registro duplicado imediato detectado.</div>
                         <div class="small mb-2">
                             UH <strong><?= h((string)($duplicateConfirm['uh_numero'] ?? '')) ?></strong>
@@ -848,12 +842,12 @@ $showHostessTutorial = false;
                     </div>
                     <div class="row g-2 mt-2">
                         <div class="col-12 col-md-6">
-                            <div class="alert alert-info mb-0 small">
+                            <div class="app-inline-note is-info mb-0 small">
                                 <strong>Dica:</strong> em caso de dúvida, registre "998 (Não informado)" ou "999 (Day use)".
                             </div>
                         </div>
                         <div class="col-12 col-md-6">
-                            <div class="alert alert-warning mb-0 small">
+                            <div class="app-inline-note is-warning mb-0 small">
                                 <strong>Atenção:</strong> no jantar do Corais, reservas temáticas podem bloquear o lançamento.
                             </div>
                         </div>
@@ -1014,17 +1008,17 @@ $showHostessTutorial = false;
             const tolEnd = new Date(end.getTime() + (toleranceMin * 60000));
             if (countdownEl) {
                 if (diffMin > 10) {
-                    countdownEl.className = 'alert alert-info';
+                    countdownEl.className = 'app-inline-note is-info';
                     countdownEl.textContent = `Tempo restante do turno: ${diffMin} min`;
                 } else if (diffMin > 0) {
-                    countdownEl.className = 'alert alert-warning';
+                    countdownEl.className = 'app-inline-note is-warning';
                     countdownEl.textContent = `Tempo restante do turno: ${diffMin} min`;
                 } else if (now <= tolEnd) {
-                    countdownEl.className = 'alert alert-warning';
+                    countdownEl.className = 'app-inline-note is-warning';
                     const extraMin = Math.max(0, Math.ceil((tolEnd.getTime() - now.getTime()) / 60000));
                     countdownEl.textContent = `Turno fora do horário, aguardando tempo de tolerância (${extraMin} min).`;
                 } else {
-                    countdownEl.className = 'alert alert-danger';
+                    countdownEl.className = 'app-inline-note is-danger';
                     countdownEl.textContent = 'Turno fora do horário limite. Encerrar imediatamente.';
                 }
             }
@@ -1154,3 +1148,4 @@ $showHostessTutorial = false;
     </script>
 <?php endif; ?>
 </div>
+

@@ -284,7 +284,14 @@ final class OperarReservaService implements OperarReservaServiceInterface
         if ($capacidadeDestino <= 0) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_NAO_CONFIGURADA,
-                ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_NAO_CONFIGURADA
+                ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_NAO_CONFIGURADA,
+                [
+                    'capacidade' => $capacidadeDestino,
+                    'pax_tentativa' => (int)$reservaAtual['pax'],
+                    'data_reserva' => $dataReserva,
+                    'restaurante_id' => $restauranteDestino,
+                    'turno_id' => $turnoDestino,
+                ]
             );
         }
 
@@ -298,7 +305,17 @@ final class OperarReservaService implements OperarReservaServiceInterface
         if ($paxProjetado > $capacidadeDestino) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA,
-                ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_ATINGIDA
+                ReservasTematicasConstants::MESSAGE_CAPACIDADE_DESTINO_ATINGIDA,
+                [
+                    'capacidade' => $capacidadeDestino,
+                    'pax_reservado' => max(0, $paxReservadoDestino - ($mesmoDestino && $this->normalizarStatus((string)$reservaAtual['status']) !== ReservasTematicasConstants::STATUS_CANCELADA ? (int)$reservaAtual['pax'] : 0)),
+                    'pax_disponivel' => max(0, $capacidadeDestino - ($paxProjetado - (int)$reservaAtual['pax'])),
+                    'pax_tentativa' => (int)$reservaAtual['pax'],
+                    'pax_projetado' => $paxProjetado,
+                    'data_reserva' => $dataReserva,
+                    'restaurante_id' => $restauranteDestino,
+                    'turno_id' => $turnoDestino,
+                ]
             );
         }
         return null;

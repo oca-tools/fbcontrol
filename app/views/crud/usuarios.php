@@ -582,9 +582,6 @@ $assignmentSummary = static function (int $uid) use ($assignedRestaurants, $assi
                                 </div>
                                 <span class="badge badge-soft">Ambiente interno</span>
                             </div>
-                            <?php if ($flash && $secaoAtual === 'cadastro'): ?>
-                                <div class="alert alert-<?= h($flash['type']) ?>"><?= h($flash['message']) ?></div>
-                            <?php endif; ?>
                             <form method="post" action="/?r=usuarios/create">
                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                 <div class="row g-3">
@@ -669,9 +666,6 @@ $assignmentSummary = static function (int $uid) use ($assignedRestaurants, $assi
                         </ul>
                     </div>
 
-                    <?php if ($flash && $secaoAtual === 'base'): ?>
-                        <div class="alert alert-<?= h($flash['type']) ?> mb-3"><?= h($flash['message']) ?></div>
-                    <?php endif; ?>
 
                     <div class="usuarios-toolbar row g-2 align-items-end">
                         <div class="col-12 col-md-6">
