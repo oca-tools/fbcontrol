@@ -174,7 +174,7 @@ final class OperarReservaService implements OperarReservaServiceInterface
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_OPERACAO_ATUALIZADA);
     }
 
-    private function converterAcaoRapidaEmStatus(OperarReservaCommand $command): OperarReservaCommand|ServiceResult
+    private function converterAcaoRapidaEmStatus(OperarReservaCommand $command)
     {
         if ($command->acaoRapida === ReservasTematicasConstants::QUICK_FINALIZAR) {
             $command->status = ReservasTematicasConstants::STATUS_FINALIZADA;
@@ -304,7 +304,7 @@ final class OperarReservaService implements OperarReservaServiceInterface
         return null;
     }
 
-    private function resolverPaxReal(string $paxRealTexto, int $paxReservado, string $status): int|ServiceResult|null
+    private function resolverPaxReal(string $paxRealTexto, int $paxReservado, string $status)
     {
         if ($paxRealTexto !== '') {
             if (!ctype_digit($paxRealTexto)) {

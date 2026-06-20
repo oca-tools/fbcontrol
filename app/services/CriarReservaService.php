@@ -187,7 +187,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_GRUPO_CRIADO, ['reservas_ids' => $idsCriados]);
     }
 
-    private function prepararReservaIndividual(CriarReservaCommand $command): array|ServiceResult
+    private function prepararReservaIndividual(CriarReservaCommand $command)
     {
         if ($command->pax <= 0) {
             return ServiceResult::failure(ReservasTematicasConstants::CODE_PAX_INVALIDO, ReservasTematicasConstants::MESSAGE_PAX_INVALIDO);
@@ -247,7 +247,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
         ]);
     }
 
-    private function prepararItensDoGrupo(CriarReservaCommand $command): array|ServiceResult
+    private function prepararItensDoGrupo(CriarReservaCommand $command)
     {
         $itens = [];
         $uhsJaInformadas = [];

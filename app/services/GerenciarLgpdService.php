@@ -312,13 +312,13 @@ final class GerenciarLgpdService
         ]);
     }
 
-    private function sanitizeText(mixed $value, int $maxLen): string
+    private function sanitizeText($value, int $maxLen): string
     {
         $text = trim((string)$value);
         return $text === '' ? '' : mb_substr($text, 0, $maxLen, 'UTF-8');
     }
 
-    private function sanitizeLongText(mixed $value, int $maxLen): string
+    private function sanitizeLongText($value, int $maxLen): string
     {
         $text = trim((string)$value);
         if ($text === '') {
@@ -329,7 +329,7 @@ final class GerenciarLgpdService
         return mb_substr($text, 0, $maxLen, 'UTF-8');
     }
 
-    private function sanitizeEmail(mixed $value): string
+    private function sanitizeEmail($value): string
     {
         $email = trim((string)$value);
         if ($email === '') {
@@ -338,7 +338,7 @@ final class GerenciarLgpdService
         return filter_var($email, FILTER_VALIDATE_EMAIL) ? mb_substr($email, 0, GovernancaConstants::MAX_EMAIL_LENGTH, 'UTF-8') : '';
     }
 
-    private function normalizeDateTime(mixed $value): string
+    private function normalizeDateTime($value): string
     {
         $input = trim((string)$value);
         if ($input === '') {
@@ -351,28 +351,28 @@ final class GerenciarLgpdService
         return preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/', $input) ? $input : '';
     }
 
-    private function normalizeRequestType(mixed $value): string
+    private function normalizeRequestType($value): string
     {
         $allowed = ['acesso', 'correcao', 'anonimizacao', 'eliminacao', 'portabilidade', 'oposicao', 'revogacao', 'informacao'];
         $type = strtolower(trim((string)$value));
         return in_array($type, $allowed, true) ? $type : 'acesso';
     }
 
-    private function normalizeRequestStatus(mixed $value): string
+    private function normalizeRequestStatus($value): string
     {
         $allowed = ['aberta', 'em_tratamento', 'concluida', 'indeferida'];
         $status = strtolower(trim((string)$value));
         return in_array($status, $allowed, true) ? $status : 'aberta';
     }
 
-    private function normalizeIncidentStatus(mixed $value): string
+    private function normalizeIncidentStatus($value): string
     {
         $allowed = ['aberto', 'investigacao', 'comunicado', 'encerrado'];
         $status = strtolower(trim((string)$value));
         return in_array($status, $allowed, true) ? $status : 'aberto';
     }
 
-    private function normalizeIncidentRisk(mixed $value): string
+    private function normalizeIncidentRisk($value): string
     {
         $allowed = ['baixo', 'medio', 'alto'];
         $risk = strtolower(trim((string)$value));

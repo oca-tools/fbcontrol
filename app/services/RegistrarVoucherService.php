@@ -181,7 +181,7 @@ final class RegistrarVoucherService implements RegistrarVoucherServiceInterface
         ]);
     }
 
-    private function comprovanteFoiEnviado(mixed $comprovanteVoucher): bool
+    private function comprovanteFoiEnviado($comprovanteVoucher): bool
     {
         return is_array($comprovanteVoucher)
             && (int)($comprovanteVoucher['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
