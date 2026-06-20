@@ -1,52 +1,96 @@
 <?php
+declare(strict_types=1);
+
 class VouchersController extends Controller
 {
+    /**
+     * Exibe a fila de vouchers do dia e registra comprovantes de venda/compensacao da operacao.
+     */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
 
+        $usuario = Auth::user();
         $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
+        $shift = $shiftModel->getActiveByUser((int)$usuario['id']);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ($_POST === [] && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+                $resultado = (new RegistrarVoucherService())->executar(new RegistrarVoucherCommand([
+                    'usuario' => $usuario,
+                    'turno' => $shift ?? [],
+                    'post' => $_POST,
+                    'files' => $_FILES,
+                    'server' => $_SERVER,
+                ]));
+                set_flash(ConsumosEVouchersConstants::FLASH_DANGER, $resultado->message());
+                $this->redirect(ConsumosEVouchersConstants::ROUTE_VOUCHERS_INDEX);
+            }
+
+            if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+                set_flash(ConsumosEVouchersConstants::FLASH_DANGER, ConsumosEVouchersConstants::MESSAGE_TOKEN_INVALIDO);
+                $this->redirect(ConsumosEVouchersConstants::ROUTE_VOUCHERS_INDEX);
+            }
+
+            $resultado = (new RegistrarVoucherService())->executar(new RegistrarVoucherCommand([
+                'usuario' => $usuario,
+                'turno' => $shift ?? [],
+                'post' => $_POST,
+                'files' => $_FILES,
+                'server' => $_SERVER,
+            ]));
+
+            set_flash(
+                $resultado->isSuccess() ? ConsumosEVouchersConstants::FLASH_SUCCESS : ConsumosEVouchersConstants::FLASH_DANGER,
+                $resultado->message()
+            );
+            $this->redirect(ConsumosEVouchersConstants::ROUTE_VOUCHERS_INDEX);
+        }
 
         $restaurantModel = new RestaurantModel();
         $operationModel = new OperationModel();
-        $voucherModel = new VoucherModel();
         $filters = [
             'data' => date('Y-m-d'),
             'restaurante_id' => $shift['restaurante_id'] ?? '',
             'operacao_id' => $shift['operacao_id'] ?? '',
         ];
-        $vouchers = $voucherModel->listByFilters($filters);
+        $vouchers = (new VoucherRepository())->listarVouchers($filters);
 
         $this->view('vouchers/index', [
             'shift' => $shift,
             'vouchers' => $vouchers,
             'restaurantes' => $restaurantModel->all(),
             'operacoes' => $operationModel->all(),
-            'voucher_receive_limit_bytes' => upload_limit_bytes(10 * 1024 * 1024),
-            'voucher_receive_limit_label' => format_bytes_ptbr(upload_limit_bytes(10 * 1024 * 1024)),
-            'voucher_target_limit_bytes' => 5 * 1024 * 1024,
-            'voucher_target_limit_label' => format_bytes_ptbr(5 * 1024 * 1024),
+            'voucher_receive_limit_bytes' => upload_limit_bytes(ConsumosEVouchersConstants::VOUCHER_RECEIVE_BYTES),
+            'voucher_receive_limit_label' => format_bytes_ptbr(upload_limit_bytes(ConsumosEVouchersConstants::VOUCHER_RECEIVE_BYTES)),
+            'voucher_target_limit_bytes' => ConsumosEVouchersConstants::VOUCHER_TARGET_BYTES,
+            'voucher_target_limit_label' => format_bytes_ptbr(ConsumosEVouchersConstants::VOUCHER_TARGET_BYTES),
             'flash' => get_flash(),
         ]);
     }
 
+    /**
+     * Entrega o comprovante do voucher com validacao de permissao, tipo e caminho seguro.
+     */
     public function attachment(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
 
         $id = (int)($_GET['id'] ?? 0);
-        $voucher = $id > 0 ? (new VoucherModel())->find($id) : null;
-        $publicPath = safe_public_upload_url((string)($voucher['voucher_anexo_path'] ?? ''), 'vouchers');
+        $voucher = $id > 0 ? (new VoucherRepository())->buscarVoucher($id) : null;
+        $publicPath = safe_public_upload_url(
+            (string)($voucher['voucher_anexo_path'] ?? ''),
+            ConsumosEVouchersConstants::VOUCHER_UPLOAD_PUBLIC_DIR
+        );
         if (!$voucher || $publicPath === '') {
             http_response_code(404);
-            echo 'Anexo não encontrado.';
+            echo ConsumosEVouchersConstants::MESSAGE_ANEXO_NAO_ENCONTRADO;
             return;
         }
 
-        $uploadRoot = realpath(dirname(__DIR__, 2) . '/public/uploads/vouchers');
+        $uploadRoot = realpath(dirname(__DIR__, 2) . ConsumosEVouchersConstants::VOUCHER_UPLOAD_ABSOLUTE_DIR);
         $fullPath = realpath(dirname(__DIR__, 2) . '/public' . $publicPath);
         $rootPrefix = $uploadRoot === false ? '' : rtrim($uploadRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         if (
@@ -57,22 +101,15 @@ class VouchersController extends Controller
             || !is_readable($fullPath)
         ) {
             http_response_code(404);
-            echo 'Anexo não encontrado.';
+            echo ConsumosEVouchersConstants::MESSAGE_ANEXO_NAO_ENCONTRADO;
             return;
         }
 
-        $allowedMimeByExtension = [
-            'pdf' => 'application/pdf',
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-        ];
         $extension = strtolower((string)pathinfo($fullPath, PATHINFO_EXTENSION));
-        $mime = $allowedMimeByExtension[$extension] ?? '';
+        $mime = ConsumosEVouchersConstants::ALLOWED_ATTACHMENT_MIME_BY_EXTENSION[$extension] ?? '';
         if (class_exists('finfo')) {
             $detected = (new finfo(FILEINFO_MIME_TYPE))->file($fullPath);
-            if (is_string($detected) && in_array($detected, ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'], true)) {
+            if (is_string($detected) && in_array($detected, ConsumosEVouchersConstants::ALLOWED_ATTACHMENT_MIMES, true)) {
                 $mime = $detected;
             } else {
                 $mime = '';
@@ -80,7 +117,7 @@ class VouchersController extends Controller
         }
         if ($mime === '') {
             http_response_code(415);
-            echo 'Formato de anexo não permitido.';
+            echo ConsumosEVouchersConstants::MESSAGE_FORMATO_ANEXO_NAO_PERMITIDO;
             return;
         }
 
@@ -91,7 +128,7 @@ class VouchersController extends Controller
             @ob_end_clean();
         }
 
-        $filename = safe_download_filename(basename($fullPath), 'voucher');
+        $filename = safe_download_filename(basename($fullPath), ConsumosEVouchersConstants::VOUCHER_DOWNLOAD_FALLBACK_NAME);
         header('Content-Type: ' . $mime);
         header('Content-Disposition: inline; filename="' . $filename . '"');
         header('Content-Length: ' . filesize($fullPath));
@@ -105,7 +142,7 @@ class VouchersController extends Controller
             return;
         }
         while (!feof($handle)) {
-            echo fread($handle, 1048576);
+            echo fread($handle, ConsumosEVouchersConstants::VOUCHER_STREAM_CHUNK_BYTES);
             flush();
         }
         fclose($handle);

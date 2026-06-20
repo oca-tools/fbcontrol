@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 class KpiOccupancyModel extends Model
 {
     private static ?bool $tableReady = null;
@@ -32,6 +34,11 @@ class KpiOccupancyModel extends Model
         return self::$tableReady;
     }
 
+    /**
+     * Recupera a ocupação informada para comparar consumo de buffet contra disponibilidade do hotel.
+     *
+     * @return array<string, mixed>|null
+     */
     public function getByDate(string $dataRef): ?array
     {
         if (!$this->ensureTable()) {
@@ -48,6 +55,9 @@ class KpiOccupancyModel extends Model
         return $row;
     }
 
+    /**
+     * Salva a ocupação diária usada nos indicadores de aderência entre PAX servido e ocupação.
+     */
     public function upsert(string $dataRef, ?int $ocupacaoUhs, ?int $ocupacaoPax, string $observacao, int $userId): bool
     {
         if (!$this->ensureTable()) {
@@ -76,7 +86,16 @@ class KpiOccupancyModel extends Model
         ]);
     }
 
-    public function history(string $dataInicio, string $dataFim, int $limit = 62): array
+    /**
+     * Lista a série histórica de ocupação para análises de tendência e sazonalidade operacional.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function history(
+        string $dataInicio,
+        string $dataFim,
+        int $limit = InteligenciaOperacionalConstants::DEFAULT_OCCUPANCY_MODEL_HISTORY_LIMIT
+    ): array
     {
         if (!$this->ensureTable()) {
             return [];

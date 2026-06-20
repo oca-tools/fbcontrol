@@ -1,8 +1,16 @@
 <?php
+/**
+ * Fabrica singleton para conexao PDO.
+ */
 class Database
 {
     private static ?PDO $instance = null;
 
+    /**
+     * Retorna a conexao PDO compartilhada da aplicacao.
+     *
+     * @return PDO Conexao configurada para MySQL.
+     */
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {

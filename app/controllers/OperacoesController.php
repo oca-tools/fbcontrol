@@ -1,73 +1,85 @@
 <?php
+declare(strict_types=1);
+
 class OperacoesController extends Controller
 {
+    /**
+     * Exibe as operacoes de A&B disponiveis para vinculo aos restaurantes.
+     */
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
-        $model = new OperationModel();
+        $estruturaRestauranteRepository = new EstruturaRestauranteRepository();
         $this->view('crud/operacoes', [
-            'items' => $model->all(),
+            'items' => $estruturaRestauranteRepository->listarOperacoes(),
             'flash' => get_flash(),
         ]);
     }
 
+    /**
+     * Cadastra uma operacao de A&B que podera ser ativada por restaurante.
+     */
     public function create(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=operacoes/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=operacoes/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
         }
 
-        $nome = trim($_POST['nome'] ?? '');
-        if ($nome === '') {
-            set_flash('danger', 'Preencha o nome.');
-            $this->redirect('/?r=operacoes/index');
-        }
-        $model = new OperationModel();
-        $model->create([
-            'nome' => $nome,
-            'ativo' => 1,
-        ], Auth::user()['id']);
-        set_flash('success', 'Operação cadastrada.');
-        $this->redirect('/?r=operacoes/index');
+        $resultado = (new ConfigurarRestauranteService())->executar(new ConfigurarRestauranteCommand([
+            'tipo_cadastro' => GestaoRestaurantesConstants::REGISTER_TYPE_OPERACAO,
+            'acao' => GestaoRestaurantesConstants::ACTION_CREATE,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'nome' => $_POST['nome'] ?? '',
+            'ativo' => GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
+
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
     }
 
+    /**
+     * Atualiza o cadastro de uma operacao usada na grade dos restaurantes.
+     */
     public function edit(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=operacoes/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=operacoes/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
         }
 
-        $id = (int)($_POST['id'] ?? 0);
-        $nome = trim($_POST['nome'] ?? '');
-        $ativo = (int)($_POST['ativo'] ?? 1);
+        $resultado = (new ConfigurarRestauranteService())->executar(new ConfigurarRestauranteCommand([
+            'tipo_cadastro' => GestaoRestaurantesConstants::REGISTER_TYPE_OPERACAO,
+            'acao' => GestaoRestaurantesConstants::ACTION_EDIT,
+            'id' => $_POST['id'] ?? 0,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'nome' => $_POST['nome'] ?? '',
+            'ativo' => $_POST['ativo'] ?? GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
 
-        if ($id <= 0 || $nome === '') {
-            set_flash('danger', 'Dados inválidos.');
-            $this->redirect('/?r=operacoes/index');
-        }
-        $model = new OperationModel();
-        $model->update($id, [
-            'nome' => $nome,
-            'ativo' => $ativo,
-        ], Auth::user()['id']);
-        set_flash('success', 'Operação atualizada.');
-        $this->redirect('/?r=operacoes/index');
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_OPERACOES_INDEX);
+    }
+
+    private function aplicarResultadoGestaoRestaurante(ServiceResult $resultado): void
+    {
+        set_flash(
+            $resultado->isSuccess() ? GestaoRestaurantesConstants::FLASH_SUCCESS : GestaoRestaurantesConstants::FLASH_DANGER,
+            $resultado->message()
+        );
     }
 }
-

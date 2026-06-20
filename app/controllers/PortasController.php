@@ -1,72 +1,86 @@
 <?php
+declare(strict_types=1);
+
 class PortasController extends Controller
 {
+    /**
+     * Exibe os pontos de acesso usados para registrar entradas por restaurante.
+     */
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
-        $model = new DoorModel();
-        $restaurantModel = new RestaurantModel();
+        $estruturaRestauranteRepository = new EstruturaRestauranteRepository();
         $this->view('crud/portas', [
-            'items' => $model->all(),
-            'restaurantes' => $restaurantModel->all(),
+            'items' => $estruturaRestauranteRepository->listarPontosDeAcesso(),
+            'restaurantes' => $estruturaRestauranteRepository->listarRestaurantes(),
             'flash' => get_flash(),
         ]);
     }
 
+    /**
+     * Cadastra uma porta fisica vinculada ao restaurante para controle de acesso.
+     */
     public function create(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=portas/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=portas/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
         }
 
-        $nome = trim($_POST['nome'] ?? '');
-        $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
-        if ($nome === '' || $restauranteId <= 0) {
-            set_flash('danger', 'Nome e restaurante são obrigatórios.');
-            $this->redirect('/?r=portas/index');
-        }
+        $resultado = (new ConfigurarPontoAcessoService())->executar(new ConfigurarPontoAcessoCommand([
+            'acao' => GestaoRestaurantesConstants::ACTION_CREATE,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'nome' => $_POST['nome'] ?? '',
+            'restaurante_id' => $_POST['restaurante_id'] ?? 0,
+            'ativo' => GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
 
-        $model = new DoorModel();
-        $model->create(['nome' => $nome, 'restaurante_id' => $restauranteId, 'ativo' => 1], Auth::user()['id']);
-        set_flash('success', 'Porta cadastrada.');
-        $this->redirect('/?r=portas/index');
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
     }
 
+    /**
+     * Atualiza uma porta de acesso e seu vinculo com restaurante.
+     */
     public function edit(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=portas/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=portas/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
         }
 
-        $id = (int)($_POST['id'] ?? 0);
-        $nome = trim($_POST['nome'] ?? '');
-        $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
-        $ativo = (int)($_POST['ativo'] ?? 1);
-        if ($id <= 0 || $nome === '' || $restauranteId <= 0) {
-            set_flash('danger', 'Dados inválidos.');
-            $this->redirect('/?r=portas/index');
-        }
+        $resultado = (new ConfigurarPontoAcessoService())->executar(new ConfigurarPontoAcessoCommand([
+            'acao' => GestaoRestaurantesConstants::ACTION_EDIT,
+            'id' => $_POST['id'] ?? 0,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'nome' => $_POST['nome'] ?? '',
+            'restaurante_id' => $_POST['restaurante_id'] ?? 0,
+            'ativo' => $_POST['ativo'] ?? GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
 
-        $model = new DoorModel();
-        $model->update($id, ['nome' => $nome, 'restaurante_id' => $restauranteId, 'ativo' => $ativo], Auth::user()['id']);
-        set_flash('success', 'Porta atualizada.');
-        $this->redirect('/?r=portas/index');
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_PORTAS_INDEX);
+    }
+
+    private function aplicarResultadoGestaoRestaurante(ServiceResult $resultado): void
+    {
+        set_flash(
+            $resultado->isSuccess() ? GestaoRestaurantesConstants::FLASH_SUCCESS : GestaoRestaurantesConstants::FLASH_DANGER,
+            $resultado->message()
+        );
     }
 }
-

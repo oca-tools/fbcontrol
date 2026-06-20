@@ -126,7 +126,7 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                 </div>
                 <span class="badge badge-soft">Turno atual</span>
             </div>
-            <form method="post" action="/?r=access/register_voucher" class="row g-3" enctype="multipart/form-data" data-voucher-form>
+            <form method="post" action="/?r=vouchers/index" class="row g-3" enctype="multipart/form-data" data-voucher-form>
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <div class="col-12 col-md-6">
                     <label class="form-label">Restaurante</label>

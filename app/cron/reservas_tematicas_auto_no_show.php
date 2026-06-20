@@ -26,36 +26,11 @@ if ($systemUserId <= 0) {
     exit(1);
 }
 
-$reservaModel = new ReservaTematicaModel();
-$logModel = new ReservaTematicaLogModel();
-$agora = date('Y-m-d H:i:s');
-$candidatas = $reservaModel->findAutoNoShowCandidates($agora, null, null);
-
-$count = 0;
-foreach ($candidatas as $cand) {
-    $id = (int)($cand['id'] ?? 0);
-    if ($id <= 0) {
-        continue;
-    }
-    $before = $reservaModel->find($id);
-    if (!$before) {
-        continue;
-    }
-    $statusAtual = normalize_mojibake((string)($before['status'] ?? ''));
-    if ($statusAtual !== 'Reservada') {
-        continue;
-    }
-
-    $obsAtual = trim((string)($before['observacao_operacao'] ?? ''));
-    $obsAuto = 'No-show automático por expiração da tolerância da reserva.';
-    if ($obsAtual !== '') {
-        $obsAuto .= ' ' . $obsAtual;
-    }
-
-    $reservaModel->updateOperacao($id, 'Nao compareceu', $obsAuto, $systemUserId, 0);
-    $after = $reservaModel->find($id) ?? [];
-    $logModel->log($id, 'auto_no_show', $systemUserId, $before, $after, 'Aplicado automaticamente via cron.');
-    $count++;
-}
+$resultado = (new AutoNoShowService())->executar(new AutoNoShowCommand([
+    'usuario_id' => $systemUserId,
+    'executado_em' => date('Y-m-d H:i:s'),
+    'origem' => 'cron',
+]));
+$count = (int)($resultado->payload()['processadas'] ?? 0);
 
 echo '[' . date('Y-m-d H:i:s') . '] reservas marcadas como no-show automatico: ' . $count . "\n";

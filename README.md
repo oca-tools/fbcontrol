@@ -19,6 +19,33 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 - Onboarding/tutorial de hostess
 - Envio de e-mail diário
 
+## Estrutura de pastas
+
+- `public/`: ponto de entrada HTTP (`index.php`) e assets expostos pelo servidor web. O document root deve apontar para esta pasta.
+- `app/bootstrap_web.php`: inicialização da aplicação web, sessão, helpers, core e autoload.
+- `app/bootstrap_cli.php`: inicialização para crons e ferramentas CLI.
+- `app/core/`: infraestrutura compartilhada (`Controller`, `Model`, `Database`, `Auth`).
+- `app/controllers/`: orquestração das rotas, validação de entrada e chamadas aos models/services.
+- `app/models/`: acesso a dados e regras persistidas por entidade.
+- `app/services/`: serviços de domínio reutilizáveis, como exportações, reservas temáticas e fechamento automático.
+- `app/support/AppConstants.php`: constantes compartilhadas de rotas, perfis, mensagens, limites técnicos e formatos de exportação.
+- `app/helpers/`: funções utilitárias globais para segurança, formatação, uploads, datas e respostas JSON.
+- `app/views/`: templates PHP renderizados pelos controllers.
+- `config/`: configuração base e exemplo de configuração local.
+- `sql/`: schema completo e migrations incrementais.
+- `tools/`: checks, smoke tests, empacotamento e rotinas de manutenção.
+- `docs/`: documentação técnica e operacional complementar.
+
+## Guia para manutenção
+
+1. Comece pelo controller da rota em `app/controllers/` para entender o fluxo HTTP.
+2. Siga para o model em `app/models/` quando a mudança envolver consulta, escrita ou auditoria de banco.
+3. Use `app/services/` para regras reutilizáveis ou operações que não pertencem a uma única tela.
+4. Adicione novas constantes compartilhadas em `app/support/AppConstants.php` antes de repetir strings, limites, nomes de perfis, rotas ou formatos em vários arquivos.
+5. Mantenha helpers em `app/helpers/functions.php` apenas para utilitários genéricos e sem estado.
+6. Ao criar ou alterar funções/classes, inclua tipos de parâmetros e retorno, além de docstrings curtas com entrada e resultado esperado.
+7. Depois de alterações estruturais, rode `php tools/run_checks.php` ou, no mínimo, lint nos arquivos PHP modificados.
+
 ## Instalação rápida
 1. Crie o banco MySQL/MariaDB com charset `utf8mb4`.
 2. Execute `sql/schema_v3_0.sql`.

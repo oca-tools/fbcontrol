@@ -2302,6 +2302,60 @@
                 grid-template-columns: 280px minmax(0, 1fr);
                 padding: 12px;
             }
+            body[data-route^="reservasTematicas/"] .app-shell {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            body[data-route^="reservasTematicas/"] .sidebar {
+                display: none;
+            }
+            body[data-route^="reservasTematicas/"] .app-main {
+                padding: 14px 14px 26px;
+                gap: 0.75rem;
+                min-width: 0;
+            }
+            body[data-route^="reservasTematicas/"] .app-content,
+            body[data-route^="reservasTematicas/"] .app-content > *,
+            body[data-route^="reservasTematicas/"] .app-content .row,
+            body[data-route^="reservasTematicas/"] .app-content .row > [class*="col-"] {
+                min-width: 0;
+            }
+            body[data-route^="reservasTematicas/"] .mobile-nav {
+                display: flex;
+            }
+            body[data-route^="reservasTematicas/"] .topbar {
+                position: static;
+                margin-bottom: 16px;
+            }
+            body[data-route^="reservasTematicas/"] .topbar-actions {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.55rem !important;
+                flex-wrap: wrap;
+            }
+            body[data-route^="reservasTematicas/"] .topbar-theme,
+            body[data-route^="reservasTematicas/"] .topbar-runtime {
+                display: none !important;
+            }
+            body[data-route^="reservasTematicas/"] .topbar .user-pill.desktop-only {
+                display: flex !important;
+                flex: 1 1 auto;
+                min-width: 0;
+                width: auto !important;
+                max-width: 100%;
+                margin-right: 0.25rem;
+                justify-content: flex-start;
+                gap: 0.36rem;
+                padding: 0.34rem 0.62rem !important;
+            }
+            body[data-route^="reservasTematicas/"] .topbar .user-pill.desktop-only .fw-semibold,
+            body[data-route^="reservasTematicas/"] .topbar .user-pill.desktop-only .text-muted.small {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 220px;
+            }
         }
         @media (min-width: 1200px) {
             /* Densidade desktop: sensação mais compacta sem depender de zoom do navegador */
@@ -2351,6 +2405,65 @@
             }
             .saas-kpi-grid {
                 grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+            }
+        }
+        @media (max-width: 1180px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            .sidebar {
+                display: none;
+            }
+            .app-main {
+                padding: 14px 14px 26px;
+                gap: 0.75rem;
+                min-width: 0;
+            }
+            .app-content,
+            .app-content > *,
+            .app-content .row,
+            .app-content .row > [class*="col-"] {
+                min-width: 0;
+            }
+            .mobile-nav {
+                display: flex;
+            }
+            .topbar {
+                position: static;
+                margin-bottom: 16px;
+            }
+            .topbar-actions {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.55rem !important;
+                flex-wrap: wrap;
+            }
+            .topbar-theme,
+            .topbar-runtime {
+                display: none !important;
+            }
+            .topbar .user-pill.desktop-only {
+                display: flex !important;
+                flex: 1 1 auto;
+                min-width: 0;
+                width: auto !important;
+                max-width: 100%;
+                margin-right: 0.25rem;
+                justify-content: flex-start;
+                gap: 0.36rem;
+                padding: 0.34rem 0.62rem !important;
+            }
+            .topbar .user-pill.desktop-only .fw-semibold,
+            .topbar .user-pill.desktop-only .text-muted.small {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 220px;
+            }
+            .topbar .topbar-logout {
+                flex: 0 0 auto;
             }
         }
         @media (max-width: 992px) {
@@ -2755,6 +2868,38 @@
 <?php require __DIR__ . '/style_app_content_hotfix.php'; ?>
 
 <?php require __DIR__ . '/style_visual_hardening.php'; ?>
+
+        @media (max-width: 1200px) {
+            .app-shell {
+                grid-template-columns: 1fr !important;
+                padding: 10px !important;
+            }
+            .sidebar {
+                display: none !important;
+            }
+            .app-main {
+                padding: 12px 12px 24px !important;
+                gap: 0.75rem !important;
+                min-width: 0 !important;
+            }
+            .app-content,
+            .app-content > *,
+            .app-content .row,
+            .app-content .row > [class*="col-"] {
+                min-width: 0 !important;
+                max-width: 100% !important;
+            }
+            .topbar {
+                display: none !important;
+            }
+            .mobile-nav {
+                display: flex !important;
+                position: sticky;
+                top: 8px;
+                z-index: 55;
+                margin-bottom: 12px;
+            }
+        }
 
         @media (max-width: 992px) {
             .topbar {

@@ -1,39 +1,24 @@
 <?php
+declare(strict_types=1);
+
 class RelatoriosController extends Controller
 {
-    private const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
-
+    /**
+     * Lê os filtros do relatório consolidado para preservar a mesma visão entre tela e exportação.
+     */
     private function buildFilters(bool $defaultDate = false): array
     {
-        return [
-            'data' => sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
-            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
-            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
-            'uh_numero' => sanitize_uh_param($_GET['uh_numero'] ?? ''),
-            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
-            'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
-            'status' => sanitize_enum_param($_GET['status'] ?? '', self::STATUS_FILTERS),
-        ];
+        return (new RelatorioGerencialService())->buildFilters($_GET, $defaultDate);
     }
 
     private function buildBiFilters(array $baseFilters): array
     {
-        $biFilters = $baseFilters;
-        $biFilters['restaurante_id'] = '';
-        $biFilters['operacao_id'] = '';
-        if (array_key_exists('bi_restaurante_id', $_GET)) {
-            $biFilters['restaurante_id'] = sanitize_int_param($_GET['bi_restaurante_id'] ?? '');
-        }
-        if (array_key_exists('bi_operacao_id', $_GET)) {
-            $biFilters['operacao_id'] = sanitize_int_param($_GET['bi_operacao_id'] ?? '');
-        }
-        return $biFilters;
+        return (new RelatorioGerencialService())->buildBiFilters($_GET, $baseFilters);
     }
 
     private function buildExportType(): string
     {
-        $type = strtolower(trim((string)($_GET['type'] ?? 'csv')));
-        return $type === 'xlsx' ? 'xlsx' : 'csv';
+        return (new RelatorioGerencialService())->buildExportType($_GET);
     }
 
     private function auditExport(string $exportName, array $filters, string $type, int $rows): void
@@ -63,38 +48,7 @@ class RelatoriosController extends Controller
 
     private function filtersMeta(array $filters, array $restaurantes, array $operacoes, array $labels = []): array
     {
-        $meta = [];
-        if (!empty($filters['data'])) {
-            $meta[$labels['data'] ?? 'Data'] = format_date_br((string)$filters['data']);
-        }
-        if (!empty($filters['data_inicio']) || !empty($filters['data_fim'])) {
-            $inicio = !empty($filters['data_inicio']) ? format_date_br((string)$filters['data_inicio']) : '-';
-            $fim = !empty($filters['data_fim']) ? format_date_br((string)$filters['data_fim']) : '-';
-            $meta[$labels['periodo'] ?? 'Periodo'] = $inicio . ' a ' . $fim;
-        }
-        if (!empty($filters['uh_numero'])) {
-            $meta[$labels['uh'] ?? 'UH'] = (string)$filters['uh_numero'];
-        }
-        if (!empty($filters['restaurante_id'])) {
-            foreach ($restaurantes as $restaurante) {
-                if ((int)$restaurante['id'] === (int)$filters['restaurante_id']) {
-                    $meta[$labels['restaurante'] ?? 'Restaurante'] = normalize_mojibake((string)$restaurante['nome']);
-                    break;
-                }
-            }
-        }
-        if (!empty($filters['operacao_id'])) {
-            foreach ($operacoes as $operacao) {
-                if ((int)$operacao['id'] === (int)$filters['operacao_id']) {
-                    $meta[$labels['operacao'] ?? 'Operacao'] = normalize_mojibake((string)$operacao['nome']);
-                    break;
-                }
-            }
-        }
-        if (!empty($filters['status'])) {
-            $meta[$labels['status'] ?? 'Status'] = normalize_mojibake((string)$filters['status']);
-        }
-        return $meta;
+        return (new RelatorioGerencialService())->filtersMeta($filters, $restaurantes, $operacoes, $labels);
     }
 
     private function resolveVoucherPdfFilters(): array
@@ -244,7 +198,7 @@ class RelatoriosController extends Controller
 
     private function voucherExportAttachments(array $filters = []): array
     {
-        $rows = (new VoucherModel())->listByFilters($filters);
+        $rows = (new RelatorioGerencialService())->listarVouchersParaAnexos($filters);
 
         $uploadRoot = realpath(dirname(__DIR__, 2) . '/public/uploads/vouchers');
         if ($uploadRoot === false) {
@@ -281,7 +235,7 @@ class RelatoriosController extends Controller
 
             $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
             $safeName = preg_replace('/[^A-Za-z0-9._-]+/', '_', basename($fullPath)) ?: ('voucher_' . count($files) . '.' . $ext);
-            if ($ext === 'pdf') {
+            if ($ext === InteligenciaOperacionalConstants::FORMAT_PDF) {
                 $stats['pdfs']++;
                 $files[] = [
                     'path' => $fullPath,
@@ -323,7 +277,7 @@ class RelatoriosController extends Controller
     {
         if (!is_file($path) || !is_readable($path)) {
             http_response_code(404);
-            echo 'Arquivo não encontrado.';
+            echo InteligenciaOperacionalConstants::MESSAGE_ARQUIVO_NAO_ENCONTRADO;
             return;
         }
 
@@ -444,139 +398,42 @@ class RelatoriosController extends Controller
         return $entryCount > 0 && is_file($zipFile) && filesize($zipFile) > 0;
     }
 
+    /**
+     * Exibe a central de relatórios para auditoria de acessos, consumo de colaboradores, vouchers e BI.
+     */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $filters = $this->buildFilters(true);
-
-        $restaurantModel = new RestaurantModel();
-        $operationModel = new OperationModel();
-        $accessModel = new AccessModel();
-        $colabModel = new CollaboratorMealModel();
-        $voucherModel = new VoucherModel();
-
-        $biFilters = $this->buildBiFilters($filters);
-        $biGroupedMultiple = ($biFilters['status'] ?? '') === 'multiplo';
-        $insights = $accessModel->kpiSummary($filters);
-        $tematicosResumo = (new ReservaTematicaModel())->dashboardStats($filters);
-
-        $journey = [];
-        $summary = [];
-        $dailyMap = [];
-        if ($filters['uh_numero'] !== '') {
-            $journey = $accessModel->uhJourney($filters['uh_numero'], $filters['data'], $filters['data_inicio'], $filters['data_fim']);
-            $summary = $accessModel->uhSummary($filters['uh_numero'], $filters['data'], $filters['data_inicio'], $filters['data_fim']);
-        }
-        if ($filters['data'] !== '' && !(!empty($filters['data_inicio']) && !empty($filters['data_fim']) && $filters['data_inicio'] !== $filters['data_fim'])) {
-            $dailyMap = $accessModel->dailyMap($filters['data']);
-        }
-
-        $perPageMap = 20;
-        $mapPage = max(1, (int)($_GET['map_page'] ?? 1));
-        $mapTotal = count($dailyMap);
-        $mapTotalPages = max(1, (int)ceil($mapTotal / $perPageMap));
-        if ($mapPage > $mapTotalPages) {
-            $mapPage = $mapTotalPages;
-        }
-        $dailyMapPaged = array_slice($dailyMap, ($mapPage - 1) * $perPageMap, $perPageMap);
-
-        $perPageBi = 20;
-        $biPage = max(1, (int)($_GET['bi_page'] ?? 1));
-        $biTotal = $biGroupedMultiple
-            ? $accessModel->reportMultipleAccessGroupsCount($biFilters)
-            : $accessModel->reportListCount($biFilters);
-        $biTotalPages = max(1, (int)ceil($biTotal / $perPageBi));
-        if ($biPage > $biTotalPages) {
-            $biPage = $biTotalPages;
-        }
-        $listPaged = $biGroupedMultiple
-            ? $accessModel->reportMultipleAccessGroups($biFilters, $perPageBi, ($biPage - 1) * $perPageBi)
-            : $accessModel->reportList($biFilters, $perPageBi, ($biPage - 1) * $perPageBi);
-
-        $perPageColab = 20;
-        $colabPage = max(1, (int)($_GET['colab_page'] ?? 1));
-        $colabTotal = $colabModel->countByFilters($filters);
-        $colabTotalPages = max(1, (int)ceil($colabTotal / $perPageColab));
-        if ($colabPage > $colabTotalPages) {
-            $colabPage = $colabTotalPages;
-        }
-        $colaboradoresPaged = $colabModel->listByFilters($filters, $perPageColab, ($colabPage - 1) * $perPageColab);
-
-        $perPageVoucher = 20;
-        $voucherPage = max(1, (int)($_GET['voucher_page'] ?? 1));
-        $voucherTotal = $voucherModel->countByFilters($filters);
-        $voucherTotalPages = max(1, (int)ceil($voucherTotal / $perPageVoucher));
-        if ($voucherPage > $voucherTotalPages) {
-            $voucherPage = $voucherTotalPages;
-        }
-        $vouchersPaged = $voucherModel->listByFilters($filters, $perPageVoucher, ($voucherPage - 1) * $perPageVoucher);
-
-        $this->view('reports/index', [
-            'filters' => $filters,
-            'restaurantes' => $restaurantModel->all(),
-            'operacoes' => $operationModel->all(),
-            'list' => [],
-            'list_paged' => $listPaged,
-            'bi_filters' => $biFilters,
-            'bi_grouped_multiple' => $biGroupedMultiple,
-            'bi_page' => $biPage,
-            'bi_total_pages' => $biTotalPages,
-            'bi_total' => $biTotal,
-            'journey' => $journey,
-            'summary' => $summary,
-            'daily_map' => $dailyMap,
-            'daily_map_paged' => $dailyMapPaged,
-            'map_page' => $mapPage,
-            'map_total_pages' => $mapTotalPages,
-            'map_total' => $mapTotal,
-            'colaboradores' => [],
-            'colaboradores_paged' => $colaboradoresPaged,
-            'colab_page' => $colabPage,
-            'colab_total_pages' => $colabTotalPages,
-            'colab_total' => $colabTotal,
-            'vouchers' => [],
-            'vouchers_paged' => $vouchersPaged,
-            'voucher_page' => $voucherPage,
-            'voucher_total_pages' => $voucherTotalPages,
-            'voucher_total' => $voucherTotal,
-            'insights' => $insights,
-            'tematicos_resumo' => $tematicosResumo,
-        ]);
+        $this->view('reports/index', (new RelatorioGerencialService())->montarTelaRelatorios($_GET));
     }
 
+    /**
+     * Exporta a base consolidada de acessos, refeições e vouchers para conferência gerencial.
+     */
     public function export(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $filters = $this->buildBiFilters($this->buildFilters(false));
-
-        $accessModel = new AccessModel();
-        $colabModel = new CollaboratorMealModel();
-        $voucherModel = new VoucherModel();
-        $restaurantes = (new RestaurantModel())->all();
-        $operacoes = (new OperationModel())->all();
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $restaurantes = $relatorioGerencialService->restaurantes();
+        $operacoes = $relatorioGerencialService->operacoes();
         $type = $this->buildExportType();
-        $totalRows = $accessModel->reportListCount($filters)
-            + $colabModel->countByFilters($filters)
-            + $voucherModel->countByFilters($filters);
+        $totalRows = $relatorioGerencialService->totalRegistrosConsolidados($filters);
         $this->auditExport('relatorios', $filters, $type, $totalRows);
         $this->exportDocument([
-            'filename' => 'relatorio_acessos',
+            'filename' => InteligenciaOperacionalConstants::EXPORT_RELATORIO_ACESSOS_FILENAME,
             'title' => 'Relatorio operacional consolidado',
             'subtitle' => 'Acessos, refeicoes de colaboradores e vouchers no mesmo arquivo.',
             'sheet_name' => 'Operacional',
             'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
-            'headers' => [
-                'tipo_registro','data_hora','uh','pax','restaurante','operacao','porta','usuario',
-                'duplicado','fora_horario','colaborador','qtd_refeicoes',
-                'hospede','data_estadia','numero_reserva','servico_upselling','assinatura','data_venda'
-            ],
-        ], $type, static function (callable $writeRow) use ($accessModel, $colabModel, $voucherModel, $filters): int {
+            'headers' => InteligenciaOperacionalConstants::HEADERS_RELATORIO_ACESSOS,
+        ], $type, static function (callable $writeRow) use ($relatorioGerencialService, $filters): int {
             $processed = 0;
-            $processed += $accessModel->exportReportRows($filters, static function (array $r) use ($writeRow): void {
+            $processed += $relatorioGerencialService->exportarAcessos($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     'acesso',
                     $r['criado_em'],
@@ -592,7 +449,7 @@ class RelatoriosController extends Controller
                     '', '', '', '', '', ''
                 ]);
             });
-            $processed += $colabModel->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+            $processed += $relatorioGerencialService->exportarRefeicoesColaboradores($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     'colaborador',
                     $r['criado_em'],
@@ -608,7 +465,7 @@ class RelatoriosController extends Controller
                     '', '', '', '', '', ''
                 ]);
             });
-            $processed += $voucherModel->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+            $processed += $relatorioGerencialService->exportarVouchers($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     'voucher',
                     $r['criado_em'],
@@ -634,6 +491,9 @@ class RelatoriosController extends Controller
         exit;
     }
 
+    /**
+     * Exporta o mapa diário por UH para validar presença nos serviços e benefícios associados.
+     */
     public function export_mapa(): void
     {
         $this->requireAuth();
@@ -641,20 +501,20 @@ class RelatoriosController extends Controller
 
         $data = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
 
-        $accessModel = new AccessModel();
-        $rows = $accessModel->dailyMap($data);
-        $restaurantes = (new RestaurantModel())->all();
-        $operacoes = (new OperationModel())->all();
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $rows = $relatorioGerencialService->mapaDiario($data);
+        $restaurantes = $relatorioGerencialService->restaurantes();
+        $operacoes = $relatorioGerencialService->operacoes();
 
         $type = $this->buildExportType();
         $this->auditExport('mapa', ['data' => $data], $type, count($rows));
         $this->exportDocument([
-            'filename' => 'mapa_diario_uh',
+            'filename' => InteligenciaOperacionalConstants::EXPORT_MAPA_DIARIO_UH_FILENAME,
             'title' => 'Mapa diario de UH',
             'subtitle' => 'Consolidado de presencas por unidade habitacional.',
             'sheet_name' => 'Mapa UH',
             'meta' => $this->filtersMeta(['data' => $data], $restaurantes, $operacoes),
-            'headers' => ['uh','cafe','almoco','jantar','tematico','privileged','vip_premium'],
+            'headers' => InteligenciaOperacionalConstants::HEADERS_MAPA_DIARIO_UH,
         ], $type, static function (callable $writeRow) use ($rows): int {
             foreach ($rows as $r) {
                 $writeRow([
@@ -672,6 +532,9 @@ class RelatoriosController extends Controller
         exit;
     }
 
+    /**
+     * Exporta a base analítica de BI para investigar padrões de passagem, duplicidade e alertas.
+     */
     public function export_bi(): void
     {
         $this->requireAuth();
@@ -680,24 +543,22 @@ class RelatoriosController extends Controller
         $filters = $this->buildBiFilters($this->buildFilters(false));
 
         $groupedMultiple = ($filters['status'] ?? '') === 'multiplo';
-        $accessModel = new AccessModel();
-        $restaurantes = (new RestaurantModel())->all();
-        $operacoes = (new OperationModel())->all();
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $restaurantes = $relatorioGerencialService->restaurantes();
+        $operacoes = $relatorioGerencialService->operacoes();
         $type = $this->buildExportType();
-        $totalRows = $groupedMultiple
-            ? $accessModel->reportMultipleAccessGroupsCount($filters)
-            : $accessModel->reportListCount($filters);
+        $totalRows = $relatorioGerencialService->totalRegistrosBi($filters);
         $this->auditExport('bi', $filters, $type, $totalRows);
         if ($groupedMultiple) {
             $this->exportDocument([
-                'filename' => 'base_bi',
+                'filename' => InteligenciaOperacionalConstants::EXPORT_BASE_BI_FILENAME,
                 'title' => 'Base completa para BI',
                 'subtitle' => 'Agrupamentos de multiplos acessos para analise operacional.',
                 'sheet_name' => 'BI Multiplo',
                 'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
-                'headers' => ['status', 'uh', 'primeira_passagem', 'ultima_passagem', 'acessos', 'pax_total', 'pax_min', 'pax_max', 'dias', 'restaurantes', 'operacoes', 'portas', 'usuarios'],
-            ], $type, static function (callable $writeRow) use ($accessModel, $filters): int {
-                return $accessModel->exportMultipleAccessGroups($filters, static function (array $r) use ($writeRow): void {
+                'headers' => InteligenciaOperacionalConstants::HEADERS_BI_MULTIPLO,
+            ], $type, static function (callable $writeRow) use ($relatorioGerencialService, $filters): int {
+                return $relatorioGerencialService->exportarBiMultiplosAcessos($filters, static function (array $r) use ($writeRow): void {
                     $writeRow([
                         $r['status_operacional'] ?? 'Multiplo Acesso',
                         $r['uh_numero'],
@@ -719,14 +580,14 @@ class RelatoriosController extends Controller
         }
 
         $this->exportDocument([
-            'filename' => 'base_bi',
+            'filename' => InteligenciaOperacionalConstants::EXPORT_BASE_BI_FILENAME,
             'title' => 'Base completa para BI',
             'subtitle' => 'Eventos detalhados do periodo filtrado.',
             'sheet_name' => 'BI Detalhado',
             'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
-            'headers' => ['status', 'data_hora', 'uh', 'pax', 'restaurante', 'operacao', 'porta', 'usuario'],
-        ], $type, static function (callable $writeRow) use ($accessModel, $filters): int {
-            return $accessModel->exportReportRows($filters, static function (array $r) use ($writeRow): void {
+            'headers' => InteligenciaOperacionalConstants::HEADERS_BI_DETALHADO,
+        ], $type, static function (callable $writeRow) use ($relatorioGerencialService, $filters): int {
+            return $relatorioGerencialService->exportarBiDetalhado($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     $r['status_operacional'] ?? 'OK',
                     $r['criado_em'],
@@ -742,6 +603,9 @@ class RelatoriosController extends Controller
         exit;
     }
 
+    /**
+     * Exporta refeições de colaboradores para controle operacional e conciliação com contratos internos.
+     */
     public function export_colaboradores(): void
     {
         $this->requireAuth();
@@ -755,21 +619,21 @@ class RelatoriosController extends Controller
             'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
-        $model = new CollaboratorMealModel();
-        $restaurantes = (new RestaurantModel())->all();
-        $operacoes = (new OperationModel())->all();
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $restaurantes = $relatorioGerencialService->restaurantes();
+        $operacoes = $relatorioGerencialService->operacoes();
         $type = $this->buildExportType();
-        $totalRows = $model->countByFilters($filters);
+        $totalRows = $relatorioGerencialService->contarRefeicoesColaboradores($filters);
         $this->auditExport('colaboradores', $filters, $type, $totalRows);
         $this->exportDocument([
-            'filename' => 'colaboradores_refeicoes',
+            'filename' => InteligenciaOperacionalConstants::EXPORT_COLABORADORES_FILENAME,
             'title' => 'Refeicoes de colaboradores',
             'subtitle' => 'Historico operacional por restaurante e operacao.',
             'sheet_name' => 'Colaboradores',
             'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
-            'headers' => ['data_hora', 'colaborador', 'quantidade', 'restaurante', 'operacao', 'usuario'],
-        ], $type, static function (callable $writeRow) use ($model, $filters): int {
-            return $model->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+            'headers' => InteligenciaOperacionalConstants::HEADERS_COLABORADORES,
+        ], $type, static function (callable $writeRow) use ($relatorioGerencialService, $filters): int {
+            return $relatorioGerencialService->exportarRefeicoesColaboradores($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     $r['criado_em'],
                     $r['nome_colaborador'],
@@ -783,6 +647,9 @@ class RelatoriosController extends Controller
         exit;
     }
 
+    /**
+     * Exporta vouchers registrados para conferência de upselling e evidências de atendimento.
+     */
     public function export_vouchers(): void
     {
         $this->requireAuth();
@@ -796,21 +663,21 @@ class RelatoriosController extends Controller
             'operacao_id' => sanitize_int_param($_GET['operacao_id'] ?? ''),
         ];
 
-        $model = new VoucherModel();
-        $restaurantes = (new RestaurantModel())->all();
-        $operacoes = (new OperationModel())->all();
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $restaurantes = $relatorioGerencialService->restaurantes();
+        $operacoes = $relatorioGerencialService->operacoes();
         $type = $this->buildExportType();
-        $totalRows = $model->countByFilters($filters);
+        $totalRows = $relatorioGerencialService->contarVouchers($filters);
         $this->auditExport('vouchers', $filters, $type, $totalRows);
         $this->exportDocument([
-            'filename' => 'vouchers_registrados',
+            'filename' => InteligenciaOperacionalConstants::EXPORT_VOUCHERS_FILENAME,
             'title' => 'Vouchers registrados',
             'subtitle' => 'Exportacao tabular para conferencia de vouchers e upselling.',
             'sheet_name' => 'Vouchers',
             'meta' => $this->filtersMeta($filters, $restaurantes, $operacoes),
-            'headers' => ['data_hora', 'hospede', 'estadia', 'reserva', 'servico', 'assinatura', 'data_venda', 'anexo_registrado', 'restaurante', 'operacao', 'usuario'],
-        ], $type, static function (callable $writeRow) use ($model, $filters): int {
-            return $model->exportByFilters($filters, static function (array $r) use ($writeRow): void {
+            'headers' => InteligenciaOperacionalConstants::HEADERS_VOUCHERS,
+        ], $type, static function (callable $writeRow) use ($relatorioGerencialService, $filters): int {
+            return $relatorioGerencialService->exportarVouchers($filters, static function (array $r) use ($writeRow): void {
                 $writeRow([
                     $r['criado_em'],
                     $r['nome_hospede'],
@@ -819,7 +686,7 @@ class RelatoriosController extends Controller
                     $r['servico_upselling'],
                     $r['assinatura'],
                     $r['data_venda'],
-                    safe_public_upload_url((string)($r['voucher_anexo_path'] ?? ''), 'vouchers') !== '' ? 'sim' : 'nao',
+                    $relatorioGerencialService->voucherPossuiAnexo($r) ? 'sim' : 'nao',
                     $r['restaurante'],
                     $r['operacao'],
                     $r['usuario'],
@@ -829,6 +696,9 @@ class RelatoriosController extends Controller
         exit;
     }
 
+    /**
+     * Agrupa evidências de vouchers em PDF ou ZIP para auditoria documental do período.
+     */
     public function export_voucher_pdfs(): void
     {
         $this->requireAuth();
@@ -837,24 +707,29 @@ class RelatoriosController extends Controller
         $filters = $this->resolveVoucherPdfFilters();
         if (empty($filters)) {
             if ($this->isAsyncExportRequest()) {
-                json_response(['ok' => false, 'message' => 'Informe um intervalo de datas válido para baixar os PDFs dos vouchers.'], 422);
+                json_response(['ok' => false, 'message' => InteligenciaOperacionalConstants::MESSAGE_INTERVALO_VOUCHER_INVALIDO], 422);
             }
-            set_flash('warning', 'Informe um intervalo de datas válido para baixar os PDFs dos vouchers.');
-            $this->redirect('/?r=relatorios/index');
+            set_flash(InteligenciaOperacionalConstants::FLASH_WARNING, InteligenciaOperacionalConstants::MESSAGE_INTERVALO_VOUCHER_INVALIDO);
+            $this->redirect(InteligenciaOperacionalConstants::ROUTE_RELATORIOS_INDEX);
         }
 
         $periodLabel = $this->voucherPdfPeriodLabel($filters);
         $attachmentBundle = $this->voucherExportAttachments($filters);
         $files = $attachmentBundle['files'];
         $stats = $attachmentBundle['stats'];
-        $this->auditExport('vouchers_pdfs', $filters, count($files) > 1 ? 'zip' : 'pdf', count($files));
+        $this->auditExport(
+            'vouchers_pdfs',
+            $filters,
+            count($files) > 1 ? InteligenciaOperacionalConstants::FORMAT_ZIP : InteligenciaOperacionalConstants::FORMAT_PDF,
+            count($files)
+        );
 
         if (empty($files)) {
-            $message = 'Não há PDFs de vouchers para o período selecionado.';
+            $message = InteligenciaOperacionalConstants::MESSAGE_SEM_PDFS_VOUCHERS;
             if (($stats['images'] ?? 0) > 0 && !class_exists('Imagick')) {
-                $message = 'Há imagens de vouchers, mas a extensão Imagick não está disponível para convertê-las em PDF.';
+                $message = InteligenciaOperacionalConstants::MESSAGE_IMAGICK_INDISPONIVEL;
             } elseif (($stats['images_skipped'] ?? 0) > 0) {
-                $message = 'Há imagens de vouchers, mas não foi possível convertê-las em PDF.';
+                $message = InteligenciaOperacionalConstants::MESSAGE_IMAGEM_VOUCHER_NAO_CONVERTIDA;
             }
             if ($this->isAsyncExportRequest()) {
                 json_response(['ok' => false, 'message' => $message], 404);
@@ -873,7 +748,7 @@ class RelatoriosController extends Controller
 
         $zipPath = tempnam(sys_get_temp_dir(), 'vouchers_pdfs_');
         if ($zipPath === false) {
-            set_flash('danger', 'Não foi possível preparar o arquivo ZIP dos vouchers.');
+            set_flash(InteligenciaOperacionalConstants::FLASH_DANGER, InteligenciaOperacionalConstants::MESSAGE_ZIP_PREPARO_FALHOU);
             $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
             $this->redirect('/?' . $query);
         }
@@ -885,7 +760,7 @@ class RelatoriosController extends Controller
             if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
                 @unlink($zipFile);
                 $this->cleanupTemporaryVoucherFiles($files);
-                set_flash('danger', 'Não foi possível criar o arquivo ZIP dos vouchers.');
+                set_flash(InteligenciaOperacionalConstants::FLASH_DANGER, InteligenciaOperacionalConstants::MESSAGE_ZIP_CRIACAO_FALHOU);
                 $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
                 $this->redirect('/?' . $query);
             }
@@ -896,19 +771,19 @@ class RelatoriosController extends Controller
             if (!$zip->close() || !is_file($zipFile) || filesize($zipFile) <= 0) {
                 @unlink($zipFile);
                 $this->cleanupTemporaryVoucherFiles($files);
-                set_flash('danger', 'Não foi possível finalizar o arquivo ZIP dos vouchers.');
+                set_flash(InteligenciaOperacionalConstants::FLASH_DANGER, InteligenciaOperacionalConstants::MESSAGE_ZIP_FINALIZACAO_FALHOU);
                 $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
                 $this->redirect('/?' . $query);
             }
         } elseif (!$this->createStoredZip($files, $zipFile)) {
             @unlink($zipFile);
             $this->cleanupTemporaryVoucherFiles($files);
-            set_flash('danger', 'Não foi possível criar o arquivo ZIP dos vouchers.');
+            set_flash(InteligenciaOperacionalConstants::FLASH_DANGER, InteligenciaOperacionalConstants::MESSAGE_ZIP_CRIACAO_FALHOU);
             $query = http_build_query(array_merge($filters, ['r' => 'relatorios/index']));
             $this->redirect('/?' . $query);
         }
 
-        $this->streamDownload($zipFile, 'vouchers_pdfs_' . $periodLabel . '.zip', 'application/zip');
+        $this->streamDownload($zipFile, InteligenciaOperacionalConstants::EXPORT_VOUCHER_PDFS_FILENAME_PREFIX . $periodLabel . '.zip', 'application/zip');
         @unlink($zipFile);
         $this->cleanupTemporaryVoucherFiles($files);
         exit;

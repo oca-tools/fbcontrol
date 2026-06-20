@@ -1,156 +1,22 @@
-﻿<?php
+<?php
+declare(strict_types=1);
+
 class AccessController extends Controller
 {
     private const RESERVA_STATUS_FINAIS = ['Finalizada', 'Nao compareceu', 'Cancelada'];
     private const TEMATICA_CONFLICT_KEY = 'access_tematica_conflict';
     private const DUPLICATE_CONFIRM_KEY = 'access_duplicate_confirm';
-    private const VOUCHER_TARGET_BYTES = 5242880;
-    private const VOUCHER_RECEIVE_BYTES = 10485760;
 
+    /**
+     * Mantem hostess tematica no fluxo de registro padrao.
+     *
+     * @param array|null $user Usuario autenticado, quando disponivel.
+     * @return bool Sempre falso no fluxo atual.
+     */
     private function redirectIfTematicoOnlyHostess(?array $user = null): bool
     {
         // Fluxo v2: hostess de tematico tambem opera pelo modulo Registro.
         return false;
-    }
-
-    private function voucherUploadErrorMessage(int $error): string
-    {
-        $limit = $this->voucherReceiveLimitLabel();
-        switch ($error) {
-            case UPLOAD_ERR_INI_SIZE:
-            case UPLOAD_ERR_FORM_SIZE:
-                return 'O anexo do voucher excede o limite de envio (' . $limit . '). Envie uma imagem menor ou gere um PDF mais leve.';
-            case UPLOAD_ERR_PARTIAL:
-                return 'O anexo do voucher foi enviado parcialmente. Tente novamente.';
-            case UPLOAD_ERR_NO_TMP_DIR:
-            case UPLOAD_ERR_CANT_WRITE:
-            case UPLOAD_ERR_EXTENSION:
-                return 'Não foi possível receber o anexo do voucher no servidor. Avise o suporte.';
-            default:
-                return 'Falha ao enviar o anexo do voucher.';
-        }
-    }
-
-    private function voucherReceiveLimitBytes(): int
-    {
-        return upload_limit_bytes(self::VOUCHER_RECEIVE_BYTES);
-    }
-
-    private function voucherReceiveLimitLabel(): string
-    {
-        return format_bytes_ptbr($this->voucherReceiveLimitBytes());
-    }
-
-    private function voucherTargetLimitLabel(): string
-    {
-        return format_bytes_ptbr(self::VOUCHER_TARGET_BYTES);
-    }
-
-    private function requestExceedsVoucherPostLimit(): bool
-    {
-        $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
-        $postLimit = ini_size_to_bytes((string)ini_get('post_max_size'));
-        return $contentLength > 0 && $postLimit > 0 && $postLimit < PHP_INT_MAX && $contentLength > $postLimit;
-    }
-
-    private function logVoucherUploadFailure(string $reason, array $context = []): void
-    {
-        $user = Auth::user();
-        $base = [
-            'user_id' => $user['id'] ?? null,
-            'reason' => $reason,
-            'content_length' => (int)($_SERVER['CONTENT_LENGTH'] ?? 0),
-            'upload_max_filesize' => ini_get('upload_max_filesize'),
-            'post_max_size' => ini_get('post_max_size'),
-            'receive_limit' => $this->voucherReceiveLimitLabel(),
-            'target_limit' => $this->voucherTargetLimitLabel(),
-        ];
-        error_log('[voucher-upload] ' . json_encode(array_merge($base, $context), JSON_UNESCAPED_UNICODE));
-    }
-
-    private function compressVoucherImage(string $path, string &$ext): bool
-    {
-        if (!is_file($path) || filesize($path) <= self::VOUCHER_TARGET_BYTES) {
-            return true;
-        }
-
-        if (class_exists('Imagick')) {
-            try {
-                $image = new Imagick($path);
-                if ($image->getNumberImages() > 1) {
-                    $image = $image->coalesceImages();
-                    $image->setIteratorIndex(0);
-                }
-                $image->setImageColorspace(Imagick::COLORSPACE_SRGB);
-                $image->setImageAlphaChannel(Imagick::ALPHACHANNEL_REMOVE);
-                $image->setImageBackgroundColor('white');
-                $image->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
-                $geometry = $image->getImageGeometry();
-                $maxSide = 2200;
-                $largest = max((int)($geometry['width'] ?? 0), (int)($geometry['height'] ?? 0));
-                if ($largest > $maxSide) {
-                    $image->thumbnailImage($maxSide, $maxSide, true, true);
-                }
-                foreach ([82, 74, 66, 58] as $quality) {
-                    $image->setImageFormat('jpeg');
-                    $image->setImageCompressionQuality($quality);
-                    $image->stripImage();
-                    $image->writeImage($path);
-                    clearstatcache(true, $path);
-                    if (filesize($path) <= self::VOUCHER_TARGET_BYTES) {
-                        $image->clear();
-                        $image->destroy();
-                        $ext = 'jpg';
-                        return true;
-                    }
-                }
-                $image->clear();
-                $image->destroy();
-            } catch (Throwable $e) {
-                $this->logVoucherUploadFailure('imagick_compress_failed', ['error' => $e->getMessage()]);
-            }
-        }
-
-        if (!function_exists('imagecreatefromstring') || !function_exists('imagejpeg')) {
-            return false;
-        }
-
-        $raw = @file_get_contents($path);
-        if ($raw === false) {
-            return false;
-        }
-        $source = @imagecreatefromstring($raw);
-        if (!$source) {
-            return false;
-        }
-
-        $width = imagesx($source);
-        $height = imagesy($source);
-        $maxSide = 2200;
-        $ratio = min(1, $maxSide / max(1, $width, $height));
-        $newWidth = max(1, (int)round($width * $ratio));
-        $newHeight = max(1, (int)round($height * $ratio));
-        $canvas = imagecreatetruecolor($newWidth, $newHeight);
-        $white = imagecolorallocate($canvas, 255, 255, 255);
-        imagefill($canvas, 0, 0, $white);
-        imagecopyresampled($canvas, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-
-        $ok = false;
-        foreach ([82, 74, 66, 58] as $quality) {
-            if (@imagejpeg($canvas, $path, $quality)) {
-                clearstatcache(true, $path);
-                if (filesize($path) <= self::VOUCHER_TARGET_BYTES) {
-                    $ok = true;
-                    break;
-                }
-            }
-        }
-        imagedestroy($canvas);
-        imagedestroy($source);
-        if ($ok) {
-            $ext = 'jpg';
-        }
-        return $ok;
     }
 
     private function saveTematicaConflict(array $payload): void
@@ -398,93 +264,43 @@ class AccessController extends Controller
         $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
         $operacaoId = (int)($_POST['operacao_id'] ?? 0);
         $portaId = (int)($_POST['porta_id'] ?? 0);
-        $confirmStart = (int)($_POST['confirm_start'] ?? 0) === 1;
-        $confirmEarly = (int)($_POST['confirm_early'] ?? 0) === 1;
 
-        if ($restauranteId <= 0 || $operacaoId <= 0) {
-            set_flash('danger', 'Selecione restaurante e operação.');
-            $this->redirect('/?r=access/index');
-        }
-
-        if (($user['perfil'] ?? '') === 'hostess') {
-            $allowedRestaurantIds = array_values(array_unique(array_map(static fn($r) => (int)($r['id'] ?? 0), $restaurantes)));
-            if (!in_array($restauranteId, $allowedRestaurantIds, true)) {
-                set_flash('danger', 'Restaurante não autorizado para este usuário.');
-                $this->redirect('/?r=access/index');
-            }
-
-            $allowedOps = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restauranteId] ?? [])));
-            if (!empty($allowedOps) && !in_array($operacaoId, $allowedOps, true)) {
-                set_flash('danger', 'Operação não autorizada para este usuário.');
-                $this->redirect('/?r=access/index');
-            }
-        }
-
-        if ($portaId > 0) {
-            $doorIds = array_values(array_unique(array_map(static fn($d) => (int)($d['id'] ?? 0), $doorsByRestaurant[$restauranteId] ?? [])));
-            if (!in_array($portaId, $doorIds, true)) {
-                set_flash('danger', 'Porta inválida para o restaurante selecionado.');
-                $this->redirect('/?r=access/index');
-            }
-        }
-
-        $restOp = $opModel->findByRestaurantOperation($restauranteId, $operacaoId);
-        if (!$restOp) {
-            set_flash('danger', 'Operação inválida para este restaurante.');
-            $this->redirect('/?r=access/index');
-        }
-        $outsideHorario = !app_demo_mode_enabled() && $this->isOutsideHorario($restOp);
-
-        $rest = $restaurantModel->find($restauranteId);
-        if ($rest && (int)$rest['seleciona_porta_no_turno'] === 1 && $portaId <= 0) {
-            set_flash('danger', 'Selecione a porta.');
-            $this->redirect('/?r=access/index');
-        }
-
-        if ($outsideHorario && !$confirmEarly) {
-            if (!isset($_SESSION['flash'])) {
-                set_flash('warning', 'Turno fora do horário. Confirme se deseja continuar.');
-            }
-            $this->view('access/index', [
-                'mode' => 'start',
-                'restaurantes' => $restaurantes,
-                'restOps' => $restOps,
-                'doorsByRestaurant' => $doorsByRestaurant,
-                'flash' => get_flash(),
-                'need_confirm' => true,
-                'preselect' => [
-                    'restaurante_id' => $restauranteId,
-                    'operacao_id' => $operacaoId,
-                    'porta_id' => $portaId,
-                ],
-            ]);
-            return;
-        }
-
-        if (!$confirmStart) {
-            set_flash('warning', 'Confirme o checklist para iniciar o turno.');
-            $this->view('access/index', [
-                'mode' => 'start',
-                'restaurantes' => $restaurantes,
-                'restOps' => $restOps,
-                'doorsByRestaurant' => $doorsByRestaurant,
-                'flash' => get_flash(),
-                'need_confirm' => false,
-                'preselect' => [
-                    'restaurante_id' => $restauranteId,
-                    'operacao_id' => $operacaoId,
-                    'porta_id' => $portaId,
-                ],
-            ]);
-            return;
-        }
-
-        $shiftModel->start([
+        $resultado = (new AbrirTurnoService())->executar(new AbrirTurnoCommand([
+            'usuario_id' => (int)$user['id'],
+            'perfil_usuario' => (string)($user['perfil'] ?? ''),
             'restaurante_id' => $restauranteId,
             'operacao_id' => $operacaoId,
-            'porta_id' => $portaId > 0 ? $portaId : null,
-            'modo_demo' => app_demo_mode_enabled() ? 1 : 0,
-        ], $user['id']);
+            'porta_id' => $portaId,
+            'confirmou_checklist' => (int)($_POST['confirm_start'] ?? 0) === 1,
+            'confirmou_fora_horario' => (int)($_POST['confirm_early'] ?? 0) === 1,
+            'modo_demo' => app_demo_mode_enabled(),
+            'restaurantes_permitidos' => $restaurantes,
+            'operacoes_permitidas_por_restaurante' => $allowedOpsByRest,
+            'portas_por_restaurante' => $doorsByRestaurant,
+            'restringir_la_brasa_ao_almoco' => false,
+        ]));
+
+        if (!$resultado->isSuccess()) {
+            $tipoFlash = in_array($resultado->code(), ['confirmar_fora_horario', 'confirmar_checklist'], true) ? 'warning' : 'danger';
+            set_flash($tipoFlash, $resultado->message());
+            if (in_array($resultado->code(), ['confirmar_fora_horario', 'confirmar_checklist'], true)) {
+                $this->view('access/index', [
+                    'mode' => 'start',
+                    'restaurantes' => $restaurantes,
+                    'restOps' => $restOps,
+                    'doorsByRestaurant' => $doorsByRestaurant,
+                    'flash' => get_flash(),
+                    'need_confirm' => $resultado->code() === 'confirmar_fora_horario',
+                    'preselect' => [
+                        'restaurante_id' => $restauranteId,
+                        'operacao_id' => $operacaoId,
+                        'porta_id' => $portaId,
+                    ],
+                ]);
+                return;
+            }
+            $this->redirect('/?r=access/index');
+        }
 
         $this->redirect('/?r=access/index');
     }
@@ -507,212 +323,66 @@ class AccessController extends Controller
             $this->redirect('/?r=access/index');
         }
 
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
-        if (!$shift) {
-            set_flash('danger', 'Inicie um turno para registrar acessos.');
-            $this->redirect('/?r=access/index');
-        }
-        if (TematicAccessService::isTematicShift($shift)) {
-            set_flash('info', 'Neste turno temático, confirme as reservas na tela de operação temática do Registro.');
-            $this->redirect('/?r=access/index');
-        }
+        $user = Auth::user();
+        $turno = (new ShiftRepository())->turnoAtivoDoUsuario((int)$user['id']);
+        $resultado = (new RegistrarAcessoService())->executar(new RegistrarAcessoCommand([
+            'turno' => $turno ?? [],
+            'usuario_id' => (int)$user['id'],
+            'uh_numero' => $_POST['uh_numero'] ?? '',
+            'pax' => $_POST['pax'] ?? 0,
+            'confirmou_duplicidade' => (int)($_POST['confirm_duplicate'] ?? 0) === 1,
+            'reserva_tematica_ja_processada' => (int)($_POST['tematica_processed'] ?? 0) === 1,
+            'acao_reserva_tematica' => $_POST['tematica_action'] ?? '',
+            'reserva_tematica_id' => $_POST['tematica_reserva_id'] ?? 0,
+            'pax_real_tematico' => $_POST['tematica_pax_real'] ?? -1,
+            'confirmou_no_show_tematico' => (int)($_POST['confirm_no_show'] ?? 0) === 1,
+        ]));
 
-        $uhNumero = trim($_POST['uh_numero'] ?? '');
-        $pax = (int)($_POST['pax'] ?? 0);
-        $unitModel = new UnitModel();
-        $unitRef = $unitModel->findByNumero($uhNumero);
-
-        if ($shift['exige_pax'] == 0) {
-            $pax = max(1, $pax);
-        }
-
-        if ($uhNumero === '' || ($shift['exige_pax'] == 1 && $pax <= 0)) {
-            set_flash('danger', 'Preencha todos os campos obrigatórios.');
-            $this->redirect('/?r=access/index');
-        }
-
-        if (!$unitRef) {
-            set_flash('danger', 'UH inválida. Verifique o número do apartamento.');
-            $this->redirect('/?r=access/index');
-        }
-        $uhNumero = (string)($unitRef['numero'] ?? $uhNumero);
-
-        if ($shift['exige_pax'] == 1) {
-            $maxPax = $unitModel->maxPaxForNumero($uhNumero);
-            if ($maxPax !== null && $pax > $maxPax) {
-                set_flash('danger', 'PAX excede o limite da UH. Máximo permitido: ' . $maxPax . '.');
-                $this->redirect('/?r=access/index');
-            }
-        }
-
-        $accessModel = new AccessModel();
-        if ($shift['exige_pax'] == 1) {
-            $maxPax = $unitModel->maxPaxForNumero($uhNumero);
-            if ($maxPax !== null) {
-                $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
-                $currentTotal = $accessModel->sumPaxByUhOperacaoDate($uhNumero, (int)$shift['operacao_id'], $today);
-                if (($currentTotal + $pax) > $maxPax) {
-                    $resta = max(0, $maxPax - $currentTotal);
-                    set_flash('danger', 'PAX excede o limite da UH para esta operação no dia. Restante disponível: ' . $resta . '.');
-                    $this->redirect('/?r=access/index');
-                }
-            }
-        }
-
-        $coraisNoShowAllowed = false;
-        $tematicaProcessed = (int)($_POST['tematica_processed'] ?? 0) === 1;
-        $isCorais = stripos($shift['restaurante'] ?? '', 'Corais') !== false;
-        $isJantar = stripos($shift['operacao'] ?? '', 'Jantar') !== false;
-        if (!$tematicaProcessed && $isCorais && $isJantar) {
-            $tematicaModel = new ReservaTematicaModel();
-            $today = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
-            $tematica = $tematicaModel->findTematicaByUhDate($uhNumero, $today);
-            if ($tematica) {
-                $reservaTematicaId = (int)($tematica['id'] ?? 0);
-                $paxReservadoTematica = (int)($tematica['pax'] ?? 0);
-                $tematicaAction = normalize_mojibake(trim((string)($_POST['tematica_action'] ?? '')));
-                $confirmNoShow = (int)($_POST['confirm_no_show'] ?? 0) === 1;
-                if ($this->isNoShowStatus((string)($tematica['status'] ?? ''))) {
-                    if (!$confirmNoShow) {
-                        $mensagem = 'UH ' . $uhNumero . ' está como no-show no temático (' . $tematica['restaurante'] . '). Confirme para registrar no Jantar Corais.';
-                        set_flash('warning', $mensagem);
-                        $this->redirect('/?r=access/index');
-                    }
-                    $coraisNoShowAllowed = true;
-                } else {
-                    $this->clearTematicaConflict();
-                    if ($tematicaAction === 'cancelar' || $tematicaAction === 'pax_real') {
-                        $postedReservaId = (int)($_POST['tematica_reserva_id'] ?? 0);
-                        if ($postedReservaId !== $reservaTematicaId) {
-                            set_flash('warning', 'A reserva temática mudou. Revise antes de continuar.');
-                            $this->redirect('/?r=access/index');
-                        }
-
-                        $before = $tematicaModel->find($reservaTematicaId) ?? [];
-                        $logModel = new ReservaTematicaLogModel();
-                        if ($tematicaAction === 'cancelar') {
-                            $obs = 'Cancelada no buffet Corais durante registro de entrada da UH ' . $uhNumero . '.';
-                            $tematicaModel->updateOperacao($reservaTematicaId, 'Nao compareceu', $obs, (int)Auth::user()['id'], 0);
-                            $tematicaProcessed = true;
-                            $after = $tematicaModel->find($reservaTematicaId) ?? [];
-                            $logModel->log(
-                                $reservaTematicaId,
-                                'status',
-                                (int)Auth::user()['id'],
-                                $before,
-                                $after,
-                                'No-show manual a partir do alerta no buffet Corais.'
-                            );
-                        } else {
-                            $paxReal = (int)($_POST['tematica_pax_real'] ?? -1);
-                            if ($paxReservadoTematica <= 0 || $paxReal < 0 || $paxReal > $paxReservadoTematica) {
-                                set_flash('warning', 'PAX real inválido para ajuste da reserva temática.');
-                                $this->redirect('/?r=access/index');
-                            }
-                            $paxRestanteBuffet = max(0, $paxReservadoTematica - $paxReal);
-                            if ($paxRestanteBuffet <= 0) {
-                                set_flash('warning', 'Todos os PAX já foram para o temático. Não registre no buffet.');
-                                $this->redirect('/?r=access/index');
-                            }
-                            if ($pax > $paxRestanteBuffet) {
-                                set_flash('warning', 'PAX do buffet excede o restante após PAX real do temático (máx. ' . $paxRestanteBuffet . ').');
-                                $this->redirect('/?r=access/index');
-                            }
-
-                            if ($paxReal <= 0) {
-                                $novoStatus = 'Nao compareceu';
-                                $obs = 'No-show total no temático após opção de buffet Corais.';
-                                $logReason = 'No-show total gerado no buffet Corais.';
-                            } else {
-                                $novoStatus = 'Divergencia';
-                                $noShowParcial = max(0, $paxReservadoTematica - $paxReal);
-                                $obs = 'No-show parcial no temático gerado no buffet Corais: reservado=' . $paxReservadoTematica . ', no-show=' . $noShowParcial . ', compareceu=' . $paxReal . ', buffet=' . $pax . '.';
-                                $logReason = 'No-show parcial gerado no buffet Corais.';
-                            }
-
-                            $tematicaModel->updateOperacao($reservaTematicaId, $novoStatus, $obs, (int)Auth::user()['id'], $paxReal);
-                            $tematicaProcessed = true;
-                            $after = $tematicaModel->find($reservaTematicaId) ?? [];
-                            $logModel->log(
-                                $reservaTematicaId,
-                                'status',
-                                (int)Auth::user()['id'],
-                                $before,
-                                $after,
-                                $logReason
-                            );
-                        }
-                    } else {
-                        $mensagem = 'Atenção: UH ' . $uhNumero . ' possui reserva no ' . $tematica['restaurante'];
-                        if (!empty($tematica['turno_hora'])) {
-                            $mensagem .= ' às ' . $tematica['turno_hora'];
-                        }
-                        $mensagem .= '. Escolha uma ação antes de registrar no buffet.';
-                        $this->saveTematicaConflict([
-                            'reserva_id' => $reservaTematicaId,
-                            'uh_numero' => $uhNumero,
-                            'turno_hora' => (string)($tematica['turno_hora'] ?? ''),
-                            'restaurante' => (string)($tematica['restaurante'] ?? ''),
-                            'pax_reservado' => $paxReservadoTematica,
-                            'pax_sugerido' => $pax,
-                        ]);
-                        set_flash('warning', $mensagem);
-                        $this->redirect('/?r=access/index');
-                    }
-                }
-            }
-        }
-
-        $confirmDuplicate = (int)($_POST['confirm_duplicate'] ?? 0) === 1;
-        if (!$confirmDuplicate && $accessModel->hasImmediateExactDuplicate(
-            $uhNumero,
-            (int)$shift['restaurante_id'],
-            (int)$shift['operacao_id'],
-            $pax,
-            (int)$shift['id'],
-            (int)Auth::user()['id']
-        )) {
-            $this->saveDuplicateConfirm([
-                'uh_numero' => $uhNumero,
-                'pax' => $pax,
-                'tematica_processed' => $tematicaProcessed ? 1 : 0,
-                'confirm_no_show' => (int)($_POST['confirm_no_show'] ?? 0),
-            ]);
-            set_flash('warning', 'Registro idêntico detectado em sequência. Confirme no popup para salvar mesmo assim.');
-            $this->redirect('/?r=access/index');
-        }
-
-        $this->clearDuplicateConfirm();
-        $this->clearTematicaConflict();
-        $result = $accessModel->register([
-            'uh_numero' => $uhNumero,
-            'pax' => $pax,
-            'restaurante_id' => $shift['restaurante_id'],
-            'porta_id' => $shift['porta_id'] ?? null,
-            'operacao_id' => $shift['operacao_id'],
-            'turno_id' => $shift['id'],
-        ], Auth::user()['id']);
-
-        if (!empty($result['error']) && $result['error'] === 'uh_invalida') {
-            set_flash('danger', 'UH inválida. Verifique o número do apartamento.');
-        } elseif (($result['id'] ?? 0) > 0) {
-            if ($coraisNoShowAllowed) {
-                set_flash('warning', 'Registro permitido por no-show temático confirmado.');
-            } elseif ($confirmDuplicate) {
-                set_flash('warning', 'Registro duplicado confirmado e salvo.');
-            } elseif (!empty($result['alerta_duplicidade'])) {
-                set_flash('warning', 'Atenção: possível duplicidade em menos de 10 minutos.');
-            } elseif (!empty($result['fora_do_horario'])) {
-                set_flash('warning', 'Atenção: acesso fora do horário da operação.');
-            } else {
-                set_flash('success', 'Acesso registrado com sucesso.');
-            }
-        } else {
-            set_flash('danger', 'Falha ao registrar acesso.');
-        }
+        $this->aplicarResultadoRegistroSalao($resultado);
 
         $this->redirect('/?r=access/index');
+    }
+
+    private function aplicarResultadoRegistroSalao(ServiceResult $resultado): void
+    {
+        if ($resultado->code() === 'conflito_reserva_tematica') {
+            $this->clearDuplicateConfirm();
+            $this->saveTematicaConflict($resultado->payload());
+            set_flash('warning', $resultado->message());
+            return;
+        }
+
+        if ($resultado->code() === 'confirmar_duplicidade') {
+            $this->saveDuplicateConfirm($resultado->payload());
+            set_flash('warning', $resultado->message());
+            return;
+        }
+
+        if ($resultado->code() === 'confirmar_no_show_tematico') {
+            set_flash('warning', $resultado->message());
+            return;
+        }
+
+        if ($resultado->isSuccess()) {
+            $this->clearDuplicateConfirm();
+            $this->clearTematicaConflict();
+            $tipoFlash = in_array($resultado->code(), [
+                'registro_no_show_tematico',
+                'registro_duplicado_confirmado',
+                'alerta_duplicidade',
+                'fora_horario',
+            ], true) ? 'warning' : 'success';
+            set_flash($tipoFlash, $resultado->message());
+            return;
+        }
+
+        $tipoFlash = in_array($resultado->code(), [
+            'reserva_tematica_mudou',
+            'pax_real_tematico_invalido',
+            'sem_pax_para_buffet',
+            'pax_buffet_excede_tematico',
+        ], true) ? 'warning' : 'danger';
+        set_flash($tipoFlash, $resultado->message());
     }
 
     public function register_tematica(): void
@@ -912,55 +582,37 @@ class AccessController extends Controller
         }
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=access/index');
+            $this->redirect(ConsumosEVouchersConstants::ROUTE_ACCESS_INDEX);
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=access/index');
+            set_flash(ConsumosEVouchersConstants::FLASH_DANGER, ConsumosEVouchersConstants::MESSAGE_TOKEN_INVALIDO);
+            $this->redirect(ConsumosEVouchersConstants::ROUTE_ACCESS_INDEX);
         }
 
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
-        if (!$shift) {
-            set_flash('danger', 'Inicie um turno para registrar colaboradores.');
-            $this->redirect('/?r=access/index');
-        }
+        $usuario = Auth::user();
+        $turno = (new ShiftRepository())->turnoAtivoDoUsuario((int)$usuario['id']);
+        $resultado = (new RegistrarRefeicaoColaboradorService())->executar(new RegistrarRefeicaoColaboradorCommand([
+            'usuario' => $usuario,
+            'turno' => $turno ?? [],
+            'nome_colaborador' => $_POST['nome_colaborador'] ?? '',
+            'quantidade' => $_POST['quantidade'] ?? 0,
+        ]));
 
-        if (($shift['restaurante'] ?? '') !== 'Restaurante Corais') {
-            set_flash('danger', 'Registro de colaboradores disponível apenas no Restaurante Corais.');
-            $this->redirect('/?r=access/index');
-        }
-
-        $nome = trim($_POST['nome_colaborador'] ?? '');
-        $quantidade = (int)($_POST['quantidade'] ?? 0);
-        if ($nome === '' || $quantidade <= 0) {
-            set_flash('danger', 'Preencha o nome do colaborador e a quantidade de refeições.');
-            $this->redirect('/?r=access/index');
-        }
-        if (preg_match('/[,;\/&+]|\s+e\s+|\r|\n/i', $nome)) {
-            set_flash('warning', 'Informe apenas um colaborador por lançamento. Registre cada nome separadamente.');
-            $this->redirect('/?r=access/index');
-        }
-
-        $model = new CollaboratorMealModel();
-        $model->create([
-            'turno_id' => $shift['id'],
-            'restaurante_id' => $shift['restaurante_id'],
-            'operacao_id' => $shift['operacao_id'],
-            'nome_colaborador' => $nome,
-            'quantidade' => $quantidade,
-        ], Auth::user()['id']);
-
-        set_flash('success', 'Refeição de colaborador registrada.');
-        $this->redirect('/?r=access/index');
+        $tipoFlash = $resultado->isSuccess()
+            ? ConsumosEVouchersConstants::FLASH_SUCCESS
+            : ($resultado->code() === ConsumosEVouchersConstants::CODE_COLABORADOR_MULTIPLO
+                ? ConsumosEVouchersConstants::FLASH_WARNING
+                : ConsumosEVouchersConstants::FLASH_DANGER);
+        set_flash($tipoFlash, $resultado->message());
+        $this->redirect(ConsumosEVouchersConstants::ROUTE_ACCESS_INDEX);
     }
 
     public function register_voucher(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
-        $voucherRoute = '/?r=vouchers/index';
+        $voucherRoute = ConsumosEVouchersConstants::ROUTE_VOUCHERS_INDEX;
         if ($this->redirectIfTematicoOnlyHostess(Auth::user())) {
             return;
         }
@@ -969,182 +621,38 @@ class AccessController extends Controller
             $this->redirect($voucherRoute);
         }
 
-        if ($this->requestExceedsVoucherPostLimit()) {
-            $this->logVoucherUploadFailure('post_limit_exceeded');
-            set_flash('danger', 'O anexo do voucher ultrapassa o limite de envio do servidor (' . $this->voucherReceiveLimitLabel() . '). Envie uma imagem menor ou gere um PDF mais leve.');
+        if ($_POST === [] && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+            $resultado = (new RegistrarVoucherService())->executar(new RegistrarVoucherCommand([
+                'usuario' => Auth::user(),
+                'turno' => [],
+                'post' => $_POST,
+                'files' => $_FILES,
+                'server' => $_SERVER,
+            ]));
+            set_flash(ConsumosEVouchersConstants::FLASH_DANGER, $resultado->message());
             $this->redirect($voucherRoute);
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
+            set_flash(ConsumosEVouchersConstants::FLASH_DANGER, ConsumosEVouchersConstants::MESSAGE_TOKEN_INVALIDO);
             $this->redirect($voucherRoute);
         }
 
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
+        $usuario = Auth::user();
+        $turno = (new ShiftRepository())->turnoAtivoDoUsuario((int)$usuario['id']);
+        $resultado = (new RegistrarVoucherService())->executar(new RegistrarVoucherCommand([
+            'usuario' => $usuario,
+            'turno' => $turno ?? [],
+            'post' => $_POST,
+            'files' => $_FILES,
+            'server' => $_SERVER,
+        ]));
 
-        $nomeHospede = trim(strip_tags((string)($_POST['nome_hospede'] ?? '')));
-        $dataEstadia = trim((string)($_POST['data_estadia'] ?? ''));
-        $numeroReserva = trim(strip_tags((string)($_POST['numero_reserva'] ?? '')));
-        $servico = trim(strip_tags((string)($_POST['servico_upselling'] ?? '')));
-        $assinatura = trim(strip_tags((string)($_POST['assinatura'] ?? '')));
-        $dataVenda = trim((string)($_POST['data_venda'] ?? ''));
-
-        if ($dataVenda === '') {
-            set_flash('danger', 'Informe a data da venda do voucher.');
-            $this->redirect($voucherRoute);
-        }
-
-        if ($nomeHospede === '' || $numeroReserva === '') {
-            set_flash('danger', 'Informe nome do hóspede e localizador do voucher.');
-            $this->redirect($voucherRoute);
-        }
-
-        if (empty($_FILES['voucher_anexo']) || (int)($_FILES['voucher_anexo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-            set_flash('danger', 'Anexe o voucher para concluir o registro.');
-            $this->redirect($voucherRoute);
-        }
-
-        $dataEstadia = $dataEstadia !== '' ? $dataEstadia : 'Não informado';
-        $servico = $servico !== '' ? $servico : 'Voucher anexado';
-        $assinatura = $assinatura !== '' ? $assinatura : (string)(Auth::user()['nome'] ?? 'Operador');
-
-        $voucherPath = null;
-        if (!empty($_FILES['voucher_anexo']) && $_FILES['voucher_anexo']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $uploadError = (int)$_FILES['voucher_anexo']['error'];
-            if ($uploadError !== UPLOAD_ERR_OK) {
-                $this->logVoucherUploadFailure('php_upload_error', [
-                    'upload_error' => $uploadError,
-                    'file_size' => (int)($_FILES['voucher_anexo']['size'] ?? 0),
-                ]);
-                set_flash('danger', $this->voucherUploadErrorMessage($uploadError));
-                $this->redirect($voucherRoute);
-            }
-            $file = $_FILES['voucher_anexo'];
-            if (!is_uploaded_file($file['tmp_name'])) {
-                $this->logVoucherUploadFailure('invalid_tmp_file', [
-                    'file_size' => (int)($file['size'] ?? 0),
-                ]);
-                set_flash('danger', 'Upload inválido.');
-                $this->redirect($voucherRoute);
-            }
-            $receiveLimit = $this->voucherReceiveLimitBytes();
-            if ($file['size'] > $receiveLimit) {
-                $this->logVoucherUploadFailure('app_limit_exceeded', [
-                    'file_size' => (int)$file['size'],
-                ]);
-                set_flash('danger', 'Anexo muito grande. Máximo para envio: ' . $this->voucherReceiveLimitLabel() . '.');
-                $this->redirect($voucherRoute);
-            }
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
-            if (!in_array($ext, $allowed, true)) {
-                $this->logVoucherUploadFailure('invalid_extension', [
-                    'extension' => $ext,
-                    'file_size' => (int)$file['size'],
-                ]);
-                set_flash('danger', 'Formato inválido. Use JPG, PNG, WEBP ou PDF.');
-                $this->redirect($voucherRoute);
-            }
-            if (!class_exists('finfo')) {
-                $this->logVoucherUploadFailure('fileinfo_unavailable');
-                set_flash('danger', 'Não foi possível validar o anexo no servidor. Avise o suporte.');
-                $this->redirect($voucherRoute);
-            }
-            $finfo = new finfo(FILEINFO_MIME_TYPE);
-            $mime = $finfo->file($file['tmp_name']) ?: '';
-            $allowedMimeByExt = [
-                'jpg' => ['image/jpeg'],
-                'jpeg' => ['image/jpeg'],
-                'png' => ['image/png'],
-                'webp' => ['image/webp'],
-                'pdf' => ['application/pdf'],
-            ];
-            if (!in_array($mime, $allowedMimeByExt[$ext] ?? [], true)) {
-                $this->logVoucherUploadFailure('invalid_mime', [
-                    'extension' => $ext,
-                    'mime' => $mime,
-                    'file_size' => (int)$file['size'],
-                ]);
-                set_flash('danger', 'Conteúdo de arquivo inválido para o formato enviado.');
-                $this->redirect($voucherRoute);
-            }
-            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true);
-            if (!$isImage && $file['size'] > self::VOUCHER_TARGET_BYTES) {
-                $this->logVoucherUploadFailure('pdf_limit_exceeded', [
-                    'file_size' => (int)$file['size'],
-                ]);
-                set_flash('danger', 'PDF muito grande. Máximo ' . $this->voucherTargetLimitLabel() . '. Gere um PDF mais leve ou envie imagem.');
-                $this->redirect($voucherRoute);
-            }
-            if ($isImage && $file['size'] > self::VOUCHER_TARGET_BYTES) {
-                if (!$this->compressVoucherImage($file['tmp_name'], $ext)) {
-                    $this->logVoucherUploadFailure('image_compress_unavailable_or_failed', [
-                        'file_size' => (int)$file['size'],
-                    ]);
-                    set_flash('danger', 'A imagem é maior que ' . $this->voucherTargetLimitLabel() . ' e o servidor não conseguiu compactar. Avise o suporte ou envie uma imagem menor.');
-                    $this->redirect($voucherRoute);
-                }
-                clearstatcache(true, $file['tmp_name']);
-                $file['size'] = (int)filesize($file['tmp_name']);
-                $mime = 'image/jpeg';
-            }
-            $uploadDir = __DIR__ . '/../../public/uploads/vouchers';
-            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
-                $this->logVoucherUploadFailure('upload_dir_create_failed', [
-                    'upload_dir' => $uploadDir,
-                ]);
-                set_flash('danger', 'Pasta de anexos de voucher indisponível. Avise o suporte.');
-                $this->redirect($voucherRoute);
-            }
-            if (!is_writable($uploadDir)) {
-                $this->logVoucherUploadFailure('upload_dir_not_writable', [
-                    'upload_dir' => $uploadDir,
-                ]);
-                set_flash('danger', 'Pasta de anexos de voucher sem permissão de gravação. Avise o suporte.');
-                $this->redirect($voucherRoute);
-            }
-            $filename = 'voucher_' . date('Ymd_His') . '_' . Auth::user()['id'] . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
-            $dest = $uploadDir . '/' . $filename;
-            if (!move_uploaded_file($file['tmp_name'], $dest)) {
-                $this->logVoucherUploadFailure('move_uploaded_file_failed', [
-                    'upload_dir' => $uploadDir,
-                    'file_size' => (int)$file['size'],
-                ]);
-                set_flash('danger', 'Não foi possível salvar o anexo do voucher.');
-                $this->redirect($voucherRoute);
-            }
-            $voucherPath = '/uploads/vouchers/' . $filename;
-        }
-
-        $restauranteId = (int)($_POST['restaurante_id'] ?? ($shift['restaurante_id'] ?? 0));
-        $operacaoId = (int)($_POST['operacao_id'] ?? ($shift['operacao_id'] ?? 0));
-        $user = Auth::user();
-        if (($user['perfil'] ?? '') === 'hostess') {
-            $restauranteId = (int)($shift['restaurante_id'] ?? 0);
-            $operacaoId = (int)($shift['operacao_id'] ?? 0);
-        }
-        if ($restauranteId <= 0 || $operacaoId <= 0) {
-            set_flash('danger', 'Selecione restaurante e operação para o voucher.');
-            $this->redirect('/?r=vouchers/index');
-        }
-
-        $model = new VoucherModel();
-        $model->create([
-            'turno_id' => $shift['id'] ?? null,
-            'restaurante_id' => $restauranteId,
-            'operacao_id' => $operacaoId,
-            'nome_hospede' => $nomeHospede,
-            'data_estadia' => $dataEstadia,
-            'numero_reserva' => $numeroReserva,
-            'servico_upselling' => $servico,
-            'assinatura' => $assinatura,
-            'data_venda' => $dataVenda,
-            'voucher_anexo_path' => $voucherPath,
-        ], Auth::user()['id']);
-
-        set_flash('success', 'Voucher registrado com sucesso.');
-        $this->redirect('/?r=vouchers/index');
+        set_flash(
+            $resultado->isSuccess() ? ConsumosEVouchersConstants::FLASH_SUCCESS : ConsumosEVouchersConstants::FLASH_DANGER,
+            $resultado->message()
+        );
+        $this->redirect($voucherRoute);
     }
 
     private function normalizeReservaStatus(string $status): string

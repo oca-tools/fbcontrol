@@ -12,6 +12,7 @@ if (function_exists('mb_internal_encoding')) {
 
 require_once __DIR__ . '/helpers/php7_compat.php';
 require_once __DIR__ . '/helpers/functions.php';
+require_once __DIR__ . '/support/AppConstants.php';
 require_once __DIR__ . '/core/Database.php';
 require_once __DIR__ . '/core/Model.php';
 
@@ -19,6 +20,7 @@ spl_autoload_register(static function ($class): void {
     $paths = [
         __DIR__ . '/models/' . $class . '.php',
         __DIR__ . '/services/' . $class . '.php',
+        __DIR__ . '/support/' . $class . '.php',
     ];
 
     foreach ($paths as $path) {

@@ -1,6 +1,4 @@
 <?php
-// Envia o e-mail diário de resumo operacional quando estiver no horário configurado.
-
 declare(strict_types=1);
 
 require __DIR__ . '/../bootstrap_cli.php';

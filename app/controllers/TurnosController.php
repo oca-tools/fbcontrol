@@ -54,99 +54,42 @@ class TurnosController extends Controller
             $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
             $operacaoId = (int)($_POST['operacao_id'] ?? 0);
             $portaId = (int)($_POST['porta_id'] ?? 0);
-            $confirmStart = (int)($_POST['confirm_start'] ?? 0) === 1;
-            $confirmEarly = (int)($_POST['confirm_early'] ?? 0) === 1;
 
-            if ($restauranteId <= 0 || $operacaoId <= 0) {
-                set_flash('danger', 'Selecione restaurante e operação.');
-                $this->redirect('/?r=turnos/start');
-            }
-
-            if (($user['perfil'] ?? '') === 'hostess') {
-                $allowedRestaurantIds = array_values(array_unique(array_map(static fn($r) => (int)($r['id'] ?? 0), $restaurantes)));
-                if (!in_array($restauranteId, $allowedRestaurantIds, true)) {
-                    set_flash('danger', 'Restaurante não autorizado para este usuário.');
-                    $this->redirect('/?r=turnos/start');
-                }
-
-                $allowedOps = array_values(array_unique(array_map('intval', $allowedOpsByRest[$restauranteId] ?? [])));
-                if (!empty($allowedOps) && !in_array($operacaoId, $allowedOps, true)) {
-                    set_flash('danger', 'Operação não autorizada para este usuário.');
-                    $this->redirect('/?r=turnos/start');
-                }
-            }
-
-            if ($portaId > 0) {
-                $doorIds = array_values(array_unique(array_map(static fn($d) => (int)($d['id'] ?? 0), $doorsByRestaurant[$restauranteId] ?? [])));
-                if (!in_array($portaId, $doorIds, true)) {
-                    set_flash('danger', 'Porta inválida para o restaurante selecionado.');
-                    $this->redirect('/?r=turnos/start');
-                }
-            }
-
-            $restOp = $opModel->findByRestaurantOperation($restauranteId, $operacaoId);
-            if (!$restOp) {
-                set_flash('danger', 'Operação inválida para este restaurante.');
-                $this->redirect('/?r=turnos/start');
-            }
-            $outsideHorario = !app_demo_mode_enabled() && $this->isOutsideHorario($restOp);
-
-            $rest = $restaurantModel->find($restauranteId);
-            $opInfo = (new OperationModel())->find($operacaoId);
-            if ($rest && stripos((string)$rest['nome'], 'La Brasa') !== false && $opInfo) {
-                $opName = mb_strtolower((string)($opInfo['nome'] ?? ''), 'UTF-8');
-                if (strpos($opName, 'almoço') === false && strpos($opName, 'almoco') === false) {
-                    set_flash('danger', 'No La Brasa o registro é permitido apenas para almoço.');
-                    $this->redirect('/?r=turnos/start');
-                }
-            }
-            if ($rest && (int)$rest['seleciona_porta_no_turno'] === 1 && $portaId <= 0) {
-                set_flash('danger', 'Selecione a porta.');
-                $this->redirect('/?r=turnos/start');
-            }
-
-            if ($outsideHorario && !$confirmEarly) {
-                if (!isset($_SESSION['flash'])) {
-                    set_flash('warning', 'Turno fora do horário. Confirme se deseja continuar.');
-                }
-                $this->view('turnos/start', [
-                    'restaurantes' => $restaurantes,
-                    'restOps' => $restOps,
-                    'doorsByRestaurant' => $doorsByRestaurant,
-                    'flash' => get_flash(),
-                    'need_confirm' => true,
-                    'preselect' => [
-                        'restaurante_id' => $restauranteId,
-                        'operacao_id' => $operacaoId,
-                        'porta_id' => $portaId,
-                    ],
-                ]);
-                return;
-            }
-
-            if (!$confirmStart) {
-                set_flash('warning', 'Confirme o checklist para iniciar o turno.');
-                $this->view('turnos/start', [
-                    'restaurantes' => $restaurantes,
-                    'restOps' => $restOps,
-                    'doorsByRestaurant' => $doorsByRestaurant,
-                    'flash' => get_flash(),
-                    'need_confirm' => false,
-                    'preselect' => [
-                        'restaurante_id' => $restauranteId,
-                        'operacao_id' => $operacaoId,
-                        'porta_id' => $portaId,
-                    ],
-                ]);
-                return;
-            }
-
-            $shiftModel->start([
+            $resultado = (new AbrirTurnoService())->executar(new AbrirTurnoCommand([
+                'usuario_id' => (int)$user['id'],
+                'perfil_usuario' => (string)($user['perfil'] ?? ''),
                 'restaurante_id' => $restauranteId,
                 'operacao_id' => $operacaoId,
-                'porta_id' => $portaId > 0 ? $portaId : null,
-                'modo_demo' => app_demo_mode_enabled() ? 1 : 0,
-            ], $user['id']);
+                'porta_id' => $portaId,
+                'confirmou_checklist' => (int)($_POST['confirm_start'] ?? 0) === 1,
+                'confirmou_fora_horario' => (int)($_POST['confirm_early'] ?? 0) === 1,
+                'modo_demo' => app_demo_mode_enabled(),
+                'restaurantes_permitidos' => $restaurantes,
+                'operacoes_permitidas_por_restaurante' => $allowedOpsByRest,
+                'portas_por_restaurante' => $doorsByRestaurant,
+                'restringir_la_brasa_ao_almoco' => true,
+            ]));
+
+            if (!$resultado->isSuccess()) {
+                $tipoFlash = in_array($resultado->code(), ['confirmar_fora_horario', 'confirmar_checklist'], true) ? 'warning' : 'danger';
+                set_flash($tipoFlash, $resultado->message());
+                if (in_array($resultado->code(), ['confirmar_fora_horario', 'confirmar_checklist'], true)) {
+                    $this->view('turnos/start', [
+                        'restaurantes' => $restaurantes,
+                        'restOps' => $restOps,
+                        'doorsByRestaurant' => $doorsByRestaurant,
+                        'flash' => get_flash(),
+                        'need_confirm' => $resultado->code() === 'confirmar_fora_horario',
+                        'preselect' => [
+                            'restaurante_id' => $restauranteId,
+                            'operacao_id' => $operacaoId,
+                            'porta_id' => $portaId,
+                        ],
+                    ]);
+                    return;
+                }
+                $this->redirect('/?r=turnos/start');
+            }
 
             $this->redirect('/?r=access/index');
         }
@@ -167,8 +110,8 @@ class TurnosController extends Controller
         Auth::requireRole(['admin', 'supervisor', 'hostess', 'gerente']);
         (new ShiftAutoCloseService())->closeForCurrentUser();
 
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
+        $user = Auth::user();
+        $shift = (new ShiftRepository())->turnoAtivoDoUsuario((int)$user['id']);
         if (!$shift) {
             $this->redirect('/?r=turnos/start');
         }
@@ -182,28 +125,18 @@ class TurnosController extends Controller
             $this->redirect('/?r=access/index');
         }
 
-        $restOpModel = new RestaurantOperationModel();
-        $restOp = $restOpModel->findByRestaurantOperation((int)$shift['restaurante_id'], (int)$shift['operacao_id']);
-        if ($restOp && !app_demo_mode_enabled()) {
-            $now = new DateTime('now', new DateTimeZone(date_default_timezone_get()));
-            $end = DateTime::createFromFormat('H:i:s', $restOp['hora_fim'], new DateTimeZone(date_default_timezone_get()));
-            if ($end) {
-                $end->setDate((int)$now->format('Y'), (int)$now->format('m'), (int)$now->format('d'));
-                if ($now < $end) {
-                    $diffMin = (int)ceil(($end->getTimestamp() - $now->getTimestamp()) / 60);
-                    $tol = (int)$restOp['tolerancia_min'];
-                    $msg = 'Ainda não é possível encerrar o turno. Faltam ' . $diffMin . ' min para o fim.';
-                    if ($tol > 0) {
-                        $msg .= ' Tolerância: ' . $tol . ' min antes do fim.';
-                    }
-                    set_flash('warning', $msg);
-                    $this->redirect('/?r=access/index');
-                }
-            }
+        $resultado = (new EncerrarTurnoService())->executar(new EncerrarTurnoCommand([
+            'turno' => $shift,
+            'usuario_id' => (int)$user['id'],
+            'modo_demo' => app_demo_mode_enabled(),
+            'cancelamento' => false,
+        ]));
+
+        if (!$resultado->isSuccess()) {
+            set_flash('warning', $resultado->message());
+            $this->redirect('/?r=access/index');
         }
 
-        $shiftModel->end((int)$shift['id'], Auth::user()['id']);
-        $summary = $shiftModel->summary((int)$shift['id']);
         $isTematico = TematicAccessService::isTematicShift($shift);
         $tematicaSummary = null;
         if ($isTematico) {
@@ -216,7 +149,7 @@ class TurnosController extends Controller
 
         $this->view('turnos/summary', [
             'turno' => $shift,
-            'summary' => $summary,
+            'summary' => $resultado->payload()['summary'] ?? [],
             'is_tematica' => $isTematico,
             'tematica_summary' => $tematicaSummary,
         ]);
@@ -244,33 +177,20 @@ class TurnosController extends Controller
             $this->redirect('/?r=access/index');
         }
 
-        $shiftModel = new ShiftModel();
-        $shift = $shiftModel->getActiveByUser(Auth::user()['id']);
+        $user = Auth::user();
+        $shift = (new ShiftRepository())->turnoAtivoDoUsuario((int)$user['id']);
         if (!$shift) {
             $this->redirect('/?r=access/index');
         }
 
-        if (TematicAccessService::isTematicShift($shift)) {
-            $manual = (new ReservaTematicaLogModel())->countManualByUserSince((int)Auth::user()['id'], (string)($shift['inicio_em'] ?? ''));
-            if ($manual > 0) {
-                set_flash('warning', 'Não é possível cancelar o turno após confirmar reservas temáticas.');
-                $this->redirect('/?r=access/index');
-            }
+        $resultado = (new EncerrarTurnoService())->executar(new EncerrarTurnoCommand([
+            'turno' => $shift,
+            'usuario_id' => (int)$user['id'],
+            'modo_demo' => app_demo_mode_enabled(),
+            'cancelamento' => true,
+        ]));
 
-            $shiftModel->end((int)$shift['id'], Auth::user()['id']);
-            set_flash('success', 'Turno cancelado com sucesso.');
-            $this->redirect('/?r=access/index');
-        }
-
-        $accessModel = new AccessModel();
-        $count = $accessModel->countByTurno((int)$shift['id']);
-        if ($count > 0) {
-            set_flash('warning', 'Não é possível cancelar o turno após registrar acessos.');
-            $this->redirect('/?r=access/index');
-        }
-
-        $shiftModel->end((int)$shift['id'], Auth::user()['id']);
-        set_flash('success', 'Turno cancelado com sucesso.');
+        set_flash($resultado->isSuccess() ? 'success' : 'warning', $resultado->message());
         $this->redirect('/?r=access/index');
     }
 

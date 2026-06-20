@@ -151,6 +151,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     border-radius: 18px;
     background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
     box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+    min-width: 0;
 }
 
 .reserva-hero {
@@ -342,7 +343,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 
 .reserva-board {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.85rem;
 }
 
@@ -403,6 +404,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     background: var(--reservation-muted-bg);
     padding: 0.85rem;
     min-width: 0;
+    overflow: hidden;
 }
 
 .reserva-rest-head {
@@ -439,9 +441,15 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     background: color-mix(in srgb, var(--ab-card) 88%, transparent);
     padding: 0.52rem 0.6rem;
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr) auto;
-    gap: 0.5rem;
+    gap: 0.42rem;
+    align-items: stretch;
+}
+
+.reserva-turno-top {
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 .reserva-turno-chip.is-closed {
@@ -468,25 +476,42 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 
 .reserva-turno-hour {
     font-weight: 850;
+    font-size: 0.98rem;
+    line-height: 1;
+    color: var(--ab-ink);
+    white-space: nowrap;
 }
 
 .reserva-turno-meta {
     color: var(--ab-muted);
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     min-width: 0;
+    display: grid;
+    gap: 0.14rem;
+}
+
+.reserva-turno-meta strong {
+    display: block;
+    color: var(--ab-ink);
+    font-size: 0.82rem;
+    line-height: 1.1;
 }
 
 .reserva-turno-action {
-    border: 0;
-    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--ab-accent) 34%, var(--ab-border) 66%);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
     color: var(--ab-accent);
     font-weight: 800;
-    padding: 0;
+    padding: 0.34rem 0.6rem;
+    min-height: 32px;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .reservation-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 0.82fr) minmax(320px, 0.44fr);
+    grid-template-columns: 1fr;
     gap: 1rem;
     align-items: start;
 }
@@ -496,8 +521,7 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 }
 
 .reservation-sticky-panel {
-    position: sticky;
-    top: 6.7rem;
+    position: static;
 }
 
 .selected-slot-preview {
@@ -510,6 +534,21 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     gap: 0.66rem;
     align-items: center;
     margin-bottom: 0.85rem;
+}
+
+@media (min-width: 1701px) {
+    .reserva-board {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .reservation-workspace {
+        grid-template-columns: minmax(0, 0.82fr) minmax(320px, 0.44fr);
+    }
+
+    .reservation-sticky-panel {
+        position: sticky;
+        top: 6.7rem;
+    }
 }
 
 .selected-slot-preview i {
@@ -802,6 +841,15 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
+.reserva-planner,
+.reservation-compose-card,
+.selected-slot-preview,
+.batch-row-wrap,
+.availability-detail-list,
+.availability-detail-item {
+    min-width: 0;
+}
+
 .availability-detail-title {
     font-weight: 850;
     color: var(--ab-ink);
@@ -931,9 +979,60 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     color: var(--text-muted, #6b7280);
 }
 
+@media (max-width: 1400px) {
+    .reserva-hero,
+    .reservation-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .reserva-hero-side {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .reserva-planner-head {
+        flex-direction: column;
+    }
+
+    .reserva-planner-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .reserva-planner-actions .btn {
+        flex: 1 1 200px;
+    }
+
+    .reserva-day-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reserva-turnos-inline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .selected-slot-preview {
+        grid-template-columns: 36px minmax(0, 1fr);
+    }
+
+    .reserva-planner-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reserva-planner-actions .btn {
+        width: 100%;
+    }
+}
+
 @media (max-width: 991px) {
     .reserva-hero,
     .reservation-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .reserva-hero-side {
         grid-template-columns: 1fr;
     }
 
@@ -959,6 +1058,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
     .reserva-planner-actions {
         width: 100%;
+        justify-content: stretch;
     }
 
     .reserva-planner-actions .btn {
@@ -966,12 +1066,11 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     }
 
     .reserva-turno-chip {
-        grid-template-columns: 54px minmax(0, 1fr);
+        gap: 0.36rem;
     }
 
     .reserva-turno-action {
-        grid-column: 1 / -1;
-        justify-self: start;
+        justify-self: auto;
     }
 
     .batch-row-grid {
@@ -1044,6 +1143,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     }
 
     .reserva-hero-side {
+        display: flex;
         gap: 0.5rem;
     }
 
@@ -1065,6 +1165,10 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         font-size: 1rem;
     }
 
+    .reserva-planner-actions {
+        grid-template-columns: 1fr;
+    }
+
     .reserva-rest-card {
         padding: 0.72rem;
     }
@@ -1074,7 +1178,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     }
 
     .reserva-turnos-inline {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: 1fr;
         gap: 0.45rem;
     }
 
@@ -1082,6 +1186,11 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         grid-template-columns: 1fr;
         gap: 0.28rem;
         padding: 0.52rem;
+    }
+
+    .reserva-turno-top {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .reserva-turno-hour {
@@ -1098,12 +1207,8 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     }
 
     .reserva-turno-action {
-        grid-column: auto;
-        justify-self: stretch;
+        width: 100%;
         min-height: 30px;
-        border: 1px solid color-mix(in srgb, var(--ab-accent) 36%, var(--ab-border) 64%);
-        border-radius: 10px;
-        background: color-mix(in srgb, var(--ab-accent) 8%, var(--ab-card) 92%);
         font-size: 0.78rem;
     }
 
@@ -1159,6 +1264,14 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
     .reservation-compose-card .row.g-2 > [class*="col-"] {
         min-width: 0;
+    }
+
+    .batch-row-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .batch-row-grid > div:last-child {
+        grid-column: auto;
     }
 }
 </style>
@@ -1243,14 +1356,16 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                                 data-capacidade="<?= $capacidade ?>"
                                 data-fechado="<?= $fechado ? '1' : '0' ?>"
                             >
-                                <div class="reserva-turno-hour"><?= h(substr((string)$turno['hora'], 0, 5)) ?></div>
+                                <div class="reserva-turno-top">
+                                    <div class="reserva-turno-hour"><?= h(substr((string)$turno['hora'], 0, 5)) ?></div>
+                                    <button type="button" class="reserva-turno-action js-pick-slot" data-rest-id="<?= $restId ?>" data-turno-id="<?= (int)$turno['id'] ?>" <?= ($fechado || ($capacidade > 0 && $restante <= 0)) ? 'disabled' : '' ?>>
+                                        <?= (!$fechado && $capacidade > 0 && $restante <= 0) ? 'Lotado' : 'Selecionar' ?>
+                                    </button>
+                                </div>
                                 <div class="reserva-turno-meta">
                                     <strong class="js-availability-restante"><?= $fechado ? 'Fechado' : $restante . ' livres' ?></strong>
                                     <span class="d-block js-availability-rc"><span class="js-availability-reservado"><?= $reservado ?></span><?= $fechado ? ' reservas' : '/' . $capacidade . ' ocupados' ?></span>
                                 </div>
-                                <button type="button" class="reserva-turno-action js-pick-slot" data-rest-id="<?= $restId ?>" data-turno-id="<?= (int)$turno['id'] ?>" <?= ($fechado || ($capacidade > 0 && $restante <= 0)) ? 'disabled' : '' ?>>
-                                    <?= (!$fechado && $capacidade > 0 && $restante <= 0) ? 'Lotado' : 'Selecionar' ?>
-                                </button>
                             </div>
                         <?php endforeach; ?>
                     </div>

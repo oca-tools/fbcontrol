@@ -1,4 +1,7 @@
 <?php
+/**
+ * Gerencia sessao, identidade e autorizacao do usuario autenticado.
+ */
 class Auth
 {
     private static ?bool $sessionRegistryAvailable = null;
@@ -14,7 +17,7 @@ class Auth
         // Em ambiente com proxy/CDN (ex.: Cloudflare), o binding estrito pode causar falso logout.
         // Padrao: desabilitado, habilite com APP_ENFORCE_SESSION_BINDING=1 se desejar comportamento estrito.
         $raw = strtolower(trim((string)(getenv('APP_ENFORCE_SESSION_BINDING') ?: '0')));
-        self::$sessionBindingEnabled = in_array($raw, ['1', 'true', 'yes', 'on'], true);
+        self::$sessionBindingEnabled = in_array($raw, AppConstants::TRUTHY_ENV_VALUES, true);
         return self::$sessionBindingEnabled;
     }
 
@@ -27,7 +30,7 @@ class Auth
         // Em operacao real (hostess/supervisao) e comum o mesmo usuario circular por mais de um dispositivo.
         // Padrao: desabilitado para evitar falso logout. Habilite com APP_ENFORCE_SINGLE_SESSION=1.
         $raw = strtolower(trim((string)(getenv('APP_ENFORCE_SINGLE_SESSION') ?: '0')));
-        self::$singleSessionEnabled = in_array($raw, ['1', 'true', 'yes', 'on'], true);
+        self::$singleSessionEnabled = in_array($raw, AppConstants::TRUTHY_ENV_VALUES, true);
         return self::$singleSessionEnabled;
     }
 
@@ -61,10 +64,10 @@ class Auth
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             $parts = explode('.', $ip);
             // /16 reduz falso positivo em redes móveis sem perder totalmente o vínculo de contexto.
-            $ipPrefix = implode('.', array_slice($parts, 0, 2));
+            $ipPrefix = implode('.', array_slice($parts, 0, AppConstants::IPV4_CONTEXT_SEGMENTS));
         } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $parts = explode(':', $ip);
-            $ipPrefix = implode(':', array_slice($parts, 0, 3));
+            $ipPrefix = implode(':', array_slice($parts, 0, AppConstants::IPV6_CONTEXT_SEGMENTS));
         }
 
         return hash('sha256', $ipPrefix . '|' . $ua);
@@ -73,7 +76,7 @@ class Auth
     private static function sessionToken(): string
     {
         if (empty($_SESSION['session_lock_token'])) {
-            $_SESSION['session_lock_token'] = bin2hex(random_bytes(16));
+            $_SESSION['session_lock_token'] = bin2hex(random_bytes(AppConstants::SESSION_TOKEN_BYTES));
         }
         return (string)$_SESSION['session_lock_token'];
     }
@@ -118,8 +121,8 @@ class Auth
                 ':usuario_id' => $userId,
                 ':session_id' => session_id(),
                 ':token' => self::sessionToken(),
-                ':ip' => substr(self::clientIp(), 0, 45),
-                ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+                ':ip' => substr(self::clientIp(), 0, AppConstants::DB_IP_MAX_LENGTH),
+                ':user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, AppConstants::DB_USER_AGENT_MAX_LENGTH),
             ]);
         } catch (Throwable $e) {
             // Falha de registro de sessão não deve derrubar o login.
@@ -185,7 +188,7 @@ class Auth
         } else {
             unset($_SESSION['session_fingerprint']);
         }
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(AppConstants::CSRF_TOKEN_BYTES));
         self::upsertSessionRegistry((int)$user['id']);
     }
 
@@ -197,7 +200,7 @@ class Auth
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], (bool)$params['secure'], (bool)$params['httponly']);
+            setcookie(session_name(), '', time() - AppConstants::SESSION_COOKIE_EXPIRE_PAST_SECONDS, $params['path'], $params['domain'], (bool)$params['secure'], (bool)$params['httponly']);
         }
 
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -242,10 +245,10 @@ class Auth
 
             if (!hash_equals($currentToken, $sessionToken)) {
                 if (function_exists('set_flash')) {
-                    set_flash('warning', 'Sua sessão foi encerrada porque uma nova sessão foi iniciada neste usuário.');
+                    set_flash(AppConstants::FLASH_WARNING, 'Sua sessão foi encerrada porque uma nova sessão foi iniciada neste usuário.');
                 }
                 self::logout();
-                header('Location: /?r=auth/login');
+                header('Location: ' . AppConstants::ROUTE_LOGIN);
                 exit;
             }
 
@@ -280,37 +283,37 @@ class Auth
 
         if (!hash_equals($stored, $current)) {
             if (function_exists('set_flash')) {
-                set_flash('warning', 'SessÃ£o encerrada por mudanÃ§a de contexto do navegador.');
+                set_flash(AppConstants::FLASH_WARNING, 'SessÃ£o encerrada por mudanÃ§a de contexto do navegador.');
             }
             self::logout();
-            header('Location: /?r=auth/login');
+            header('Location: ' . AppConstants::ROUTE_LOGIN);
             exit;
         }
     }
 
-    public static function enforceIdleTimeout(int $timeoutMinutes = 30): void
+    public static function enforceIdleTimeout(int $timeoutMinutes = AppConstants::DEFAULT_SESSION_TIMEOUT_MINUTES): void
     {
         if (!self::check()) {
             return;
         }
 
-        $timeoutSeconds = max(60, $timeoutMinutes * 60);
+        $timeoutSeconds = max(AppConstants::MIN_IDLE_TIMEOUT_SECONDS, $timeoutMinutes * 60);
         $now = time();
         $last = (int)($_SESSION['last_activity_at'] ?? 0);
 
         if ($last > 0 && ($now - $last) > $timeoutSeconds) {
             if (function_exists('set_flash')) {
-                set_flash('warning', 'Sessão encerrada por inatividade (' . (int)$timeoutMinutes . ' minutos).');
+                set_flash(AppConstants::FLASH_WARNING, 'Sessão encerrada por inatividade (' . (int)$timeoutMinutes . ' minutos).');
             }
             self::logout();
-            header('Location: /?r=auth/login');
+            header('Location: ' . AppConstants::ROUTE_LOGIN);
             exit;
         }
 
         $_SESSION['last_activity_at'] = $now;
     }
 
-    public static function enforceCurrentUserState(int $refreshSeconds = 60): void
+    public static function enforceCurrentUserState(int $refreshSeconds = AppConstants::USER_STATE_REFRESH_SECONDS): void
     {
         if (!self::check()) {
             return;
@@ -318,14 +321,14 @@ class Auth
 
         $now = time();
         $lastCheck = (int)($_SESSION['user_state_checked_at'] ?? 0);
-        if ($lastCheck > 0 && ($now - $lastCheck) < max(15, $refreshSeconds)) {
+        if ($lastCheck > 0 && ($now - $lastCheck) < max(AppConstants::MIN_USER_STATE_REFRESH_SECONDS, $refreshSeconds)) {
             return;
         }
 
         $userId = (int)($_SESSION['user']['id'] ?? 0);
         if ($userId <= 0) {
             self::logout();
-            header('Location: /?r=auth/login');
+            header('Location: ' . AppConstants::ROUTE_LOGIN);
             exit;
         }
 
@@ -347,10 +350,10 @@ class Auth
         $sessionUser = is_array($current) ? self::sessionUserFromRecord($current) : null;
         if ($sessionUser === null) {
             if (function_exists('set_flash')) {
-                set_flash('warning', 'Sua conta foi desativada. Entre em contato com a administração.');
+                set_flash(AppConstants::FLASH_WARNING, 'Sua conta foi desativada. Entre em contato com a administração.');
             }
             self::logout();
-            header('Location: /?r=auth/login');
+            header('Location: ' . AppConstants::ROUTE_LOGIN);
             exit;
         }
 
@@ -381,9 +384,9 @@ class Auth
 
         if (!$user || !in_array($perfil, $roles, true)) {
             if (function_exists('set_flash')) {
-                set_flash('danger', 'OOps, acesso não autorizado.');
+                set_flash(AppConstants::FLASH_DANGER, AppConstants::MESSAGE_FORBIDDEN);
             }
-            header('Location: /?r=errors/forbidden');
+            header('Location: ' . AppConstants::ROUTE_FORBIDDEN);
             exit;
         }
     }

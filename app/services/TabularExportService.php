@@ -3,21 +3,29 @@ declare(strict_types=1);
 
 class TabularExportService
 {
-    private const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    private const XLS_MIME = 'application/vnd.ms-excel';
-    private const CSV_MIME = 'text/csv; charset=utf-8';
-
+    /**
+     * Envia uma exportacao tabular para download.
+     *
+     * @param string $filenameBase Nome base do arquivo.
+     * @param string $type Tipo desejado: csv ou xlsx.
+     * @param array $headers Cabecalhos das colunas.
+     * @param callable $producer Callback que escreve as linhas.
+     * @param array $document Metadados opcionais do documento.
+     * @return int Quantidade de linhas exportadas.
+     */
     public function download(string $filenameBase, string $type, array $headers, callable $producer, array $document = []): int
     {
-        $safeBase = safe_download_filename($filenameBase, 'relatorio');
-        $normalizedType = strtolower(trim($type)) === 'xlsx' ? 'xlsx' : 'csv';
+        $safeBase = safe_download_filename($filenameBase, AppConstants::EXPORT_DEFAULT_FILENAME);
+        $normalizedType = strtolower(trim($type)) === AppConstants::EXPORT_FORMAT_XLSX
+            ? AppConstants::EXPORT_FORMAT_XLSX
+            : AppConstants::EXPORT_FORMAT_CSV;
 
-        if ($normalizedType === 'csv') {
-            $this->sendHeaders($safeBase . '.csv', self::CSV_MIME);
+        if ($normalizedType === AppConstants::EXPORT_FORMAT_CSV) {
+            $this->sendHeaders($safeBase . '.csv', AppConstants::EXPORT_CSV_MIME);
             return $this->streamCsv($headers, $producer);
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'fbexp_');
+        $tempPath = tempnam(sys_get_temp_dir(), AppConstants::EXPORT_TEMP_PREFIX);
         if ($tempPath === false) {
             http_response_code(500);
             exit;
@@ -27,10 +35,10 @@ class TabularExportService
         @rename($tempPath, $targetPath);
 
         try {
-            $effective = class_exists('ZipArchive') ? 'xlsx' : 'xlsxml';
+            $effective = class_exists('ZipArchive') ? AppConstants::EXPORT_FORMAT_XLSX : AppConstants::EXPORT_FORMAT_XLSXML;
             $count = $this->writeWorkbookFile($targetPath, $effective, $headers, $producer, $document);
-            $downloadName = $safeBase . ($effective === 'xlsx' ? '.xlsx' : '.xls');
-            $mime = $effective === 'xlsx' ? self::XLSX_MIME : self::XLS_MIME;
+            $downloadName = $safeBase . ($effective === AppConstants::EXPORT_FORMAT_XLSX ? '.xlsx' : '.xls');
+            $mime = $effective === AppConstants::EXPORT_FORMAT_XLSX ? AppConstants::EXPORT_XLSX_MIME : AppConstants::EXPORT_XLS_MIME;
             $this->sendHeaders($downloadName, $mime);
             readfile($targetPath);
             return $count;
@@ -39,6 +47,16 @@ class TabularExportService
         }
     }
 
+    /**
+     * Grava uma planilha a partir de um array em memoria.
+     *
+     * @param string $targetPath Caminho final do arquivo.
+     * @param string $format Formato: csv, xlsx ou xlsxml.
+     * @param array $headers Cabecalhos das colunas.
+     * @param array $rows Linhas de dados.
+     * @param array $document Metadados opcionais do documento.
+     * @return int Quantidade de linhas gravadas.
+     */
     public function writeWorkbookFromArray(string $targetPath, string $format, array $headers, array $rows, array $document = []): int
     {
         return $this->writeWorkbookFile(
@@ -57,16 +75,26 @@ class TabularExportService
         );
     }
 
+    /**
+     * Grava uma planilha no formato solicitado.
+     *
+     * @param string $targetPath Caminho final do arquivo.
+     * @param string $format Formato: csv, xlsx ou xlsxml.
+     * @param array $headers Cabecalhos das colunas.
+     * @param callable $producer Callback produtor de linhas.
+     * @param array $document Metadados opcionais do documento.
+     * @return int Quantidade de linhas gravadas.
+     */
     public function writeWorkbookFile(string $targetPath, string $format, array $headers, callable $producer, array $document = []): int
     {
         $normalizedFormat = strtolower(trim($format));
-        if ($normalizedFormat === 'csv') {
+        if ($normalizedFormat === AppConstants::EXPORT_FORMAT_CSV) {
             return $this->writeCsvFile($targetPath, $headers, $producer);
         }
-        if ($normalizedFormat === 'xlsxml') {
+        if ($normalizedFormat === AppConstants::EXPORT_FORMAT_XLSXML) {
             return $this->writeExcelXmlFile($targetPath, $headers, $producer, $document);
         }
-        if ($normalizedFormat === 'xlsx') {
+        if ($normalizedFormat === AppConstants::EXPORT_FORMAT_XLSX) {
             return $this->writeXlsxFile($targetPath, $headers, $producer, $document);
         }
 
@@ -89,7 +117,7 @@ class TabularExportService
             exit;
         }
 
-        fwrite($out, "\xEF\xBB\xBF");
+        fwrite($out, AppConstants::EXPORT_UTF8_BOM);
         fputcsv($out, $this->normalizeRow($headers, count($headers)));
         $count = (int)$producer(function (array $row) use ($out, $headers): void {
             fputcsv($out, $this->normalizeRow($row, count($headers)));
@@ -105,7 +133,7 @@ class TabularExportService
             throw new RuntimeException('Nao foi possivel criar arquivo CSV temporario.');
         }
 
-        fwrite($out, "\xEF\xBB\xBF");
+        fwrite($out, AppConstants::EXPORT_UTF8_BOM);
         fputcsv($out, $this->normalizeRow($headers, count($headers)));
         $count = (int)$producer(function (array $row) use ($out, $headers): void {
             fputcsv($out, $this->normalizeRow($row, count($headers)));
@@ -121,11 +149,11 @@ class TabularExportService
         }
 
         $columnCount = max(1, count($headers));
-        $sheetName = $this->sanitizeSheetName((string)($document['sheet_name'] ?? 'Exportacao'));
-        $title = $this->cleanCellValue((string)($document['title'] ?? 'Exportacao FBControl'));
-        $subtitle = $this->cleanCellValue((string)($document['subtitle'] ?? 'Arquivo gerado pelo sistema.'));
+        $sheetName = $this->sanitizeSheetName((string)($document['sheet_name'] ?? AppConstants::EXPORT_DEFAULT_SHEET_NAME));
+        $title = $this->cleanCellValue((string)($document['title'] ?? AppConstants::EXPORT_DEFAULT_TITLE));
+        $subtitle = $this->cleanCellValue((string)($document['subtitle'] ?? AppConstants::EXPORT_DEFAULT_SUBTITLE));
         $metaRows = $this->normalizeMetaRows($document['meta'] ?? [], $columnCount);
-        $rowsPart = tempnam(sys_get_temp_dir(), 'fbexp_rows_');
+        $rowsPart = tempnam(sys_get_temp_dir(), AppConstants::EXPORT_ROWS_TEMP_PREFIX);
         if ($rowsPart === false) {
             throw new RuntimeException('Nao foi possivel preparar area temporaria do XLSX.');
         }
@@ -196,10 +224,10 @@ class TabularExportService
     private function writeExcelXmlFile(string $targetPath, array $headers, callable $producer, array $document = []): int
     {
         $columnCount = max(1, count($headers));
-        $title = $this->cleanCellValue((string)($document['title'] ?? 'Exportacao FBControl'));
-        $subtitle = $this->cleanCellValue((string)($document['subtitle'] ?? 'Arquivo gerado pelo sistema.'));
+        $title = $this->cleanCellValue((string)($document['title'] ?? AppConstants::EXPORT_DEFAULT_TITLE));
+        $subtitle = $this->cleanCellValue((string)($document['subtitle'] ?? AppConstants::EXPORT_DEFAULT_SUBTITLE));
         $metaRows = $this->normalizeMetaRows($document['meta'] ?? [], $columnCount);
-        $sheetName = $this->sanitizeSheetName((string)($document['sheet_name'] ?? 'Exportacao'));
+        $sheetName = $this->sanitizeSheetName((string)($document['sheet_name'] ?? AppConstants::EXPORT_DEFAULT_SHEET_NAME));
 
         $widths = [];
         $currentRow = 0;
@@ -239,8 +267,8 @@ class TabularExportService
 
         $columnsXml = '';
         for ($i = 1; $i <= $columnCount; $i++) {
-            $width = $widths[$i] ?? 18;
-            $columnsXml .= '<Column ss:AutoFitWidth="0" ss:Width="' . (string)($width * 6.2) . '"/>';
+            $width = $widths[$i] ?? AppConstants::EXPORT_DEFAULT_COLUMN_WIDTH;
+            $columnsXml .= '<Column ss:AutoFitWidth="0" ss:Width="' . (string)($width * AppConstants::EXPORT_XML_WIDTH_FACTOR) . '"/>';
         }
 
         $xml = '<?xml version="1.0"?>'
@@ -269,7 +297,7 @@ class TabularExportService
     {
         $colsXml = '';
         for ($i = 1; $i <= $columnCount; $i++) {
-            $width = $widths[$i] ?? 18;
+            $width = $widths[$i] ?? AppConstants::EXPORT_DEFAULT_COLUMN_WIDTH;
             $colsXml .= '<col min="' . $i . '" max="' . $i . '" width="' . $width . '" customWidth="1"/>';
         }
 
@@ -380,7 +408,13 @@ class TabularExportService
 
     private function updateColumnWidth(array &$widths, int $column, $value): void
     {
-        $length = max(6, min(42, mb_strlen((string)$value, 'UTF-8') + 2));
+        $length = max(
+            AppConstants::EXPORT_MIN_COLUMN_WIDTH,
+            min(
+                AppConstants::EXPORT_MAX_COLUMN_WIDTH,
+                mb_strlen((string)$value, 'UTF-8') + AppConstants::EXPORT_COLUMN_PADDING
+            )
+        );
         if (!isset($widths[$column]) || $length > $widths[$column]) {
             $widths[$column] = $length;
         }
@@ -406,12 +440,12 @@ class TabularExportService
 
     private function sanitizeSheetName(string $name): string
     {
-        $clean = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', ' ', normalize_mojibake($name)) ?? 'Exportacao';
+        $clean = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', ' ', normalize_mojibake($name)) ?? AppConstants::EXPORT_DEFAULT_SHEET_NAME;
         $clean = trim($clean);
         if ($clean === '') {
-            $clean = 'Exportacao';
+            $clean = AppConstants::EXPORT_DEFAULT_SHEET_NAME;
         }
-        return mb_substr($clean, 0, 31, 'UTF-8');
+        return mb_substr($clean, 0, AppConstants::EXPORT_MAX_SHEET_NAME_LENGTH, 'UTF-8');
     }
 
     private function xmlText(string $value): string
@@ -469,7 +503,7 @@ class TabularExportService
     {
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
-            . '<Application>FBControl</Application>'
+            . '<Application>' . AppConstants::APP_NAME . '</Application>'
             . '</Properties>';
     }
 
@@ -479,8 +513,8 @@ class TabularExportService
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
             . '<dc:title>' . $this->xmlText($title) . '</dc:title>'
-            . '<dc:creator>FBControl</dc:creator>'
-            . '<cp:lastModifiedBy>FBControl</cp:lastModifiedBy>'
+            . '<dc:creator>' . AppConstants::APP_NAME . '</dc:creator>'
+            . '<cp:lastModifiedBy>' . AppConstants::APP_NAME . '</cp:lastModifiedBy>'
             . '<dcterms:created xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:created>'
             . '<dcterms:modified xsi:type="dcterms:W3CDTF">' . $created . '</dcterms:modified>'
             . '</cp:coreProperties>';

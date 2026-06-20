@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 class LgpdModel extends Model
 {
     private const REQUEST_FINAL_STATUSES = ['concluida', 'indeferida'];
@@ -31,6 +33,9 @@ class LgpdModel extends Model
         return self::RETENTION_ALLOWED_TABLES;
     }
 
+    /**
+     * Remove dados pessoais e textos livres da trilha LGPD para preservar evidência sem reter conteúdo sensível.
+     */
     public static function sanitizePrivacyEventDetails(array $details): array
     {
         $sensitiveKeys = [
@@ -75,6 +80,11 @@ class LgpdModel extends Model
         return $sanitize($details);
     }
 
+    /**
+     * Recupera a configuração de privacidade que orienta canais oficiais e prazos legais de resposta.
+     *
+     * @return array<string, mixed>
+     */
     public function getConfig(): array
     {
         $stmt = $this->db->query("SELECT * FROM lgpd_config WHERE id = 1 LIMIT 1");
@@ -85,21 +95,24 @@ class LgpdModel extends Model
 
         return [
             'id' => 1,
-            'controlador_nome' => 'Controlador da operação',
+            'controlador_nome' => GovernancaConstants::DEFAULT_CONTROLADOR_NOME,
             'controlador_email' => '',
             'encarregado_nome' => '',
             'encarregado_email' => '',
             'encarregado_telefone' => '',
-            'canal_titular_url' => '/?r=privacidade/index',
+            'canal_titular_url' => GovernancaConstants::ROUTE_PRIVACIDADE_INDEX,
             'canal_titular_email' => '',
-            'politica_privacidade_url' => '/?r=privacidade/index',
-            'prazo_titular_dias' => 15,
-            'prazo_incidente_dias_uteis' => 3,
+            'politica_privacidade_url' => GovernancaConstants::ROUTE_PRIVACIDADE_INDEX,
+            'prazo_titular_dias' => GovernancaConstants::PRAZO_TITULAR_DIAS,
+            'prazo_incidente_dias_uteis' => GovernancaConstants::PRAZO_INCIDENTE_DIAS_UTEIS,
             'atualizado_por' => null,
             'atualizado_em' => null,
         ];
     }
 
+    /**
+     * Persiste os dados do controlador/encarregado para comprovar governança e canal do titular.
+     */
     public function saveConfig(array $data, int $userId): void
     {
         $before = $this->getConfig();
@@ -144,6 +157,11 @@ class LgpdModel extends Model
         ]);
     }
 
+    /**
+     * Resume pendências LGPD para priorizar solicitações próximas do prazo e incidentes abertos.
+     *
+     * @return array{requests_open: int, requests_due_soon: int, incidents_open: int}
+     */
     public function summary(): array
     {
         $openStatuses = ['aberta', 'em_tratamento'];
@@ -158,7 +176,7 @@ class LgpdModel extends Model
             FROM lgpd_solicitacoes
             WHERE status IN ($inholders)
               AND prazo_resposta_em IS NOT NULL
-              AND prazo_resposta_em BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 DAY)
+              AND prazo_resposta_em BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL " . GovernancaConstants::PRAZO_ALERTA_SOLICITACAO_DIAS . " DAY)
         ");
         $stmtSoon->execute($openStatuses);
         $requestsDueSoon = (int)($stmtSoon->fetch()['total'] ?? 0);
@@ -174,6 +192,11 @@ class LgpdModel extends Model
         ];
     }
 
+    /**
+     * Lista solicitações de titulares para acompanhamento de prazo e status de tratamento.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function listRequests(array $filters = []): array
     {
         $where = [];
@@ -208,13 +231,16 @@ class LgpdModel extends Model
         if (!empty($where)) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
-        $sql .= ' ORDER BY s.recebido_em DESC, s.id DESC LIMIT 200';
+        $sql .= ' ORDER BY s.recebido_em DESC, s.id DESC LIMIT ' . GovernancaConstants::LGPD_REQUEST_QUERY_LIMIT;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
+    /**
+     * Registra solicitação de titular com protocolo e prazo para demonstrar atendimento formal à LGPD.
+     */
     public function createRequest(array $data, int $userId): int
     {
         $protocol = $this->generateProtocol('LGPD');
@@ -223,7 +249,7 @@ class LgpdModel extends Model
         $prazo = $data['prazo_resposta_em'];
         if ($prazo === '') {
             $config = $this->getConfig();
-            $prazoDias = max(1, (int)($config['prazo_titular_dias'] ?? 15));
+            $prazoDias = max(1, (int)($config['prazo_titular_dias'] ?? GovernancaConstants::PRAZO_TITULAR_DIAS));
             $prazo = date('Y-m-d H:i:s', strtotime($receivedAt . ' +' . $prazoDias . ' days'));
         }
 
@@ -240,7 +266,7 @@ class LgpdModel extends Model
             ':titular_documento' => $data['titular_documento'],
             ':titular_email' => $data['titular_email'],
             ':detalhes' => $data['detalhes'],
-            ':status' => 'aberta',
+            ':status' => GovernancaConstants::DEFAULT_REQUEST_STATUS,
             ':recebido_em' => $receivedAt,
             ':prazo_resposta_em' => $prazo,
             ':criado_por' => $userId,
@@ -254,6 +280,9 @@ class LgpdModel extends Model
         return $id;
     }
 
+    /**
+     * Atualiza a solicitação e marca conclusão quando a decisão final foi registrada.
+     */
     public function updateRequest(int $id, array $data, int $userId): bool
     {
         $before = $this->findRequest($id);
@@ -304,6 +333,11 @@ class LgpdModel extends Model
         return true;
     }
 
+    /**
+     * Recupera uma solicitação para preservar antes/depois na auditoria de privacidade.
+     *
+     * @return array<string, mixed>|null
+     */
     public function findRequest(int $id): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM lgpd_solicitacoes WHERE id = :id LIMIT 1");
@@ -312,6 +346,11 @@ class LgpdModel extends Model
         return $row ?: null;
     }
 
+    /**
+     * Lista incidentes de privacidade para controle de risco e comprovação de resposta.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function listIncidents(array $filters = []): array
     {
         $where = [];
@@ -338,13 +377,16 @@ class LgpdModel extends Model
         if (!empty($where)) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
-        $sql .= ' ORDER BY i.detectado_em DESC, i.id DESC LIMIT 150';
+        $sql .= ' ORDER BY i.detectado_em DESC, i.id DESC LIMIT ' . GovernancaConstants::LGPD_INCIDENT_QUERY_LIMIT;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
+    /**
+     * Registra incidente LGPD para demonstrar detecção, avaliação e comunicação quando aplicável.
+     */
     public function createIncident(array $data, int $userId): int
     {
         $code = $this->generateProtocol('INC');
@@ -360,7 +402,7 @@ class LgpdModel extends Model
             ':codigo' => $code,
             ':titulo' => $data['titulo'],
             ':categoria' => $data['categoria'],
-            ':status' => $data['status'] ?: 'aberto',
+            ':status' => $data['status'] ?: GovernancaConstants::DEFAULT_INCIDENT_STATUS,
             ':risco_nivel' => $data['risco_nivel'],
             ':data_incidente' => $data['data_incidente'] ?: null,
             ':detectado_em' => $detectedAt,
@@ -382,6 +424,9 @@ class LgpdModel extends Model
         return $id;
     }
 
+    /**
+     * Atualiza medidas e encerramento do incidente mantendo evidência de resposta.
+     */
     public function updateIncident(int $id, array $data, int $userId): bool
     {
         $before = $this->findIncident($id);
@@ -439,6 +484,11 @@ class LgpdModel extends Model
         return true;
     }
 
+    /**
+     * Recupera um incidente para auditoria de alterações e rastreabilidade regulatória.
+     *
+     * @return array<string, mixed>|null
+     */
     public function findIncident(int $id): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM lgpd_incidentes WHERE id = :id LIMIT 1");
@@ -447,6 +497,11 @@ class LgpdModel extends Model
         return $row ?: null;
     }
 
+    /**
+     * Lista políticas de retenção que definem por quanto tempo cada trilha regulatória permanece no sistema.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function listRetentionPolicies(): array
     {
         $stmt = $this->db->query("
@@ -458,11 +513,14 @@ class LgpdModel extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * Salva política de retenção para eliminar dados vencidos sem permitir tabelas fora da lista aprovada.
+     */
     public function upsertRetentionPolicy(array $data, int $userId): void
     {
         $tableName = strtolower(trim((string)$data['tabela_nome']));
         if ($tableName === '' || !isset(self::RETENTION_ALLOWED_TABLES[$tableName])) {
-            throw new InvalidArgumentException('Tabela de retencao nao suportada.');
+            throw new InvalidArgumentException(GovernancaConstants::MESSAGE_TABELA_RETENCAO_NAO_SUPORTADA);
         }
 
         $stmtBefore = $this->db->prepare("SELECT * FROM lgpd_retencao_politicas WHERE tabela_nome = :table LIMIT 1");
@@ -503,6 +561,11 @@ class LgpdModel extends Model
         ]);
     }
 
+    /**
+     * Elimina registros acima do prazo para reduzir exposição de dados pessoais e trilhas expiradas.
+     *
+     * @return array{processed: int, affected: int, errors: array<int, string>}
+     */
     public function runRetentionJob(?int $userId = null): array
     {
         $policies = $this->listRetentionPolicies();
@@ -529,7 +592,7 @@ class LgpdModel extends Model
             }
 
             $column = self::RETENTION_ALLOWED_TABLES[$table]['column'];
-            $days = max(1, (int)($policy['retencao_dias'] ?? 180));
+            $days = max(1, (int)($policy['retencao_dias'] ?? GovernancaConstants::ANONIMIZACAO_AUTOMATICA_DIAS));
             $sql = "DELETE FROM `$table` WHERE `$column` < DATE_SUB(NOW(), INTERVAL :days DAY)";
 
             try {
@@ -552,7 +615,12 @@ class LgpdModel extends Model
         return $result;
     }
 
-    public function listEvents(int $limit = 50): array
+    /**
+     * Lista eventos LGPD já sanitizados para consulta administrativa sem reexpor dados sensíveis.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listEvents(int $limit = GovernancaConstants::LGPD_EVENT_DEFAULT_LIMIT): array
     {
         $stmt = $this->db->prepare("
             SELECT e.*, u.nome AS usuario_nome
@@ -561,7 +629,7 @@ class LgpdModel extends Model
             ORDER BY e.criado_em DESC, e.id DESC
             LIMIT :lim
         ");
-        $stmt->bindValue(':lim', max(1, min(200, $limit)), PDO::PARAM_INT);
+        $stmt->bindValue(':lim', max(1, min(GovernancaConstants::LGPD_EVENT_LIMIT_MAX, $limit)), PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     }
@@ -592,9 +660,9 @@ class LgpdModel extends Model
             VALUES (:tipo, :referencia, :acao, :detalhes_json, :usuario_id, NOW())
         ");
         $stmt->execute([
-            ':tipo' => substr($type, 0, 30),
-            ':referencia' => substr($reference, 0, 120),
-            ':acao' => substr($action, 0, 40),
+            ':tipo' => substr($type, 0, GovernancaConstants::MAX_LGPD_EVENT_TYPE_LENGTH),
+            ':referencia' => substr($reference, 0, GovernancaConstants::MAX_LGPD_EVENT_REFERENCE_LENGTH),
+            ':acao' => substr($action, 0, GovernancaConstants::MAX_LGPD_EVENT_ACTION_LENGTH),
             ':detalhes_json' => $detailsJson,
             ':usuario_id' => $userId ?: null,
         ]);

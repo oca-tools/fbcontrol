@@ -1,99 +1,94 @@
 <?php
+declare(strict_types=1);
+
 class HorariosController extends Controller
 {
+    /**
+     * Exibe a grade de horarios em que cada restaurante atende suas operacoes.
+     */
     public function index(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
-        $model = new RestaurantOperationModel();
-        $restaurantModel = new RestaurantModel();
-        $operationModel = new OperationModel();
+        $estruturaRestauranteRepository = new EstruturaRestauranteRepository();
 
         $this->view('crud/horarios', [
-            'items' => $model->all(),
-            'restaurantes' => $restaurantModel->all(),
-            'operacoes' => $operationModel->all(),
+            'items' => $estruturaRestauranteRepository->listarHorariosDaOperacao(),
+            'restaurantes' => $estruturaRestauranteRepository->listarRestaurantes(),
+            'operacoes' => $estruturaRestauranteRepository->listarOperacoes(),
             'flash' => get_flash(),
         ]);
     }
 
+    /**
+     * Define os dias/horarios em que uma operacao de restaurante estara ativa para receber hospedes.
+     */
     public function create(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=horarios/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=horarios/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
         }
 
-        $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
-        $operacaoId = (int)($_POST['operacao_id'] ?? 0);
-        $horaInicio = $_POST['hora_inicio'] ?? '';
-        $horaFim = $_POST['hora_fim'] ?? '';
-        $tolerancia = (int)($_POST['tolerancia_min'] ?? 0);
+        $resultado = (new ConfigurarHorarioService())->executar(new ConfigurarHorarioCommand([
+            'acao' => GestaoRestaurantesConstants::ACTION_CREATE,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'restaurante_id' => $_POST['restaurante_id'] ?? 0,
+            'operacao_id' => $_POST['operacao_id'] ?? 0,
+            'hora_inicio' => $_POST['hora_inicio'] ?? '',
+            'hora_fim' => $_POST['hora_fim'] ?? '',
+            'tolerancia_min' => $_POST['tolerancia_min'] ?? GestaoRestaurantesConstants::DEFAULT_TOLERANCE_MINUTES,
+            'ativo' => GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
 
-        if ($restauranteId <= 0 || $operacaoId <= 0 || $horaInicio === '' || $horaFim === '') {
-            set_flash('danger', 'Preencha todos os campos obrigatórios.');
-            $this->redirect('/?r=horarios/index');
-        }
-
-        $model = new RestaurantOperationModel();
-        $model->create([
-            'restaurante_id' => $restauranteId,
-            'operacao_id' => $operacaoId,
-            'hora_inicio' => $horaInicio,
-            'hora_fim' => $horaFim,
-            'tolerancia_min' => $tolerancia,
-            'ativo' => 1,
-        ], Auth::user()['id']);
-
-        set_flash('success', 'Horário cadastrado.');
-        $this->redirect('/?r=horarios/index');
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
     }
 
+    /**
+     * Atualiza horario, tolerancia e status de uma operacao de restaurante.
+     */
     public function edit(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin']);
+        Auth::requireRole([GestaoRestaurantesConstants::ROLE_ADMIN]);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=horarios/index');
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
         }
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-            set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=horarios/index');
+            set_flash(GestaoRestaurantesConstants::FLASH_DANGER, GestaoRestaurantesConstants::MESSAGE_TOKEN_INVALID);
+            $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
         }
 
-        $id = (int)($_POST['id'] ?? 0);
-        $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
-        $operacaoId = (int)($_POST['operacao_id'] ?? 0);
-        $horaInicio = $_POST['hora_inicio'] ?? '';
-        $horaFim = $_POST['hora_fim'] ?? '';
-        $tolerancia = (int)($_POST['tolerancia_min'] ?? 0);
-        $ativo = (int)($_POST['ativo'] ?? 1);
+        $resultado = (new ConfigurarHorarioService())->executar(new ConfigurarHorarioCommand([
+            'acao' => GestaoRestaurantesConstants::ACTION_EDIT,
+            'id' => $_POST['id'] ?? 0,
+            'usuario_id' => Auth::user()['id'] ?? 0,
+            'restaurante_id' => $_POST['restaurante_id'] ?? 0,
+            'operacao_id' => $_POST['operacao_id'] ?? 0,
+            'hora_inicio' => $_POST['hora_inicio'] ?? '',
+            'hora_fim' => $_POST['hora_fim'] ?? '',
+            'tolerancia_min' => $_POST['tolerancia_min'] ?? GestaoRestaurantesConstants::DEFAULT_TOLERANCE_MINUTES,
+            'ativo' => $_POST['ativo'] ?? GestaoRestaurantesConstants::STATUS_ACTIVE,
+        ]));
 
-        if ($id <= 0 || $restauranteId <= 0 || $operacaoId <= 0 || $horaInicio === '' || $horaFim === '') {
-            set_flash('danger', 'Dados inválidos.');
-            $this->redirect('/?r=horarios/index');
-        }
+        $this->aplicarResultadoGestaoRestaurante($resultado);
+        $this->redirect(GestaoRestaurantesConstants::ROUTE_HORARIOS_INDEX);
+    }
 
-        $model = new RestaurantOperationModel();
-        $model->update($id, [
-            'restaurante_id' => $restauranteId,
-            'operacao_id' => $operacaoId,
-            'hora_inicio' => $horaInicio,
-            'hora_fim' => $horaFim,
-            'tolerancia_min' => $tolerancia,
-            'ativo' => $ativo,
-        ], Auth::user()['id']);
-
-        set_flash('success', 'Horário atualizado.');
-        $this->redirect('/?r=horarios/index');
+    private function aplicarResultadoGestaoRestaurante(ServiceResult $resultado): void
+    {
+        set_flash(
+            $resultado->isSuccess() ? GestaoRestaurantesConstants::FLASH_SUCCESS : GestaoRestaurantesConstants::FLASH_DANGER,
+            $resultado->message()
+        );
     }
 }
-

@@ -10,6 +10,7 @@ date_default_timezone_set($config['app']['timezone']);
 require_once __DIR__ . '/helpers/functions.php';
 ob_start('normalize_output_mojibake');
 
+require_once __DIR__ . '/support/AppConstants.php';
 require_once __DIR__ . '/core/Database.php';
 require_once __DIR__ . '/core/Model.php';
 require_once __DIR__ . '/core/Controller.php';
@@ -20,6 +21,7 @@ spl_autoload_register(static function ($class): void {
         __DIR__ . '/controllers/' . $class . '.php',
         __DIR__ . '/models/' . $class . '.php',
         __DIR__ . '/services/' . $class . '.php',
+        __DIR__ . '/support/' . $class . '.php',
     ];
 
     foreach ($paths as $path) {

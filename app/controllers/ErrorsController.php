@@ -1,12 +1,12 @@
 <?php
 class ErrorsController extends Controller
 {
-    public function forbidden(string $message = 'OOps, acesso não autorizado.'): void
+    public function forbidden(string $message = AppConstants::MESSAGE_FORBIDDEN): void
     {
         parent::forbidden($message);
     }
 
-    public function notFound(string $message = 'OOps, página não encontrada.'): void
+    public function notFound(string $message = AppConstants::MESSAGE_NOT_FOUND): void
     {
         parent::notFound($message);
     }

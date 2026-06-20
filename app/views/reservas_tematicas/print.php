@@ -10,6 +10,7 @@ $summary = [
     'adultos' => 0,
     'uhs' => [],
     'observacoes' => 0,
+    'has_non_reservada' => false,
 ];
 $turnos = [];
 
@@ -19,6 +20,8 @@ foreach ($reservas as $row) {
         $turnos[$turno] = [
             'turno' => $turno,
             'reservas' => [],
+            'individuais' => [],
+            'grupos' => [],
             'total_pax' => 0,
             'total_chd' => 0,
             'total_adultos' => 0,
@@ -35,7 +38,7 @@ foreach ($reservas as $row) {
     $grupo = trim(normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? '')));
     $status = trim(normalize_mojibake((string)($row['status_reserva'] ?? $row['status'] ?? 'Reservada')));
 
-    $turnos[$turno]['reservas'][] = [
+    $itemReserva = [
         'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
         'uh' => normalize_mojibake((string)($row['uh_numero'] ?? '')),
         'titular' => $titular !== '' && $titular !== '-' ? $titular : 'Nao informado',
@@ -50,6 +53,36 @@ foreach ($reservas as $row) {
         'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
     ];
 
+    $turnos[$turno]['reservas'][] = $itemReserva;
+
+    if ($itemReserva['grupo'] !== '') {
+        $groupKey = mb_strtolower($itemReserva['grupo'], 'UTF-8');
+        if (!isset($turnos[$turno]['grupos'][$groupKey])) {
+            $turnos[$turno]['grupos'][$groupKey] = [
+                'nome' => $itemReserva['grupo'],
+                'titulares' => [],
+                'uhs' => [],
+                'usuarios' => [],
+                'statuses' => [],
+                'itens' => [],
+                'total_pax' => 0,
+                'total_chd' => 0,
+                'total_adultos' => 0,
+            ];
+        }
+
+        $turnos[$turno]['grupos'][$groupKey]['titulares'][$itemReserva['titular']] = true;
+        $turnos[$turno]['grupos'][$groupKey]['uhs'][$itemReserva['uh']] = true;
+        $turnos[$turno]['grupos'][$groupKey]['usuarios'][$itemReserva['usuario'] !== '' ? $itemReserva['usuario'] : 'Nao informado'] = true;
+        $turnos[$turno]['grupos'][$groupKey]['statuses'][$itemReserva['status']] = true;
+        $turnos[$turno]['grupos'][$groupKey]['itens'][] = $itemReserva;
+        $turnos[$turno]['grupos'][$groupKey]['total_pax'] += $itemReserva['pax'];
+        $turnos[$turno]['grupos'][$groupKey]['total_chd'] += $itemReserva['chd'];
+        $turnos[$turno]['grupos'][$groupKey]['total_adultos'] += $itemReserva['adultos'];
+    } else {
+        $turnos[$turno]['individuais'][] = $itemReserva;
+    }
+
     $turnos[$turno]['total_pax'] += $pax;
     $turnos[$turno]['total_chd'] += $chd;
     $turnos[$turno]['total_adultos'] += $adultos;
@@ -59,6 +92,10 @@ foreach ($reservas as $row) {
     $summary['chd'] += $chd;
     $summary['adultos'] += $adultos;
     $summary['uhs'][(string)($row['uh_numero'] ?? '')] = true;
+    $statusKey = mb_strtolower($itemReserva['status'], 'UTF-8');
+    if (!in_array($statusKey, ['reservada', 'reservado'], true)) {
+        $summary['has_non_reservada'] = true;
+    }
     if ($obsReserva !== '' || $obsOperacao !== '' || $tags !== '') {
         $summary['observacoes']++;
     }
@@ -70,6 +107,25 @@ $summary['uhs_total'] = count(array_filter(array_keys($summary['uhs']), static f
 
 ksort($turnos);
 
+foreach ($turnos as &$turnoData) {
+    if (!empty($turnoData['grupos'])) {
+        foreach ($turnoData['grupos'] as &$grupoData) {
+            $grupoData['titulares'] = array_values(array_filter(array_keys($grupoData['titulares'])));
+            $grupoData['uhs'] = array_values(array_filter(array_keys($grupoData['uhs'])));
+            sort($grupoData['uhs']);
+            $grupoData['usuarios'] = array_values(array_filter(array_keys($grupoData['usuarios'])));
+            $grupoData['statuses'] = array_values(array_filter(array_keys($grupoData['statuses'])));
+        }
+        unset($grupoData);
+
+        uasort($turnoData['grupos'], static function (array $a, array $b): int {
+            return strcasecmp((string)$a['nome'], (string)$b['nome']);
+        });
+    }
+}
+unset($turnoData);
+
+$showStatusColumn = !empty($summary['has_non_reservada']);
 $documentTitle = $tipo === 'detalhada' ? 'Impressão operacional de reservas' : 'Resumo de reservas temáticas';
 $documentSubtitle = 'Lista preparada para apoio rápido da operação, montagem do ambiente e conferência do serviço.';
 $documentMeta = [
@@ -142,25 +198,119 @@ $documentMeta = [
                                 </div>
                                 <div class="turno-stats">
                                     <span class="stat-pill"><strong><?= count($grupo['reservas']) ?></strong> reservas</span>
+                                    <span class="stat-pill"><strong><?= count($grupo['grupos']) ?></strong> grupos</span>
                                     <span class="stat-pill"><strong><?= (int)$grupo['total_pax'] ?></strong> PAX</span>
                                     <span class="stat-pill"><strong><?= (int)$grupo['total_chd'] ?></strong> CHD</span>
                                 </div>
                             </div>
 
+                            <?php if (!empty($grupo['grupos'])): ?>
+                                <div class="group-block-list">
+                                    <?php foreach ($grupo['grupos'] as $blocoGrupo): ?>
+                                        <?php
+                                            $titularesGrupo = $blocoGrupo['titulares'];
+                                            $titularUnico = count($titularesGrupo) === 1 ? (string)$titularesGrupo[0] : '';
+                                            $nomeGrupoNormalizado = mb_strtolower(trim((string)$blocoGrupo['nome']), 'UTF-8');
+                                            $titularUnicoNormalizado = mb_strtolower(trim($titularUnico), 'UTF-8');
+                                            $titularDiferenteDoGrupo = $titularUnico !== '' && $nomeGrupoNormalizado !== $titularUnicoNormalizado;
+                                            $mostrarTitularPorUh = count($titularesGrupo) > 1;
+                                            $tituloGrupo = $titularDiferenteDoGrupo
+                                                ? $blocoGrupo['nome'] . ' · Titular: ' . $titularUnico
+                                                : $blocoGrupo['nome'];
+                                        ?>
+                                        <article class="group-block">
+                                            <div class="group-block-head">
+                                                <div>
+                                                    <div class="group-block-kicker">Reserva em grupo</div>
+                                                    <h3 class="group-block-title"><?= h($tituloGrupo) ?></h3>
+                                                    <div class="group-block-subtitle">
+                                                        <?= count($blocoGrupo['itens']) ?> reservas vinculadas ·
+                                                        <?= count($blocoGrupo['uhs']) ?> UHs ·
+                                                        <?= h(implode(', ', array_slice($blocoGrupo['usuarios'], 0, 2))) ?>
+                                                    </div>
+                                                </div>
+                                                <div class="group-block-stats">
+                                                    <span class="group-stat-pill"><strong><?= (int)$blocoGrupo['total_pax'] ?></strong> PAX</span>
+                                                    <span class="group-stat-pill"><strong><?= (int)$blocoGrupo['total_adultos'] ?></strong> adultos</span>
+                                                    <span class="group-stat-pill"><strong><?= (int)$blocoGrupo['total_chd'] ?></strong> CHD</span>
+                                                </div>
+                                            </div>
+                                            <div class="group-block-body">
+                                                <div class="group-inline-grid single-panel">
+                                                    <section class="group-inline-panel">
+                                                        <div class="group-inline-label">UHs do grupo</div>
+                                                        <div class="chip-row">
+                                                            <?php foreach ($blocoGrupo['uhs'] as $uh): ?>
+                                                                <span class="chip chip-uh">UH <?= h($uh) ?></span>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    </section>
+                                                </div>
+                                                <div class="group-member-list">
+                                                    <?php foreach ($blocoGrupo['itens'] as $itemGrupo): ?>
+                                                        <div class="group-member-card">
+                                                            <div class="group-member-unit">
+                                                                <span class="group-member-uh">UH <?= h($itemGrupo['uh']) ?></span>
+                                                                <?php if ($mostrarTitularPorUh): ?>
+                                                                    <strong class="group-member-name"><?= h($itemGrupo['titular']) ?></strong>
+                                                                <?php endif; ?>
+                                                                <?php if ($showStatusColumn && !in_array(mb_strtolower((string)$itemGrupo['status'], 'UTF-8'), ['reservada', 'reservado'], true)): ?>
+                                                                    <span class="chip status"><?= h($itemGrupo['status']) ?></span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                            <div class="group-member-metrics">
+                                                                <div>
+                                                                    <strong><?= (int)$itemGrupo['pax'] ?></strong>
+                                                                    <span>PAX</span>
+                                                                </div>
+                                                                <div>
+                                                                    <strong><?= (int)$itemGrupo['adultos'] ?></strong>
+                                                                    <span>adultos</span>
+                                                                </div>
+                                                                <div>
+                                                                    <strong><?= (int)$itemGrupo['chd'] ?></strong>
+                                                                    <span>CHD</span>
+                                                                </div>
+                                                            </div>
+                                                            <?php if ($itemGrupo['obs_reserva'] !== '' || $itemGrupo['obs_operacao'] !== '' || $itemGrupo['tags'] !== ''): ?>
+                                                                <div class="group-note-stack">
+                                                                    <?php if ($itemGrupo['obs_reserva'] !== ''): ?>
+                                                                        <div class="group-note-item"><span>Reserva</span><?= h($itemGrupo['obs_reserva']) ?></div>
+                                                                    <?php endif; ?>
+                                                                    <?php if ($itemGrupo['obs_operacao'] !== ''): ?>
+                                                                        <div class="group-note-item"><span>Operação</span><?= h($itemGrupo['obs_operacao']) ?></div>
+                                                                    <?php endif; ?>
+                                                                    <?php if ($itemGrupo['tags'] !== ''): ?>
+                                                                        <div class="group-note-item"><span>Tags</span><?= h($itemGrupo['tags']) ?></div>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (!empty($grupo['individuais'])): ?>
                             <div class="turno-table-wrap">
                                 <table class="export-table">
                                     <thead>
                                         <tr>
                                             <th style="width:88px;">UH</th>
                                             <th>Hóspede / grupo</th>
-                                            <th style="width:180px;">PAX</th>
-                                            <th style="width:120px;">Status</th>
+                                            <th class="pax-column">PAX</th>
+                                            <?php if ($showStatusColumn): ?>
+                                                <th style="width:120px;">Status</th>
+                                            <?php endif; ?>
                                             <th>Observações operacionais</th>
                                             <th class="check-column">Checagem</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($grupo['reservas'] as $item): ?>
+                                        <?php foreach ($grupo['individuais'] as $item): ?>
                                             <tr>
                                                 <td data-label="UH">
                                                     <span class="uh-badge">UH <?= h($item['uh']) ?></span>
@@ -176,15 +326,21 @@ $documentMeta = [
                                                     </div>
                                                 </td>
                                                 <td data-label="PAX">
-                                                    <div class="chip-row">
-                                                        <span class="chip"><strong><?= (int)$item['pax'] ?></strong> PAX</span>
-                                                        <span class="chip"><strong><?= (int)$item['adultos'] ?></strong> adultos</span>
-                                                        <span class="chip"><strong><?= (int)$item['chd'] ?></strong> CHD</span>
+                                                    <div class="chip-row pax-chip-row">
+                                                        <span class="chip pax-chip"><strong><?= (int)$item['pax'] ?></strong> PAX</span>
+                                                        <span class="chip pax-chip"><strong><?= (int)$item['adultos'] ?></strong> adultos</span>
+                                                        <span class="chip pax-chip"><strong><?= (int)$item['chd'] ?></strong> CHD</span>
                                                     </div>
                                                 </td>
-                                                <td data-label="Status">
-                                                    <span class="chip status"><?= h($item['status']) ?></span>
-                                                </td>
+                                                <?php if ($showStatusColumn): ?>
+                                                    <td data-label="Status">
+                                                        <?php if (!in_array(mb_strtolower((string)$item['status'], 'UTF-8'), ['reservada', 'reservado'], true)): ?>
+                                                            <span class="chip status"><?= h($item['status']) ?></span>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                <?php endif; ?>
                                                 <td data-label="Observações">
                                                     <div class="notes-block">
                                                         <?php if ($item['obs_reserva'] !== ''): ?>
@@ -221,6 +377,11 @@ $documentMeta = [
                                     </tbody>
                                 </table>
                             </div>
+                            <?php elseif (empty($grupo['grupos'])): ?>
+                                <div class="turno-table-wrap">
+                                    <div class="empty-state compact-empty-state">Nenhuma reserva encontrada para este turno.</div>
+                                </div>
+                            <?php endif; ?>
                         </section>
                     <?php endforeach; ?>
                 <?php endif; ?>

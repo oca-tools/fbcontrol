@@ -1,4 +1,6 @@
-﻿<?php
+<?php
+declare(strict_types=1);
+
 class DailyReportEmailModel extends Model
 {
     private static ?bool $recipientAttachmentReady = null;
@@ -29,6 +31,11 @@ class DailyReportEmailModel extends Model
         self::$recipientAttachmentReady = true;
     }
 
+    /**
+     * Recupera a configuração ativa do resumo diário usado pela liderança de A&B.
+     *
+     * @return array<string, mixed>
+     */
     public function getConfig(): array
     {
         $stmt = $this->db->query("SELECT * FROM relatorio_email_config WHERE id = 1 LIMIT 1");
@@ -39,13 +46,16 @@ class DailyReportEmailModel extends Model
         return [
             'id' => 1,
             'ativo' => 0,
-            'hora_envio' => '23:00:00',
-            'assunto' => 'Resumo diário A&B - {data}',
-                'remetente_nome' => 'FBControl',
+            'hora_envio' => InteligenciaOperacionalConstants::DEFAULT_EMAIL_SEND_TIME,
+            'assunto' => InteligenciaOperacionalConstants::DEFAULT_DAILY_REPORT_SUBJECT,
+            'remetente_nome' => InteligenciaOperacionalConstants::DEFAULT_EMAIL_SENDER_NAME,
             'remetente_email' => '',
         ];
     }
 
+    /**
+     * Atualiza as regras de envio do resumo diário para manter a governança de comunicação gerencial.
+     */
     public function saveConfig(array $data, int $userId): void
     {
         $before = $this->getConfig();
@@ -71,6 +81,11 @@ class DailyReportEmailModel extends Model
         $this->audit('update', $userId, $before, $after, 'relatorio_email_config', 1);
     }
 
+    /**
+     * Lista os destinatários que recebem os indicadores diários da operação.
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function listRecipients(): array
     {
         $this->ensureRecipientAttachmentColumn();
@@ -82,6 +97,9 @@ class DailyReportEmailModel extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * Adiciona um destinatário ao circuito de acompanhamento diário da liderança.
+     */
     public function addRecipient(string $email, int $userId, bool $receberAnexoVouchers = false): void
     {
         $this->ensureRecipientAttachmentColumn();
@@ -113,6 +131,9 @@ class DailyReportEmailModel extends Model
         ], 'relatorio_email_destinatarios', $id > 0 ? $id : null);
     }
 
+    /**
+     * Define se o destinatário recebe anexos de vouchers junto ao resumo operacional.
+     */
     public function updateRecipientAttachmentFlag(int $id, bool $enabled, int $userId): void
     {
         $this->ensureRecipientAttachmentColumn();
@@ -136,6 +157,9 @@ class DailyReportEmailModel extends Model
         $this->audit('update', $userId, $before, $after, 'relatorio_email_destinatarios', $id);
     }
 
+    /**
+     * Remove um destinatário do fluxo de relatório diário.
+     */
     public function removeRecipient(int $id, int $userId): void
     {
         $before = $this->findRecipient($id);
@@ -147,6 +171,11 @@ class DailyReportEmailModel extends Model
         $this->audit('delete', $userId, $before, [], 'relatorio_email_destinatarios', $id);
     }
 
+    /**
+     * Localiza um destinatário para auditoria de alteração ou remoção.
+     *
+     * @return array<string, mixed>|null
+     */
     public function findRecipient(int $id): ?array
     {
         $stmt = $this->db->prepare("SELECT * FROM relatorio_email_destinatarios WHERE id = :id");
@@ -155,7 +184,12 @@ class DailyReportEmailModel extends Model
         return $row ?: null;
     }
 
-    public function listLogs(int $limit = 20): array
+    /**
+     * Lista os envios recentes para conferência administrativa da rotina diária.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listLogs(int $limit = InteligenciaOperacionalConstants::DEFAULT_REPORT_PAGE_SIZE): array
     {
         $stmt = $this->db->prepare("
             SELECT *
@@ -168,6 +202,11 @@ class DailyReportEmailModel extends Model
         return $stmt->fetchAll();
     }
 
+    /**
+     * Envia o resumo diário de A&B com PAX, vouchers, no-show e anexos quando aplicável.
+     *
+     * @return array{ok: bool, message: string, status?: string, text_preview?: string}
+     */
     public function sendDailyReport(bool $force = false, ?string $dateRef = null): array
     {
         $dateRef = $dateRef ?: date('Y-m-d');
@@ -194,13 +233,16 @@ class DailyReportEmailModel extends Model
         }
 
         $metrics = $this->buildMetrics($dateRef);
-        $subjectTpl = trim((string)($config['assunto'] ?? 'Resumo diário A&B - {data}'));
+        $subjectTpl = trim((string)($config['assunto'] ?? InteligenciaOperacionalConstants::DEFAULT_DAILY_REPORT_SUBJECT));
         $subject = str_replace('{data}', date('d/m/Y', strtotime($dateRef)), $subjectTpl);
-        $subject = $this->sanitizeHeaderValue($subject, 'Resumo diário A&B');
+        $subject = $this->sanitizeHeaderValue($subject, InteligenciaOperacionalConstants::DEFAULT_DAILY_REPORT_SUBJECT_FALLBACK);
         $html = $this->normalizeEmailContent($this->buildHtml($dateRef, $metrics));
         $text = $this->normalizeEmailContent($this->buildText($dateRef, $metrics));
 
-        $fromName = $this->sanitizeHeaderValue((string)($config['remetente_nome'] ?? 'FBControl'), 'FBControl');
+        $fromName = $this->sanitizeHeaderValue(
+            (string)($config['remetente_nome'] ?? InteligenciaOperacionalConstants::DEFAULT_EMAIL_SENDER_NAME),
+            InteligenciaOperacionalConstants::DEFAULT_EMAIL_SENDER_NAME
+        );
         $fromEmailRaw = trim((string)($config['remetente_email'] ?? ''));
         if ($fromEmailRaw === '') {
             $fromEmailRaw = 'no-reply@' . $this->defaultMailDomain();
@@ -211,12 +253,12 @@ class DailyReportEmailModel extends Model
         }
 
         $headers = [];
-        $headers[] = 'MIME-Version: 1.0';
-        $headers[] = 'Content-Type: text/html; charset=UTF-8';
-        $headers[] = 'Content-Transfer-Encoding: quoted-printable';
+        $headers[] = InteligenciaOperacionalConstants::EMAIL_HEADER_MIME;
+        $headers[] = InteligenciaOperacionalConstants::EMAIL_HEADER_HTML;
+        $headers[] = InteligenciaOperacionalConstants::EMAIL_HEADER_TRANSFER_QUOTED;
         $headers[] = 'From: ' . $fromName . ' <' . $fromEmail . '>';
         $headers[] = 'Reply-To: ' . $fromEmail;
-        $headers[] = 'X-Mailer: PHP/' . phpversion();
+        $headers[] = InteligenciaOperacionalConstants::EMAIL_HEADER_MAILER_PREFIX . phpversion();
 
         $okCount = 0;
         $lastError = '';
@@ -232,11 +274,11 @@ class DailyReportEmailModel extends Model
             if ($wantsVoucherAttachment && !empty($voucherAttachments)) {
                 $message = $this->buildMultipartMessage($html, $text, $voucherAttachments);
                 $mailHeaders = [
-                    'MIME-Version: 1.0',
+                    InteligenciaOperacionalConstants::EMAIL_HEADER_MIME,
                     'Content-Type: multipart/mixed; boundary="' . $message['boundary'] . '"',
                     'From: ' . $fromName . ' <' . $fromEmail . '>',
                     'Reply-To: ' . $fromEmail,
-                    'X-Mailer: PHP/' . phpversion(),
+                    InteligenciaOperacionalConstants::EMAIL_HEADER_MAILER_PREFIX . phpversion(),
                 ];
                 $ok = @mail(
                     $to,
@@ -267,17 +309,23 @@ class DailyReportEmailModel extends Model
         ];
     }
 
+    /**
+     * Indica se a rotina automática já deve disparar o resumo diário configurado.
+     */
     public function dueNow(): bool
     {
         $config = $this->getConfig();
         if ((int)($config['ativo'] ?? 0) !== 1) {
             return false;
         }
-        $horaEnvio = (string)($config['hora_envio'] ?? '23:00:00');
+        $horaEnvio = (string)($config['hora_envio'] ?? InteligenciaOperacionalConstants::DEFAULT_EMAIL_SEND_TIME);
         $now = date('H:i:s');
         return $now >= $horaEnvio;
     }
 
+    /**
+     * Verifica se a data de referência já foi comunicada para evitar duplicidade gerencial.
+     */
     public function wasSent(string $dateRef): bool
     {
         $stmt = $this->db->prepare("
@@ -571,7 +619,7 @@ class DailyReportEmailModel extends Model
 
     private function buildText(string $dateRef, array $metrics): string
     {
-        $lines = ["Resumo diário A&B - " . date('d/m/Y', strtotime($dateRef)), ''];
+        $lines = [InteligenciaOperacionalConstants::DEFAULT_DAILY_REPORT_SUBJECT_FALLBACK . ' - ' . date('d/m/Y', strtotime($dateRef)), ''];
         foreach ($metrics as $label => $value) {
             $cleanLabel = $this->normalizeMetricLabel((string)$label);
             $lines[] = $cleanLabel . ': ' . (int)$value;
@@ -611,15 +659,15 @@ class DailyReportEmailModel extends Model
                 continue;
             }
             $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
-            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true)) {
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp', InteligenciaOperacionalConstants::FORMAT_PDF], true)) {
                 continue;
             }
             $files[] = [
                 'path' => $real,
                 'name' => basename($real),
             ];
-            if (count($files) >= 20) {
-                break; // evita e-mails gigantes
+            if (count($files) >= InteligenciaOperacionalConstants::MAX_VOUCHER_EMAIL_ATTACHMENTS) {
+                break;
             }
         }
         return $files;
@@ -630,12 +678,12 @@ class DailyReportEmailModel extends Model
         $boundary = 'oca_fbcontrol_' . bin2hex(random_bytes(8));
         $eol = "\r\n";
         $body = '--' . $boundary . $eol;
-        $body .= 'Content-Type: text/plain; charset=UTF-8' . $eol;
-        $body .= 'Content-Transfer-Encoding: quoted-printable' . $eol . $eol;
+        $body .= InteligenciaOperacionalConstants::EMAIL_HEADER_TEXT . $eol;
+        $body .= InteligenciaOperacionalConstants::EMAIL_HEADER_TRANSFER_QUOTED . $eol . $eol;
         $body .= quoted_printable_encode($text) . $eol;
         $body .= '--' . $boundary . $eol;
-        $body .= 'Content-Type: text/html; charset=UTF-8' . $eol;
-        $body .= 'Content-Transfer-Encoding: quoted-printable' . $eol . $eol;
+        $body .= InteligenciaOperacionalConstants::EMAIL_HEADER_HTML . $eol;
+        $body .= InteligenciaOperacionalConstants::EMAIL_HEADER_TRANSFER_QUOTED . $eol . $eol;
         $body .= quoted_printable_encode($html) . $eol;
 
         foreach ($attachments as $file) {

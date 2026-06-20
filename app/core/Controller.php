@@ -1,8 +1,18 @@
 <?php
+/**
+ * Base comum para controllers web.
+ */
 class Controller
 {
     protected array $data = [];
 
+    /**
+     * Renderiza uma view dentro do layout padrao.
+     *
+     * @param string $view Caminho da view relativo a app/views.
+     * @param array $data Dados expostos ao template.
+     * @return void
+     */
     protected function view(string $view, array $data = []): void
     {
         $this->data = $data;
@@ -13,7 +23,7 @@ class Controller
         if (!file_exists($viewPath)) {
             http_response_code(404);
             $notFoundPath = __DIR__ . '/../views/errors/not_found.php';
-            $message = 'OOps, página não encontrada.';
+            $message = AppConstants::MESSAGE_NOT_FOUND;
             $flash = get_flash();
             if (file_exists($notFoundPath)) {
                 require __DIR__ . '/../views/partials/header.php';
@@ -21,7 +31,7 @@ class Controller
                 require __DIR__ . '/../views/partials/footer.php';
                 return;
             }
-            echo 'View não encontrada.';
+            echo AppConstants::MESSAGE_VIEW_NOT_FOUND;
             return;
         }
 
@@ -30,35 +40,57 @@ class Controller
         require __DIR__ . '/../views/partials/footer.php';
     }
 
+    /**
+     * Redireciona para uma rota local sanitizada.
+     *
+     * @param string $route Rota local desejada.
+     * @return void
+     */
     protected function redirect(string $route): void
     {
-        $safeRoute = sanitize_local_redirect_path($route, '/?r=home');
+        $safeRoute = sanitize_local_redirect_path($route, AppConstants::ROUTE_HOME);
         header('Location: ' . $safeRoute);
         exit;
     }
 
+    /**
+     * Envia o usuario autenticado para a pagina inicial do perfil.
+     *
+     * @return void
+     */
     protected function redirectHome(): void
     {
         $user = Auth::user();
         $perfil = $user['perfil'] ?? '';
 
-        if (in_array($perfil, ['hostess', 'admin', 'supervisor'], true)) {
-            $this->redirect('/?r=access/index');
+        if (in_array($perfil, AppConstants::ACCESS_HOME_ROLES, true)) {
+            $this->redirect(AppConstants::ROUTE_ACCESS_INDEX);
         }
-        if ($perfil === 'gerente') {
-            $this->redirect('/?r=dashboard/index');
+        if ($perfil === AppConstants::ROLE_MANAGER) {
+            $this->redirect(AppConstants::ROUTE_DASHBOARD_INDEX);
         }
-        $this->redirect('/?r=auth/login');
+        $this->redirect(AppConstants::ROUTE_LOGIN);
     }
 
+    /**
+     * Exige sessao autenticada para continuar.
+     *
+     * @return void
+     */
     protected function requireAuth(): void
     {
         if (!Auth::check()) {
-            $this->redirect('/?r=auth/login');
+            $this->redirect(AppConstants::ROUTE_LOGIN);
         }
     }
 
-    protected function forbidden(string $message = 'OOps, acesso não autorizado.'): void
+    /**
+     * Renderiza a resposta padrao de acesso negado.
+     *
+     * @param string $message Mensagem exibida ao usuario.
+     * @return void
+     */
+    protected function forbidden(string $message = AppConstants::MESSAGE_FORBIDDEN): void
     {
         http_response_code(403);
         $this->view('errors/forbidden', [
@@ -68,7 +100,13 @@ class Controller
         exit;
     }
 
-    protected function notFound(string $message = 'OOps, página não encontrada.'): void
+    /**
+     * Renderiza a resposta padrao de pagina nao encontrada.
+     *
+     * @param string $message Mensagem exibida ao usuario.
+     * @return void
+     */
+    protected function notFound(string $message = AppConstants::MESSAGE_NOT_FOUND): void
     {
         http_response_code(404);
         $this->view('errors/not_found', [
