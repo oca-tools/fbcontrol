@@ -1478,7 +1478,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
                             <div class="mb-3">
                                 <label class="form-label">Idades CHD (opcional)</label>
-                                <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3y7y">
+                                <input type="text" class="form-control input-xl" name="chd_idades" value="<?= h($editItem['chd_idades'] ?? '') ?>" placeholder="Ex: 3y ou 3m">
                             </div>
 
                             <div class="mb-3">
@@ -2054,7 +2054,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             <div class="batch-row-grid">
                 <div><label class="form-label">UH</label><input class="form-control" name="batch_uh_numero[]" inputmode="numeric" required></div>
                 <div><label class="form-label">PAX</label><input type="number" class="form-control" min="1" name="batch_pax[]" value="1" required></div>
-                <div><label class="form-label">CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="Ex: 3y7y"></div>
+                <div><label class="form-label">CHD</label><input class="form-control" name="batch_chd_idades[]" placeholder="Ex: 3y ou 3m"></div>
                 <div class="d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row" aria-label="Remover UH"><i class="bi bi-dash-lg"></i></button></div>
             </div>
         `;
@@ -2182,12 +2182,13 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         pax_grupo_invalido: 'Preencha a quantidade de PAX em todas as UHs do grupo.',
         grupo_sem_titular: 'Informe o titular do grupo.',
         grupo_sem_uh: 'Adicione ao menos uma UH no grupo.',
+        grupo_uh_minimo: 'Reserva em grupo precisa ter pelo menos duas habitações.',
         reserva_duplicada_uh: 'Esta UH já possui reserva nesse restaurante, data e turno.',
         chd_maior_que_pax: 'As idades de CHD não podem exceder a quantidade total de PAX.',
         chd_grupo_maior_que_pax: 'A quantidade de CHD não pode ser maior que o PAX da UH.',
         uh_duplicada_grupo: 'Há UHs repetidas no grupo. Remova a duplicidade antes de salvar.',
         uh_grupo_invalida: 'Uma ou mais UHs do grupo não foram encontradas. Confira os números informados.',
-        idades_chd_invalidas: 'Revise o formato das idades CHD. Use o padrão 3y7y, por exemplo.'
+        idades_chd_invalidas: 'Revise o formato das idades CHD. Use 3m para meses, 3y para anos ou combine como 3y/3m.'
     };
 
     const decodeJsonFragment = (value) => {
@@ -2289,6 +2290,14 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             if (defaultName === '') {
                 event.preventDefault();
                 window.fbAlerts?.warning('Informe o titular do grupo.', { modal: true, buttonText: 'Corrigir' });
+                return;
+            }
+            const filledUhs = Array.from(batchRows?.querySelectorAll('input[name="batch_uh_numero[]"]') || [])
+                .map((input) => String(input.value || '').trim())
+                .filter(Boolean);
+            if (filledUhs.length < 2) {
+                event.preventDefault();
+                window.fbAlerts?.warning('Reserva em grupo precisa ter pelo menos duas habitações.', { modal: true, buttonText: 'Corrigir' });
                 return;
             }
         }

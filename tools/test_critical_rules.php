@@ -186,6 +186,15 @@ try {
         ReservaTematicaPolicy::parseChdAges('1y2y4y') === [1, 2, 4],
         'formato documentado preservado'
     );
+    $record(
+        'chd_age_parser_accepts_months',
+        ReservaTematicaPolicy::parseChdAgeEntries('3m9m6m') === [
+            ['idade' => 0, 'label' => '3m', 'unit' => 'm'],
+            ['idade' => 0, 'label' => '9m', 'unit' => 'm'],
+            ['idade' => 0, 'label' => '6m', 'unit' => 'm'],
+        ],
+        'meses preservados para impressao operacional'
+    );
     $invalidAgeRejected = false;
     try {
         ReservaTematicaPolicy::parseChdAges('18y');

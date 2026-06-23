@@ -200,9 +200,9 @@
     }
 
     .group-block {
-        border: 1px solid rgba(239, 107, 46, 0.24);
+        border: 1px solid rgba(24, 129, 120, 0.22);
         border-radius: 16px;
-        background: linear-gradient(180deg, #fff7f1 0%, #ffffff 100%);
+        background: linear-gradient(180deg, #f1fbf8 0%, #ffffff 100%);
         overflow: hidden;
     }
 
@@ -212,8 +212,8 @@
         align-items: flex-start;
         gap: 12px;
         padding: 12px 14px;
-        background: linear-gradient(90deg, rgba(239, 107, 46, 0.1) 0%, rgba(255,255,255,0.96) 100%);
-        border-bottom: 1px solid rgba(239, 107, 46, 0.16);
+        background: linear-gradient(90deg, rgba(24, 129, 120, 0.12) 0%, rgba(255,255,255,0.96) 100%);
+        border-bottom: 1px solid rgba(24, 129, 120, 0.16);
     }
 
     .group-block-kicker {
@@ -223,7 +223,7 @@
         font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: var(--accent-dark);
+        color: #14766f;
         font-weight: 800;
         margin-bottom: 5px;
     }
@@ -253,7 +253,7 @@
         align-items: center;
         gap: 5px;
         border-radius: 999px;
-        border: 1px solid rgba(239, 107, 46, 0.24);
+        border: 1px solid rgba(24, 129, 120, 0.22);
         background: #fff;
         padding: 6px 10px;
         font-size: 10px;
@@ -262,7 +262,7 @@
 
     .group-stat-pill strong {
         font-size: 12px;
-        color: var(--accent-dark);
+        color: #14766f;
     }
 
     .group-block-body {
@@ -321,8 +321,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        justify-self: start;
+        justify-self: stretch;
         min-height: 26px;
+        width: 100%;
         border-radius: 999px;
         background: #1d4d67;
         color: #fff;
@@ -331,6 +332,7 @@
         letter-spacing: 0.02em;
         padding: 5px 9px;
         white-space: nowrap;
+        text-align: center;
     }
 
     .group-member-name {
@@ -378,12 +380,25 @@
     }
 
     .group-note-item {
-        border: 1px dashed rgba(28, 43, 54, 0.18);
+        border: 1px solid rgba(239, 107, 46, 0.28);
         border-radius: 10px;
         padding: 6px 8px;
-        background: #fcfdfd;
+        background: #fff7f1;
         font-size: 10.5px;
         color: var(--ink);
+    }
+
+    .chd-age-line {
+        margin-top: 6px;
+        border-radius: 999px;
+        background: #eef6fb;
+        border: 1px solid rgba(29, 77, 103, 0.14);
+        color: #1d4d67;
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 4px 7px;
+        line-height: 1.15;
+        text-align: center;
     }
 
     .group-note-item span {
@@ -445,13 +460,15 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 60px;
+        width: 72px;
+        min-width: 72px;
         padding: 6px 10px;
         border-radius: 999px;
         background: #1d4d67;
         color: #fff;
         font-weight: 700;
         letter-spacing: 0.03em;
+        text-align: center;
     }
 
     .guest-name {
@@ -519,10 +536,16 @@
 
     .note-line {
         min-height: 24px;
-        border: 1px dashed rgba(28, 43, 54, 0.18);
+        border: 1px solid rgba(28, 43, 54, 0.12);
         border-radius: 10px;
         padding: 6px 8px;
         background: #fcfdfd;
+    }
+
+    .note-line.has-note {
+        border-color: rgba(239, 107, 46, 0.3);
+        background: #fff7f1;
+        box-shadow: inset 3px 0 0 rgba(239, 107, 46, 0.72);
     }
 
     .note-label {
@@ -564,9 +587,16 @@
     .toolbar {
         display: flex;
         flex-wrap: wrap;
-        justify-content: space-between;
+        justify-content: flex-end;
+        align-items: center;
         gap: 12px;
         padding: 14px 18px 18px;
+    }
+
+    .toolbar-top {
+        padding: 12px 18px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
     }
 
     .toolbar-note {

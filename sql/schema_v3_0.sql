@@ -392,6 +392,7 @@ CREATE TABLE `reservas_tematicas_chd` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `reserva_id` int(11) NOT NULL,
   `idade` tinyint(3) unsigned NOT NULL,
+  `idade_label` varchar(8) DEFAULT NULL,
   `criado_em` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_res_tem_chd_reserva` (`reserva_id`),

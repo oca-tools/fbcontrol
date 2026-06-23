@@ -46,6 +46,7 @@ try {
         'sql/migration_v2_9_performance_indexes.sql',
         'sql/migration_v3_0_query_performance.sql',
         'sql/migration_v3_1_audit_security.sql',
+        'sql/migration_v3_2_chd_age_labels.sql',
         'tools/run_checks.php',
         'tools/healthcheck_fbcontrol.php',
         'tools/check_db_context.php',
@@ -79,6 +80,7 @@ try {
         'idx_turnos_inicio',
         'idx_acessos_rest_oper_data',
         'idx_res_tem_duplicate_lookup',
+        'idade_label',
     ] as $needle) {
         $record('schema_contains_' . $needle, strpos($schema, $needle) !== false, $needle);
     }

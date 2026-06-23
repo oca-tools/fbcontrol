@@ -171,15 +171,27 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
             return;
         }
 
-        $insert = $this->db->prepare("
-            INSERT INTO reservas_tematicas_chd (reserva_id, idade, criado_em)
-            VALUES (:reserva_id, :idade, NOW())
-        ");
+        $hasLabel = $this->hasChdLabelColumn();
+        $insert = $hasLabel
+            ? $this->db->prepare("
+                INSERT INTO reservas_tematicas_chd (reserva_id, idade, idade_label, criado_em)
+                VALUES (:reserva_id, :idade, :idade_label, NOW())
+            ")
+            : $this->db->prepare("
+                INSERT INTO reservas_tematicas_chd (reserva_id, idade, criado_em)
+                VALUES (:reserva_id, :idade, NOW())
+            ");
         foreach ($idades as $idade) {
-            $insert->execute([
+            $idadeValor = is_array($idade) ? (int)($idade['idade'] ?? 0) : (int)$idade;
+            $idadeLabel = is_array($idade) ? (string)($idade['label'] ?? ($idadeValor . 'y')) : ($idadeValor . 'y');
+            $params = [
                 ':reserva_id' => $reservaId,
-                ':idade' => (int)$idade,
-            ]);
+                ':idade' => $idadeValor,
+            ];
+            if ($hasLabel) {
+                $params[':idade_label'] = $idadeLabel;
+            }
+            $insert->execute($params);
         }
     }
 
@@ -634,5 +646,23 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
     private function hasChdTable(): bool
     {
         return $this->hasTable('reservas_tematicas_chd', $this->hasChdTableCache);
+    }
+
+    private ?bool $hasChdLabelColumnCache = null;
+
+    private function hasChdLabelColumn(): bool
+    {
+        if ($this->hasChdLabelColumnCache !== null) {
+            return $this->hasChdLabelColumnCache;
+        }
+
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas_chd LIKE 'idade_label'");
+            $this->hasChdLabelColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasChdLabelColumnCache = false;
+        }
+
+        return $this->hasChdLabelColumnCache;
     }
 }

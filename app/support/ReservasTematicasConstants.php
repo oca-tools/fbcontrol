@@ -69,6 +69,7 @@ final class ReservasTematicasConstants
     public const CODE_FORA_JANELA_RESERVA = 'fora_janela_reserva';
     public const CODE_GRUPO_SEM_TITULAR = 'grupo_sem_titular';
     public const CODE_GRUPO_SEM_UH = 'grupo_sem_uh';
+    public const CODE_GRUPO_UH_MINIMO = 'grupo_uh_minimo';
     public const CODE_IDADES_CHD_INVALIDAS = 'idades_chd_invalidas';
     public const CODE_JUSTIFICATIVA_OBRIGATORIA = 'justificativa_obrigatoria';
     public const CODE_PAX_ACIMA_LIMITE_UH = 'pax_acima_limite_uh';
@@ -107,6 +108,7 @@ final class ReservasTematicasConstants
     public const MESSAGE_GRUPO_CRIADO = 'Grupo de reservas registrado com sucesso.';
     public const MESSAGE_GRUPO_SEM_TITULAR = 'Informe o titular do grupo.';
     public const MESSAGE_GRUPO_SEM_UH = 'Adicione ao menos uma UH no grupo.';
+    public const MESSAGE_GRUPO_UH_MINIMO = 'Reserva em grupo precisa ter pelo menos duas habitações.';
     public const MESSAGE_JUSTIFICATIVA_TURNO = 'Informe a justificativa para alterar turno encerrado.';
     public const MESSAGE_JUSTIFICATIVA_TURNO_DESTINO = 'Informe a justificativa para alterar reserva de turno encerrado.';
     public const MESSAGE_NO_SHOW_AUTO_PROCESSADO = 'No-show automático processado.';

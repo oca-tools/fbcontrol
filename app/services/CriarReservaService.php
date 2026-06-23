@@ -148,6 +148,12 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 ReservasTematicasConstants::MESSAGE_GRUPO_SEM_UH
             );
         }
+        if (count($itensDoGrupo) < 2) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_GRUPO_UH_MINIMO,
+                ReservasTematicasConstants::MESSAGE_GRUPO_UH_MINIMO
+            );
+        }
 
         $paxTotalDoGrupo = array_sum(array_map(static fn(array $item): int => (int)$item['pax'], $itensDoGrupo));
         $erroCapacidade = $this->validarCapacidadeDoTurno($command->restauranteId, $command->dataReserva, $command->turnoId, $paxTotalDoGrupo);
@@ -194,7 +200,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
         }
 
         try {
-            $idadesChd = ReservaTematicaPolicy::parseChdAges($command->chdIdadesTexto);
+            $idadesChd = ReservaTematicaPolicy::parseChdAgeEntries($command->chdIdadesTexto);
         } catch (RuntimeException $e) {
             return ServiceResult::failure(ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS, $e->getMessage());
         }
@@ -273,7 +279,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
             }
 
             try {
-                $idadesItem = ReservaTematicaPolicy::parseChdAges((string)($command->batchChdIdades[$indice] ?? ''));
+                $idadesItem = ReservaTematicaPolicy::parseChdAgeEntries((string)($command->batchChdIdades[$indice] ?? ''));
             } catch (RuntimeException $e) {
                 return ServiceResult::failure(ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS, $e->getMessage());
             }

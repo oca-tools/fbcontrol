@@ -10,6 +10,7 @@ class ReservaTematicaModel extends Model
     private ?bool $hasGrupoNomeColumnCache = null;
     private ?bool $hasGruposTableCache = null;
     private ?bool $hasChdTableCache = null;
+    private ?bool $hasChdLabelColumnCache = null;
     private const STATUS_NO_SHOW_VARIANTS = ['Nao compareceu', 'Não compareceu', 'Não compareceu', 'Não compareceu'];
     private const STATUS_DIVERGENCIA_VARIANTS = ['Divergencia', 'Divergência', 'Divergência', 'Divergência'];
 
@@ -137,6 +138,20 @@ class ReservaTematicaModel extends Model
             $this->hasChdTableCache = false;
         }
         return $this->hasChdTableCache;
+    }
+
+    private function hasChdLabelColumn(): bool
+    {
+        if ($this->hasChdLabelColumnCache !== null) {
+            return $this->hasChdLabelColumnCache;
+        }
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM reservas_tematicas_chd LIKE 'idade_label'");
+            $this->hasChdLabelColumnCache = (bool)$stmt->fetch();
+        } catch (Throwable $e) {
+            $this->hasChdLabelColumnCache = false;
+        }
+        return $this->hasChdLabelColumnCache;
     }
 
     private function paxAdultoExpr(string $alias = 'rsv'): string
@@ -295,15 +310,27 @@ class ReservaTematicaModel extends Model
             return;
         }
 
-        $ins = $this->db->prepare("
-            INSERT INTO reservas_tematicas_chd (reserva_id, idade, criado_em)
-            VALUES (:reserva_id, :idade, NOW())
-        ");
+        $hasLabel = $this->hasChdLabelColumn();
+        $ins = $hasLabel
+            ? $this->db->prepare("
+                INSERT INTO reservas_tematicas_chd (reserva_id, idade, idade_label, criado_em)
+                VALUES (:reserva_id, :idade, :idade_label, NOW())
+            ")
+            : $this->db->prepare("
+                INSERT INTO reservas_tematicas_chd (reserva_id, idade, criado_em)
+                VALUES (:reserva_id, :idade, NOW())
+            ");
         foreach ($idades as $idade) {
-            $ins->execute([
+            $idadeValor = is_array($idade) ? (int)($idade['idade'] ?? 0) : (int)$idade;
+            $idadeLabel = is_array($idade) ? (string)($idade['label'] ?? ($idadeValor . 'y')) : ($idadeValor . 'y');
+            $params = [
                 ':reserva_id' => $reservaId,
-                ':idade' => (int)$idade,
-            ]);
+                ':idade' => $idadeValor,
+            ];
+            if ($hasLabel) {
+                $params[':idade_label'] = $idadeLabel;
+            }
+            $ins->execute($params);
         }
     }
 
@@ -325,8 +352,11 @@ class ReservaTematicaModel extends Model
             $params[$key] = $id;
         }
 
+        $labelExpr = $this->hasChdLabelColumn()
+            ? "COALESCE(NULLIF(TRIM(idade_label), ''), CASE WHEN idade > 0 THEN CONCAT(idade, 'y') ELSE '<1y' END) AS idade_display"
+            : "CASE WHEN idade > 0 THEN CONCAT(idade, 'y') ELSE '<1y' END AS idade_display";
         $stmt = $this->db->prepare("
-            SELECT reserva_id, idade
+            SELECT reserva_id, idade, {$labelExpr}
             FROM reservas_tematicas_chd
             WHERE reserva_id IN (" . implode(', ', $placeholders) . ")
             ORDER BY reserva_id, id
@@ -342,7 +372,10 @@ class ReservaTematicaModel extends Model
             if (!isset($map[$rid])) {
                 $map[$rid] = [];
             }
-            $map[$rid][] = (int)($row['idade'] ?? 0);
+            $idadeDisplay = trim((string)($row['idade_display'] ?? ''));
+            if ($idadeDisplay !== '') {
+                $map[$rid][] = $idadeDisplay;
+            }
         }
         return $map;
     }
@@ -1481,7 +1514,4 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 }
-
-
-
 

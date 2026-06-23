@@ -77,6 +77,7 @@ mysql -u usuario -p nome_do_banco < sql/migration_v2_8_turnos_modo_demo.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v2_9_performance_indexes.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_0_query_performance.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_2_chd_age_labels.sql
 ```
 
 Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v3_0.sql`.

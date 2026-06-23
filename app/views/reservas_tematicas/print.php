@@ -14,6 +14,41 @@ $summary = [
 ];
 $turnos = [];
 
+function format_chd_ages_for_print(string $ages): string
+{
+    $ages = trim(normalize_mojibake($ages));
+    if ($ages === '') {
+        return '';
+    }
+
+    $parts = preg_split('/\s*,\s*/', $ages, -1, PREG_SPLIT_NO_EMPTY);
+    $formatted = [];
+    foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part === '') {
+            continue;
+        }
+        if (preg_match('/^(\d+)\s*y$/i', $part, $match)) {
+            $value = (int)$match[1];
+            $formatted[] = $value . ' ' . ($value === 1 ? 'ano' : 'anos');
+            continue;
+        }
+        if (preg_match('/^(\d+)\s*m$/i', $part, $match)) {
+            $value = (int)$match[1];
+            $formatted[] = $value . ' ' . ($value === 1 ? 'mês' : 'meses');
+            continue;
+        }
+        if ($part === '<1y') {
+            $formatted[] = 'menos de 1 ano';
+            continue;
+        }
+
+        $formatted[] = $part;
+    }
+
+    return implode(', ', $formatted);
+}
+
 foreach ($reservas as $row) {
     $turno = normalize_mojibake((string)($row['turno_hora'] ?? '--:--'));
     if (!isset($turnos[$turno])) {
@@ -37,6 +72,7 @@ foreach ($reservas as $row) {
     $titular = trim(normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')));
     $grupo = trim(normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? '')));
     $status = trim(normalize_mojibake((string)($row['status_reserva'] ?? $row['status'] ?? 'Reservada')));
+    $idadesChd = format_chd_ages_for_print((string)($row['chd_idades_display'] ?? ''));
 
     $itemReserva = [
         'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
@@ -46,6 +82,7 @@ foreach ($reservas as $row) {
         'pax' => $pax,
         'adultos' => $adultos,
         'chd' => $chd,
+        'idades_chd' => $idadesChd,
         'status' => $status !== '' ? $status : 'Reservada',
         'obs_reserva' => $obsReserva,
         'obs_operacao' => $obsOperacao,
@@ -127,7 +164,6 @@ unset($turnoData);
 
 $showStatusColumn = !empty($summary['has_non_reservada']);
 $documentTitle = $tipo === 'detalhada' ? 'Impressão operacional de reservas' : 'Resumo de reservas temáticas';
-$documentSubtitle = 'Lista preparada para apoio rápido da operação, montagem do ambiente e conferência do serviço.';
 $documentMeta = [
     'Data' => !empty($filters['data']) ? format_date_br((string)$filters['data']) : format_date_br(date('Y-m-d')),
     'Restaurante' => normalize_mojibake((string)($filters['restaurante_nome'] ?? 'Todos')),
@@ -145,10 +181,16 @@ $documentMeta = [
 <body>
     <div class="export-page">
         <div class="export-shell">
+            <div class="toolbar toolbar-top no-print">
+                <div class="toolbar-actions">
+                    <button type="button" class="ghost" onclick="window.close()">Fechar</button>
+                    <button type="button" onclick="window.print()">Imprimir agora</button>
+                </div>
+            </div>
+
             <header class="export-hero">
                 <div class="export-kicker">FBControl · Operação temática</div>
                 <h1 class="export-title"><?= h($documentTitle) ?></h1>
-                <div class="export-subtitle"><?= h($documentSubtitle) ?></div>
             </header>
 
             <section class="export-meta">
@@ -194,7 +236,6 @@ $documentMeta = [
                             <div class="turno-header">
                                 <div>
                                     <h2 class="turno-title">Turno <?= h($grupo['turno']) ?></h2>
-                                    <div class="turno-subtitle">Leitura pensada para salão, cozinha e conferência manual durante o serviço.</div>
                                 </div>
                                 <div class="turno-stats">
                                     <span class="stat-pill"><strong><?= count($grupo['reservas']) ?></strong> reservas</span>
@@ -272,6 +313,9 @@ $documentMeta = [
                                                                     <span>CHD</span>
                                                                 </div>
                                                             </div>
+                                                            <?php if ($itemGrupo['idades_chd'] !== ''): ?>
+                                                                <div class="chd-age-line">Idades CHD: <?= h($itemGrupo['idades_chd']) ?></div>
+                                                            <?php endif; ?>
                                                             <?php if ($itemGrupo['obs_reserva'] !== '' || $itemGrupo['obs_operacao'] !== '' || $itemGrupo['tags'] !== ''): ?>
                                                                 <div class="group-note-stack">
                                                                     <?php if ($itemGrupo['obs_reserva'] !== ''): ?>
@@ -305,7 +349,7 @@ $documentMeta = [
                                             <?php if ($showStatusColumn): ?>
                                                 <th style="width:120px;">Status</th>
                                             <?php endif; ?>
-                                            <th>Observações operacionais</th>
+                                            <th>Observações</th>
                                             <th class="check-column">Checagem</th>
                                         </tr>
                                     </thead>
@@ -331,6 +375,9 @@ $documentMeta = [
                                                         <span class="chip pax-chip"><strong><?= (int)$item['adultos'] ?></strong> adultos</span>
                                                         <span class="chip pax-chip"><strong><?= (int)$item['chd'] ?></strong> CHD</span>
                                                     </div>
+                                                    <?php if ($item['idades_chd'] !== ''): ?>
+                                                        <div class="chd-age-line">Idades: <?= h($item['idades_chd']) ?></div>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <?php if ($showStatusColumn): ?>
                                                     <td data-label="Status">
@@ -344,27 +391,21 @@ $documentMeta = [
                                                 <td data-label="Observações">
                                                     <div class="notes-block">
                                                         <?php if ($item['obs_reserva'] !== ''): ?>
-                                                            <div class="note-line">
+                                                            <div class="note-line has-note">
                                                                 <span class="note-label">Reserva</span>
                                                                 <div><?= h($item['obs_reserva']) ?></div>
                                                             </div>
                                                         <?php endif; ?>
                                                         <?php if ($item['obs_operacao'] !== ''): ?>
-                                                            <div class="note-line">
+                                                            <div class="note-line has-note">
                                                                 <span class="note-label">Operação</span>
                                                                 <div><?= h($item['obs_operacao']) ?></div>
                                                             </div>
                                                         <?php endif; ?>
                                                         <?php if ($item['tags'] !== ''): ?>
-                                                            <div class="note-line">
+                                                            <div class="note-line has-note">
                                                                 <span class="note-label">Tags</span>
                                                                 <div><?= h($item['tags']) ?></div>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                        <?php if ($item['obs_reserva'] === '' && $item['obs_operacao'] === '' && $item['tags'] === ''): ?>
-                                                            <div class="note-line">
-                                                                <span class="note-label">Observações</span>
-                                                                <div>Sem apontamentos adicionais.</div>
                                                             </div>
                                                         <?php endif; ?>
                                                     </div>
@@ -387,15 +428,6 @@ $documentMeta = [
                 <?php endif; ?>
             </div>
 
-            <div class="toolbar no-print">
-                <div class="toolbar-note">
-                    Esta impressão prioriza leitura rápida, totais por turno e espaço de checagem manual para a equipe operacional.
-                </div>
-                <div class="toolbar-actions">
-                    <button type="button" class="ghost" onclick="window.close()">Fechar</button>
-                    <button type="button" onclick="window.print()">Imprimir agora</button>
-                </div>
-            </div>
         </div>
     </div>
 </body>

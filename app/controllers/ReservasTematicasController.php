@@ -240,7 +240,7 @@ class ReservasTematicasController extends Controller
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
             $editItem['uh_numero'] = $uhRow['numero'] ?? '';
             $agesMap = $reservaModel->getChdAgesMap([$editId]);
-            $editItem['chd_idades'] = isset($agesMap[$editId]) && !empty($agesMap[$editId]) ? implode('y', $agesMap[$editId]) . 'y' : '';
+            $editItem['chd_idades'] = isset($agesMap[$editId]) && !empty($agesMap[$editId]) ? implode('', $agesMap[$editId]) : '';
             $editItem['qtd_chd'] = (int)($editItem['qtd_chd'] ?? 0);
             $editItem['pax_adulto'] = (int)($editItem['pax_adulto'] ?? max(0, (int)($editItem['pax'] ?? 0) - (int)$editItem['qtd_chd']));
         }
@@ -647,6 +647,12 @@ class ReservasTematicasController extends Controller
         ];
         $tipo = $_GET['tipo'] ?? 'detalhada';
         $reservas = $reservaModel->listByFilters($filters);
+        $idadesPorReserva = $reservaModel->getChdAgesMap(array_column($reservas, 'id'));
+        foreach ($reservas as &$reserva) {
+            $reservaId = (int)($reserva['id'] ?? 0);
+            $reserva['chd_idades_display'] = isset($idadesPorReserva[$reservaId]) ? implode(', ', $idadesPorReserva[$reservaId]) : '';
+        }
+        unset($reserva);
 
         $filters['restaurante_nome'] = 'Todos';
         if (!empty($filters['restaurante_id'])) {
@@ -695,6 +701,7 @@ class ReservasTematicasController extends Controller
             ReservasTematicasConstants::CODE_UH_DUPLICADA_GRUPO,
             ReservasTematicasConstants::CODE_PAX_GRUPO_INVALIDO,
             ReservasTematicasConstants::CODE_CHD_GRUPO_MAIOR_QUE_PAX,
+            ReservasTematicasConstants::CODE_GRUPO_UH_MINIMO,
             ReservasTematicasConstants::CODE_RESERVA_DUPLICADA_UH,
             ReservasTematicasConstants::CODE_CONFIRMAR_STATUS_DEFINITIVO,
             ReservasTematicasConstants::CODE_STATUS_DEFINITIVO_BLOQUEADO,
