@@ -1375,3 +1375,116 @@ html[data-theme='dark'] .app-content .saas-hero-card {
         white-space: nowrap;
     }
 }
+
+@media (max-width: 576px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden !important;
+    }
+
+    .app-shell {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    .app-main {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 10px 8px 76px !important;
+        overflow-x: hidden !important;
+    }
+
+    .app-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .mobile-nav {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: .45rem;
+        padding: .54rem !important;
+    }
+
+    .mobile-nav .brand {
+        flex: 1 1 auto;
+        min-width: 0 !important;
+        max-width: calc(100% - 154px);
+    }
+
+    .mobile-brand-logo {
+        width: min(138px, 40vw) !important;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    .mobile-nav .brand-sub {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-nav > .d-flex {
+        flex: 0 0 auto;
+        min-width: 0;
+        gap: .32rem !important;
+    }
+
+    .mobile-nav .btn {
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        min-height: 36px !important;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 36px;
+    }
+
+    .mobile-nav .menu-btn {
+        font-size: 0 !important;
+        gap: 0 !important;
+    }
+
+    .mobile-nav .menu-btn i {
+        font-size: 1rem;
+    }
+
+    .saas-page,
+    .saas-page > *,
+    .saas-hero-card,
+    .saas-table-card,
+    .saas-mini-card,
+    .card,
+    .section-block,
+    .metric-card {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0 !important;
+    }
+
+    .saas-title,
+    .saas-subtitle,
+    .saas-label,
+    .saas-table-head,
+    .dashboard-panel-summary,
+    .btn,
+    .tag,
+    .badge,
+    .stat-chip {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+}
