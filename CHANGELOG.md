@@ -10,6 +10,9 @@ Release de polimento, escala e governanca.
 - Logo e identidade visual renovadas para FBControl.
 - Modulo de reservas tematicas redesenhado para cadastro, operacao, administracao e relatorios.
 - Bloqueios de restaurante tematico por data e por dia da semana.
+- Fechamento tematico por periodo de sete dias com abertura pontual de excecao.
+- Disponibilidade tematica atualizada automaticamente ao trocar a data, sem reutilizar cache antigo.
+- Redirecionamento pos-login alinhado ao perfil para evitar chegada indevida em pagina de acesso negado.
 - Modo demonstracao para treinamento, restrito a administradores.
 - Permissoes ajustadas para gerente A&B em modulos operacionais e administrativos relevantes.
 - Usuarios com abas de ativos/desativados e melhor experiencia mobile.

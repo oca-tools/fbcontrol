@@ -75,6 +75,12 @@ foreach ($configs as $cfg) {
         gap: 1rem;
         align-items: stretch;
     }
+    .tematic-admin-page .closure-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        align-items: stretch;
+    }
     .tematic-admin-page .closure-panel {
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 18px;
@@ -408,6 +414,9 @@ foreach ($configs as $cfg) {
         .tematic-admin-page .capacity-card-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+        .tematic-admin-page .closure-actions-grid {
+            grid-template-columns: 1fr;
+        }
     }
     @media (max-width: 768px) {
         .tematic-admin-page .capacity-card-grid {
@@ -490,18 +499,18 @@ foreach ($configs as $cfg) {
         <div class="icon"><i class="bi bi-calendar-x"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Rotina por ocupação</div>
-            <h5 class="fw-bold mb-0">Fechamento de restaurante por data</h5>
-            <div class="text-muted small">Bloqueia novas reservas no temático selecionado sem apagar reservas já registradas.</div>
+            <h5 class="fw-bold mb-0">Disponibilidade por data e período</h5>
+            <div class="text-muted small">Feche um dia ou uma semana inteira e crie aberturas pontuais sem apagar reservas existentes.</div>
         </div>
     </div>
 
-    <div class="closure-workspace">
+    <div class="closure-actions-grid">
         <div class="closure-panel">
-            <div class="closure-panel-title"><i class="bi bi-plus-circle"></i><span>Novo fechamento pontual</span></div>
+            <div class="closure-panel-title"><i class="bi bi-calendar-x"></i><span>Fechar um dia</span></div>
             <form method="post" action="/?r=reservasTematicas/admin" class="closure-form-grid">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" value="bloqueio_data">
-                <input type="hidden" name="fechar" value="1">
+                <input type="hidden" name="modo" value="fechado">
                 <div>
                     <label class="form-label mb-1">Data</label>
                     <input type="date" class="form-control input-xl" name="data_bloqueio" value="<?= h($capacidadeData) ?>" required>
@@ -525,32 +534,92 @@ foreach ($configs as $cfg) {
             </form>
         </div>
 
-        <div class="closure-panel closure-panel-muted">
-            <div class="closure-panel-title"><i class="bi bi-calendar-check"></i><span>Fechados em <?= h(date('d/m/Y', strtotime($capacidadeData))) ?></span></div>
-            <?php if (!empty($bloqueiosData)): ?>
-                <div class="closure-list">
-                    <?php foreach ($bloqueiosData as $bloqueio): ?>
-                        <form method="post" action="/?r=reservasTematicas/admin" class="closure-card d-flex justify-content-between align-items-center gap-2">
-                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <input type="hidden" name="action" value="bloqueio_data">
-                            <input type="hidden" name="fechar" value="0">
-                            <input type="hidden" name="data_bloqueio" value="<?= h($capacidadeData) ?>">
-                            <input type="hidden" name="restaurante_id" value="<?= (int)$bloqueio['restaurante_id'] ?>">
-                            <input type="hidden" name="motivo" value="<?= h((string)($bloqueio['motivo'] ?? '')) ?>">
-                            <div class="closure-main">
-                                <span class="tag <?= restaurant_badge_class($bloqueio['restaurante']) ?>"><?= h($bloqueio['restaurante']) ?></span>
-                                <div class="text-muted small mt-1"><?= h((string)($bloqueio['motivo'] ?? 'Sem motivo informado')) ?></div>
-                            </div>
-                            <button class="btn btn-outline-primary btn-sm" data-confirm="Reabrir este restaurante para novas reservas nesta data?">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir
-                            </button>
-                        </form>
-                    <?php endforeach; ?>
+        <div class="closure-panel">
+            <div class="closure-panel-title"><i class="bi bi-calendar-range"></i><span>Fechar sete dias</span></div>
+            <form method="post" action="/?r=reservasTematicas/admin" class="closure-form-grid">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="action" value="bloqueio_semana">
+                <div>
+                    <label class="form-label mb-1">Primeiro dia</label>
+                    <input type="date" class="form-control input-xl" name="data_inicio" value="<?= h($capacidadeData) ?>" required>
                 </div>
-            <?php else: ?>
-                <div class="closure-empty">Nenhum restaurante fechado nesta data.</div>
-            <?php endif; ?>
+                <div>
+                    <label class="form-label mb-1">Restaurante</label>
+                    <select class="form-select input-xl" name="restaurante_id" required>
+                        <option value="">Selecione</option>
+                        <?php foreach ($restaurantes as $rest): ?>
+                            <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="span-2">
+                    <label class="form-label mb-1">Motivo</label>
+                    <input type="text" class="form-control input-xl" maxlength="255" name="motivo" placeholder="Ex.: fechamento operacional da semana" required>
+                </div>
+                <div class="span-2 d-grid">
+                    <button class="btn btn-outline-danger btn-xl"><i class="bi bi-calendar-week me-1"></i>Fechar período</button>
+                </div>
+            </form>
         </div>
+
+        <div class="closure-panel">
+            <div class="closure-panel-title"><i class="bi bi-calendar2-check"></i><span>Abertura pontual</span></div>
+            <form method="post" action="/?r=reservasTematicas/admin" class="closure-form-grid">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="action" value="bloqueio_data">
+                <input type="hidden" name="modo" value="aberto">
+                <div>
+                    <label class="form-label mb-1">Data da abertura</label>
+                    <input type="date" class="form-control input-xl" name="data_bloqueio" value="<?= h($capacidadeData) ?>" required>
+                </div>
+                <div>
+                    <label class="form-label mb-1">Restaurante</label>
+                    <select class="form-select input-xl" name="restaurante_id" required>
+                        <option value="">Selecione</option>
+                        <?php foreach ($restaurantes as $rest): ?>
+                            <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="span-2">
+                    <label class="form-label mb-1">Motivo</label>
+                    <input type="text" class="form-control input-xl" maxlength="255" name="motivo" placeholder="Ex.: abertura especial no sábado" required>
+                </div>
+                <div class="span-2 d-grid">
+                    <button class="btn btn-outline-primary btn-xl"><i class="bi bi-unlock me-1"></i>Abrir nesta data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="closure-panel closure-panel-muted mt-3">
+        <div class="closure-panel-title"><i class="bi bi-calendar-check"></i><span>Exceções em <?= h(date('d/m/Y', strtotime($capacidadeData))) ?></span></div>
+        <?php if (!empty($bloqueiosData)): ?>
+            <div class="closure-list-grid">
+                <?php foreach ($bloqueiosData as $bloqueio): ?>
+                    <?php $modoData = (string)($bloqueio['modo'] ?? 'fechado'); ?>
+                    <form method="post" action="/?r=reservasTematicas/admin" class="closure-card d-flex justify-content-between align-items-center gap-2">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="action" value="bloqueio_data">
+                        <input type="hidden" name="modo" value="remover">
+                        <input type="hidden" name="data_bloqueio" value="<?= h($capacidadeData) ?>">
+                        <input type="hidden" name="restaurante_id" value="<?= (int)$bloqueio['restaurante_id'] ?>">
+                        <div class="closure-main">
+                            <span class="tag <?= restaurant_badge_class($bloqueio['restaurante']) ?>"><?= h($bloqueio['restaurante']) ?></span>
+                            <span class="badge <?= $modoData === 'aberto' ? 'text-bg-success' : 'text-bg-danger' ?> ms-1">
+                                <?= $modoData === 'aberto' ? 'Aberto excepcionalmente' : 'Fechado' ?>
+                            </span>
+                            <div class="text-muted small mt-1"><?= h((string)($bloqueio['motivo'] ?? 'Sem motivo informado')) ?></div>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" data-confirm="Remover esta exceção e voltar ao cronograma normal?">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Remover
+                        </button>
+                    </form>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="closure-empty">Nenhuma exceção específica nesta data.</div>
+        <?php endif; ?>
     </div>
 
     <hr class="my-4">

@@ -36,6 +36,7 @@ Em bancos existentes, validar/aplicar as migrations versionadas:
 12. `sql/migration_v3_0_query_performance.sql`
 13. `sql/migration_v3_1_audit_security.sql`
 14. `sql/migration_v3_2_chd_age_labels.sql`
+15. `sql/migration_v3_3_thematic_availability_overrides.sql`
 
 ## Validacao local
 

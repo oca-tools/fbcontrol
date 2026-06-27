@@ -2,38 +2,8 @@
 
 class ReservaTematicaBloqueioSemanalModel extends Model
 {
-    private bool $ensured = false;
-
-    private function ensureTable(): void
-    {
-        if ($this->ensured) {
-            return;
-        }
-
-        $this->db->exec("
-            CREATE TABLE IF NOT EXISTS reservas_tematicas_bloqueios_semanais (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                restaurante_id INT NOT NULL,
-                dia_semana TINYINT NOT NULL,
-                ativo TINYINT(1) NOT NULL DEFAULT 1,
-                motivo VARCHAR(255) NULL,
-                usuario_id INT NULL,
-                criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                atualizado_em DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-                UNIQUE KEY uniq_restaurante_dia (restaurante_id, dia_semana),
-                KEY idx_dia_ativo (dia_semana, ativo),
-                CONSTRAINT fk_bloqueio_semanal_restaurante FOREIGN KEY (restaurante_id) REFERENCES restaurantes(id),
-                CONSTRAINT fk_bloqueio_semanal_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-
-        $this->ensured = true;
-    }
-
     public function seedDefaultsIfEmpty(): void
     {
-        $this->ensureTable();
-
         $count = (int)$this->db->query("SELECT COUNT(*) FROM reservas_tematicas_bloqueios_semanais")->fetchColumn();
         if ($count > 0) {
             return;
@@ -70,8 +40,6 @@ class ReservaTematicaBloqueioSemanalModel extends Model
 
     public function isClosed(int $restauranteId, string $dataReserva): bool
     {
-        $this->ensureTable();
-
         $timestamp = strtotime($dataReserva);
         if ($restauranteId <= 0 || !$timestamp) {
             return false;
@@ -95,8 +63,6 @@ class ReservaTematicaBloqueioSemanalModel extends Model
 
     public function all(): array
     {
-        $this->ensureTable();
-
         $stmt = $this->db->query("
             SELECT b.*, r.nome AS restaurante, u.nome AS usuario
             FROM reservas_tematicas_bloqueios_semanais b
@@ -111,8 +77,6 @@ class ReservaTematicaBloqueioSemanalModel extends Model
 
     public function activeByWeekday(int $diaSemana): array
     {
-        $this->ensureTable();
-
         $stmt = $this->db->prepare("
             SELECT b.*, r.nome AS restaurante
             FROM reservas_tematicas_bloqueios_semanais b
@@ -128,8 +92,6 @@ class ReservaTematicaBloqueioSemanalModel extends Model
 
     public function find(int $restauranteId, int $diaSemana): ?array
     {
-        $this->ensureTable();
-
         $stmt = $this->db->prepare("
             SELECT *
             FROM reservas_tematicas_bloqueios_semanais
@@ -148,8 +110,6 @@ class ReservaTematicaBloqueioSemanalModel extends Model
 
     public function setClosed(int $restauranteId, int $diaSemana, bool $closed, string $motivo, int $userId): void
     {
-        $this->ensureTable();
-
         if ($diaSemana < 0 || $diaSemana > 6) {
             throw new InvalidArgumentException('Dia da semana inválido.');
         }

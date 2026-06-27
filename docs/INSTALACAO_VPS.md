@@ -80,6 +80,7 @@ No servidor, rode:
 cd /var/www/apps/fbcontrol/current
 mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_2_chd_age_labels.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_3_thematic_availability_overrides.sql
 php tools/apply_audit_security_migration.php
 php tools/sanitize_audit_sensitive_data.php
 php tools/sanitize_audit_sensitive_data.php --apply

@@ -22,7 +22,7 @@ class ReservaTematicaBloqueioDataModel extends Model
     public function isClosed(int $restauranteId, string $dataReserva): bool
     {
         $stmt = $this->db->prepare("
-            SELECT id
+            SELECT modo
             FROM reservas_tematicas_bloqueios_datas
             WHERE restaurante_id = :restaurante_id
               AND data_reserva = :data_reserva
@@ -33,8 +33,9 @@ class ReservaTematicaBloqueioDataModel extends Model
             ':restaurante_id' => $restauranteId,
             ':data_reserva' => $dataReserva,
         ]);
-        if ((bool)$stmt->fetch()) {
-            return true;
+        $override = $stmt->fetch();
+        if ($override) {
+            return (string)($override['modo'] ?? 'fechado') !== 'aberto';
         }
 
         return (new ReservaTematicaBloqueioSemanalModel())->isClosed($restauranteId, $dataReserva);
@@ -57,14 +58,29 @@ class ReservaTematicaBloqueioDataModel extends Model
 
     public function setClosed(int $restauranteId, string $dataReserva, bool $closed, string $motivo, int $userId): void
     {
+        if ($closed) {
+            $this->setOverride($restauranteId, $dataReserva, 'fechado', $motivo, $userId);
+            return;
+        }
+
+        $this->removeOverride($restauranteId, $dataReserva, $userId);
+    }
+
+    public function setOverride(int $restauranteId, string $dataReserva, string $modo, string $motivo, int $userId): void
+    {
+        if (!in_array($modo, ['fechado', 'aberto'], true)) {
+            throw new InvalidArgumentException('Modo de disponibilidade inválido.');
+        }
+
         $before = $this->find($restauranteId, $dataReserva) ?? [];
         $stmt = $this->db->prepare("
             INSERT INTO reservas_tematicas_bloqueios_datas
-                (restaurante_id, data_reserva, ativo, motivo, usuario_id, atualizado_em)
+                (restaurante_id, data_reserva, ativo, modo, motivo, usuario_id, atualizado_em)
             VALUES
-                (:restaurante_id, :data_reserva, :ativo, :motivo, :usuario_id, NOW())
+                (:restaurante_id, :data_reserva, 1, :modo, :motivo, :usuario_id, NOW())
             ON DUPLICATE KEY UPDATE
-                ativo = VALUES(ativo),
+                ativo = 1,
+                modo = VALUES(modo),
                 motivo = VALUES(motivo),
                 usuario_id = VALUES(usuario_id),
                 atualizado_em = NOW()
@@ -72,13 +88,43 @@ class ReservaTematicaBloqueioDataModel extends Model
         $stmt->execute([
             ':restaurante_id' => $restauranteId,
             ':data_reserva' => $dataReserva,
-            ':ativo' => $closed ? 1 : 0,
+            ':modo' => $modo,
             ':motivo' => $motivo !== '' ? $motivo : null,
             ':usuario_id' => $userId,
         ]);
         $after = $this->find($restauranteId, $dataReserva) ?? [];
         $this->audit(
-            $closed ? 'close_date' : 'reopen_date',
+            $modo === 'aberto' ? 'open_date_exception' : 'close_date',
+            $userId,
+            $before,
+            $after,
+            'reservas_tematicas_bloqueios_datas',
+            isset($after['id']) ? (int)$after['id'] : null
+        );
+    }
+
+    public function removeOverride(int $restauranteId, string $dataReserva, int $userId): void
+    {
+        $before = $this->find($restauranteId, $dataReserva) ?? [];
+        if ($before === []) {
+            return;
+        }
+
+        $stmt = $this->db->prepare("
+            UPDATE reservas_tematicas_bloqueios_datas
+            SET ativo = 0, usuario_id = :usuario_id, atualizado_em = NOW()
+            WHERE restaurante_id = :restaurante_id
+              AND data_reserva = :data_reserva
+        ");
+        $stmt->execute([
+            ':usuario_id' => $userId,
+            ':restaurante_id' => $restauranteId,
+            ':data_reserva' => $dataReserva,
+        ]);
+
+        $after = $this->find($restauranteId, $dataReserva) ?? [];
+        $this->audit(
+            'remove_date_override',
             $userId,
             $before,
             $after,

@@ -1648,6 +1648,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const selectedSlotTitle = document.getElementById('selectedSlotTitle');
     const selectedSlotMeta = document.getElementById('selectedSlotMeta');
     const availabilityCache = {};
+    let availabilityRequestId = 0;
     const selectedText = (select) => {
         if (!select || !select.value) return '';
         const opt = select.options[select.selectedIndex];
@@ -1829,13 +1830,16 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         });
     };
 
-    const fetchAvailability = async (date) => {
+    const fetchAvailability = async (date, forceRefresh = false) => {
         if (!date) return;
-        if (availabilityCache[date]) {
+        if (!forceRefresh && availabilityCache[date]) {
             return { ok: true, date, availability: availabilityCache[date] };
         }
-        const url = `/?r=reservasTematicas/reservas&ajax=availability&data=${encodeURIComponent(date)}`;
-        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const url = `/?r=reservasTematicas/reservas&ajax=availability&data=${encodeURIComponent(date)}&_=${Date.now()}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
         if (!res.ok) return null;
         const payload = await res.json();
         if (!payload?.ok) return null;
@@ -1887,7 +1891,9 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
     const loadAvailability = async (date) => {
         if (!date) return;
-        const payload = await fetchAvailability(date);
+        const requestId = ++availabilityRequestId;
+        const payload = await fetchAvailability(date, true);
+        if (requestId !== availabilityRequestId) return;
         if (!payload?.ok) return;
         paintAvailability(payload);
         dateLabels.forEach((label) => {
@@ -1897,13 +1903,16 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             input.value = payload.date || date;
         });
         setQuickActive(payload.date || date);
-        if (reservaDateInput && !reservaDateInput.value) {
+        if (reservaDateInput) {
             reservaDateInput.value = payload.date || date;
         }
         await applyTurnoAvailability();
     };
 
     quickBtns.forEach((btn) => btn.addEventListener('click', () => loadAvailability(btn.dataset.date || '')));
+    dateInputs.forEach((input) => {
+        input.addEventListener('change', () => loadAvailability(input.value || ''));
+    });
     goBtns.forEach((btn) => {
         btn.addEventListener('click', () => {
             const localInput = btn.closest('.reserva-date-picker, .d-flex')?.querySelector('.js-availability-date-input');

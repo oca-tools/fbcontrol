@@ -451,6 +451,7 @@ CREATE TABLE `reservas_tematicas_bloqueios_datas` (
   `restaurante_id` int(11) NOT NULL,
   `data_reserva` date NOT NULL,
   `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `modo` enum('fechado','aberto') NOT NULL DEFAULT 'fechado',
   `motivo` varchar(255) DEFAULT NULL,
   `usuario_id` int(11) NOT NULL,
   `atualizado_em` datetime NOT NULL,

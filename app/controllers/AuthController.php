@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function login(): void
     {
         if ($this->authSession->isAuthenticated() && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect(GovernancaConstants::ROUTE_HOME);
+            $this->redirectHome();
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -26,7 +26,7 @@ class AuthController extends Controller
             );
 
             if ($resultado->isSuccess()) {
-                $this->redirect(GovernancaConstants::ROUTE_HOME);
+                $this->redirectHome();
             }
 
             set_flash(GovernancaConstants::FLASH_DANGER, $resultado->message());

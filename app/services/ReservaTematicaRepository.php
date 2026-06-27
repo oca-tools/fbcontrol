@@ -298,7 +298,7 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
     public function restauranteFechadoNaData(int $restauranteId, string $dataReserva): bool
     {
         $stmt = $this->db->prepare("
-            SELECT id
+            SELECT modo
             FROM reservas_tematicas_bloqueios_datas
             WHERE restaurante_id = :restaurante_id
               AND data_reserva = :data_reserva
@@ -309,8 +309,9 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
             ':restaurante_id' => $restauranteId,
             ':data_reserva' => $dataReserva,
         ]);
-        if ((bool)$stmt->fetch()) {
-            return true;
+        $override = $stmt->fetch();
+        if ($override) {
+            return (string)($override['modo'] ?? 'fechado') !== 'aberto';
         }
 
         $diaSemana = (int)(new DateTimeImmutable($dataReserva))->format('w');

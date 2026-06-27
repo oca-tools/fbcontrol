@@ -122,6 +122,8 @@ class ReservasTematicasController extends Controller
         if (($_GET['ajax'] ?? '') === 'availability') {
             $dateAjax = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
             header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('Pragma: no-cache');
             echo json_encode([
                 'ok' => true,
                 'date' => $dateAjax,
@@ -132,6 +134,8 @@ class ReservasTematicasController extends Controller
 
         if (($_GET['ajax'] ?? '') === 'availability_detail') {
             $dateAjax = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            header('Pragma: no-cache');
             $restauranteId = (int)($_GET['restaurante_id'] ?? 0);
             $turnoId = (int)($_GET['turno_id'] ?? 0);
             if ($restauranteId <= 0 || $turnoId <= 0) {
@@ -459,20 +463,58 @@ class ReservasTematicasController extends Controller
                 }
                 $dataBloqueio = sanitize_date_param($_POST['data_bloqueio'] ?? '', '');
                 $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
-                $fechar = (int)($_POST['fechar'] ?? 1) === 1;
+                $modo = (string)($_POST['modo'] ?? ((int)($_POST['fechar'] ?? 1) === 1 ? 'fechado' : 'remover'));
                 $motivo = normalize_mojibake(trim((string)($_POST['motivo'] ?? '')));
                 $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
                 if ($dataBloqueio === '' || !in_array($restauranteId, $restIds, true)) {
                     set_flash('warning', 'Informe uma data e um restaurante temático válidos.');
                     $this->redirect('/?r=reservasTematicas/admin');
                 }
-                if ($fechar && $motivo === '') {
-                    set_flash('warning', 'Informe o motivo do fechamento.');
+                if (!in_array($modo, ['fechado', 'aberto', 'remover'], true)) {
+                    set_flash('warning', 'Selecione uma ação válida para a data.');
                     $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
                 }
-                $bloqueioDataModel->setClosed($restauranteId, $dataBloqueio, $fechar, $motivo, (int)Auth::user()['id']);
-                set_flash('success', $fechar ? 'Restaurante fechado para a data selecionada.' : 'Restaurante reaberto para a data selecionada.');
+                if ($modo !== 'remover' && $motivo === '') {
+                    set_flash('warning', 'Informe o motivo desta alteração de disponibilidade.');
+                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+                }
+                if ($modo === 'remover') {
+                    $bloqueioDataModel->removeOverride($restauranteId, $dataBloqueio, (int)Auth::user()['id']);
+                    set_flash('success', 'Exceção removida. O restaurante voltou a seguir o cronograma normal.');
+                } else {
+                    $bloqueioDataModel->setOverride($restauranteId, $dataBloqueio, $modo, $motivo, (int)Auth::user()['id']);
+                    set_flash('success', $modo === 'aberto'
+                        ? 'Restaurante aberto excepcionalmente nesta data.'
+                        : 'Restaurante fechado para a data selecionada.');
+                }
                 $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+            }
+            if ($action === 'bloqueio_semana') {
+                if (!$canManageBloqueios) {
+                    set_flash('danger', 'Somente admin e gerente podem fechar períodos dos temáticos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                $dataInicio = sanitize_date_param($_POST['data_inicio'] ?? '', '');
+                $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
+                $motivo = normalize_mojibake(trim((string)($_POST['motivo'] ?? '')));
+                $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
+                if ($dataInicio === '' || !in_array($restauranteId, $restIds, true)) {
+                    set_flash('warning', 'Informe a data inicial e um restaurante temático válidos.');
+                    $this->redirect('/?r=reservasTematicas/admin');
+                }
+                if ($motivo === '') {
+                    set_flash('warning', 'Informe o motivo do fechamento do período.');
+                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataInicio));
+                }
+
+                $inicio = new DateTimeImmutable($dataInicio);
+                for ($dia = 0; $dia < 7; $dia++) {
+                    $data = $inicio->modify('+' . $dia . ' days')->format('Y-m-d');
+                    $bloqueioDataModel->setOverride($restauranteId, $data, 'fechado', $motivo, (int)Auth::user()['id']);
+                }
+                $dataFim = $inicio->modify('+6 days')->format('d/m/Y');
+                set_flash('success', 'Restaurante fechado por sete dias, até ' . $dataFim . '.');
+                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataInicio));
             }
             if ($action === 'bloqueio_semanal') {
                 if (!$canManageBloqueios) {

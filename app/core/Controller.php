@@ -64,7 +64,7 @@ class Controller
     protected function redirectHome(): void
     {
         $user = Auth::user();
-        $perfil = $user['perfil'] ?? '';
+        $perfil = strtolower(trim((string)($user['perfil'] ?? '')));
 
         if (in_array($perfil, AppConstants::ACCESS_HOME_ROLES, true)) {
             $this->redirect(AppConstants::ROUTE_ACCESS_INDEX);

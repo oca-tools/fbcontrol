@@ -103,8 +103,16 @@ if ($route === '' || $route === 'home') {
     if (!Auth::check()) {
         $route = 'auth/login';
     } else {
-        $perfil = strtolower((string)(Auth::user()['perfil'] ?? ''));
-        $route = ($perfil === 'gerente') ? 'dashboard/index' : 'access/index';
+        $perfil = strtolower(trim((string)(Auth::user()['perfil'] ?? '')));
+        if ($perfil === AppConstants::ROLE_MANAGER) {
+            $route = 'dashboard/index';
+        } elseif (in_array($perfil, AppConstants::ACCESS_HOME_ROLES, true)) {
+            $route = 'access/index';
+        } else {
+            Auth::logout();
+            set_flash(AppConstants::FLASH_DANGER, 'Seu perfil de acesso precisa ser revisado pela administração.');
+            $route = 'auth/login';
+        }
     }
 }
 
