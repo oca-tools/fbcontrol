@@ -1,6 +1,31 @@
 <?php
 class UnitModel extends Model
 {
+    private const TECHNICAL_UNITS = [998, 999];
+
+    private const OPERATIONAL_RANGES = [
+        [101, 151],
+        [200, 248],
+        [400, 419],
+        [500, 519],
+        [600, 619],
+        [700, 719],
+        [800, 819],
+        [900, 919],
+        [1000, 1019],
+        [1101, 1111],
+        [2100, 2109],
+        [2200, 2209],
+        [2300, 2309],
+        [3100, 3109],
+        [3200, 3209],
+        [3300, 3309],
+        [4000, 4021],
+        [4100, 4122],
+        [4200, 4222],
+        [4300, 4322],
+    ];
+
     private function normalizeNumeroInput(string $numero): string
     {
         $numero = preg_replace('/\s+/u', '', $numero) ?? $numero;
@@ -52,21 +77,16 @@ class UnitModel extends Model
 
     private function isCoreOperationalUnit(int $num): bool
     {
-        if ($num === 998 || $num === 999) {
+        if (in_array($num, self::TECHNICAL_UNITS, true)) {
             return true;
         }
-        if ($num >= 101 && $num <= 299) {
-            return true;
+
+        foreach (self::OPERATIONAL_RANGES as [$start, $end]) {
+            if ($num >= $start && $num <= $end) {
+                return true;
+            }
         }
-        if ($num >= 300 && $num <= 1019) {
-            return true;
-        }
-        if ($num >= 1101 && $num <= 1112) {
-            return true;
-        }
-        if ($num >= 2100 && $num <= 4322) {
-            return true;
-        }
+
         return false;
     }
 
@@ -78,19 +98,21 @@ class UnitModel extends Model
         return $item ?: null;
     }
 
+    public function isValidNumero(string $numero): bool
+    {
+        $numero = $this->normalizeNumeroInput($numero);
+        return $numero !== ''
+            && ctype_digit($numero)
+            && $this->isCoreOperationalUnit((int)$numero);
+    }
+
     public function findByNumero(string $numero): ?array
     {
         $numero = $this->normalizeNumeroInput($numero);
-        if ($numero === '') {
-            return null;
-        }
-        if (!ctype_digit($numero)) {
+        if (!$this->isValidNumero($numero)) {
             return null;
         }
         $numeroInt = (int)$numero;
-        if (!$this->isCoreOperationalUnit($numeroInt)) {
-            return null;
-        }
         $numero = (string)$numeroInt;
 
         $item = $this->findByNumeroFlexible($numero, true);
@@ -110,9 +132,9 @@ class UnitModel extends Model
             }
         }
 
-        // Garante apenas UHs técnicas para operação (Não Informado / Day Use).
-        if (!$anyStatus && in_array($numero, ['998', '999'], true)) {
-            $this->ensureTechnicalUnit($numero);
+        // Auto-reparo: uma UH oficial ausente e criada no primeiro uso.
+        if (!$anyStatus) {
+            $this->ensureOperationalUnit($numero);
             return $this->findByNumeroFlexible($numero, false);
         }
         return null;
@@ -122,19 +144,19 @@ class UnitModel extends Model
     {
         $numero = $this->normalizeNumeroInput($numero);
         $num = (int)$numero;
-        if ($num === 998 || $num === 999) {
+        if (in_array($num, self::TECHNICAL_UNITS, true)) {
             return null; // UHs técnicas (não informado/day use): sem limite rígido por tipologia
         }
-        if ($num >= 101 && $num <= 299) {
+        if (!$this->isCoreOperationalUnit($num)) {
+            return null;
+        }
+        if (($num >= 101 && $num <= 151) || ($num >= 200 && $num <= 248)) {
             return 4; // bangalos (series 100 e 200)
         }
-        if ($num >= 300 && $num <= 1019) {
-            return 5; // standards
+        if ($num <= 1111) {
+            return 5; // blocos standards e suites family
         }
-        if ($num >= 1101 && $num <= 1112) {
-            return 5; // suites family
-        }
-        if ($num >= 2100 && $num <= 4322) {
+        if ($num >= 2100) {
             return 6; // area nova
         }
         return null;
@@ -155,21 +177,13 @@ class UnitModel extends Model
         return $id;
     }
 
-    private function ensureTechnicalUnit(string $numero): void
+    private function ensureOperationalUnit(string $numero): void
     {
         $stmt = $this->db->prepare("
             INSERT INTO unidades_habitacionais (numero, ativo, criado_em)
-            SELECT :numero_insert, 1, NOW()
-            WHERE NOT EXISTS (
-                SELECT 1 FROM unidades_habitacionais WHERE numero = :numero_exists
-            )
+            VALUES (:numero, 1, NOW())
+            ON DUPLICATE KEY UPDATE ativo = 1
         ");
-        $stmt->execute([
-            ':numero_insert' => $numero,
-            ':numero_exists' => $numero,
-        ]);
-
-        $stmtUpdate = $this->db->prepare("UPDATE unidades_habitacionais SET ativo = 1 WHERE numero = :numero");
-        $stmtUpdate->execute([':numero' => $numero]);
+        $stmt->execute([':numero' => $numero]);
     }
 }

@@ -13,6 +13,7 @@ Release de polimento, escala e governanca.
 - Fechamento tematico por periodo de sete dias com abertura pontual de excecao.
 - Disponibilidade tematica atualizada automaticamente ao trocar a data, sem reutilizar cache antigo.
 - Redirecionamento pos-login alinhado ao perfil para evitar chegada indevida em pagina de acesso negado.
+- Validacao de UH alinhada aos blocos oficiais, com autorreparo de unidades validas ausentes como a UH 3200.
 - Modo demonstracao para treinamento, restrito a administradores.
 - Permissoes ajustadas para gerente A&B em modulos operacionais e administrativos relevantes.
 - Usuarios com abas de ativos/desativados e melhor experiencia mobile.

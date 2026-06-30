@@ -53,6 +53,7 @@ $failed = 0;
 $failed += $lint();
 $failed += $run('Audit sanitizer', [$php, 'tools/check_audit_sanitizer.php']);
 $failed += $run('Critical business rules', [$php, 'tools/test_critical_rules.php']);
+$failed += $run('Official UH validation', [$php, 'tools/test_unit_validation.php']);
 $failed += $run('Security controls', [$php, 'tools/test_security_controls.php']);
 $failed += $run('LGPD controls', [$php, 'tools/test_lgpd_controls.php']);
 $failed += $run('Export documents', [$php, 'tools/test_export_documents.php']);

@@ -59,6 +59,7 @@ try {
         'tools/sanitize_audit_sensitive_data.php',
         'tools/test_critical_rules.php',
         'tools/test_thematic_availability.php',
+        'tools/test_unit_validation.php',
         'tools/test_security_controls.php',
         'tools/test_lgpd_controls.php',
         'tools/sanitize_lgpd_event_details.php',
