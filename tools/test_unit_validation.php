@@ -56,12 +56,31 @@ if ($model->maxPaxForNumero('998') !== null || $model->maxPaxForNumero('999') !=
 $db = Database::getInstance();
 $db->beginTransaction();
 try {
-    $uh3200 = (new UnitRepository())->buscarUhPorNumero('3200');
-    if (!$uh3200 || (string)($uh3200['numero'] ?? '') !== '3200' || (int)($uh3200['ativo'] ?? 0) !== 1) {
-        throw new RuntimeException('UH 3200 nao foi criada ou reativada automaticamente.');
+    $repository = new UnitRepository();
+    $repositoryCount = 0;
+    foreach ($ranges as [$start, $end]) {
+        for ($numero = $start; $numero <= $end; $numero++) {
+            $uh = $repository->buscarUhPorNumero((string)$numero);
+            if (!$uh || (string)($uh['numero'] ?? '') !== (string)$numero || (int)($uh['ativo'] ?? 0) !== 1) {
+                throw new RuntimeException('UH oficial nao foi localizada/criada no fluxo real: ' . $numero);
+            }
+            $repositoryCount++;
+        }
     }
-    if ((new UnitRepository())->buscarUhPorNumero('342') !== null) {
-        throw new RuntimeException('UH 342 foi aceita mesmo estando fora da lista oficial.');
+    foreach ([998, 999] as $technical) {
+        $uh = $repository->buscarUhPorNumero((string)$technical);
+        if (!$uh || (string)($uh['numero'] ?? '') !== (string)$technical || (int)($uh['ativo'] ?? 0) !== 1) {
+            throw new RuntimeException('UH tecnica nao foi localizada/criada no fluxo real: ' . $technical);
+        }
+        $repositoryCount++;
+    }
+    foreach ($invalid as $numero) {
+        if ($repository->buscarUhPorNumero((string)$numero) !== null) {
+            throw new RuntimeException('UH fora da lista foi aceita pelo fluxo real: ' . $numero);
+        }
+    }
+    if ($repositoryCount !== $validCount) {
+        throw new RuntimeException('Quantidade divergente no teste do repositorio: ' . $repositoryCount . '/' . $validCount);
     }
     $db->rollBack();
 } catch (Throwable $error) {
@@ -72,4 +91,4 @@ try {
     exit(1);
 }
 
-echo '[OK] ' . $validCount . ' UHs oficiais/tecnicas validadas; lacunas rejeitadas; UH 3200 operacional.' . PHP_EOL;
+echo '[OK] ' . $validCount . ' UHs oficiais/tecnicas passaram pela regra e pelo repositorio real; lacunas rejeitadas.' . PHP_EOL;

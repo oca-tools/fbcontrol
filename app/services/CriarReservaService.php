@@ -18,25 +18,29 @@ final class CriarReservaService implements CriarReservaServiceInterface
      */
     public function executar(CriarReservaCommand $command): ServiceResult
     {
-        if ($command->hostessForaDaJanela) {
-            return ServiceResult::failure(
-                ReservasTematicasConstants::CODE_FORA_JANELA_RESERVA,
-                ReservasTematicasConstants::MESSAGE_FORA_JANELA_RESERVA
-            );
-        }
+        try {
+            if ($command->hostessForaDaJanela) {
+                return ServiceResult::failure(
+                    ReservasTematicasConstants::CODE_FORA_JANELA_RESERVA,
+                    ReservasTematicasConstants::MESSAGE_FORA_JANELA_RESERVA
+                );
+            }
 
-        $erroBase = $this->validarRestauranteTurnoEData($command);
-        if ($erroBase) {
-            return $erroBase;
-        }
+            $erroBase = $this->validarRestauranteTurnoEData($command);
+            if ($erroBase) {
+                return $erroBase;
+            }
 
-        if ($command->acao === ReservasTematicasConstants::ACTION_CREATE_BATCH) {
-            return $this->criarGrupoDeReservas($command);
-        }
+            if ($command->acao === ReservasTematicasConstants::ACTION_CREATE_BATCH) {
+                return $this->criarGrupoDeReservas($command);
+            }
 
-        return $command->acao === ReservasTematicasConstants::ACTION_UPDATE
-            ? $this->atualizarReserva($command)
-            : $this->criarReservaIndividual($command);
+            return $command->acao === ReservasTematicasConstants::ACTION_UPDATE
+                ? $this->atualizarReserva($command)
+                : $this->criarReservaIndividual($command);
+        } catch (Throwable $error) {
+            return $this->falhaDePersistencia($command, $error);
+        }
     }
 
     private function validarRestauranteTurnoEData(CriarReservaCommand $command): ?ServiceResult
@@ -81,9 +85,12 @@ final class CriarReservaService implements CriarReservaServiceInterface
             return $erroCapacidade;
         }
 
-        $reservaId = $this->reservas->criarReserva($dadosDaReserva, $command->usuarioId);
-        $this->reservas->substituirIdadesChd($reservaId, $dadosDaReserva['idades_chd']);
-        $this->reservas->registrarLog($reservaId, ReservasTematicasConstants::ACTION_CREATE, $command->usuarioId, [], $this->reservas->buscarReserva($reservaId) ?? []);
+        $reservaId = 0;
+        $this->reservas->executarTransacao(function () use ($dadosDaReserva, $command, &$reservaId): void {
+            $reservaId = $this->reservas->criarReserva($dadosDaReserva, $command->usuarioId);
+            $this->reservas->substituirIdadesChd($reservaId, $dadosDaReserva['idades_chd']);
+            $this->reservas->registrarLog($reservaId, ReservasTematicasConstants::ACTION_CREATE, $command->usuarioId, [], $this->reservas->buscarReserva($reservaId) ?? []);
+        });
 
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_RESERVA_CRIADA, ['reserva_id' => $reservaId]);
     }
@@ -121,10 +128,12 @@ final class CriarReservaService implements CriarReservaServiceInterface
         }
 
         $antes = $reservaAtual;
-        $this->reservas->atualizarReserva($command->reservaId, $dadosDaReserva, $command->usuarioId);
-        $this->reservas->substituirIdadesChd($command->reservaId, $dadosDaReserva['idades_chd']);
-        $depois = $this->reservas->buscarReserva($command->reservaId) ?? [];
-        $this->reservas->registrarLog($command->reservaId, ReservasTematicasConstants::ACTION_UPDATE, $command->usuarioId, $antes, $depois);
+        $this->reservas->executarTransacao(function () use ($command, $dadosDaReserva, $antes): void {
+            $this->reservas->atualizarReserva($command->reservaId, $dadosDaReserva, $command->usuarioId);
+            $this->reservas->substituirIdadesChd($command->reservaId, $dadosDaReserva['idades_chd']);
+            $depois = $this->reservas->buscarReserva($command->reservaId) ?? [];
+            $this->reservas->registrarLog($command->reservaId, ReservasTematicasConstants::ACTION_UPDATE, $command->usuarioId, $antes, $depois);
+        });
 
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_RESERVA_ATUALIZADA, ['reserva_id' => $command->reservaId]);
     }
@@ -196,20 +205,31 @@ final class CriarReservaService implements CriarReservaServiceInterface
     private function prepararReservaIndividual(CriarReservaCommand $command)
     {
         if ($command->pax <= 0) {
-            return ServiceResult::failure(ReservasTematicasConstants::CODE_PAX_INVALIDO, ReservasTematicasConstants::MESSAGE_PAX_INVALIDO);
+            $sufixoUh = $command->uhNumero !== '' ? ' para a UH ' . $command->uhNumero : '';
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_PAX_INVALIDO,
+                'Informe uma quantidade válida de PAX' . $sufixoUh . '.',
+                ['uh_numero' => $command->uhNumero]
+            );
         }
 
         try {
             $idadesChd = ReservaTematicaPolicy::parseChdAgeEntries($command->chdIdadesTexto);
         } catch (RuntimeException $e) {
-            return ServiceResult::failure(ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS, $e->getMessage());
+            $prefixoUh = $command->uhNumero !== '' ? 'UH ' . $command->uhNumero . ': ' : '';
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS,
+                $prefixoUh . $e->getMessage(),
+                ['uh_numero' => $command->uhNumero]
+            );
         }
 
         $qtdChd = count($idadesChd);
         if ($qtdChd > $command->pax) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_CHD_MAIOR_QUE_PAX,
-                ReservasTematicasConstants::MESSAGE_CHD_MAIOR_QUE_PAX
+                ReservasTematicasConstants::MESSAGE_CHD_MAIOR_QUE_PAX . ($command->uhNumero !== '' ? ' UH: ' . $command->uhNumero . '.' : ''),
+                ['uh_numero' => $command->uhNumero]
             );
         }
         if ($command->uhNumero === '') {
@@ -218,7 +238,11 @@ final class CriarReservaService implements CriarReservaServiceInterface
 
         $uh = $this->unidades->buscarUhPorNumero($command->uhNumero);
         if (!$uh) {
-            return ServiceResult::failure(ReservasTematicasConstants::CODE_UH_INVALIDA, ReservasTematicasConstants::MESSAGE_UH_INVALIDA);
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_UH_INVALIDA,
+                'UH inválida: ' . $command->uhNumero . '. Confira o número informado.',
+                ['uh_numero' => $command->uhNumero]
+            );
         }
         if ($command->titularNome === '') {
             return ServiceResult::failure(
@@ -229,8 +253,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
 
         $erroLimiteUh = $this->validarLimiteDaUh(
             (string)($uh['numero'] ?? $command->uhNumero),
-            $command->pax,
-            ReservasTematicasConstants::MESSAGE_PAX_ACIMA_LIMITE_UH
+            $command->pax
         );
         if ($erroLimiteUh) {
             return $erroLimiteUh;
@@ -274,30 +297,40 @@ final class CriarReservaService implements CriarReservaServiceInterface
             if ($paxItem <= 0) {
                 return ServiceResult::failure(
                     ReservasTematicasConstants::CODE_PAX_GRUPO_INVALIDO,
-                    ReservasTematicasConstants::MESSAGE_PAX_GRUPO_INVALIDO
+                    'Informe uma quantidade válida de PAX para a UH ' . $uhNumero . '.',
+                    ['uh_numero' => $uhNumero, 'linha' => $indice + 1]
                 );
             }
 
             try {
                 $idadesItem = ReservaTematicaPolicy::parseChdAgeEntries((string)($command->batchChdIdades[$indice] ?? ''));
             } catch (RuntimeException $e) {
-                return ServiceResult::failure(ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS, $e->getMessage());
+                return ServiceResult::failure(
+                    ReservasTematicasConstants::CODE_IDADES_CHD_INVALIDAS,
+                    'Idades CHD inválidas na UH ' . $uhNumero . ': ' . $e->getMessage(),
+                    ['uh_numero' => $uhNumero, 'linha' => $indice + 1]
+                );
             }
 
             $qtdChdItem = count($idadesItem);
             if ($qtdChdItem > $paxItem) {
                 return ServiceResult::failure(
                     ReservasTematicasConstants::CODE_CHD_GRUPO_MAIOR_QUE_PAX,
-                    'As idades de CHD não podem exceder o total de PAX na UH ' . $uhNumero . '.'
+                    'As idades de CHD não podem exceder o total de PAX na UH ' . $uhNumero . '.',
+                    ['uh_numero' => $uhNumero, 'linha' => $indice + 1]
                 );
             }
 
             $uh = $this->unidades->buscarUhPorNumero($uhNumero);
             if (!$uh) {
-                return ServiceResult::failure(ReservasTematicasConstants::CODE_UH_GRUPO_INVALIDA, 'UH inválida: ' . $uhNumero);
+                return ServiceResult::failure(
+                    ReservasTematicasConstants::CODE_UH_GRUPO_INVALIDA,
+                    'UH inválida: ' . $uhNumero . '. Confira a linha ' . ($indice + 1) . ' do grupo.',
+                    ['uh_numero' => $uhNumero, 'linha' => $indice + 1]
+                );
             }
 
-            $erroLimiteUh = $this->validarLimiteDaUh((string)($uh['numero'] ?? $uhNumero), $paxItem, 'PAX acima do limite da UH ' . $uhNumero . '.');
+            $erroLimiteUh = $this->validarLimiteDaUh((string)($uh['numero'] ?? $uhNumero), $paxItem);
             if ($erroLimiteUh) {
                 return $erroLimiteUh;
             }
@@ -319,11 +352,15 @@ final class CriarReservaService implements CriarReservaServiceInterface
         return $itens;
     }
 
-    private function validarLimiteDaUh(string $uhNumero, int $pax, string $mensagem): ?ServiceResult
+    private function validarLimiteDaUh(string $uhNumero, int $pax): ?ServiceResult
     {
         $limitePaxDaUh = $this->unidades->limitePaxDaUh($uhNumero);
         if ($limitePaxDaUh !== null && $pax > $limitePaxDaUh) {
-            return ServiceResult::failure(ReservasTematicasConstants::CODE_PAX_ACIMA_LIMITE_UH, $mensagem);
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_PAX_ACIMA_LIMITE_UH,
+                'A UH ' . $uhNumero . ' permite no máximo ' . $limitePaxDaUh . ' PAX. Tentativa: ' . $pax . ' PAX.',
+                ['uh_numero' => $uhNumero, 'pax_limite' => $limitePaxDaUh, 'pax_tentativa' => $pax]
+            );
         }
 
         return null;
@@ -344,11 +381,37 @@ final class CriarReservaService implements CriarReservaServiceInterface
         if ($reservaDuplicadaId && $reservaDuplicadaId !== $ignorarReservaId) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_RESERVA_DUPLICADA_UH,
-                ReservasTematicasConstants::MESSAGE_RESERVA_DUPLICADA_UH
+                'Já existe reserva para a UH ' . $uhNumero . ' neste restaurante, data e turno.',
+                ['uh_numero' => $uhNumero]
             );
         }
 
         return null;
+    }
+
+    private function falhaDePersistencia(CriarReservaCommand $command, Throwable $error): ServiceResult
+    {
+        $uhs = $command->acao === ReservasTematicasConstants::ACTION_CREATE_BATCH
+            ? array_values(array_filter(array_map('trim', array_map('strval', $command->batchUhs))))
+            : array_values(array_filter([$command->uhNumero]));
+        $uhs = array_slice(array_values(array_unique($uhs)), 0, 20);
+        $referencia = $uhs !== [] ? ' para ' . (count($uhs) === 1 ? 'a UH ' : 'as UHs ') . implode(', ', $uhs) : '';
+
+        error_log('[reserva-tematica-save] ' . json_encode([
+            'acao' => $command->acao,
+            'usuario_id' => $command->usuarioId,
+            'restaurante_id' => $command->restauranteId,
+            'turno_id' => $command->turnoId,
+            'data_reserva' => $command->dataReserva,
+            'uhs' => $uhs,
+            'erro' => $error->getMessage(),
+        ], JSON_UNESCAPED_UNICODE));
+
+        return ServiceResult::failure(
+            ReservasTematicasConstants::CODE_ERRO_PERSISTENCIA_RESERVA,
+            ReservasTematicasConstants::MESSAGE_ERRO_PERSISTENCIA_RESERVA . $referencia . ' Nenhuma reserva parcial foi mantida. Tente novamente; se persistir, acione a administração.',
+            ['uh_numero' => $uhs[0] ?? '', 'uhs' => $uhs]
+        );
     }
 
     private function validarCapacidadeDoTurno(

@@ -2197,6 +2197,8 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         chd_grupo_maior_que_pax: 'A quantidade de CHD não pode ser maior que o PAX da UH.',
         uh_duplicada_grupo: 'Há UHs repetidas no grupo. Remova a duplicidade antes de salvar.',
         uh_grupo_invalida: 'Uma ou mais UHs do grupo não foram encontradas. Confira os números informados.',
+        pax_acima_limite_uh: 'A quantidade de PAX excede o limite da UH informada.',
+        erro_persistencia_reserva: 'Não foi possível concluir o cadastro. Nenhuma reserva parcial foi mantida.',
         idades_chd_invalidas: 'Revise o formato das idades CHD. Use 3m para meses, 3y para anos ou combine como 3y/3m.'
     };
 
@@ -2236,6 +2238,19 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             const tentativa = intValue('pax_tentativa');
             const base = reservaMessagesByCode[code] || '';
             return tentativa > 0 ? `${base} Tentativa atual: ${tentativa} PAX.` : base;
+        }
+        if (code === 'uh_invalida' || code === 'uh_grupo_invalida') {
+            const uh = String(payload.uh_numero || '').trim();
+            const linha = intValue('linha');
+            if (!uh) return '';
+            return `UH inválida: ${uh}. Confira o número informado${linha > 0 ? ` na linha ${linha} do grupo` : ''}.`;
+        }
+        if (code === 'pax_acima_limite_uh') {
+            const uh = String(payload.uh_numero || '').trim();
+            const limite = intValue('pax_limite');
+            const tentativa = intValue('pax_tentativa');
+            if (!uh) return '';
+            return `A UH ${uh} permite no máximo ${limite} PAX. Tentativa: ${tentativa} PAX.`;
         }
         return '';
     };

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0 - correção do cadastro de reservas temáticas
+
+- Mensagens de UH inválida agora exibem o número informado e, em grupos, a linha correspondente.
+- Validações de PAX, CHD, limite e duplicidade identificam a UH envolvida.
+- Criação e edição de reservas individuais passaram a ser atômicas, evitando registros parciais.
+- Falhas inesperadas de persistência geram diagnóstico seguro no log e retorno operacional contextualizado.
+- Adicionado teste transacional do fluxo completo de cadastro individual e em grupo.
+
 ## FBControl 3.0
 
 Release de polimento, escala e governanca.

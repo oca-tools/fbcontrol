@@ -65,6 +65,7 @@ final class ReservasTematicasConstants
     public const CODE_CHD_MAIOR_QUE_PAX = 'chd_maior_que_pax';
     public const CODE_CONFIRMAR_STATUS_DEFINITIVO = 'confirmar_status_definitivo';
     public const CODE_EDICAO_NAO_AUTORIZADA = 'edicao_nao_autorizada';
+    public const CODE_ERRO_PERSISTENCIA_RESERVA = 'erro_persistencia_reserva';
     public const CODE_FECHAMENTO_SEM_TURNO = 'fechamento_sem_turno';
     public const CODE_FORA_JANELA_RESERVA = 'fora_janela_reserva';
     public const CODE_GRUPO_SEM_TITULAR = 'grupo_sem_titular';
@@ -103,6 +104,7 @@ final class ReservasTematicasConstants
     public const MESSAGE_CHD_MAIOR_QUE_PAX = 'As idades de CHD não podem exceder a quantidade total de PAX.';
     public const MESSAGE_CONFIRMAR_STATUS_DEFINITIVO = 'Confirme o status definitivo para continuar.';
     public const MESSAGE_EDICAO_NAO_AUTORIZADA = 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.';
+    public const MESSAGE_ERRO_PERSISTENCIA_RESERVA = 'Não foi possível concluir o cadastro da reserva.';
     public const MESSAGE_FECHAMENTO_SEM_TURNO = 'Selecione restaurante e turno para encerrar.';
     public const MESSAGE_FORA_JANELA_RESERVA = 'Fora do horário permitido para reservas.';
     public const MESSAGE_GRUPO_CRIADO = 'Grupo de reservas registrado com sucesso.';
