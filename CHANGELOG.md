@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0 - correção da faixa histórica de UHs 300
+
+- Restaurado o intervalo operacional `300–319`, comprovado pelo histórico de acessos e reservas.
+- Mantidas bloqueadas as lacunas `320–399`, evitando liberar UHs sem confirmação operacional.
+- Adicionados testes de cadastro completos para as UHs `306` e `308`.
+
 ## 3.0 - correção do cadastro de reservas temáticas
 
 - Mensagens de UH inválida agora exibem o número informado e, em grupos, a linha correspondente.

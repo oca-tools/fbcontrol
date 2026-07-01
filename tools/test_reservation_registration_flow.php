@@ -15,7 +15,7 @@ $config = $db->query("
     JOIN reservas_tematicas_config cfg ON cfg.restaurante_id = ct.restaurante_id AND cfg.ativo = 1
     JOIN restaurantes r ON r.id = ct.restaurante_id AND r.ativo = 1
     JOIN reservas_tematicas_turnos t ON t.id = ct.turno_id AND t.ativo = 1
-    WHERE ct.capacidade >= 3
+    WHERE ct.capacidade >= 5
     ORDER BY ct.capacidade DESC, ct.restaurante_id, ct.turno_id
     LIMIT 1
 ")->fetch();
@@ -82,6 +82,18 @@ try {
         throw new RuntimeException('Reserva válida da UH 3200 falhou: ' . $individual->message());
     }
 
+    foreach (['306', '308'] as $uhHistorica) {
+        $reservaHistorica = $service->executar(new CriarReservaCommand($base + [
+            'acao' => ReservasTematicasConstants::ACTION_CREATE,
+            'uh_numero' => $uhHistorica,
+            'titular_nome' => 'Teste faixa histórica 300',
+            'pax' => 1,
+        ]));
+        if (!$reservaHistorica->isSuccess() || (int)($reservaHistorica->payload()['reserva_id'] ?? 0) <= 0) {
+            throw new RuntimeException('Reserva válida da UH ' . $uhHistorica . ' falhou: ' . $reservaHistorica->message());
+        }
+    }
+
     $grupoInvalido = $service->executar(new CriarReservaCommand($base + [
         'acao' => ReservasTematicasConstants::ACTION_CREATE_BATCH,
         'grupo_responsavel' => 'Teste grupo inválido',
@@ -113,4 +125,4 @@ try {
     exit(1);
 }
 
-echo '[OK] Fluxo completo: UH inválida contextualizada; reservas individual e em grupo gravadas atomicamente e revertidas.' . PHP_EOL;
+echo '[OK] Fluxo completo: UHs 306, 308 e 3200 aceitas; UH inválida contextualizada; reservas individual e em grupo revertidas.' . PHP_EOL;

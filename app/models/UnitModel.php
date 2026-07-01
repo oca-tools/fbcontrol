@@ -6,6 +6,7 @@ class UnitModel extends Model
     private const OPERATIONAL_RANGES = [
         [101, 151],
         [200, 248],
+        [300, 319],
         [400, 419],
         [500, 519],
         [600, 619],
