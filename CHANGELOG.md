@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0 - pré-reservas e edição supervisionada de UH
+
+- Adicionada pré-reserva sem UH visível para supervisão, gerência e administração.
+- Pré-reservas usam identificação técnica interna, aparecem como `UH pendente` e ocupam a capacidade do turno.
+- Ao vincular uma UH real, a pré-reserva passa automaticamente para `Reservada`.
+- Gerência, supervisão e administração podem corrigir a UH pelo módulo de reservas ou pelo popup da operação temática.
+- Alterações de UH validam limite de PAX e duplicidade e ficam registradas na auditoria.
+- Hostess permanece impedida de criar pré-reserva, mas pode corrigir a UH das reservas de sua própria autoria, sempre com auditoria.
+
 ## 3.0 - correção da faixa histórica de UHs 300
 
 - Restaurado o intervalo operacional `300–319`, comprovado pelo histórico de acessos e reservas.

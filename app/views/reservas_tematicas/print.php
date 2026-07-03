@@ -72,11 +72,12 @@ foreach ($reservas as $row) {
     $titular = trim(normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')));
     $grupo = trim(normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? '')));
     $status = trim(normalize_mojibake((string)($row['status_reserva'] ?? $row['status'] ?? 'Reservada')));
+    $status = $status === ReservasTematicasConstants::STATUS_PRE_RESERVA ? 'Pré-reserva' : $status;
     $idadesChd = format_chd_ages_for_print((string)($row['chd_idades_display'] ?? ''));
 
     $itemReserva = [
         'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
-        'uh' => normalize_mojibake((string)($row['uh_numero'] ?? '')),
+        'uh' => $status === 'Pré-reserva' ? 'Pendente' : normalize_mojibake((string)($row['uh_numero'] ?? '')),
         'titular' => $titular !== '' && $titular !== '-' ? $titular : 'Nao informado',
         'grupo' => $grupo !== '' && $grupo !== '-' ? $grupo : '',
         'pax' => $pax,

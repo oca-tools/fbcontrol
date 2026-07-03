@@ -163,16 +163,17 @@ class ReservasTematicasController extends Controller
             $totalChd = 0;
             foreach ($rows as $row) {
                 $pax = (int)($row['pax'] ?? 0);
+                $statusReserva = $this->normalizeReservaStatus((string)($row['status'] ?? ''));
                 $qtdChd = max((int)($row['qtd_chd_calc'] ?? 0), (int)($row['pax_chd_calc'] ?? 0));
                 $totalPax += $pax;
                 $totalChd += $qtdChd;
                 $items[] = [
                     'id' => (int)($row['id'] ?? 0),
-                    'uh_numero' => (string)($row['uh_numero'] ?? ''),
+                    'uh_numero' => $statusReserva === ReservasTematicasConstants::STATUS_PRE_RESERVA ? '' : (string)($row['uh_numero'] ?? ''),
                     'titular_nome' => normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')),
                     'pax' => $pax,
                     'qtd_chd' => $qtdChd,
-                    'status' => $this->normalizeReservaStatus((string)($row['status'] ?? '')),
+                    'status' => $statusReserva,
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
                     'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
@@ -242,7 +243,9 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
-            $editItem['uh_numero'] = $uhRow['numero'] ?? '';
+            $editItem['uh_numero'] = (string)($editItem['status'] ?? '') === ReservasTematicasConstants::STATUS_PRE_RESERVA
+                ? ''
+                : ($uhRow['numero'] ?? '');
             $agesMap = $reservaModel->getChdAgesMap([$editId]);
             $editItem['chd_idades'] = isset($agesMap[$editId]) && !empty($agesMap[$editId]) ? implode('', $agesMap[$editId]) : '';
             $editItem['qtd_chd'] = (int)($editItem['qtd_chd'] ?? 0);
@@ -336,6 +339,7 @@ class ReservasTematicasController extends Controller
                 'restaurante_id' => $_POST['restaurante_id'] ?? 0,
                 'turno_id' => $_POST['turno_id'] ?? 0,
                 'data_reserva' => $_POST['data_reserva'] ?? date('Y-m-d'),
+                'uh_numero' => $_POST['uh_numero'] ?? '',
                 'status' => $_POST['status'] ?? ReservasTematicasConstants::STATUS_RESERVADA,
                 'observacao_operacao' => $_POST['observacao_operacao'] ?? '',
                 'pax_real' => $_POST['pax_real'] ?? '',
@@ -353,6 +357,7 @@ class ReservasTematicasController extends Controller
         $reservas = $reservaModel->listByFilters($filters);
         $summary = [
             'total' => count($reservas),
+            'pre_reserva' => 0,
             'reservada' => 0,
             'finalizada' => 0,
             'nao_compareceu' => 0,
@@ -361,7 +366,9 @@ class ReservasTematicasController extends Controller
         ];
         foreach ($reservas as $row) {
             $status = $this->normalizeReservaStatus((string)($row['status_reserva'] ?? ($row['status'] ?? '')));
-            if ($status === ReservasTematicasConstants::STATUS_RESERVADA) {
+            if ($status === ReservasTematicasConstants::STATUS_PRE_RESERVA) {
+                $summary['pre_reserva']++;
+            } elseif ($status === ReservasTematicasConstants::STATUS_RESERVADA) {
                 $summary['reservada']++;
             } elseif ($status === ReservasTematicasConstants::STATUS_FINALIZADA) {
                 $summary['finalizada']++;
@@ -817,6 +824,7 @@ class ReservasTematicasController extends Controller
     {
         $status = trim(normalize_mojibake($status));
         $map = [
+            'Pré-reserva' => ReservasTematicasConstants::STATUS_PRE_RESERVA,
             ReservasTematicasConstants::STATUS_NO_SHOW_ACCENTED => ReservasTematicasConstants::STATUS_NO_SHOW,
             ReservasTematicasConstants::STATUS_DIVERGENCIA_ACCENTED => ReservasTematicasConstants::STATUS_DIVERGENCIA,
             ReservasTematicasConstants::STATUS_OPERACAO_ACCENTED => ReservasTematicasConstants::STATUS_OPERACAO,

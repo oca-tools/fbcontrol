@@ -9,6 +9,7 @@ $canReserve = $this->data['can_reserve'] ?? false;
 $editItem = $this->data['edit_item'] ?? null;
 $isHostess = $this->data['is_hostess'] ?? false;
 $user = Auth::user();
+$canCreatePreReservation = in_array((string)($user['perfil'] ?? ''), ReservasTematicasConstants::PRIVILEGED_ROLES, true);
 
 $tagsPadrao = [
     'Cortesia',
@@ -1442,12 +1443,20 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                         <div class="mode-switch" role="group" aria-label="Tipo de reserva">
                             <button type="button" class="btn btn-primary" id="btnModeSingle"><i class="bi bi-person me-1"></i>Individual</button>
                             <button type="button" class="btn btn-outline-primary" id="btnModeBatch"><i class="bi bi-people me-1"></i>Grupo</button>
+                            <?php if ($canCreatePreReservation): ?>
+                                <button type="button" class="btn btn-outline-primary" id="btnModePreReservation"><i class="bi bi-bookmark-plus me-1"></i>Pré-reserva</button>
+                            <?php endif; ?>
                         </div>
+                        <?php if ($canCreatePreReservation): ?>
+                            <div class="alert alert-light border mt-2 mb-0 d-none" id="preReservationHint">
+                                Registre o titular e o PAX agora. A UH poderá ser vinculada posteriormente pela supervisão.
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 
                 <div id="singleReservationPanel" class="reservation-person-panel">
-                    <div class="mb-3">
+                    <div class="mb-3" id="singleUhField">
                         <label class="form-label">UH</label>
                         <input type="text" class="form-control input-xl" name="uh_numero" inputmode="numeric" value="<?= h($editItem['uh_numero'] ?? '') ?>" placeholder="Ex: 402" required>
                     </div>
@@ -1986,21 +1995,26 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             const payload = await res.json();
             if (!payload?.ok) throw new Error(payload?.message || 'Não foi possível carregar os detalhes.');
 
-            const rows = (payload.items || []).map((item) => `
+            const rows = (payload.items || []).map((item) => {
+                const isPreReservation = item.status === 'Pre-reserva';
+                const uhLabel = isPreReservation ? 'UH pendente' : `UH ${escapeHtml(item.uh_numero || '-')}`;
+                const statusLabel = isPreReservation ? 'Pré-reserva' : (item.status || 'Reservada');
+                return `
                 <div class="availability-detail-item">
                     <div>
                         <div class="availability-detail-title">${escapeHtml(item.titular_nome || '-')}</div>
                         <div class="availability-detail-meta">
-                            <span class="detail-badge is-uh">UH ${escapeHtml(item.uh_numero || '-')}</span>
+                            <span class="detail-badge is-uh">${uhLabel}</span>
                             <span class="detail-badge is-pax">${escapeHtml(String(item.pax ?? 0))} PAX</span>
                             <span class="detail-badge is-chd">${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
-                            <span class="detail-badge is-status">${escapeHtml(item.status || 'Reservada')}</span>
+                            <span class="detail-badge is-status">${escapeHtml(statusLabel)}</span>
                             <span class="detail-badge is-user">Criado por ${escapeHtml(item.usuario || '-')}</span>
                         </div>
                     </div>
                     ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm availability-detail-action" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft availability-detail-action">Somente autor</span>'}
                 </div>
-            `).join('');
+            `;
+            }).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
         const reservado = parseInt(String(payload.reservado ?? cell.dataset.reservado ?? '0'), 10) || 0;
         const capacidade = parseInt(String(payload.capacidade ?? cell.dataset.capacidade ?? '0'), 10) || 0;
@@ -2043,6 +2057,9 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     });
     const btnModeSingle = document.getElementById('btnModeSingle');
     const btnModeBatch = document.getElementById('btnModeBatch');
+    const btnModePreReservation = document.getElementById('btnModePreReservation');
+    const preReservationHint = document.getElementById('preReservationHint');
+    const singleUhField = document.getElementById('singleUhField');
     const singleReservationPanel = document.getElementById('singleReservationPanel');
     const batchReservationPanel = document.getElementById('batchReservationPanel');
     const addBatchRowBtn = document.getElementById('btnAddBatchRow');
@@ -2088,21 +2105,26 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const setReservaMode = (mode) => {
         if (!actionInput || !singleReservationPanel || !batchReservationPanel) return;
         const isBatch = mode === 'batch';
-        actionInput.value = isBatch ? 'create_batch' : 'create';
+        const isPreReservation = mode === 'pre';
+        actionInput.value = isBatch ? 'create_batch' : (isPreReservation ? 'create_pre_reservation' : 'create');
 
         singleReservationPanel.classList.toggle('d-none', isBatch);
         batchReservationPanel.classList.toggle('d-none', !isBatch);
         setPanelEnabled(singleReservationPanel, !isBatch);
         setPanelEnabled(batchReservationPanel, isBatch);
+        singleUhField?.classList.toggle('d-none', isPreReservation);
+        preReservationHint?.classList.toggle('d-none', !isPreReservation);
 
-        btnModeSingle?.classList.toggle('btn-primary', !isBatch);
-        btnModeSingle?.classList.toggle('btn-outline-primary', isBatch);
+        btnModeSingle?.classList.toggle('btn-primary', !isBatch && !isPreReservation);
+        btnModeSingle?.classList.toggle('btn-outline-primary', isBatch || isPreReservation);
         btnModeBatch?.classList.toggle('btn-primary', isBatch);
         btnModeBatch?.classList.toggle('btn-outline-primary', !isBatch);
+        btnModePreReservation?.classList.toggle('btn-primary', isPreReservation);
+        btnModePreReservation?.classList.toggle('btn-outline-primary', !isPreReservation);
 
-        singleFields.forEach((el) => {
+        singleFields.forEach((el, index) => {
             if (!el) return;
-            el.required = !isBatch;
+            el.required = !isBatch && (index !== 0 || !isPreReservation);
         });
 
         if (isBatch) {
@@ -2128,6 +2150,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
     btnModeSingle?.addEventListener('click', () => setReservaMode('single'));
     btnModeBatch?.addEventListener('click', () => setReservaMode('batch'));
+    btnModePreReservation?.addEventListener('click', () => setReservaMode('pre'));
 
     let reservaSubmitting = false;
     const setReservaSubmitting = (submitting) => {

@@ -8,9 +8,11 @@ $filters = $this->data['filters'] ?? [];
 $user = $this->data['user'] ?? Auth::user();
 $restrictedRestaurant = $this->data['restricted_restaurant'] ?? null;
 $summary = $this->data['summary'] ?? [];
+$canManageReservations = in_array((string)($user['perfil'] ?? ''), ReservasTematicasConstants::PRIVILEGED_ROLES, true);
 
-$statusOptions = ['Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia'];
+$statusOptions = ['Pre-reserva', 'Reservada', 'Finalizada', 'Nao compareceu', 'Cancelada', 'Divergencia'];
 $statusLabels = [
+    'Pre-reserva' => 'Pré-reserva',
     'Reservada' => 'Reservada',
     'Finalizada' => 'Finalizada',
     'Nao compareceu' => 'Não compareceu',
@@ -21,6 +23,7 @@ $statusLabels = [
 $normalizeStatus = static function (?string $status): string {
     $status = normalize_mojibake(trim((string)$status));
     $map = [
+        'Pré-reserva' => 'Pre-reserva',
         'Nao compareceu' => 'Nao compareceu',
         'Não compareceu' => 'Nao compareceu',
         'Divergencia' => 'Divergencia',
@@ -38,6 +41,7 @@ $labelStatus = static function (?string $status) use ($normalizeStatus, $statusL
 $statusBadgeClass = static function (?string $status) use ($normalizeStatus): string {
     $canon = $normalizeStatus($status);
     $map = [
+        'Pre-reserva' => 'status-pending',
         'Reservada' => 'status-reserved',
         'Finalizada' => 'status-finished',
         'Nao compareceu' => 'status-noshow',
@@ -321,6 +325,11 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         color: #0f766e;
         border-color: rgba(20, 184, 166, 0.28);
         background: rgba(204, 251, 241, 0.78);
+    }
+    .tematic-operacao-page .reservation-status-pill.status-pending {
+        color: #1d4ed8;
+        border-color: rgba(59, 130, 246, 0.28);
+        background: rgba(219, 234, 254, 0.82);
     }
     .tematic-operacao-page .reservation-status-pill.status-finished {
         color: #166534;
@@ -1150,6 +1159,10 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         <div class="saas-stat-value"><?= (int)($summary['total'] ?? count($reservas)) ?></div>
     </div>
     <div class="saas-stat-card">
+        <div class="text-muted small">Pré-reservas</div>
+        <div class="saas-stat-value"><?= (int)($summary['pre_reserva'] ?? 0) ?></div>
+    </div>
+    <div class="saas-stat-card">
         <div class="text-muted small">Reservadas</div>
         <div class="saas-stat-value"><?= (int)($summary['reservada'] ?? 0) ?></div>
     </div>
@@ -1321,6 +1334,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 $restDisplay = normalize_mojibake((string)($item['restaurante'] ?? ''));
                 $statusDisplay = $labelStatus($status);
                 $turnoDisplay = substr((string)($item['turno_hora'] ?? '-'), 0, 5);
+                $uhDisplay = $status === ReservasTematicasConstants::STATUS_PRE_RESERVA ? 'Pendente' : (string)($item['uh_numero'] ?? '-');
             ?>
             <?php
                 $searchRow = mb_strtolower(trim(implode(' ', [
@@ -1342,7 +1356,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 data-sort-status="<?= h(mb_strtolower((string)$statusDisplay, 'UTF-8')) ?>"
                 data-id="<?= (int)($item['id'] ?? 0) ?>"
                 data-titular="<?= h($titularDisplay) ?>"
-                data-uh="<?= h((string)($item['uh_numero'] ?? '')) ?>"
+                data-uh="<?= h($status === ReservasTematicasConstants::STATUS_PRE_RESERVA ? '' : (string)($item['uh_numero'] ?? '')) ?>"
                 data-pax="<?= h((string)($item['pax'] ?? 0)) ?>"
                 data-pax-real="<?= h((string)($item['pax_real'] ?? '')) ?>"
                 data-restaurante-id="<?= (int)($item['restaurante_id'] ?? 0) ?>"
@@ -1351,6 +1365,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 data-turno-hora="<?= h((string)($item['turno_hora'] ?? '')) ?>"
                 data-status-atual="<?= h($status) ?>"
                 data-usuario="<?= h(normalize_mojibake((string)($item['usuario'] ?? ''))) ?>"
+                data-can-edit-uh="<?= ReservaTematicaPolicy::canEdit($item, $user) ? '1' : '0' ?>"
                 data-obs-operacao="<?= h(normalize_mojibake((string)($item['observacao_operacao'] ?? ''))) ?>"
                 role="button"
                 tabindex="0"
@@ -1365,7 +1380,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                 <div class="reservation-op-meta">
                     <div class="reservation-op-metric">
                         <span class="label">UH</span>
-                        <span class="value"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($item['uh_numero'] ?? '-') ?></span></span>
+                        <span class="value"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h($uhDisplay) ?></span></span>
                     </div>
                     <div class="reservation-op-metric">
                         <span class="label">PAX</span>
@@ -1470,7 +1485,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
                                 <span class="reservation-status-pill <?= h($statusBadgeClass($rowStatus)) ?>"><?= h($labelStatus($rowStatus)) ?></span>
                             </td>
                             <td data-label="Nome"><?= h($rowTitular) ?></td>
-                            <td data-label="UH"><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                            <td data-label="UH"><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($rowStatus === ReservasTematicasConstants::STATUS_PRE_RESERVA ? 'Pendente' : (string)$row['uh_numero']) ?></span></td>
                             <td data-label="PAX reservada"><?= h((string)($row['pax'] ?? 0)) ?></td>
                             <td data-label="PAX real"><?= h((string)($row['pax_real'] ?? '-')) ?></td>
                             <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($rowRest) ?>"><?= h($rowRest) ?></span></td>
@@ -1544,10 +1559,25 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
 
                         <section class="reservation-modal-editor">
                             <input class="form-control d-none" id="modalTitular" readonly>
-                            <input class="form-control d-none" id="modalUh" readonly>
                             <input class="form-control d-none" id="modalPax" readonly>
 
                             <div class="reservation-editor-grid">
+                                <div class="reservation-form-section">
+                                    <div class="reservation-form-section-title"><span>Identificação</span><small>Habitação da reserva</small></div>
+                                    <label class="form-label">UH</label>
+                                    <input
+                                        class="form-control"
+                                        id="modalUh"
+                                        name="uh_numero"
+                                        inputmode="numeric"
+                                        placeholder="Informe a UH para confirmar a pré-reserva"
+                                        <?= $canManageReservations ? '' : 'readonly' ?>
+                                    >
+                                    <div class="text-muted small mt-1" id="modalUhHelp">
+                                        Alterações de UH são validadas e registradas na auditoria.
+                                    </div>
+                                </div>
+
                                 <div class="reservation-form-section">
                                     <div class="reservation-form-section-title"><span>Conferência</span><small>PAX e status</small></div>
                                     <div class="row g-2">
@@ -1866,12 +1896,14 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
     const modalPaxDisplay = document.getElementById('modalPaxDisplay');
     const modalPaxRealDisplay = document.getElementById('modalPaxRealDisplay');
     const modalUsuarioDisplay = document.getElementById('modalUsuarioDisplay');
+    const modalUhHelp = document.getElementById('modalUhHelp');
     const modalHeaderContext = document.getElementById('modalHeaderContext');
     const modalAvatarDisplay = document.getElementById('modalAvatarDisplay');
     const useReservedPaxBtn = document.getElementById('useReservedPaxBtn');
     const detailForm = document.getElementById('reservaDetailForm');
 
     const statusLabelMap = {
+        'Pre-reserva': 'Pré-reserva',
         Reservada: 'Reservada',
         Finalizada: 'Finalizada',
         'Nao compareceu': 'Não compareceu',
@@ -1879,6 +1911,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         Divergencia: 'Divergência',
     };
     const statusClassMap = {
+        'Pre-reserva': 'status-pending',
         Reservada: 'status-reserved',
         Finalizada: 'status-finished',
         'Nao compareceu': 'status-noshow',
@@ -1905,7 +1938,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             modalContextDisplay.textContent = `${restText} · ${turnoText}`;
             if (modalHeaderContext) modalHeaderContext.textContent = `${restText} · ${turnoText}`;
         }
-        if (modalUhDisplay) modalUhDisplay.textContent = `UH ${modalUh?.value || '-'}`;
+        if (modalUhDisplay) modalUhDisplay.textContent = modalUh?.value ? `UH ${modalUh.value}` : 'UH pendente';
         if (modalPaxDisplay) modalPaxDisplay.textContent = modalPax?.value || '0';
         if (modalPaxRealDisplay) modalPaxRealDisplay.textContent = paxReal !== '' ? paxReal : '-';
         if (modalUsuarioDisplay) modalUsuarioDisplay.textContent = `Criado por ${modalUsuarioDisplay.dataset.usuario || '-'}`;
@@ -1922,7 +1955,13 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
             if (!modalInstance) return;
             modalId.value = row.dataset.id || '';
             modalTitular.value = row.dataset.titular || '-';
-            modalUh.value = row.dataset.uh || '-';
+            modalUh.value = row.dataset.uh || '';
+            modalUh.readOnly = row.dataset.canEditUh !== '1';
+            if (modalUhHelp) {
+                modalUhHelp.textContent = modalUh.readOnly
+                    ? 'Você pode consultar esta UH, mas apenas a autora ou a supervisão pode alterá-la.'
+                    : 'Alterações de UH são validadas e registradas na auditoria.';
+            }
             modalPax.value = row.dataset.pax || '0';
             modalPaxReal.value = row.dataset.paxReal || '';
             modalStatus.value = row.dataset.statusAtual || 'Reservada';
@@ -1942,7 +1981,7 @@ usort($reservasOrdenadas, static function (array $a, array $b) use ($normalizeSt
         });
     });
 
-    [modalStatus, modalRest, modalTurno, modalPaxReal].forEach((el) => {
+    [modalStatus, modalRest, modalTurno, modalUh, modalPaxReal].forEach((el) => {
         el?.addEventListener('change', syncModalSummary);
         el?.addEventListener('input', syncModalSummary);
     });

@@ -12,6 +12,7 @@ final class OperarReservaCommand
     public int $restauranteId;
     public int $turnoId;
     public string $dataReserva;
+    public string $uhNumero;
     public string $status;
     public string $observacaoOperacao;
     public string $paxRealTexto;
@@ -34,6 +35,7 @@ final class OperarReservaCommand
         $this->restauranteId = (int)($dados['restaurante_id'] ?? 0);
         $this->turnoId = (int)($dados['turno_id'] ?? 0);
         $this->dataReserva = (string)($dados['data_reserva'] ?? date('Y-m-d'));
+        $this->uhNumero = trim((string)($dados['uh_numero'] ?? ''));
         $this->status = normalize_mojibake(trim((string)($dados['status'] ?? ReservasTematicasConstants::STATUS_RESERVADA)));
         $this->observacaoOperacao = trim((string)($dados['observacao_operacao'] ?? ''));
         $this->paxRealTexto = trim((string)($dados['pax_real'] ?? ''));

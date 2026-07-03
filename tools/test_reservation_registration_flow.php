@@ -15,7 +15,7 @@ $config = $db->query("
     JOIN reservas_tematicas_config cfg ON cfg.restaurante_id = ct.restaurante_id AND cfg.ativo = 1
     JOIN restaurantes r ON r.id = ct.restaurante_id AND r.ativo = 1
     JOIN reservas_tematicas_turnos t ON t.id = ct.turno_id AND t.ativo = 1
-    WHERE ct.capacidade >= 5
+    WHERE ct.capacidade >= 8
     ORDER BY ct.capacidade DESC, ct.restaurante_id, ct.turno_id
     LIMIT 1
 ")->fetch();
@@ -61,6 +61,62 @@ $base = [
 
 $db->beginTransaction();
 try {
+    $hostess = array_merge($usuario, ['perfil' => AppConstants::ROLE_HOSTESS]);
+    $outraHostess = array_merge($hostess, ['id' => (int)$usuario['id'] + 999]);
+    $supervisao = array_merge($usuario, ['perfil' => AppConstants::ROLE_SUPERVISOR]);
+    $gerencia = array_merge($usuario, ['perfil' => AppConstants::ROLE_MANAGER]);
+
+    $preReservaHostess = $service->executar(new CriarReservaCommand(array_merge($base, [
+        'acao' => ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION,
+        'usuario' => $hostess,
+        'uh_numero' => '',
+        'titular_nome' => 'Teste pré-reserva sem permissão',
+        'pax' => 1,
+    ])));
+    if ($preReservaHostess->isSuccess() || $preReservaHostess->code() !== ReservasTematicasConstants::CODE_PRE_RESERVA_NAO_AUTORIZADA) {
+        throw new RuntimeException('Hostess conseguiu criar pré-reserva indevidamente.');
+    }
+
+    $preReserva = $service->executar(new CriarReservaCommand(array_merge($base, [
+        'acao' => ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION,
+        'usuario' => $supervisao,
+        'uh_numero' => '',
+        'titular_nome' => 'Teste pré-reserva supervisionada',
+        'pax' => 1,
+    ])));
+    $preReservaId = (int)($preReserva->payload()['reserva_id'] ?? 0);
+    $preReservaRow = $repository->buscarReserva($preReservaId);
+    $uhTecnica = $preReservaRow ? (new UnitRepository())->buscarUhPorId((int)$preReservaRow['uh_id']) : null;
+    if (!$preReserva->isSuccess() || !$preReservaRow || (string)$preReservaRow['status'] !== ReservasTematicasConstants::STATUS_PRE_RESERVA || (string)($uhTecnica['numero'] ?? '') !== '998') {
+        throw new RuntimeException('Pré-reserva supervisionada não foi registrada sem UH operacional.');
+    }
+
+    $operacaoService = new OperarReservaService($repository, new UnitRepository());
+    $conclusaoPreReserva = $operacaoService->executar(new OperarReservaCommand([
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL,
+        'usuario_id' => (int)$usuario['id'],
+        'usuario' => $gerencia,
+        'restaurantes_permitidos' => $base['restaurantes_permitidos'],
+        'turnos_permitidos' => [['id' => (int)$config['turno_id']]],
+        'reserva_id' => $preReservaId,
+        'restaurante_id' => (int)$config['restaurante_id'],
+        'turno_id' => (int)$config['turno_id'],
+        'data_reserva' => $dataReserva,
+        'uh_numero' => '309',
+        'status' => ReservasTematicasConstants::STATUS_PRE_RESERVA,
+        'pax_real' => '',
+    ]));
+    $preReservaConcluida = $repository->buscarReserva($preReservaId);
+    $uhConcluida = $preReservaConcluida ? (new UnitRepository())->buscarUhPorId((int)$preReservaConcluida['uh_id']) : null;
+    if (!$conclusaoPreReserva->isSuccess() || (string)($uhConcluida['numero'] ?? '') !== '309' || (string)($preReservaConcluida['status'] ?? '') !== ReservasTematicasConstants::STATUS_RESERVADA) {
+        throw new RuntimeException('Gerência não conseguiu concluir a pré-reserva informando a UH 309.');
+    }
+    $logConclusao = $db->prepare("SELECT COUNT(*) FROM reservas_tematicas_logs WHERE reserva_id = :id AND acao = :acao");
+    $logConclusao->execute([':id' => $preReservaId, ':acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL]);
+    if ((int)$logConclusao->fetchColumn() < 1) {
+        throw new RuntimeException('Conclusão da pré-reserva não gerou auditoria.');
+    }
+
     $invalida = $service->executar(new CriarReservaCommand($base + [
         'action' => ReservasTematicasConstants::ACTION_CREATE,
         'acao' => ReservasTematicasConstants::ACTION_CREATE,
@@ -80,6 +136,62 @@ try {
     ]));
     if (!$individual->isSuccess() || (int)($individual->payload()['reserva_id'] ?? 0) <= 0) {
         throw new RuntimeException('Reserva válida da UH 3200 falhou: ' . $individual->message());
+    }
+    $individualId = (int)$individual->payload()['reserva_id'];
+    $edicaoGerencial = $service->executar(new CriarReservaCommand(array_merge($base, [
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE,
+        'usuario' => $gerencia,
+        'reserva_id' => $individualId,
+        'uh_numero' => '311',
+        'titular_nome' => 'Teste edição gerencial',
+        'pax' => 1,
+    ])));
+    $individualEditada = $repository->buscarReserva($individualId);
+    $uhEditada = $individualEditada ? (new UnitRepository())->buscarUhPorId((int)$individualEditada['uh_id']) : null;
+    if (!$edicaoGerencial->isSuccess() || (string)($uhEditada['numero'] ?? '') !== '311') {
+        throw new RuntimeException('Gerência não conseguiu alterar a UH pelo módulo de reservas.');
+    }
+    $edicaoHostess = $operacaoService->executar(new OperarReservaCommand([
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL,
+        'usuario_id' => (int)$usuario['id'],
+        'usuario' => $hostess,
+        'restaurantes_permitidos' => $base['restaurantes_permitidos'],
+        'turnos_permitidos' => [['id' => (int)$config['turno_id']]],
+        'reserva_id' => $individualId,
+        'restaurante_id' => (int)$config['restaurante_id'],
+        'turno_id' => (int)$config['turno_id'],
+        'data_reserva' => $dataReserva,
+        'uh_numero' => '310',
+        'status' => ReservasTematicasConstants::STATUS_RESERVADA,
+        'pax_real' => '',
+    ]));
+    $individualAposHostess = $repository->buscarReserva($individualId);
+    $uhAposHostess = $individualAposHostess ? (new UnitRepository())->buscarUhPorId((int)$individualAposHostess['uh_id']) : null;
+    if (!$edicaoHostess->isSuccess() || (string)($uhAposHostess['numero'] ?? '') !== '310') {
+        throw new RuntimeException('Hostess autora não conseguiu alterar a UH da própria reserva.');
+    }
+    $logHostess = $db->prepare("SELECT COUNT(*) FROM reservas_tematicas_logs WHERE reserva_id = :id AND acao = :acao AND usuario_id = :usuario_id");
+    $logHostess->execute([':id' => $individualId, ':acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL, ':usuario_id' => (int)$usuario['id']]);
+    if ((int)$logHostess->fetchColumn() < 1) {
+        throw new RuntimeException('Alteração de UH pela hostess autora não gerou auditoria.');
+    }
+
+    $edicaoOutraHostess = $operacaoService->executar(new OperarReservaCommand([
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL,
+        'usuario_id' => (int)$outraHostess['id'],
+        'usuario' => $outraHostess,
+        'restaurantes_permitidos' => $base['restaurantes_permitidos'],
+        'turnos_permitidos' => [['id' => (int)$config['turno_id']]],
+        'reserva_id' => $individualId,
+        'restaurante_id' => (int)$config['restaurante_id'],
+        'turno_id' => (int)$config['turno_id'],
+        'data_reserva' => $dataReserva,
+        'uh_numero' => '312',
+        'status' => ReservasTematicasConstants::STATUS_RESERVADA,
+        'pax_real' => '',
+    ]));
+    if ($edicaoOutraHostess->isSuccess() || $edicaoOutraHostess->code() !== ReservasTematicasConstants::CODE_UH_EDICAO_NAO_AUTORIZADA) {
+        throw new RuntimeException('Hostess alterou UH de uma reserva criada por outra usuária.');
     }
 
     foreach (['306', '308'] as $uhHistorica) {
@@ -125,4 +237,4 @@ try {
     exit(1);
 }
 
-echo '[OK] Fluxo completo: UHs 306, 308 e 3200 aceitas; UH inválida contextualizada; reservas individual e em grupo revertidas.' . PHP_EOL;
+echo '[OK] Fluxo completo: pré-reserva supervisionada; hostess autora altera UH com auditoria; outra hostess é bloqueada.' . PHP_EOL;

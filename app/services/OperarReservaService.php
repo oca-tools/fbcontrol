@@ -4,10 +4,12 @@ declare(strict_types=1);
 final class OperarReservaService implements OperarReservaServiceInterface
 {
     private ReservaTematicaRepositoryInterface $reservas;
+    private UnitRepositoryInterface $unidades;
 
-    public function __construct(?ReservaTematicaRepositoryInterface $reservas = null)
+    public function __construct(?ReservaTematicaRepositoryInterface $reservas = null, ?UnitRepositoryInterface $unidades = null)
     {
         $this->reservas = $reservas ?? new ReservaTematicaRepository();
+        $this->unidades = $unidades ?? new UnitRepository();
     }
 
     /**
@@ -111,7 +113,23 @@ final class OperarReservaService implements OperarReservaServiceInterface
 
         $restauranteDestino = $command->restauranteId > 0 ? $command->restauranteId : (int)$reservaAtual['restaurante_id'];
         $turnoDestino = $command->turnoId > 0 ? $command->turnoId : (int)$reservaAtual['turno_id'];
+        $uhDestino = $this->resolverUhDestino($reservaAtual, $command, $restauranteDestino, $turnoDestino);
+        if ($uhDestino instanceof ServiceResult) {
+            return $uhDestino;
+        }
+
         $statusDesejado = $this->normalizarStatus($command->status !== '' ? $command->status : (string)$reservaAtual['status']);
+        if ($statusDesejado === ReservasTematicasConstants::STATUS_PRE_RESERVA
+            && (string)($reservaAtual['status'] ?? '') !== ReservasTematicasConstants::STATUS_PRE_RESERVA) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_STATUS_INVALIDO,
+                'Uma reserva confirmada não pode voltar ao status de pré-reserva.'
+            );
+        }
+        if ((string)($reservaAtual['status'] ?? '') === ReservasTematicasConstants::STATUS_PRE_RESERVA
+            && (string)($uhDestino['numero'] ?? '') !== '998') {
+            $statusDesejado = ReservasTematicasConstants::STATUS_RESERVADA;
+        }
 
         $erroPermissaoDestino = $this->validarDestinoDaOperacao($restauranteDestino, $turnoDestino, $command);
         if ($erroPermissaoDestino) {
@@ -154,24 +172,86 @@ final class OperarReservaService implements OperarReservaServiceInterface
         }
 
         $antes = $reservaAtual;
-        $this->reservas->atualizarDetalhesOperacao($command->reservaId, [
-            'restaurante_id' => $restauranteDestino,
-            'turno_id' => $turnoDestino,
-            'status' => $statusDesejado,
-            'observacao_operacao' => $observacao,
-            'pax_real' => $paxReal,
-        ], $command->usuarioId);
-        $depois = $this->reservas->buscarReserva($command->reservaId) ?? [];
-        $this->reservas->registrarLog(
-            $command->reservaId,
-            ReservasTematicasConstants::ACTION_UPDATE_DETAIL,
-            $command->usuarioId,
-            $antes,
-            $depois,
-            $command->justificativa !== '' ? $command->justificativa : null
-        );
+        $this->reservas->executarTransacao(function () use ($command, $restauranteDestino, $turnoDestino, $statusDesejado, $observacao, $paxReal, $uhDestino, $antes): void {
+            $this->reservas->atualizarDetalhesOperacao($command->reservaId, [
+                'restaurante_id' => $restauranteDestino,
+                'turno_id' => $turnoDestino,
+                'uh_id' => (int)$uhDestino['id'],
+                'status' => $statusDesejado,
+                'observacao_operacao' => $observacao,
+                'pax_real' => $paxReal,
+            ], $command->usuarioId);
+            $depois = $this->reservas->buscarReserva($command->reservaId) ?? [];
+            $this->reservas->registrarLog(
+                $command->reservaId,
+                ReservasTematicasConstants::ACTION_UPDATE_DETAIL,
+                $command->usuarioId,
+                $antes,
+                $depois,
+                $command->justificativa !== '' ? $command->justificativa : null
+            );
+        });
 
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_OPERACAO_ATUALIZADA);
+    }
+
+    private function resolverUhDestino(array $reservaAtual, OperarReservaCommand $command, int $restauranteDestino, int $turnoDestino)
+    {
+        $uhAtual = $this->unidades->buscarUhPorId((int)($reservaAtual['uh_id'] ?? 0));
+        if (!$uhAtual) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_UH_INVALIDA,
+                'A UH atualmente vinculada à reserva não foi encontrada.'
+            );
+        }
+
+        if ($command->uhNumero === '') {
+            return $uhAtual;
+        }
+
+        $uhDestino = $this->unidades->buscarUhPorNumero($command->uhNumero);
+        if (!$uhDestino) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_UH_INVALIDA,
+                'UH inválida: ' . $command->uhNumero . '. Confira o número informado.',
+                ['uh_numero' => $command->uhNumero]
+            );
+        }
+        if ((int)$uhDestino['id'] === (int)$uhAtual['id']) {
+            return $uhDestino;
+        }
+        if (!ReservaTematicaPolicy::canEdit($reservaAtual, $command->usuario)) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_UH_EDICAO_NAO_AUTORIZADA,
+                ReservasTematicasConstants::MESSAGE_UH_EDICAO_NAO_AUTORIZADA
+            );
+        }
+
+        $limitePax = $this->unidades->limitePaxDaUh((string)$uhDestino['numero']);
+        $paxReserva = (int)($reservaAtual['pax'] ?? 0);
+        if ($limitePax !== null && $paxReserva > $limitePax) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_PAX_ACIMA_LIMITE_UH,
+                'A UH ' . $uhDestino['numero'] . ' permite no máximo ' . $limitePax . ' PAX. A reserva possui ' . $paxReserva . ' PAX.',
+                ['uh_numero' => (string)$uhDestino['numero'], 'pax_limite' => $limitePax, 'pax_tentativa' => $paxReserva]
+            );
+        }
+
+        $duplicadaId = $this->reservas->buscarReservaDuplicadaDaUh(
+            (int)$uhDestino['id'],
+            (string)$reservaAtual['data_reserva'],
+            $turnoDestino,
+            $restauranteDestino
+        );
+        if ($duplicadaId !== null && $duplicadaId !== $command->reservaId) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_RESERVA_DUPLICADA_UH,
+                'Já existe reserva para a UH ' . $uhDestino['numero'] . ' neste restaurante, data e turno.',
+                ['uh_numero' => (string)$uhDestino['numero']]
+            );
+        }
+
+        return $uhDestino;
     }
 
     private function converterAcaoRapidaEmStatus(OperarReservaCommand $command)

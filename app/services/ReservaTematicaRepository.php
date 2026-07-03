@@ -427,6 +427,7 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
         $set = "
             restaurante_id = :restaurante_id,
             turno_id = :turno_id,
+            uh_id = :uh_id,
             status = :status,
             observacao_operacao = :observacao_operacao,
             atualizado_por = :atualizado_por,
@@ -435,6 +436,7 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
         $params = [
             ':restaurante_id' => (int)$dadosOperacao['restaurante_id'],
             ':turno_id' => (int)$dadosOperacao['turno_id'],
+            ':uh_id' => (int)$dadosOperacao['uh_id'],
             ':status' => (string)$dadosOperacao['status'],
             ':observacao_operacao' => $dadosOperacao['observacao_operacao'] ?? null,
             ':atualizado_por' => $usuarioId,

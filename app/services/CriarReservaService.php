@@ -26,6 +26,14 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 );
             }
 
+            if ($command->acao === ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION
+                && !in_array((string)($command->usuario['perfil'] ?? ''), ReservasTematicasConstants::PRIVILEGED_ROLES, true)) {
+                return ServiceResult::failure(
+                    ReservasTematicasConstants::CODE_PRE_RESERVA_NAO_AUTORIZADA,
+                    ReservasTematicasConstants::MESSAGE_PRE_RESERVA_NAO_AUTORIZADA
+                );
+            }
+
             $erroBase = $this->validarRestauranteTurnoEData($command);
             if ($erroBase) {
                 return $erroBase;
@@ -92,7 +100,10 @@ final class CriarReservaService implements CriarReservaServiceInterface
             $this->reservas->registrarLog($reservaId, ReservasTematicasConstants::ACTION_CREATE, $command->usuarioId, [], $this->reservas->buscarReserva($reservaId) ?? []);
         });
 
-        return ServiceResult::success(ReservasTematicasConstants::MESSAGE_RESERVA_CRIADA, ['reserva_id' => $reservaId]);
+        $mensagem = $command->acao === ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION
+            ? ReservasTematicasConstants::MESSAGE_PRE_RESERVA_CRIADA
+            : ReservasTematicasConstants::MESSAGE_RESERVA_CRIADA;
+        return ServiceResult::success($mensagem, ['reserva_id' => $reservaId]);
     }
 
     private function atualizarReserva(CriarReservaCommand $command): ServiceResult
@@ -111,7 +122,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
             );
         }
 
-        $dadosDaReserva = $this->prepararReservaIndividual($command);
+        $dadosDaReserva = $this->prepararReservaIndividual($command, $reservaAtual);
         if ($dadosDaReserva instanceof ServiceResult) {
             return $dadosDaReserva;
         }
@@ -202,7 +213,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_GRUPO_CRIADO, ['reservas_ids' => $idsCriados]);
     }
 
-    private function prepararReservaIndividual(CriarReservaCommand $command)
+    private function prepararReservaIndividual(CriarReservaCommand $command, ?array $reservaAtual = null)
     {
         if ($command->pax <= 0) {
             $sufixoUh = $command->uhNumero !== '' ? ' para a UH ' . $command->uhNumero : '';
@@ -232,16 +243,23 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 ['uh_numero' => $command->uhNumero]
             );
         }
-        if ($command->uhNumero === '') {
+        $novaPreReserva = $command->acao === ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION;
+        $mantemPreReserva = $command->acao === ReservasTematicasConstants::ACTION_UPDATE
+            && $reservaAtual !== null
+            && (string)($reservaAtual['status'] ?? '') === ReservasTematicasConstants::STATUS_PRE_RESERVA
+            && $command->uhNumero === '';
+        $uhNumeroEfetivo = ($novaPreReserva || $mantemPreReserva) ? '998' : $command->uhNumero;
+
+        if ($uhNumeroEfetivo === '') {
             return ServiceResult::failure(ReservasTematicasConstants::CODE_UH_OBRIGATORIA, ReservasTematicasConstants::MESSAGE_UH_OBRIGATORIA);
         }
 
-        $uh = $this->unidades->buscarUhPorNumero($command->uhNumero);
+        $uh = $this->unidades->buscarUhPorNumero($uhNumeroEfetivo);
         if (!$uh) {
             return ServiceResult::failure(
                 ReservasTematicasConstants::CODE_UH_INVALIDA,
-                'UH inválida: ' . $command->uhNumero . '. Confira o número informado.',
-                ['uh_numero' => $command->uhNumero]
+                'UH inválida: ' . $uhNumeroEfetivo . '. Confira o número informado.',
+                ['uh_numero' => $uhNumeroEfetivo]
             );
         }
         if ($command->titularNome === '') {
@@ -252,14 +270,14 @@ final class CriarReservaService implements CriarReservaServiceInterface
         }
 
         $erroLimiteUh = $this->validarLimiteDaUh(
-            (string)($uh['numero'] ?? $command->uhNumero),
+            (string)($uh['numero'] ?? $uhNumeroEfetivo),
             $command->pax
         );
         if ($erroLimiteUh) {
             return $erroLimiteUh;
         }
 
-        $erroDuplicidade = $this->validarDuplicidadeDaUh((int)$uh['id'], (string)($uh['numero'] ?? $command->uhNumero), $command, $command->reservaId);
+        $erroDuplicidade = $this->validarDuplicidadeDaUh((int)$uh['id'], (string)($uh['numero'] ?? $uhNumeroEfetivo), $command, $command->reservaId);
         if ($erroDuplicidade) {
             return $erroDuplicidade;
         }
@@ -273,6 +291,9 @@ final class CriarReservaService implements CriarReservaServiceInterface
             'qtd_chd' => $qtdChd,
             'grupo_nome' => $command->grupoNome !== '' ? $command->grupoNome : null,
             'idades_chd' => $idadesChd,
+            'status' => ($novaPreReserva || $mantemPreReserva)
+                ? ReservasTematicasConstants::STATUS_PRE_RESERVA
+                : ReservasTematicasConstants::STATUS_RESERVADA,
         ]);
     }
 

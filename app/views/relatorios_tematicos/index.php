@@ -15,6 +15,7 @@ $publicFilters = $filters;
 unset($publicFilters['restaurante_ids']);
 
 $statusOptions = [
+    'Pre-reserva' => 'Pré-reserva',
     'Reservada' => 'Reservada',
     'Finalizada' => 'Finalizada',
     'Nao compareceu' => 'Não compareceu',
@@ -24,6 +25,7 @@ $statusOptions = [
 $normalizeReportStatus = static function (?string $status): string {
     $status = normalize_mojibake(trim((string)$status));
     $map = [
+        'Pré-reserva' => 'Pre-reserva',
         'Não compareceu' => 'Nao compareceu',
         'Nao compareceu' => 'Nao compareceu',
         'Divergência' => 'Divergencia',
@@ -804,7 +806,7 @@ $paginationPages = static function (int $current, int $total): array {
                                     <div class="text-muted small">Grupo #<?= (int)$row['grupo_id'] ?></div>
                                 <?php endif; ?>
                             </td>
-                            <td data-label="UH"><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($row['uh_numero']) ?></span></td>
+                            <td data-label="UH"><span class="uh-badge <?= uh_badge_class($row['uh_numero']) ?>"><?= h($rowStatusValue === ReservasTematicasConstants::STATUS_PRE_RESERVA ? 'Pendente' : (string)$row['uh_numero']) ?></span></td>
                             <td data-label="Titular"><?= h($titularDisplay) ?></td>
                             <td data-label="PAX adulto"><?= h((string)($row['pax_adulto_calc'] ?? '-')) ?></td>
                             <td data-label="PAX CHD"><?= h((string)($row['pax_chd_calc'] ?? '-')) ?></td>

@@ -10,6 +10,7 @@ final class ReservasTematicasConstants
     public const ACTION_CLOSE_TURNO = 'close_turno';
     public const ACTION_CREATE = 'create';
     public const ACTION_CREATE_BATCH = 'create_batch';
+    public const ACTION_CREATE_PRE_RESERVATION = 'create_pre_reservation';
     public const ACTION_QUICK_STATUS = 'quick_status';
     public const ACTION_UPDATE = 'update';
     public const ACTION_UPDATE_DETAIL = 'update_detail';
@@ -24,6 +25,7 @@ final class ReservasTematicasConstants
     public const ORIGIN_SERVICE = 'servico';
 
     public const STATUS_RESERVADA = 'Reservada';
+    public const STATUS_PRE_RESERVA = 'Pre-reserva';
     public const STATUS_FINALIZADA = 'Finalizada';
     public const STATUS_NO_SHOW = 'Nao compareceu';
     public const STATUS_NO_SHOW_ACCENTED = 'Não compareceu';
@@ -37,6 +39,7 @@ final class ReservasTematicasConstants
 
     public const ALLOWED_OPERATION_STATUSES = [
         self::STATUS_RESERVADA,
+        self::STATUS_PRE_RESERVA,
         self::STATUS_FINALIZADA,
         self::STATUS_NO_SHOW,
         self::STATUS_CANCELADA,
@@ -78,6 +81,7 @@ final class ReservasTematicasConstants
     public const CODE_PAX_INVALIDO = 'pax_invalido';
     public const CODE_PAX_REAL_FORA_LIMITE = 'pax_real_fora_limite';
     public const CODE_PAX_REAL_INVALIDO = 'pax_real_invalido';
+    public const CODE_PRE_RESERVA_NAO_AUTORIZADA = 'pre_reserva_nao_autorizada';
     public const CODE_RESERVA_DUPLICADA_UH = 'reserva_duplicada_uh';
     public const CODE_RESERVA_NAO_ENCONTRADA = 'reserva_nao_encontrada';
     public const CODE_RESTAURANTE_FECHADO = 'restaurante_fechado';
@@ -92,6 +96,7 @@ final class ReservasTematicasConstants
     public const CODE_UH_DUPLICADA_GRUPO = 'uh_duplicada_grupo';
     public const CODE_UH_GRUPO_INVALIDA = 'uh_grupo_invalida';
     public const CODE_UH_INVALIDA = 'uh_invalida';
+    public const CODE_UH_EDICAO_NAO_AUTORIZADA = 'uh_edicao_nao_autorizada';
     public const CODE_UH_OBRIGATORIA = 'uh_obrigatoria';
     public const CODE_USUARIO_AUDITORIA_INVALIDO = 'usuario_auditoria_invalido';
 
@@ -119,6 +124,8 @@ final class ReservasTematicasConstants
     public const MESSAGE_PAX_GRUPO_INVALIDO = 'Preencha a quantidade de PAX em todas as UHs do grupo.';
     public const MESSAGE_PAX_INVALIDO = 'Quantidade de PAX inválida.';
     public const MESSAGE_PAX_REAL_INVALIDO = 'PAX real inválido.';
+    public const MESSAGE_PRE_RESERVA_CRIADA = 'Pré-reserva registrada. A UH poderá ser informada pela supervisão posteriormente.';
+    public const MESSAGE_PRE_RESERVA_NAO_AUTORIZADA = 'Somente supervisão, gerência ou administração pode criar pré-reservas.';
     public const MESSAGE_RESERVA_ATUALIZADA = 'Reserva atualizada.';
     public const MESSAGE_RESERVA_CRIADA = 'Reserva registrada.';
     public const MESSAGE_RESERVA_DUPLICADA_UH = 'Já existe reserva para esta UH neste turno.';
@@ -135,6 +142,7 @@ final class ReservasTematicasConstants
     public const MESSAGE_TURNO_OBRIGATORIO = 'Selecione o turno.';
     public const MESSAGE_TURNO_OPERACAO_INVALIDO = 'Turno inválido para esta operação.';
     public const MESSAGE_UH_INVALIDA = 'UH inválida.';
+    public const MESSAGE_UH_EDICAO_NAO_AUTORIZADA = 'A hostess só pode alterar a UH de reservas criadas por ela. Supervisão, gerência e administração podem corrigir qualquer reserva.';
     public const MESSAGE_UH_OBRIGATORIA = 'Informe a UH.';
     public const MESSAGE_USUARIO_AUDITORIA_INVALIDO = 'Usuário de auditoria inválido para no-show automático.';
 
