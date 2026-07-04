@@ -98,6 +98,12 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
     box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
 }
 
+@media (min-width: 1200px) {
+    .audit-page .audit-filter-action {
+        padding-top: 1.7rem;
+    }
+}
+
 .audit-page .audit-table-card .table-responsive {
     border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
     border-radius: 14px;
@@ -329,21 +335,21 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
 </div>
 
 <div class="card audit-filter-card p-4 mb-4">
-    <form class="row g-3 align-items-end" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
+    <form class="row g-3 align-items-start" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
         <input type="hidden" name="r" value="auditoria/index">
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">Data única</label>
             <input type="date" class="form-control input-xl" name="data" value="<?= h($filters['data'] ?? '') ?>">
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">Data início</label>
             <input type="date" class="form-control input-xl" name="data_inicio" value="<?= h($filters['data_inicio'] ?? '') ?>">
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">Data fim</label>
             <input type="date" class="form-control input-xl" name="data_fim" value="<?= h($filters['data_fim'] ?? '') ?>">
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">Usuário</label>
             <select class="form-select input-xl" name="usuario_id">
                 <option value="">Todos</option>
@@ -354,16 +360,16 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">UH da reserva</label>
             <input type="text" inputmode="numeric" class="form-control input-xl" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>" placeholder="Ex.: 4002">
             <div class="form-text">Ao informar a UH, a trilha temática pesquisa todo o histórico.</div>
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">Tabela/área</label>
             <input type="text" class="form-control input-xl" name="tabela" value="<?= h($filters['tabela'] ?? '') ?>" placeholder="seguranca">
         </div>
-        <div class="col-12 col-md-1">
+        <div class="col-12 col-md-6 col-lg-4 col-xl-auto audit-filter-action">
             <button class="btn btn-primary btn-xl w-100">Filtrar</button>
         </div>
     </form>
