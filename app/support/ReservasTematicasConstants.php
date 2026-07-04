@@ -15,6 +15,8 @@ final class ReservasTematicasConstants
     public const ACTION_UPDATE = 'update';
     public const ACTION_UPDATE_DETAIL = 'update_detail';
     public const ACTION_UPDATE_STATUS = 'update_status';
+    public const AUDIT_ACTION_ATTEMPT_REJECTED = 'reservation_attempt_rejected';
+    public const AUDIT_TABLE_ATTEMPTS = 'reservas_tematicas_tentativas';
 
     public const QUICK_FINALIZAR = 'finalizar';
     public const QUICK_NO_SHOW = 'nao_compareceu';

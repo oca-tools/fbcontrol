@@ -134,6 +134,33 @@ class RelatoriosTematicosController extends Controller
         ]);
     }
 
+    public function historico(): void
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin', 'supervisor', 'gerente']);
+
+        $reservaId = sanitize_int_param($_GET['id'] ?? '');
+        if ($reservaId <= 0) {
+            json_response([
+                'ok' => false,
+                'message' => 'Informe uma reserva válida para consultar o histórico.',
+            ], 422);
+        }
+
+        $historico = (new ReservaTematicaHistoricoService())->obter($reservaId);
+        if ($historico === null) {
+            json_response([
+                'ok' => false,
+                'message' => 'A reserva informada não foi localizada.',
+            ], 404);
+        }
+
+        json_response([
+            'ok' => true,
+            'historico' => $historico,
+        ]);
+    }
+
     public function export(): void
     {
         $this->requireAuth();

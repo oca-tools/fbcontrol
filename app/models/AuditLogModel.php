@@ -19,6 +19,12 @@ class AuditLogModel extends Model
             $where .= " AND a.tabela = :tabela";
             $params[':tabela'] = (string)$filters['tabela'];
         }
+        if (!empty($filters['uh_numero'])) {
+            $where .= " AND (a.dados_antes LIKE :general_uh_antes OR a.dados_depois LIKE :general_uh_depois)";
+            $uhJsonToken = '%"' . (string)$filters['uh_numero'] . '"%';
+            $params[':general_uh_antes'] = $uhJsonToken;
+            $params[':general_uh_depois'] = $uhJsonToken;
+        }
 
         $stmt = $this->db->prepare("
             SELECT SQL_CALC_FOUND_ROWS a.*, u.nome AS usuario

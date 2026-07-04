@@ -180,6 +180,149 @@ $paginationPages = static function (int $current, int $total): array {
     background: color-mix(in srgb, var(--ab-soft-bg) 74%, var(--ab-card) 26%);
 }
 
+.rt-history-btn {
+    white-space: nowrap;
+}
+
+.rt-history-modal .modal-content {
+    border: 1px solid var(--ab-border);
+    border-radius: 18px;
+    background: var(--ab-card);
+    color: var(--ab-text);
+    overflow: hidden;
+}
+
+.rt-history-modal .modal-header,
+.rt-history-modal .modal-footer {
+    border-color: var(--ab-border);
+}
+
+.rt-history-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    padding: 0.8rem;
+    border: 1px solid var(--ab-border);
+    border-radius: 14px;
+    background: var(--rt-muted-bg);
+}
+
+.rt-history-summary-item {
+    min-width: 0;
+}
+
+.rt-history-summary-item span {
+    display: block;
+    color: var(--ab-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.rt-history-summary-item strong {
+    display: block;
+    margin-top: 0.15rem;
+    overflow-wrap: anywhere;
+}
+
+.rt-history-origin {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    margin: 0.75rem 0 1rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ab-accent) 9%, var(--ab-card) 91%);
+    border: 1px solid color-mix(in srgb, var(--ab-accent) 25%, var(--ab-border) 75%);
+}
+
+.rt-history-origin.is-incomplete {
+    background: color-mix(in srgb, #f59e0b 10%, var(--ab-card) 90%);
+    border-color: color-mix(in srgb, #f59e0b 30%, var(--ab-border) 70%);
+}
+
+.rt-history-timeline {
+    position: relative;
+    display: grid;
+    gap: 0.8rem;
+}
+
+.rt-history-event {
+    position: relative;
+    padding: 0.85rem 0.9rem 0.85rem 1rem;
+    border: 1px solid var(--ab-border);
+    border-left: 4px solid var(--ab-accent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ab-card) 96%, var(--ab-soft-bg) 4%);
+}
+
+.rt-history-event.is-create {
+    border-left-color: #16a34a;
+}
+
+.rt-history-event.is-cancel,
+.rt-history-event.is-delete {
+    border-left-color: #dc2626;
+}
+
+.rt-history-event-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 0.65rem;
+}
+
+.rt-history-event-meta {
+    color: var(--ab-muted);
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.rt-history-changes {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.rt-history-change {
+    display: grid;
+    grid-template-columns: minmax(130px, 0.36fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: baseline;
+    padding-top: 0.4rem;
+    border-top: 1px dashed color-mix(in srgb, var(--ab-border) 80%, transparent);
+}
+
+.rt-history-change:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.rt-history-change-label {
+    color: var(--ab-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.rt-history-value-old {
+    color: var(--ab-muted);
+    text-decoration: line-through;
+}
+
+.rt-history-arrow {
+    color: var(--ab-accent);
+    padding: 0 0.3rem;
+}
+
+.rt-history-justification {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 10px;
+    background: var(--rt-muted-bg);
+    font-size: 0.82rem;
+}
+
 .rt-pager {
     display: flex;
     flex-wrap: wrap;
@@ -393,6 +536,40 @@ $paginationPages = static function (int $current, int $total): array {
 
     .rt-table-card tbody td[colspan]::before {
         content: none;
+    }
+
+    .rt-history-modal .modal-dialog {
+        margin: 0;
+        min-height: 100%;
+    }
+
+    .rt-history-modal .modal-content {
+        min-height: 100vh;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .rt-history-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rt-history-event-head {
+        display: block;
+    }
+
+    .rt-history-event-meta {
+        margin-top: 0.2rem;
+        text-align: left;
+    }
+
+    .rt-history-change {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+    }
+
+    .rt-history-arrow {
+        display: inline-block;
+        transform: rotate(90deg);
     }
 }
 </style>
@@ -758,6 +935,7 @@ $paginationPages = static function (int $current, int $total): array {
                         <th>Criada em</th>
                         <th>Atualizada em</th>
                         <th>Observação</th>
+                        <th>Histórico</th>
                     </tr>
                 </thead>
                 <tbody id="rtDetailBody">
@@ -810,10 +988,19 @@ $paginationPages = static function (int $current, int $total): array {
                             <td data-label="Criada em"><?= h($row['criado_em'] ?? '-') ?></td>
                             <td data-label="Atualizada em"><?= h($row['atualizado_em'] ?? '-') ?></td>
                             <td data-label="Observação"><?= h($row['observacao_reserva'] ?? '-') ?></td>
+                            <td data-label="Histórico">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary rt-history-btn"
+                                    data-reservation-history="<?= (int)$row['id'] ?>"
+                                    aria-label="Ver histórico da reserva da UH <?= h((string)($row['uh_numero'] ?? '')) ?>">
+                                    <i class="bi bi-clock-history me-1"></i>Ver histórico
+                                </button>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($list)): ?>
-                        <tr><td colspan="15" class="text-muted">Sem reservas para o filtro atual.</td></tr>
+                        <tr><td colspan="16" class="text-muted">Sem reservas para o filtro atual.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -836,6 +1023,29 @@ $paginationPages = static function (int $current, int $total): array {
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade rt-history-modal" id="rtHistoryModal" tabindex="-1" aria-labelledby="rtHistoryModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <div class="text-uppercase text-muted small">Auditoria da reserva</div>
+                    <h5 class="modal-title fw-bold" id="rtHistoryModalTitle">Histórico completo</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" id="rtHistoryModalBody">
+                <div class="d-flex justify-content-center align-items-center gap-2 py-5 text-muted">
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>Carregando histórico...</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Fechar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -960,6 +1170,105 @@ $paginationPages = static function (int $current, int $total): array {
             });
         };
         paint();
+    });
+
+    const historyModalEl = document.getElementById('rtHistoryModal');
+    const historyBody = document.getElementById('rtHistoryModalBody');
+    const historyTitle = document.getElementById('rtHistoryModalTitle');
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+    })[char]);
+    const actionClass = (action) => {
+        const normalizedAction = String(action || '').toLowerCase();
+        if (normalizedAction === 'create') return 'is-create';
+        if (normalizedAction.includes('cancel')) return 'is-cancel';
+        if (normalizedAction.includes('delete') || normalizedAction.includes('exclu')) return 'is-delete';
+        return '';
+    };
+    const renderChange = (change) => {
+        const label = escapeHtml(change.label || 'Campo');
+        const after = escapeHtml(change.depois || 'Não informado');
+        if (change.criacao) {
+            return `<div class="rt-history-change"><div class="rt-history-change-label">${label}</div><div><strong>${after}</strong></div></div>`;
+        }
+        return `<div class="rt-history-change"><div class="rt-history-change-label">${label}</div><div><span class="rt-history-value-old">${escapeHtml(change.antes || 'Não informado')}</span><span class="rt-history-arrow">→</span><strong>${after}</strong></div></div>`;
+    };
+    const renderHistory = (history) => {
+        const reservation = history.reserva || {};
+        const events = Array.isArray(history.eventos) ? history.eventos : [];
+        const originClass = history.origem === 'nova' ? '' : ' is-incomplete';
+        const originIcon = history.origem === 'nova' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+        historyTitle.textContent = `Histórico da reserva #${history.reserva_id || ''}`;
+
+        const summary = `
+            <div class="rt-history-summary">
+                <div class="rt-history-summary-item"><span>UH</span><strong>${escapeHtml(reservation.uh || '-')}</strong></div>
+                <div class="rt-history-summary-item"><span>Data</span><strong>${escapeHtml(reservation.data || '-')}</strong></div>
+                <div class="rt-history-summary-item"><span>Restaurante</span><strong>${escapeHtml(reservation.restaurante || '-')}</strong></div>
+                <div class="rt-history-summary-item"><span>Turno</span><strong>${escapeHtml(reservation.turno || '-')}</strong></div>
+            </div>
+            <div class="rt-history-origin${originClass}">
+                <i class="bi ${originIcon}"></i>
+                <div><strong>${escapeHtml(history.origem_label || '')}</strong><div class="small text-muted">${escapeHtml(history.origem_mensagem || '')}</div></div>
+            </div>`;
+
+        if (events.length === 0) {
+            historyBody.innerHTML = summary + '<div class="text-center text-muted py-4">Nenhum evento de auditoria foi encontrado para esta reserva.</div>';
+            return;
+        }
+
+        const timeline = events.map((event) => {
+            const changes = Array.isArray(event.alteracoes) ? event.alteracoes : [];
+            const changesHtml = changes.length > 0
+                ? changes.map(renderChange).join('')
+                : '<div class="text-muted small">Nenhuma mudança de campo legível neste registro.</div>';
+            const justification = event.justificativa
+                ? `<div class="rt-history-justification"><strong>Justificativa:</strong> ${escapeHtml(event.justificativa)}</div>`
+                : '';
+            return `
+                <article class="rt-history-event ${actionClass(event.acao)}">
+                    <div class="rt-history-event-head">
+                        <div><strong>${escapeHtml(event.titulo || 'Alteração registrada')}</strong></div>
+                        <div class="rt-history-event-meta">${escapeHtml(event.usuario || 'Usuário não identificado')} · ${escapeHtml(event.criado_em_formatado || event.criado_em || '')}</div>
+                    </div>
+                    <div class="rt-history-changes">${changesHtml}</div>
+                    ${justification}
+                </article>`;
+        }).join('');
+        historyBody.innerHTML = summary + `<div class="rt-history-timeline">${timeline}</div>`;
+    };
+
+    document.querySelectorAll('[data-reservation-history]').forEach((button) => {
+        button.addEventListener('click', async () => {
+            if (!historyModalEl || !historyBody || !window.bootstrap?.Modal) return;
+            const reservationId = parseInt(button.getAttribute('data-reservation-history') || '0', 10);
+            if (!reservationId) return;
+
+            historyTitle.textContent = 'Histórico completo';
+            historyBody.innerHTML = '<div class="d-flex justify-content-center align-items-center gap-2 py-5 text-muted"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Carregando histórico...</span></div>';
+            window.bootstrap.Modal.getOrCreateInstance(historyModalEl).show();
+            button.disabled = true;
+            try {
+                const response = await fetch(`/?r=relatoriosTematicos/historico&id=${encodeURIComponent(reservationId)}`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload?.ok || !payload.historico) {
+                    throw new Error(payload?.message || 'Não foi possível carregar o histórico desta reserva.');
+                }
+                renderHistory(payload.historico);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Não foi possível carregar o histórico desta reserva.';
+                historyBody.innerHTML = `<div class="text-center py-5"><i class="bi bi-exclamation-circle text-danger fs-3"></i><div class="fw-bold mt-2">Histórico indisponível</div><div class="text-muted">${escapeHtml(message)}</div></div>`;
+            } finally {
+                button.disabled = false;
+            }
+        });
     });
 
 })();

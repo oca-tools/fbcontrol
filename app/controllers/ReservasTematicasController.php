@@ -174,6 +174,8 @@ class ReservasTematicasController extends Controller
                 $totalChd += $qtdChd;
                 $items[] = [
                     'id' => (int)($row['id'] ?? 0),
+                    'grupo_id' => (int)($row['grupo_id'] ?? 0),
+                    'grupo_nome' => normalize_mojibake((string)($row['grupo_nome_display'] ?? $row['grupo_nome'] ?? $row['grupo_responsavel'] ?? '')),
                     'uh_numero' => $statusReserva === ReservasTematicasConstants::STATUS_PRE_RESERVA ? '' : (string)($row['uh_numero'] ?? ''),
                     'titular_nome' => normalize_mojibake((string)($row['titular_nome_display'] ?? $row['titular_nome'] ?? '')),
                     'pax' => $pax,
@@ -215,7 +217,7 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
-            $resultadoReserva = (new CriarReservaService())->executar(new CriarReservaCommand([
+            $comandoReserva = new CriarReservaCommand([
                 'acao' => $_POST['action'] ?? 'create',
                 'usuario_id' => (int)$user['id'],
                 'usuario' => $user,
@@ -236,7 +238,15 @@ class ReservasTematicasController extends Controller
                 'batch_pax' => $_POST['batch_pax'] ?? [],
                 'batch_chd_idades' => $_POST['batch_chd_idades'] ?? [],
                 'grupo_responsavel' => $_POST['grupo_responsavel'] ?? '',
-            ]));
+            ]);
+            $resultadoReserva = (new CriarReservaService())->executar($comandoReserva);
+            if (!$resultadoReserva->isSuccess()) {
+                (new RegistrarTentativaReservaTematicaService())->registrarRecusa(
+                    $comandoReserva,
+                    $resultadoReserva,
+                    $this->mensagemReservaTematicaParaUsuario($resultadoReserva)
+                );
+            }
             $this->aplicarResultadoReservaTematica($resultadoReserva, '/?r=reservasTematicas/reservas');
         }
 

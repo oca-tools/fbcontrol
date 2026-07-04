@@ -1,6 +1,31 @@
 <?php
 class ReservaTematicaLogModel extends Model
 {
+    /**
+     * Retorna a linha do tempo completa de uma reserva, identificando o autor de cada evento.
+     */
+    public function historyByReservation(int $reservaId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT
+                l.id,
+                l.reserva_id,
+                l.acao,
+                l.usuario_id,
+                l.dados_antes,
+                l.dados_depois,
+                l.justificativa,
+                l.criado_em,
+                COALESCE(NULLIF(TRIM(u.nome), ''), CONCAT('Usuário #', l.usuario_id)) AS usuario_nome
+            FROM reservas_tematicas_logs l
+            LEFT JOIN usuarios u ON u.id = l.usuario_id
+            WHERE l.reserva_id = :reserva_id
+            ORDER BY l.criado_em ASC, l.id ASC
+        ");
+        $stmt->execute([':reserva_id' => $reservaId]);
+        return $stmt->fetchAll();
+    }
+
     public function countManualByUserSince(int $userId, string $since): int
     {
         $stmt = $this->db->prepare("
@@ -35,5 +60,4 @@ class ReservaTematicaLogModel extends Model
         ]);
     }
 }
-
 

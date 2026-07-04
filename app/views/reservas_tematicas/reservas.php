@@ -844,6 +844,90 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
+.availability-detail-group {
+    border: 1px solid color-mix(in srgb, var(--ab-accent) 28%, var(--ab-border) 72%);
+    border-radius: 16px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--ab-card) 96%, var(--ab-soft-bg) 4%);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.availability-detail-group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    background: color-mix(in srgb, var(--ab-accent) 10%, var(--ab-card) 90%);
+    border-bottom: 1px solid color-mix(in srgb, var(--ab-accent) 18%, var(--ab-border) 82%);
+}
+
+.availability-detail-group-kicker {
+    color: var(--ab-accent);
+    font-size: 0.68rem;
+    font-weight: 850;
+    text-transform: uppercase;
+}
+
+.availability-detail-group-title {
+    margin-top: 0.1rem;
+    color: var(--ab-ink);
+    font-size: 1rem;
+    font-weight: 850;
+}
+
+.availability-detail-group-totals {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.availability-detail-group-total {
+    display: inline-flex;
+    align-items: center;
+    min-height: 27px;
+    border: 1px solid color-mix(in srgb, var(--ab-accent) 24%, transparent);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    background: color-mix(in srgb, var(--ab-card) 88%, transparent);
+    color: var(--ab-ink);
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.availability-detail-group-members {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 0.55rem;
+    padding: 0.65rem;
+}
+
+.availability-detail-group-member {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--ab-border) 78%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ab-card) 94%, var(--ab-soft-bg) 6%);
+}
+
+.availability-detail-member-title {
+    color: var(--ab-ink);
+    font-weight: 820;
+}
+
+.availability-detail-member-subtitle {
+    margin-top: 0.12rem;
+    color: var(--ab-muted);
+    font-size: 0.74rem;
+    overflow-wrap: anywhere;
+}
+
 .reserva-planner,
 .reservation-compose-card,
 .selected-slot-preview,
@@ -936,6 +1020,12 @@ $dayPercentual = $dayTotalCapacidade > 0 ? min(100, (int)round(($dayTotalReserva
 }
 
 html[data-theme='dark'] .availability-detail-item {
+    background: rgba(15, 23, 42, 0.58);
+    box-shadow: none;
+}
+
+html[data-theme='dark'] .availability-detail-group,
+html[data-theme='dark'] .availability-detail-group-member {
     background: rgba(15, 23, 42, 0.58);
     box-shadow: none;
 }
@@ -1258,6 +1348,23 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     .availability-detail-action {
         width: 100%;
         justify-content: center;
+    }
+
+    .availability-detail-group-head {
+        display: block;
+    }
+
+    .availability-detail-group-totals {
+        justify-content: flex-start;
+        margin-top: 0.55rem;
+    }
+
+    .availability-detail-group-members {
+        grid-template-columns: 1fr;
+    }
+
+    .availability-detail-group-member {
+        grid-template-columns: 1fr;
     }
 
     .reservation-person-panel {
@@ -2014,7 +2121,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 || String(payload.turno_id || '') !== String(turnoId);
             if (contextChanged) return;
 
-            const rows = (payload.items || []).map((item) => {
+            const renderIndividualReservation = (item) => {
                 const isPreReservation = item.status === 'Pre-reserva';
                 const uhLabel = isPreReservation ? 'UH pendente' : `UH ${escapeHtml(item.uh_numero || '-')}`;
                 const statusLabel = isPreReservation ? 'Pré-reserva' : (item.status || 'Reservada');
@@ -2033,7 +2140,78 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                     ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm availability-detail-action" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft availability-detail-action">Somente autor</span>'}
                 </div>
             `;
-            }).join('');
+            };
+            const itemSortValue = (item) => {
+                const digits = String(item?.uh_numero || '').replace(/\D/g, '');
+                return digits ? parseInt(digits, 10) : Number.MAX_SAFE_INTEGER;
+            };
+            const groupMap = new Map();
+            const displayEntries = [];
+            (payload.items || []).forEach((item) => {
+                const groupId = parseInt(String(item.grupo_id || '0'), 10) || 0;
+                if (groupId <= 0) {
+                    displayEntries.push({ type: 'individual', sort: itemSortValue(item), item });
+                    return;
+                }
+                if (!groupMap.has(groupId)) {
+                    const group = {
+                        type: 'group',
+                        id: groupId,
+                        name: item.grupo_nome || item.titular_nome || `Grupo #${groupId}`,
+                        sort: itemSortValue(item),
+                        items: [],
+                    };
+                    groupMap.set(groupId, group);
+                    displayEntries.push(group);
+                }
+                const group = groupMap.get(groupId);
+                group.items.push(item);
+                group.sort = Math.min(group.sort, itemSortValue(item));
+            });
+            displayEntries.sort((a, b) => a.sort - b.sort);
+
+            const renderGroupMember = (item, groupName) => {
+                const isPreReservation = item.status === 'Pre-reserva';
+                const uhLabel = isPreReservation ? 'UH pendente' : `UH ${escapeHtml(item.uh_numero || '-')}`;
+                const titleDiffers = String(item.titular_nome || '').trim().toLocaleLowerCase() !== String(groupName || '').trim().toLocaleLowerCase();
+                const subtitle = titleDiffers && item.titular_nome ? `<div class="availability-detail-member-subtitle">${escapeHtml(item.titular_nome)}</div>` : '';
+                return `
+                    <div class="availability-detail-group-member">
+                        <div>
+                            <div class="availability-detail-member-title">${uhLabel}</div>
+                            ${subtitle}
+                            <div class="availability-detail-meta">
+                                <span class="detail-badge is-pax">${escapeHtml(String(item.pax ?? 0))} PAX</span>
+                                <span class="detail-badge is-chd">${escapeHtml(String(item.qtd_chd ?? 0))} CHD</span>
+                                <span class="detail-badge is-status">${escapeHtml(isPreReservation ? 'Pré-reserva' : (item.status || 'Reservada'))}</span>
+                            </div>
+                        </div>
+                        ${item.edit_url ? `<a class="btn btn-outline-primary btn-sm availability-detail-action" href="${escapeHtml(item.edit_url)}">Editar</a>` : '<span class="badge badge-soft availability-detail-action">Somente autor</span>'}
+                    </div>`;
+            };
+            const renderGroup = (group) => {
+                group.items.sort((a, b) => itemSortValue(a) - itemSortValue(b));
+                const totalPax = group.items.reduce((total, item) => total + (parseInt(String(item.pax || '0'), 10) || 0), 0);
+                const totalChd = group.items.reduce((total, item) => total + (parseInt(String(item.qtd_chd || '0'), 10) || 0), 0);
+                const creators = Array.from(new Set(group.items.map((item) => item.usuario).filter(Boolean)));
+                const creatorText = creators.length === 1 ? ` · Criado por ${escapeHtml(creators[0])}` : '';
+                return `
+                    <section class="availability-detail-group">
+                        <div class="availability-detail-group-head">
+                            <div>
+                                <div class="availability-detail-group-kicker">Reserva em grupo</div>
+                                <div class="availability-detail-group-title">${escapeHtml(group.name || `Grupo #${group.id}`)}</div>
+                                <div class="small text-muted">${escapeHtml(String(group.items.length))} UHs${creatorText}</div>
+                            </div>
+                            <div class="availability-detail-group-totals">
+                                <span class="availability-detail-group-total">${escapeHtml(String(totalPax))} PAX</span>
+                                <span class="availability-detail-group-total">${escapeHtml(String(totalChd))} CHD</span>
+                            </div>
+                        </div>
+                        <div class="availability-detail-group-members">${group.items.map((item) => renderGroupMember(item, group.name)).join('')}</div>
+                    </section>`;
+            };
+            const rows = displayEntries.map((entry) => entry.type === 'group' ? renderGroup(entry) : renderIndividualReservation(entry.item)).join('');
         const restante = parseInt(String(payload.restante ?? cell.dataset.restante ?? '0'), 10) || 0;
         const reservado = parseInt(String(payload.reservado ?? cell.dataset.reservado ?? '0'), 10) || 0;
         const capacidade = parseInt(String(payload.capacidade ?? cell.dataset.capacidade ?? '0'), 10) || 0;
