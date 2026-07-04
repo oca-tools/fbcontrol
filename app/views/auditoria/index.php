@@ -350,7 +350,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
             <input type="date" class="form-control input-xl" name="data_fim" value="<?= h($filters['data_fim'] ?? '') ?>">
         </div>
         <div class="col-12 col-md-6 col-lg-4 col-xl">
-            <label class="form-label">Usuário</label>
+            <label class="form-label">Usuário relacionado</label>
             <select class="form-select input-xl" name="usuario_id">
                 <option value="">Todos</option>
                 <?php foreach ($usuarios as $usuario): ?>
@@ -359,6 +359,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                     </option>
                 <?php endforeach; ?>
             </select>
+            <div class="form-text">Autor da reserva ou responsável por uma ação.</div>
         </div>
         <div class="col-12 col-md-6 col-lg-4 col-xl">
             <label class="form-label">UH da reserva</label>
@@ -389,7 +390,8 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
             <thead>
                 <tr>
                     <th>Data/hora</th>
-                    <th>Usuário</th>
+                    <th>Usuário da ação</th>
+                    <th>Criada por</th>
                     <th>Ação</th>
                     <th>Reserva</th>
                     <th>Restaurante</th>
@@ -402,7 +404,8 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                 <?php foreach (($thematicLogs['rows'] ?? []) as $log): ?>
                     <tr>
                         <td data-label="Data/hora"><?= h($log['criado_em']) ?></td>
-                        <td data-label="Usuário"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Usuário da ação"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Criada por"><?= h($log['reserva_criador'] ?? '-') ?></td>
                         <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
                         <td data-label="Reserva">#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
                         <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
@@ -420,7 +423,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($thematicLogs['rows'] ?? [])): ?>
-                    <tr><td colspan="8" class="text-muted">Sem logs temáticos no filtro.</td></tr>
+                    <tr><td colspan="9" class="text-muted">Sem logs temáticos no filtro.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

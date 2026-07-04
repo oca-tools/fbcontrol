@@ -31,14 +31,15 @@ class AuditLogModel extends Model
     {
         $where = "WHERE 1=1";
         $params = [];
-        // A pesquisa por UH reconstrói toda a linha do tempo da reserva. A data
-        // do evento pode ser anterior à data reservada e não deve ocultar a criação.
+        // A auditoria temática acompanha o dia operacional da reserva. A criação
+        // pode ocorrer dias antes e não deve desaparecer ao filtrar a data reservada.
         if (empty($filters['uh_numero'])) {
-            $this->applyDateFilters($where, $params, 'l.criado_em', $filters);
+            $this->applyCreatedAtFilter($where, $params, 'rsv.data_reserva', $filters, 'thematic_reserva_data');
         }
         if (!empty($filters['usuario_id'])) {
-            $where .= " AND l.usuario_id = :usuario_id";
-            $params[':usuario_id'] = (int)$filters['usuario_id'];
+            $where .= " AND (rsv.usuario_id = :reserva_usuario_id OR l.usuario_id = :acao_usuario_id)";
+            $params[':reserva_usuario_id'] = (int)$filters['usuario_id'];
+            $params[':acao_usuario_id'] = (int)$filters['usuario_id'];
         }
         if (!empty($filters['uh_numero'])) {
             $where .= " AND (uh.numero = :uh_numero_atual OR uh_antes.numero = :uh_numero_antes OR uh_depois.numero = :uh_numero_depois)";
@@ -48,7 +49,7 @@ class AuditLogModel extends Model
         }
 
         $stmt = $this->db->prepare("
-            SELECT l.*, u.nome AS usuario,
+            SELECT l.*, u.nome AS usuario, criador.nome AS reserva_criador,
                    COALESCE(r_depois.nome, r_antes.nome, r.nome, 'Registro indisponivel') AS restaurante,
                    COALESCE(t_depois.hora, t_antes.hora, t.hora) AS turno_hora,
                    COALESCE(
@@ -75,6 +76,7 @@ class AuditLogModel extends Model
             LEFT JOIN reservas_tematicas_turnos t_depois
                    ON t_depois.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_depois, '$.turno_id')), '') AS UNSIGNED)
             LEFT JOIN usuarios u ON u.id = l.usuario_id
+            LEFT JOIN usuarios criador ON criador.id = rsv.usuario_id
             $where
             ORDER BY l.criado_em DESC, l.id DESC
             LIMIT " . max(1, min(500, $limit)) . "
