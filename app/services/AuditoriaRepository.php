@@ -62,6 +62,11 @@ final class AuditoriaRepository extends RepositoryBase
         return (new AuditLogModel())->generalLogs($filters, $limit);
     }
 
+    public function paginarEventosGerais(array $filters, int $limit, int $offset): array
+    {
+        return (new AuditLogModel())->generalLogsPage($filters, $limit, $offset);
+    }
+
     /**
      * Lista trilhas de reservas temáticas para auditoria de operação e exceções.
      *
@@ -72,6 +77,11 @@ final class AuditoriaRepository extends RepositoryBase
         return (new AuditLogModel())->thematicLogs($filters, $limit);
     }
 
+    public function paginarEventosTematicos(array $filters, int $limit, int $offset): array
+    {
+        return (new AuditLogModel())->thematicLogsPage($filters, $limit, $offset);
+    }
+
     /**
      * Lista alterações de turno para acompanhar abertura, encerramento e fechamento automático.
      *
@@ -80,6 +90,11 @@ final class AuditoriaRepository extends RepositoryBase
     public function listarEventosTurnos(array $filters, int $limit = GovernancaConstants::AUDITORIA_QUERY_LIMIT): array
     {
         return (new AuditLogModel())->shiftLogs($filters, $limit);
+    }
+
+    public function paginarEventosTurnos(array $filters, int $limit, int $offset): array
+    {
+        return (new AuditLogModel())->shiftLogsPage($filters, $limit, $offset);
     }
 
     /**

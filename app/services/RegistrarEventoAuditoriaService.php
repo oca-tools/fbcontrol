@@ -54,9 +54,15 @@ final class RegistrarEventoAuditoriaService
         return [
             'filters' => $filters,
             'usuarios' => $this->auditoriaRepository->listarUsuariosParaFiltro(),
-            'general_logs' => $this->paginate($this->auditoriaRepository->listarEventosGerais($filters), $query, 'general_page'),
-            'thematic_logs' => $this->paginate($this->auditoriaRepository->listarEventosTematicos($filters), $query, 'thematic_page'),
-            'shift_logs' => $this->paginate($this->auditoriaRepository->listarEventosTurnos($filters), $query, 'shift_page'),
+            'general_logs' => $this->paginateQuery($query, 'general_page', function (int $limit, int $offset) use ($filters): array {
+                return $this->auditoriaRepository->paginarEventosGerais($filters, $limit, $offset);
+            }),
+            'thematic_logs' => $this->paginateQuery($query, 'thematic_page', function (int $limit, int $offset) use ($filters): array {
+                return $this->auditoriaRepository->paginarEventosTematicos($filters, $limit, $offset);
+            }),
+            'shift_logs' => $this->paginateQuery($query, 'shift_page', function (int $limit, int $offset) use ($filters): array {
+                return $this->auditoriaRepository->paginarEventosTurnos($filters, $limit, $offset);
+            }),
         ];
     }
 
@@ -79,14 +85,18 @@ final class RegistrarEventoAuditoriaService
      *
      * @return array{rows: array<int, array<string, mixed>>, page: int, total_pages: int, total: int, param: string}
      */
-    private function paginate(array $rows, array $query, string $param, int $perPage = GovernancaConstants::AUDITORIA_PAGE_SIZE): array
+    private function paginateQuery(array $query, string $param, callable $loader, int $perPage = GovernancaConstants::AUDITORIA_PAGE_SIZE): array
     {
         $page = max(1, (int)($query[$param] ?? 1));
-        $total = count($rows);
+        $result = $loader($perPage, ($page - 1) * $perPage);
+        $total = (int)($result['total'] ?? 0);
         $totalPages = max(1, (int)ceil($total / $perPage));
-        $page = min($page, $totalPages);
+        if ($page > $totalPages) {
+            $page = $totalPages;
+            $result = $loader($perPage, ($page - 1) * $perPage);
+        }
         return [
-            'rows' => array_slice($rows, ($page - 1) * $perPage, $perPage),
+            'rows' => $result['rows'] ?? [],
             'page' => $page,
             'total_pages' => $totalPages,
             'total' => $total,

@@ -1,7 +1,12 @@
 <?php
 class AuditLogModel extends Model
 {
-    public function generalLogs(array $filters, int $limit = 200): array
+    public function generalLogs(array $filters, int $limit = 200, int $offset = 0): array
+    {
+        return $this->generalLogsPage($filters, $limit, $offset)['rows'];
+    }
+
+    public function generalLogsPage(array $filters, int $limit = 200, int $offset = 0): array
     {
         $where = "WHERE 1=1";
         $params = [];
@@ -16,18 +21,25 @@ class AuditLogModel extends Model
         }
 
         $stmt = $this->db->prepare("
-            SELECT a.*, u.nome AS usuario
+            SELECT SQL_CALC_FOUND_ROWS a.*, u.nome AS usuario
             FROM auditoria a
             LEFT JOIN usuarios u ON u.id = a.usuario_id
             $where
             ORDER BY a.criado_em DESC, a.id DESC
-            LIMIT " . max(1, min(500, $limit)) . "
+            LIMIT " . max(1, min(500, $limit)) . " OFFSET " . max(0, $offset) . "
         ");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        $total = (int)$this->db->query("SELECT FOUND_ROWS()")->fetchColumn();
+        return ['rows' => $rows, 'total' => $total];
     }
 
-    public function thematicLogs(array $filters, int $limit = 200): array
+    public function thematicLogs(array $filters, int $limit = 200, int $offset = 0): array
+    {
+        return $this->thematicLogsPage($filters, $limit, $offset)['rows'];
+    }
+
+    public function thematicLogsPage(array $filters, int $limit = 200, int $offset = 0): array
     {
         $where = "WHERE 1=1";
         $params = [];
@@ -49,7 +61,7 @@ class AuditLogModel extends Model
         }
 
         $stmt = $this->db->prepare("
-            SELECT l.*, u.nome AS usuario, criador.nome AS reserva_criador,
+            SELECT SQL_CALC_FOUND_ROWS l.*, u.nome AS usuario, criador.nome AS reserva_criador,
                    COALESCE(r_depois.nome, r_antes.nome, r.nome, 'Registro indisponivel') AS restaurante,
                    COALESCE(t_depois.hora, t_antes.hora, t.hora) AS turno_hora,
                    COALESCE(
@@ -79,13 +91,20 @@ class AuditLogModel extends Model
             LEFT JOIN usuarios criador ON criador.id = rsv.usuario_id
             $where
             ORDER BY l.criado_em DESC, l.id DESC
-            LIMIT " . max(1, min(500, $limit)) . "
+            LIMIT " . max(1, min(500, $limit)) . " OFFSET " . max(0, $offset) . "
         ");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        $total = (int)$this->db->query("SELECT FOUND_ROWS()")->fetchColumn();
+        return ['rows' => $rows, 'total' => $total];
     }
 
-    public function shiftLogs(array $filters, int $limit = 200): array
+    public function shiftLogs(array $filters, int $limit = 200, int $offset = 0): array
+    {
+        return $this->shiftLogsPage($filters, $limit, $offset)['rows'];
+    }
+
+    public function shiftLogsPage(array $filters, int $limit = 200, int $offset = 0): array
     {
         $where = "WHERE 1=1";
         $params = [];
@@ -96,7 +115,7 @@ class AuditLogModel extends Model
         }
 
         $stmt = $this->db->prepare("
-            SELECT t.*, u.nome AS usuario, r.nome AS restaurante, o.nome AS operacao,
+            SELECT SQL_CALC_FOUND_ROWS t.*, u.nome AS usuario, r.nome AS restaurante, o.nome AS operacao,
                    COUNT(a.id) AS total_registros,
                    COALESCE(SUM(a.pax), 0) AS total_pax
             FROM turnos t
@@ -107,10 +126,12 @@ class AuditLogModel extends Model
             $where
             GROUP BY t.id
             ORDER BY COALESCE(t.fim_em, t.inicio_em) DESC, t.id DESC
-            LIMIT " . max(1, min(500, $limit)) . "
+            LIMIT " . max(1, min(500, $limit)) . " OFFSET " . max(0, $offset) . "
         ");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        $total = (int)$this->db->query("SELECT FOUND_ROWS()")->fetchColumn();
+        return ['rows' => $rows, 'total' => $total];
     }
 
     public function users(): array
