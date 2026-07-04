@@ -41,8 +41,10 @@ class AuditLogModel extends Model
             $params[':usuario_id'] = (int)$filters['usuario_id'];
         }
         if (!empty($filters['uh_numero'])) {
-            $where .= " AND (uh.numero = :uh_numero OR uh_antes.numero = :uh_numero OR uh_depois.numero = :uh_numero)";
-            $params[':uh_numero'] = (string)$filters['uh_numero'];
+            $where .= " AND (uh.numero = :uh_numero_atual OR uh_antes.numero = :uh_numero_antes OR uh_depois.numero = :uh_numero_depois)";
+            $params[':uh_numero_atual'] = (string)$filters['uh_numero'];
+            $params[':uh_numero_antes'] = (string)$filters['uh_numero'];
+            $params[':uh_numero_depois'] = (string)$filters['uh_numero'];
         }
 
         $stmt = $this->db->prepare("
