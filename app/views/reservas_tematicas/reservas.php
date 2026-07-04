@@ -1978,6 +1978,9 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         });
     };
 
+    let availabilityDetailRequestId = 0;
+    let availabilityDetailController = null;
+
     const openAvailabilityDetail = async (triggerEl) => {
         const cell = triggerEl?.closest('.js-availability-cell[data-rest-id][data-turno-id]');
         if (!cell) return;
@@ -1988,12 +1991,28 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         const date = dateInput?.value || reservaDateInput?.value || '';
         if (!date) return;
 
+        const requestId = ++availabilityDetailRequestId;
+        availabilityDetailController?.abort();
+        availabilityDetailController = typeof AbortController === 'function' ? new AbortController() : null;
+
         try {
-            const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}`;
-            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const url = `/?r=reservasTematicas/reservas&ajax=availability_detail&data=${encodeURIComponent(date)}&restaurante_id=${encodeURIComponent(restId)}&turno_id=${encodeURIComponent(turnoId)}&_=${Date.now()}`;
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                signal: availabilityDetailController?.signal,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
             if (!res.ok) throw new Error('Falha ao buscar detalhes do turno.');
             const payload = await res.json();
             if (!payload?.ok) throw new Error(payload?.message || 'Não foi possível carregar os detalhes.');
+            const selectedDate = dateInput?.value || reservaDateInput?.value || '';
+            const contextChanged = requestId !== availabilityDetailRequestId
+                || selectedDate !== date
+                || String(payload.date || '') !== String(date)
+                || String(payload.restaurante_id || '') !== String(restId)
+                || String(payload.turno_id || '') !== String(turnoId);
+            if (contextChanged) return;
 
             const rows = (payload.items || []).map((item) => {
                 const isPreReservation = item.status === 'Pre-reserva';
@@ -2028,6 +2047,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             `;
             showTurnoPopup(html);
         } catch (err) {
+            if (err?.name === 'AbortError') return;
             const msg = err?.message || 'Erro ao carregar detalhes.';
             window.fbAlerts?.error(msg, 'Não foi possível abrir');
         }

@@ -343,7 +343,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
             <label class="form-label">Data fim</label>
             <input type="date" class="form-control input-xl" name="data_fim" value="<?= h($filters['data_fim'] ?? '') ?>">
         </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-2">
             <label class="form-label">Usuário</label>
             <select class="form-select input-xl" name="usuario_id">
                 <option value="">Todos</option>
@@ -353,6 +353,11 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                     </option>
                 <?php endforeach; ?>
             </select>
+        </div>
+        <div class="col-12 col-md-2">
+            <label class="form-label">UH da reserva</label>
+            <input type="text" inputmode="numeric" class="form-control input-xl" name="uh_numero" value="<?= h($filters['uh_numero'] ?? '') ?>" placeholder="Ex.: 4002">
+            <div class="form-text">Ao informar a UH, a trilha temática pesquisa todo o histórico.</div>
         </div>
         <div class="col-12 col-md-2">
             <label class="form-label">Tabela/área</label>
@@ -384,6 +389,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                     <th>Restaurante</th>
                     <th>Turno</th>
                     <th>Justificativa</th>
+                    <th>Alterações</th>
                 </tr>
             </thead>
             <tbody>
@@ -396,10 +402,19 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                         <td data-label="Restaurante"><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? '') ?></span></td>
                         <td data-label="Turno"><?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5)) ?></td>
                         <td data-label="Justificativa" class="small text-muted audit-cell-expandable"><?php $renderExpandableText($log['justificativa'] ?? '', 'Sem justificativa'); ?></td>
+                        <td data-label="Alterações" class="small text-muted audit-cell-expandable">
+                            <?php
+                                $auditPayload = [
+                                    'antes' => !empty($log['dados_antes']) ? json_decode((string)$log['dados_antes'], true) : null,
+                                    'depois' => !empty($log['dados_depois']) ? json_decode((string)$log['dados_depois'], true) : null,
+                                ];
+                                $renderExpandableText(json_encode($auditPayload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), 'Sem alterações', true, 'Ver alterações');
+                            ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($thematicLogs['rows'] ?? [])): ?>
-                    <tr><td colspan="7" class="text-muted">Sem logs temáticos no filtro.</td></tr>
+                    <tr><td colspan="8" class="text-muted">Sem logs temáticos no filtro.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

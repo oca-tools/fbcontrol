@@ -14,6 +14,7 @@ config/*.local.php
 *.tar.gz
 *.zip
 *.sql.gz
+fbcontrol_investigacao_*.txt
 logs/
 public/uploads/
 central/

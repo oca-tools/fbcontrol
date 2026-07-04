@@ -711,10 +711,10 @@ $paginationPages = static function (int $current, int $total): array {
             </div>
         </div>
         <div class="rt-detail-actions">
-            <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
+            <a class="btn btn-outline-primary js-export-btn" data-toast="Exportado com sucesso. O download CSV da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=csv&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>&q=<?= h($filters['q'] ?? '') ?>">
                 <i class="bi bi-download me-1"></i>Exportar CSV
             </a>
-            <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>">
+            <a class="btn btn-primary js-export-btn" data-toast="Exportado com sucesso. O download Excel da base detalhada foi iniciado." href="/?r=relatoriosTematicos/export&type=xlsx&data=<?= h($filters['data']) ?>&data_inicio=<?= h($filters['data_inicio']) ?>&data_fim=<?= h($filters['data_fim']) ?>&restaurante_id=<?= h($filters['restaurante_id']) ?>&turno_id=<?= h($filters['turno_id']) ?>&status=<?= h($filters['status']) ?>&grupo_nome=<?= h($filters['grupo_nome'] ?? '') ?>&q=<?= h($filters['q'] ?? '') ?>">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar Excel
             </a>
             <button type="button" class="btn btn-outline-primary rt-section-toggle" data-toggle-rt-section="#rtDetailCard" aria-expanded="true">
@@ -724,30 +724,21 @@ $paginationPages = static function (int $current, int $total): array {
     </div>
     <div class="rt-collapsed-hint">Base detalhada recolhida para manter os relatórios rápidos no celular.</div>
     <div class="rt-collapsible-body">
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-6">
-                <label class="form-label mb-1">Filtro da tabela</label>
-                <input type="text" class="form-control" id="rtDetailFilter" placeholder="Filtrar nesta página">
+        <form class="row g-2 mb-3 align-items-end" method="get" action="/" data-ajax-filter data-ajax-target=".app-content">
+            <?php foreach ($publicFilters as $filterKey => $filterValue): ?>
+                <?php if ($filterKey !== 'q' && !is_array($filterValue)): ?>
+                    <input type="hidden" name="<?= h((string)$filterKey) ?>" value="<?= h((string)$filterValue) ?>">
+                <?php endif; ?>
+            <?php endforeach; ?>
+            <input type="hidden" name="r" value="relatoriosTematicos/index">
+            <div class="col-12 col-md-10">
+                <label class="form-label mb-1">Pesquisar em toda a base detalhada</label>
+                <input type="search" class="form-control" name="q" value="<?= h($filters['q'] ?? '') ?>" placeholder="UH, titular, grupo, restaurante, usuário ou observação">
             </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label mb-1">Status</label>
-                <select class="form-select" id="rtDetailStatus">
-                    <option value="">Todos</option>
-                    <?php foreach ($statusOptions as $statusValue => $statusLabel): ?>
-                        <option value="<?= h($statusValue) ?>"><?= h($statusLabel) ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="col-12 col-md-2 d-grid">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Pesquisar</button>
             </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label mb-1">Restaurante</label>
-                <select class="form-select" id="rtDetailRestaurant">
-                    <option value="">Todos</option>
-                    <?php foreach ($restaurantes as $rest): ?>
-                        <option value="<?= h(mb_strtolower((string)$rest['nome'], 'UTF-8')) ?>"><?= h($rest['nome']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
+        </form>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead>
@@ -764,6 +755,8 @@ $paginationPages = static function (int $current, int $total): array {
                         <th>PAX real</th>
                         <th>Status</th>
                         <th>Usuário</th>
+                        <th>Criada em</th>
+                        <th>Atualizada em</th>
                         <th>Observação</th>
                     </tr>
                 </thead>
@@ -814,11 +807,13 @@ $paginationPages = static function (int $current, int $total): array {
                             <td data-label="PAX real"><?= h($row['pax_real'] ?? '-') ?></td>
                             <td data-label="Status"><span class="badge badge-soft"><?= h($rowStatusLabel) ?></span></td>
                             <td data-label="Usuário"><?= h($row['usuario'] ?? '-') ?></td>
+                            <td data-label="Criada em"><?= h($row['criado_em'] ?? '-') ?></td>
+                            <td data-label="Atualizada em"><?= h($row['atualizado_em'] ?? '-') ?></td>
                             <td data-label="Observação"><?= h($row['observacao_reserva'] ?? '-') ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($list)): ?>
-                        <tr><td colspan="13" class="text-muted">Sem reservas para o filtro atual.</td></tr>
+                        <tr><td colspan="15" class="text-muted">Sem reservas para o filtro atual.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -967,30 +962,6 @@ $paginationPages = static function (int $current, int $total): array {
         paint();
     });
 
-    const detailBody = document.getElementById('rtDetailBody');
-    if (detailBody) {
-        const detailRows = Array.from(detailBody.querySelectorAll('tr.js-rt-detail-row'));
-        const input = document.getElementById('rtDetailFilter');
-        const status = document.getElementById('rtDetailStatus');
-        const rest = document.getElementById('rtDetailRestaurant');
-
-        const apply = () => {
-            const term = normalize(input?.value || '');
-            const st = (status?.value || '').trim();
-            const rs = normalize(rest?.value || '');
-            detailRows.forEach((row) => {
-                const okTerm = !term || normalize(row.dataset.search || '').includes(term);
-                const okStatus = !st || (row.dataset.status || '') === st;
-                const okRest = !rs || normalize(row.dataset.rest || '') === rs;
-                row.style.display = okTerm && okStatus && okRest ? '' : 'none';
-            });
-        };
-
-        input?.addEventListener('input', apply);
-        status?.addEventListener('change', apply);
-        rest?.addEventListener('change', apply);
-        apply();
-    }
 })();
 </script>
 

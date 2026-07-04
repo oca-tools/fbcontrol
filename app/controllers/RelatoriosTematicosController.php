@@ -11,6 +11,10 @@ class RelatoriosTematicosController extends Controller
         if (mb_strlen($grupoNome, 'UTF-8') > 120) {
             $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
         }
+        $query = normalize_mojibake(trim((string)($_GET['q'] ?? '')));
+        if (mb_strlen($query, 'UTF-8') > 120) {
+            $query = mb_substr($query, 0, 120, 'UTF-8');
+        }
 
         return [
             'data' => sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
@@ -20,6 +24,7 @@ class RelatoriosTematicosController extends Controller
             'turno_id' => sanitize_int_param($_GET['turno_id'] ?? ''),
             'status' => $status,
             'grupo_nome' => $grupoNome,
+            'q' => $query,
             'restaurante_ids' => array_map(fn($r) => (int)$r['id'], $tematicos),
         ];
     }
@@ -78,6 +83,9 @@ class RelatoriosTematicosController extends Controller
         }
         if (!empty($filters['grupo_nome'])) {
             $meta['Grupo'] = normalize_mojibake((string)$filters['grupo_nome']);
+        }
+        if (!empty($filters['q'])) {
+            $meta['Pesquisa'] = normalize_mojibake((string)$filters['q']);
         }
         return $meta;
     }

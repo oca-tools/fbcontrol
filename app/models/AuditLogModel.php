@@ -31,20 +31,47 @@ class AuditLogModel extends Model
     {
         $where = "WHERE 1=1";
         $params = [];
-        $this->applyDateFilters($where, $params, 'l.criado_em', $filters);
+        // A pesquisa por UH reconstrói toda a linha do tempo da reserva. A data
+        // do evento pode ser anterior à data reservada e não deve ocultar a criação.
+        if (empty($filters['uh_numero'])) {
+            $this->applyDateFilters($where, $params, 'l.criado_em', $filters);
+        }
         if (!empty($filters['usuario_id'])) {
             $where .= " AND l.usuario_id = :usuario_id";
             $params[':usuario_id'] = (int)$filters['usuario_id'];
         }
+        if (!empty($filters['uh_numero'])) {
+            $where .= " AND (uh.numero = :uh_numero OR uh_antes.numero = :uh_numero OR uh_depois.numero = :uh_numero)";
+            $params[':uh_numero'] = (string)$filters['uh_numero'];
+        }
 
         $stmt = $this->db->prepare("
-            SELECT l.*, u.nome AS usuario, r.nome AS restaurante, t.hora AS turno_hora,
-                   rsv.data_reserva, uh.numero AS uh_numero
+            SELECT l.*, u.nome AS usuario,
+                   COALESCE(r_depois.nome, r_antes.nome, r.nome, 'Registro indisponivel') AS restaurante,
+                   COALESCE(t_depois.hora, t_antes.hora, t.hora) AS turno_hora,
+                   COALESCE(
+                       JSON_UNQUOTE(JSON_EXTRACT(l.dados_depois, '$.data_reserva')),
+                       JSON_UNQUOTE(JSON_EXTRACT(l.dados_antes, '$.data_reserva')),
+                       rsv.data_reserva
+                   ) AS data_reserva,
+                   COALESCE(uh_depois.numero, uh_antes.numero, uh.numero, 'Nao informado') AS uh_numero
             FROM reservas_tematicas_logs l
-            JOIN reservas_tematicas rsv ON rsv.id = l.reserva_id
-            JOIN restaurantes r ON r.id = rsv.restaurante_id
-            JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
-            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            LEFT JOIN reservas_tematicas rsv ON rsv.id = l.reserva_id
+            LEFT JOIN restaurantes r ON r.id = rsv.restaurante_id
+            LEFT JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            LEFT JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            LEFT JOIN unidades_habitacionais uh_antes
+                   ON uh_antes.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_antes, '$.uh_id')), '') AS UNSIGNED)
+            LEFT JOIN unidades_habitacionais uh_depois
+                   ON uh_depois.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_depois, '$.uh_id')), '') AS UNSIGNED)
+            LEFT JOIN restaurantes r_antes
+                   ON r_antes.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_antes, '$.restaurante_id')), '') AS UNSIGNED)
+            LEFT JOIN restaurantes r_depois
+                   ON r_depois.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_depois, '$.restaurante_id')), '') AS UNSIGNED)
+            LEFT JOIN reservas_tematicas_turnos t_antes
+                   ON t_antes.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_antes, '$.turno_id')), '') AS UNSIGNED)
+            LEFT JOIN reservas_tematicas_turnos t_depois
+                   ON t_depois.id = CAST(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(l.dados_depois, '$.turno_id')), '') AS UNSIGNED)
             LEFT JOIN usuarios u ON u.id = l.usuario_id
             $where
             ORDER BY l.criado_em DESC, l.id DESC

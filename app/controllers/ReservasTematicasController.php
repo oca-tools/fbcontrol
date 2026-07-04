@@ -149,7 +149,9 @@ class ReservasTematicasController extends Controller
                 'data' => $dateAjax,
                 'restaurante_id' => $restauranteId,
                 'turno_id' => $turnoId,
-                'status' => ReservasTematicasConstants::STATUS_RESERVADA,
+                // O detalhe deve refletir a mesma base usada no calculo de ocupacao.
+                // Reservas finalizadas e no-show continuam compondo o historico do turno.
+                'status' => '',
                 'order' => 'status',
             ]);
             $availabilityMap = $buildAvailability($dateAjax);
@@ -164,6 +166,9 @@ class ReservasTematicasController extends Controller
             foreach ($rows as $row) {
                 $pax = (int)($row['pax'] ?? 0);
                 $statusReserva = $this->normalizeReservaStatus((string)($row['status'] ?? ''));
+                if ($statusReserva === ReservasTematicasConstants::STATUS_CANCELADA) {
+                    continue;
+                }
                 $qtdChd = max((int)($row['qtd_chd_calc'] ?? 0), (int)($row['pax_chd_calc'] ?? 0));
                 $totalPax += $pax;
                 $totalChd += $qtdChd;
@@ -184,6 +189,8 @@ class ReservasTematicasController extends Controller
             json_response([
                 'ok' => true,
                 'date' => $dateAjax,
+                'restaurante_id' => $restauranteId,
+                'turno_id' => $turnoId,
                 'capacidade' => (int)($availabilityInfo['capacidade'] ?? 0),
                 'reservado' => (int)($availabilityInfo['reservado'] ?? 0),
                 'restante' => (int)($availabilityInfo['restante'] ?? 0),

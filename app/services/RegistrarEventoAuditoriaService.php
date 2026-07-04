@@ -44,6 +44,7 @@ final class RegistrarEventoAuditoriaService
             'data_fim' => sanitize_date_param($query['data_fim'] ?? ''),
             'usuario_id' => sanitize_int_param($query['usuario_id'] ?? ''),
             'tabela' => trim((string)($query['tabela'] ?? '')),
+            'uh_numero' => sanitize_uh_param($query['uh_numero'] ?? ''),
         ];
         if ($filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
             $filters['data'] = date('Y-m-d');
