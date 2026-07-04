@@ -718,7 +718,11 @@ class ReservaTematicaModel extends Model
             $params[':grupo_nome'] = '%' . $filters['grupo_nome'] . '%';
         }
         if (!empty($filters['q'])) {
-            $where .= " AND (uh.numero LIKE :q OR COALESCE(r.nome, '') LIKE :q OR COALESCE(rsv.observacao_reserva, '') LIKE :q";
+            $queryTerm = '%' . $filters['q'] . '%';
+            $where .= " AND (uh.numero LIKE :q_uh OR COALESCE(r.nome, '') LIKE :q_restaurante OR COALESCE(rsv.observacao_reserva, '') LIKE :q_observacao";
+            $params[':q_uh'] = $queryTerm;
+            $params[':q_restaurante'] = $queryTerm;
+            $params[':q_observacao'] = $queryTerm;
             $titularSearchExpr = $hasTitular
                 ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), '')"
                 : "''";
@@ -727,16 +731,17 @@ class ReservaTematicaModel extends Model
                     ? "COALESCE(NULLIF(TRIM(rsv.titular_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')"
                     : "COALESCE(NULLIF(TRIM(grp.responsavel_nome), ''), '')";
             }
-            $where .= " OR {$titularSearchExpr} LIKE :q";
+            $where .= " OR {$titularSearchExpr} LIKE :q_titular";
+            $params[':q_titular'] = $queryTerm;
             if ($hasGrupoNome) {
                 $grupoSearchExpr = "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), '')";
                 if ($hasGroupTable) {
                     $grupoSearchExpr = "COALESCE(NULLIF(TRIM(rsv.grupo_nome), ''), NULLIF(TRIM(grp.responsavel_nome), ''), '')";
                 }
-                $where .= " OR {$grupoSearchExpr} LIKE :q";
+                $where .= " OR {$grupoSearchExpr} LIKE :q_grupo";
+                $params[':q_grupo'] = $queryTerm;
             }
             $where .= ")";
-            $params[':q'] = '%' . $filters['q'] . '%';
         }
         $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
@@ -1514,4 +1519,3 @@ class ReservaTematicaModel extends Model
         return $row ?: null;
     }
 }
-
