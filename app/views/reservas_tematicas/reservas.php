@@ -8,6 +8,9 @@ $filters = $this->data['filters'] ?? [];
 $canReserve = $this->data['can_reserve'] ?? false;
 $editItem = $this->data['edit_item'] ?? null;
 $isHostess = $this->data['is_hostess'] ?? false;
+$reservasRecentes = $this->data['reservas_recentes'] ?? [];
+$reconciliacao = $this->data['reconciliacao'] ?? ['totais' => [], 'linhas' => []];
+$reconciliacaoTotais = $reconciliacao['totais'] ?? [];
 $user = Auth::user();
 $canCreatePreReservation = in_array((string)($user['perfil'] ?? ''), ReservasTematicasConstants::PRIVILEGED_ROLES, true);
 
@@ -1384,6 +1387,78 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         grid-column: auto;
     }
 }
+
+.reservation-trace-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.reservation-trace-card {
+    border: 1px solid var(--ab-border);
+    border-radius: 14px;
+    background: var(--ab-card);
+    padding: 1rem;
+    min-width: 0;
+}
+
+.reservation-trace-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+}
+
+.reservation-trace-metric {
+    border: 1px solid var(--ab-border);
+    border-radius: 10px;
+    background: var(--ab-soft-bg);
+    padding: 0.65rem;
+}
+
+.reservation-trace-metric span,
+.reservation-recent-meta {
+    color: var(--ab-muted);
+    font-size: 0.76rem;
+}
+
+.reservation-trace-metric strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.reservation-recent-list {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+}
+
+.reservation-recent-item {
+    display: grid;
+    grid-template-columns: minmax(135px, 0.65fr) minmax(0, 1.6fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    border: 1px solid var(--ab-border);
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    min-width: 0;
+}
+
+.reservation-protocol {
+    color: var(--ab-primary);
+    font-weight: 800;
+}
+
+@media (max-width: 991.98px) {
+    .reservation-trace-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 575.98px) {
+    .reservation-trace-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .reservation-recent-item { grid-template-columns: 1fr; gap: 0.25rem; }
+    .reservation-recent-item .text-end { text-align: left !important; }
+}
 </style>
 
 <div class="reservation-workspace mb-4">
@@ -1683,6 +1758,59 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
 </div>
 
+<section class="reservation-trace-grid" aria-label="Confirmação e conferência das reservas">
+    <article class="reservation-trace-card">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+                <div class="text-uppercase text-muted small">Conferência do dia</div>
+                <h5 class="fw-bold mb-1">Registros confirmados no banco</h5>
+                <div class="text-muted small"><span class="js-reconcile-date"><?= h(date('d/m/Y', strtotime((string)($reconciliacao['data'] ?? $availabilityDate)))) ?></span> · atualização automática</div>
+            </div>
+            <i class="bi bi-database-check text-success fs-4" aria-hidden="true"></i>
+        </div>
+        <div class="reservation-trace-metrics">
+            <div class="reservation-trace-metric"><span>Reservas</span><strong class="js-reconcile-reservas"><?= (int)($reconciliacaoTotais['reservas'] ?? 0) ?></strong></div>
+            <div class="reservation-trace-metric"><span>Grupos</span><strong class="js-reconcile-grupos"><?= (int)($reconciliacaoTotais['grupos'] ?? 0) ?></strong></div>
+            <div class="reservation-trace-metric"><span>PAX</span><strong class="js-reconcile-pax"><?= (int)($reconciliacaoTotais['pax'] ?? 0) ?></strong></div>
+            <div class="reservation-trace-metric"><span>Pendentes</span><strong class="js-reconcile-pendentes"><?= (int)($reconciliacaoTotais['pendentes'] ?? 0) ?></strong></div>
+        </div>
+        <div class="small text-muted mt-2">
+            Último cadastro: <span class="js-reconcile-last"><?= !empty($reconciliacaoTotais['ultimo_cadastro']) ? h(date('d/m/Y H:i', strtotime((string)$reconciliacaoTotais['ultimo_cadastro']))) : 'nenhum registro nesta data' ?></span>.
+        </div>
+        <a class="btn btn-outline-primary btn-sm mt-3 js-reconcile-link" href="/?r=relatoriosTematicos/index&amp;data=<?= h((string)($reconciliacao['data'] ?? $availabilityDate)) ?>">
+            <i class="bi bi-list-check me-1"></i>Conferir base detalhada
+        </a>
+    </article>
+
+    <article class="reservation-trace-card">
+        <div class="text-uppercase text-muted small">Rastreabilidade pessoal</div>
+        <h5 class="fw-bold mb-1">Minhas reservas recentes</h5>
+        <div class="text-muted small">Somente registros já persistidos recebem protocolo.</div>
+        <div class="reservation-recent-list">
+            <?php if (empty($reservasRecentes)): ?>
+                <div class="text-muted small py-2">Você ainda não possui reservas recentes.</div>
+            <?php else: ?>
+                <?php foreach ($reservasRecentes as $recente): ?>
+                    <div class="reservation-recent-item">
+                        <div>
+                            <div class="reservation-protocol"><?= h($recente['protocolo'] ?? '') ?></div>
+                            <div class="reservation-recent-meta"><?= h(date('d/m/Y H:i', strtotime((string)($recente['criado_em'] ?? 'now')))) ?></div>
+                        </div>
+                        <div>
+                            <div class="fw-semibold"><?= h($recente['titular'] ?? 'Sem titular') ?></div>
+                            <div class="reservation-recent-meta">
+                                <?= h($recente['restaurante'] ?? '') ?> · <?= h($recente['turno'] ?? '') ?> · <?= h(date('d/m/Y', strtotime((string)($recente['data_reserva'] ?? 'now')))) ?>
+                            </div>
+                            <div class="reservation-recent-meta">UHs: <?= h(implode(', ', $recente['uhs'] ?? [])) ?></div>
+                        </div>
+                        <div class="text-end"><span class="badge badge-soft"><?= (int)($recente['pax_total'] ?? 0) ?> PAX</span></div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </article>
+</section>
+
 <div class="modal fade" id="availabilityModal" tabindex="-1" aria-labelledby="availabilityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content availability-modal-content">
@@ -1834,7 +1962,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         .replace(/'/g, '&#039;');
     const paintAvailability = (payload) => {
         const data = payload?.availability || {};
-        availabilityCache[payload?.date || ''] = data;
+        availabilityCache[payload?.date || ''] = payload;
         const restTotals = {};
         let dayCapacidade = 0;
         let dayReservado = 0;
@@ -1932,6 +2060,23 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         setText('.js-day-fechados', dayFechados);
         setText('.js-day-turnos', Math.max(1, dayTurnos));
         document.querySelector('.reserva-day-meter')?.style.setProperty('--reservation-day-progress', `${dayPercentual}%`);
+        const reconcileTotals = payload?.reconciliacao?.totais || {};
+        setText('.js-reconcile-reservas', parseInt(reconcileTotals.reservas || 0, 10));
+        setText('.js-reconcile-grupos', parseInt(reconcileTotals.grupos || 0, 10));
+        setText('.js-reconcile-pax', parseInt(reconcileTotals.pax || 0, 10));
+        setText('.js-reconcile-pendentes', parseInt(reconcileTotals.pendentes || 0, 10));
+        setText('.js-reconcile-date', fmtBr(payload?.date || ''));
+        const lastRegistration = document.querySelector('.js-reconcile-last');
+        if (lastRegistration) {
+            const lastValue = String(reconcileTotals.ultimo_cadastro || '');
+            lastRegistration.textContent = lastValue
+                ? `${fmtBr(lastValue.slice(0, 10))} ${lastValue.slice(11, 16)}`
+                : 'nenhum registro nesta data';
+        }
+        const reconcileLink = document.querySelector('.js-reconcile-link');
+        if (reconcileLink && payload?.date) {
+            reconcileLink.href = `/?r=relatoriosTematicos/index&data=${encodeURIComponent(payload.date)}`;
+        }
         updateFlowState();
     };
 
@@ -1949,7 +2094,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const fetchAvailability = async (date, forceRefresh = false) => {
         if (!date) return;
         if (!forceRefresh && availabilityCache[date]) {
-            return { ok: true, date, availability: availabilityCache[date] };
+            return availabilityCache[date];
         }
         const url = `/?r=reservasTematicas/reservas&ajax=availability&data=${encodeURIComponent(date)}&_=${Date.now()}`;
         const res = await fetch(url, {
@@ -2265,6 +2410,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const batchDefaultTitular = document.getElementById('batchDefaultTitular');
     const actionInput = document.getElementById('reservaActionInput');
     const reservaForm = document.querySelector('form[action="/?r=reservasTematicas/reservas"]');
+    const confirmationStorageKey = 'fbReservationConfirmation';
     const singleFields = [
         document.querySelector('input[name=\"uh_numero\"]'),
         document.querySelector('input[name=\"titular_nome\"]'),
@@ -2524,6 +2670,31 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         }, text, response);
     };
 
+    const showStoredReservationConfirmation = () => {
+        let confirmation = null;
+        try {
+            confirmation = JSON.parse(sessionStorage.getItem(confirmationStorageKey) || 'null');
+        } catch (error) {
+            confirmation = null;
+        }
+        sessionStorage.removeItem(confirmationStorageKey);
+        if (!confirmation?.protocolo) return;
+
+        const uhs = Array.isArray(confirmation.uhs) ? confirmation.uhs.filter(Boolean).join(', ') : '';
+        const dateParts = String(confirmation.data_reserva || '').split('-');
+        const dateLabel = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` : confirmation.data_reserva;
+        const message = `Protocolo ${confirmation.protocolo}. ${confirmation.restaurante || 'Restaurante'} · ${dateLabel || 'data confirmada'} · ${confirmation.turno || 'turno confirmado'}. ${uhs ? `UHs: ${uhs}. ` : ''}Total: ${confirmation.pax_total || 0} PAX. Este protocolo confirma que o registro foi gravado no sistema.`;
+        setTimeout(() => {
+            window.fbAlerts?.show({
+                type: 'success',
+                title: 'Reserva confirmada no banco',
+                message,
+                modal: true,
+                buttonText: 'Conferido'
+            });
+        }, 120);
+    };
+
     reservaForm?.addEventListener('submit', async (event) => {
         if (!window.fetch || reservaSubmitting) {
             if (reservaSubmitting) event.preventDefault();
@@ -2572,17 +2743,30 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             }
 
             const successMessage = payload.message || 'Reserva salva com sucesso.';
-            const showAfterRedirect = window.fbAlerts?.afterRedirect
-                ? window.fbAlerts.afterRedirect(successMessage, { type: 'success', title: 'Reserva confirmada' })
-                : false;
-            if (!showAfterRedirect) {
-                window.fbAlerts?.success(successMessage, 'Reserva confirmada');
+            const confirmation = payload?.payload?.confirmacao;
+            const hasPersistentConfirmation = Boolean(confirmation?.protocolo && confirmation?.nova_reserva);
+            if (hasPersistentConfirmation) {
+                try {
+                    sessionStorage.setItem(confirmationStorageKey, JSON.stringify(confirmation));
+                } catch (error) {
+                    await (window.fbAlerts?.show({
+                        type: 'success',
+                        title: 'Reserva confirmada no banco',
+                        message: `Protocolo ${confirmation.protocolo}. Anote este número para conferência.`,
+                        modal: true,
+                        buttonText: 'Conferido'
+                    }) || Promise.resolve());
+                }
+            } else if (window.fbAlerts?.afterRedirect) {
+                window.fbAlerts.afterRedirect(successMessage, { type: 'success', title: 'Alteração confirmada' });
+            } else {
+                window.fbAlerts?.success(successMessage, 'Alteração confirmada');
             }
             window.fbAlerts?.clearSavedForms?.();
             const redirect = payload.redirect || '/?r=reservasTematicas/reservas';
             setTimeout(() => {
                 window.location.assign(redirect);
-            }, showAfterRedirect ? 80 : 900);
+            }, 80);
         } catch (error) {
             await (window.fbAlerts?.error('Falha de comunicação ao salvar. Verifique sua conexão e tente novamente.') || Promise.resolve());
         } finally {
@@ -2593,6 +2777,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     if (btnModeSingle && btnModeBatch) {
         setReservaMode('single');
     }
+    showStoredReservationConfirmation();
     setTurnoSequentialState();
     updateSelectedSlot();
     applyTurnoAvailability();

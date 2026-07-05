@@ -102,6 +102,9 @@ final class ReservasTematicasConstants
     public const CODE_UH_OBRIGATORIA = 'uh_obrigatoria';
     public const CODE_USUARIO_AUDITORIA_INVALIDO = 'usuario_auditoria_invalido';
 
+    public const AUDIT_ACTION_ATTEMPT_STARTED = 'reservation_attempt_started';
+    public const AUDIT_ACTION_ATTEMPT_ACCEPTED = 'reservation_attempt_accepted';
+
     public const MESSAGE_ACAO_OPERACAO_INVALIDA = 'Ação de operação inválida.';
     public const MESSAGE_ACAO_RAPIDA_INVALIDA = 'Ação rápida inválida.';
     public const MESSAGE_CAPACIDADE_DESTINO_ATINGIDA = 'Limite de reservas excedido no turno de destino. Escolha outro turno ou ajuste a capacidade.';

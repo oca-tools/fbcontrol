@@ -70,6 +70,7 @@ class ReservasTematicasController extends Controller
         $configModel = new ReservaTematicaConfigModel();
         $bloqueioDataModel = new ReservaTematicaBloqueioDataModel();
         $unitModel = new UnitModel();
+        $confirmacaoService = new ReservaTematicaConfirmacaoService();
 
         $restaurantes = $this->getTematicRestaurants();
         $turnos = $turnoModel->allActive();
@@ -128,6 +129,10 @@ class ReservasTematicasController extends Controller
                 'ok' => true,
                 'date' => $dateAjax,
                 'availability' => $buildAvailability($dateAjax),
+                'reconciliacao' => $confirmacaoService->reconciliarData(
+                    $dateAjax,
+                    array_map(static fn(array $restaurante): int => (int)$restaurante['id'], $restaurantes)
+                ),
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
@@ -217,6 +222,7 @@ class ReservasTematicasController extends Controller
                 $this->redirect('/?r=reservasTematicas/reservas');
             }
 
+            $tentativaService = new RegistrarTentativaReservaTematicaService();
             $comandoReserva = new CriarReservaCommand([
                 'acao' => $_POST['action'] ?? 'create',
                 'usuario_id' => (int)$user['id'],
@@ -238,14 +244,36 @@ class ReservasTematicasController extends Controller
                 'batch_pax' => $_POST['batch_pax'] ?? [],
                 'batch_chd_idades' => $_POST['batch_chd_idades'] ?? [],
                 'grupo_responsavel' => $_POST['grupo_responsavel'] ?? '',
+                'correlation_id' => $tentativaService->novaCorrelacao(),
             ]);
+            $tentativaService->registrarInicio($comandoReserva);
             $resultadoReserva = (new CriarReservaService())->executar($comandoReserva);
             if (!$resultadoReserva->isSuccess()) {
-                (new RegistrarTentativaReservaTematicaService())->registrarRecusa(
+                $mensagemRecusa = $this->mensagemReservaTematicaParaUsuario($resultadoReserva);
+                $tentativaService->registrarRecusa(
                     $comandoReserva,
                     $resultadoReserva,
-                    $this->mensagemReservaTematicaParaUsuario($resultadoReserva)
+                    $mensagemRecusa
                 );
+                $resultadoReserva = ServiceResult::failure(
+                    $resultadoReserva->code(),
+                    $mensagemRecusa . ' Referência da tentativa: ' . $comandoReserva->correlationId . '.',
+                    array_merge($resultadoReserva->payload(), [
+                        'correlation_id' => $comandoReserva->correlationId,
+                        'message_resolved' => true,
+                    ])
+                );
+            } else {
+                $confirmacao = $confirmacaoService->confirmarPersistencia($comandoReserva, $resultadoReserva);
+                $resultadoReserva = ServiceResult::success(
+                    $resultadoReserva->message(),
+                    array_merge($resultadoReserva->payload(), [
+                        'correlation_id' => $comandoReserva->correlationId,
+                        'confirmacao' => $confirmacao,
+                    ]),
+                    $resultadoReserva->code()
+                );
+                $tentativaService->registrarSucesso($comandoReserva, $resultadoReserva, $confirmacao);
             }
             $this->aplicarResultadoReservaTematica($resultadoReserva, '/?r=reservasTematicas/reservas');
         }
@@ -279,6 +307,11 @@ class ReservasTematicasController extends Controller
             'can_reserve' => $canReserveNow,
             'edit_item' => $editItem,
             'is_hostess' => $isHostess,
+            'reservas_recentes' => $confirmacaoService->listarRecentes((int)$user['id']),
+            'reconciliacao' => $confirmacaoService->reconciliarData(
+                (string)$filters['data'],
+                array_map(static fn(array $restaurante): int => (int)$restaurante['id'], $restaurantes)
+            ),
         ]);
     }
 
@@ -802,6 +835,9 @@ class ReservasTematicasController extends Controller
     private function mensagemReservaTematicaParaUsuario(ServiceResult $resultado): string
     {
         $payload = $resultado->payload();
+        if (!empty($payload['message_resolved'])) {
+            return $resultado->message();
+        }
         if (in_array($resultado->code(), [
             ReservasTematicasConstants::CODE_CAPACIDADE_TURNO_ATINGIDA,
             ReservasTematicasConstants::CODE_CAPACIDADE_DESTINO_ATINGIDA,

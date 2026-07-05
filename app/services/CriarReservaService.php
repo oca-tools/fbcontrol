@@ -182,7 +182,8 @@ final class CriarReservaService implements CriarReservaServiceInterface
         }
 
         $idsCriados = [];
-        $this->reservas->executarTransacao(function () use ($command, $itensDoGrupo, &$idsCriados): void {
+        $grupoId = 0;
+        $this->reservas->executarTransacao(function () use ($command, $itensDoGrupo, &$idsCriados, &$grupoId): void {
             $grupoId = $this->reservas->criarGrupo([
                 'restaurante_id' => $command->restauranteId,
                 'data_reserva' => $command->dataReserva,
@@ -210,7 +211,10 @@ final class CriarReservaService implements CriarReservaServiceInterface
             }
         });
 
-        return ServiceResult::success(ReservasTematicasConstants::MESSAGE_GRUPO_CRIADO, ['reservas_ids' => $idsCriados]);
+        return ServiceResult::success(ReservasTematicasConstants::MESSAGE_GRUPO_CRIADO, [
+            'reservas_ids' => $idsCriados,
+            'grupo_id' => $grupoId,
+        ]);
     }
 
     private function prepararReservaIndividual(CriarReservaCommand $command, ?array $reservaAtual = null)

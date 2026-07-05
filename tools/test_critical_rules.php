@@ -182,6 +182,16 @@ try {
         'hierarquia administrativa mantida'
     );
     $record(
+        'individual_reservation_protocol_is_deterministic',
+        ReservaTematicaConfirmacaoService::protocolo('reserva', '2026-07-04', 542) === 'RT-20260704-000542',
+        'protocolo individual verificavel pelo registro persistido'
+    );
+    $record(
+        'group_reservation_protocol_is_deterministic',
+        ReservaTematicaConfirmacaoService::protocolo('grupo', '2026-07-03', 104) === 'RG-20260703-000104',
+        'protocolo de grupo verificavel pelo agrupador persistido'
+    );
+    $record(
         'chd_age_parser_accepts_operational_format',
         ReservaTematicaPolicy::parseChdAges('1y2y4y') === [1, 2, 4],
         'formato documentado preservado'

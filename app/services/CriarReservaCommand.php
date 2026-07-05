@@ -23,6 +23,7 @@ final class CriarReservaCommand
     public array $batchPax;
     public array $batchChdIdades;
     public string $grupoResponsavel;
+    public string $correlationId;
 
     /**
      * Normaliza os dados vindos da tela de reservas para o caso de uso de criação
@@ -53,5 +54,6 @@ final class CriarReservaCommand
         $this->batchPax = is_array($dados['batch_pax'] ?? null) ? $dados['batch_pax'] : [];
         $this->batchChdIdades = is_array($dados['batch_chd_idades'] ?? null) ? $dados['batch_chd_idades'] : [];
         $this->grupoResponsavel = normalize_mojibake(trim((string)($dados['grupo_responsavel'] ?? '')));
+        $this->correlationId = trim((string)($dados['correlation_id'] ?? ''));
     }
 }
