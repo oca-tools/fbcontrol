@@ -13,20 +13,13 @@ if (!$canTematicas && $user['perfil'] === 'hostess') {
 
     foreach ($assignedRests as $rest) {
         $restName = (string)($rest['nome'] ?? '');
-        if (stripos($restName, 'Corais') !== false) {
+        if (TematicAccessService::isCorais($restName)) {
             $canTematicas = true;
             $canTematicasReserva = true;
             $hasRegistroClassico = true;
         }
 
-        $name = mb_strtolower(normalize_mojibake($restName), 'UTF-8');
-        $isTematicoRest = (
-            strpos($name, 'giardino') !== false
-            || strpos($name, 'la brasa') !== false
-            || strpos($name, "ix'u") !== false
-            || strpos($name, 'ixu') !== false
-            || strpos($name, 'ix') !== false
-        );
+        $isTematicoRest = TematicAccessService::isTematicRestaurant($restName);
 
         if ($isTematicoRest) {
             $canTematicas = true;

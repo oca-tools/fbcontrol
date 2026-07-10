@@ -2,6 +2,7 @@
 $filters = $this->data['filters'] ?? [];
 $usuarios = $this->data['usuarios'] ?? [];
 $generalLogs = $this->data['general_logs'] ?? ['rows' => [], 'page' => 1, 'total_pages' => 1, 'total' => 0, 'param' => 'general_page'];
+$attemptLogs = $this->data['attempt_logs'] ?? ['rows' => [], 'page' => 1, 'total_pages' => 1, 'total' => 0, 'param' => 'attempt_page'];
 $thematicLogs = $this->data['thematic_logs'] ?? ['rows' => [], 'page' => 1, 'total_pages' => 1, 'total' => 0, 'param' => 'thematic_page'];
 $shiftLogs = $this->data['shift_logs'] ?? ['rows' => [], 'page' => 1, 'total_pages' => 1, 'total' => 0, 'param' => 'shift_page'];
 
@@ -88,6 +89,27 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
     </details>
     <?php
 };
+
+$auditActorLabel = static function (array $log, string $fallbackContext = 'geral'): string {
+    $name = trim((string)($log['usuario'] ?? ''));
+    if ($name !== '') {
+        return $name;
+    }
+    if ((int)($log['usuario_id'] ?? 0) > 0) {
+        return 'Usuário #' . (int)$log['usuario_id'] . ' (cadastro indisponível)';
+    }
+
+    $action = strtolower(trim((string)($log['acao'] ?? '')));
+    if (in_array($action, ['auth_login_failed', 'auth_login_ambiguous', 'auth_blocked'], true)) {
+        return 'Visitante não autenticado';
+    }
+    if ($fallbackContext === 'sistema'
+        || strpos($action, 'auto_') === 0
+        || strpos($action, 'cron') !== false) {
+        return 'Sistema automático';
+    }
+    return 'Não identificado (registro legado)';
+};
 ?>
 
 <style>
@@ -111,6 +133,28 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
 
 .audit-page .audit-table-card table {
     margin-bottom: 0;
+}
+
+.audit-page .audit-table-card td,
+.audit-page .audit-table-card pre,
+.audit-page .audit-expandable,
+.audit-page .audit-expandable-body {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.audit-page .audit-cell-expandable,
+.audit-page .audit-expandable-body {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.audit-page .audit-expandable-body.is-json pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
 }
 
 .audit-page .audit-table-card thead th {
@@ -189,18 +233,18 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
         margin-bottom: 0.65rem;
         padding: 0.65rem;
         overflow: hidden;
+        max-width: 100%;
     }
 
     .audit-page .audit-table-card tbody td {
-        display: grid;
-        grid-template-columns: minmax(78px, 88px) minmax(0, 1fr);
-        gap: 0.55rem;
-        align-items: start;
+        display: block;
         border: 0;
-        padding: 0.34rem 0;
+        padding: 0.42rem 0;
         word-break: break-word;
         overflow-wrap: anywhere;
         min-width: 0;
+        max-width: 100%;
+        width: 100%;
     }
 
     .audit-page .audit-table-card tbody td > * {
@@ -210,11 +254,13 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
 
     .audit-page .audit-table-card tbody td::before {
         content: attr(data-label);
+        display: block;
         color: var(--ab-muted);
         font-size: 0.7rem;
         font-weight: 850;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+        margin-bottom: 0.24rem;
     }
 
     .audit-page .audit-table-card tbody td[colspan] {
@@ -245,7 +291,6 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
     }
 
     .audit-page .audit-table-card tbody td.audit-cell-expandable::before {
-        display: block;
         margin-bottom: 0.42rem;
     }
 
@@ -291,6 +336,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
         font-size: 0.79rem;
         line-height: 1.45;
         overflow-wrap: anywhere;
+        max-width: 100%;
     }
 
     .audit-page .audit-expandable-body.is-json {
@@ -301,8 +347,9 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
     .audit-page .audit-expandable-body.is-json pre {
         margin: 0;
         white-space: pre-wrap;
-        word-break: break-word;
+        word-break: break-all;
         overflow-wrap: anywhere;
+        overflow-x: hidden;
         font-size: 0.74rem;
         line-height: 1.42;
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -378,6 +425,67 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
 
 <div class="card audit-table-card p-4 mb-4">
     <div class="section-title mb-3">
+        <div class="icon"><i class="bi bi-send-check"></i></div>
+        <div>
+            <div class="text-uppercase text-muted small">Protocolo de tentativa</div>
+            <h5 class="fw-bold mb-0">Tentativas de reserva</h5>
+            <div class="text-muted small">Recebidas, confirmadas e recusadas, incluindo o motivo e a referência de correlação.</div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle" data-no-auto-pagination="1">
+            <thead>
+                <tr>
+                    <th>Data/hora</th>
+                    <th>Usuário</th>
+                    <th>Resultado</th>
+                    <th>Referência</th>
+                    <th>Solicitação</th>
+                    <th>UHs</th>
+                    <th>PAX</th>
+                    <th>Motivo</th>
+                    <th>Dados</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (($attemptLogs['rows'] ?? []) as $log): ?>
+                    <?php
+                        $payload = !empty($log['dados_depois']) ? json_decode((string)$log['dados_depois'], true) : [];
+                        $payload = is_array($payload) ? $payload : [];
+                        $action = (string)($log['acao'] ?? '');
+                        $resultLabel = $action === ReservasTematicasConstants::AUDIT_ACTION_ATTEMPT_ACCEPTED
+                            ? 'Confirmada'
+                            : ($action === ReservasTematicasConstants::AUDIT_ACTION_ATTEMPT_REJECTED ? 'Recusada' : 'Recebida');
+                        $units = array_values(array_filter(array_map('strval', (array)($payload['uhs'] ?? []))));
+                        $requestParts = array_filter([
+                            (string)($payload['data_reserva'] ?? ''),
+                            (string)($payload['restaurante'] ?? ''),
+                            (string)($payload['turno'] ?? ''),
+                        ]);
+                    ?>
+                    <tr>
+                        <td data-label="Data/hora"><?= h($log['criado_em'] ?? '-') ?></td>
+                        <td data-label="Usuário"><?= h($auditActorLabel($log)) ?></td>
+                        <td data-label="Resultado"><span class="badge badge-soft"><?= h($resultLabel) ?></span></td>
+                        <td data-label="Referência"><code><?= h($payload['correlation_id'] ?? '-') ?></code></td>
+                        <td data-label="Solicitação"><?= h(implode(' · ', $requestParts) ?: '-') ?></td>
+                        <td data-label="UHs"><?= h($units !== [] ? implode(', ', $units) : '-') ?></td>
+                        <td data-label="PAX"><?= (int)($payload['pax_total_tentado'] ?? 0) ?></td>
+                        <td data-label="Motivo" class="small text-muted audit-cell-expandable"><?php $renderExpandableText($payload['motivo'] ?? '', '-'); ?></td>
+                        <td data-label="Dados" class="small text-muted audit-cell-expandable"><?php $renderExpandableText(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), 'Sem dados', true, 'Ver tentativa'); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($attemptLogs['rows'] ?? [])): ?>
+                    <tr><td colspan="9" class="text-muted">Sem tentativas de reserva no filtro.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php $renderPagination($attemptLogs, $filters); ?>
+</div>
+
+<div class="card audit-table-card p-4 mb-4">
+    <div class="section-title mb-3">
         <div class="icon"><i class="bi bi-calendar-heart"></i></div>
         <div>
             <div class="text-uppercase text-muted small">Alterações e supervisão</div>
@@ -404,7 +512,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                 <?php foreach (($thematicLogs['rows'] ?? []) as $log): ?>
                     <tr>
                         <td data-label="Data/hora"><?= h($log['criado_em']) ?></td>
-                        <td data-label="Usuário da ação"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Usuário da ação"><?= h($auditActorLabel($log, 'sistema')) ?></td>
                         <td data-label="Criada por"><?= h($log['reserva_criador'] ?? '-') ?></td>
                         <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
                         <td data-label="Reserva">#<?= (int)$log['reserva_id'] ?> · UH <?= h($log['uh_numero'] ?? '') ?> · <?= h($log['data_reserva'] ?? '') ?></td>
@@ -497,7 +605,7 @@ $renderExpandableText = static function (?string $value, string $empty = '-', bo
                 <?php foreach (($generalLogs['rows'] ?? []) as $log): ?>
                     <tr>
                         <td data-label="Data/hora"><?= h($log['criado_em']) ?></td>
-                        <td data-label="Usuário"><?= h($log['usuario'] ?? '-') ?></td>
+                        <td data-label="Usuário"><?= h($auditActorLabel($log)) ?></td>
                         <td data-label="Área"><?= h($log['tabela']) ?></td>
                         <td data-label="Ação"><span class="badge badge-soft"><?= h($log['acao']) ?></span></td>
                         <td data-label="Registro"><?= h((string)($log['registro_id'] ?? '-')) ?></td>

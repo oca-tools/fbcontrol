@@ -1,142 +1,124 @@
-<?php $flash = $this->data['flash'] ?? null; $restaurantes = $this->data['restaurantes'] ?? []; ?>
-<style>
-    .config-crud-page,
-    .config-crud-page .row,
-    .config-crud-page [class*="col-"] { min-width: 0; }
-    .config-crud-page .card { overflow: hidden; }
-    .config-edit-details > summary { display: flex; }
-    .config-edit-summary {
-        align-items: center;
-        justify-content: space-between;
-        gap: .75rem;
-        cursor: pointer;
-        list-style: none;
-        padding: .15rem 0 .85rem;
-        font-weight: 800;
-    }
-    .config-edit-summary::-webkit-details-marker { display: none; }
-    .config-edit-summary .bi-chevron-down {
-        color: var(--ab-primary);
-        transition: transform .18s ease;
-    }
-    .config-edit-details[open] .config-edit-summary .bi-chevron-down { transform: rotate(180deg); }
-    @media (max-width: 991.98px) {
-        .config-crud-page .card.p-4,
-        .config-crud-page .card-soft.p-4 {
-            padding: 1rem !important;
-            border-radius: 18px;
-        }
-        .config-edit-details > summary { display: flex; }
-        .config-edit-details:not([open]) .config-edit-body { display: none !important; }
-    }
-    @media (max-width: 575.98px) {
-        .config-crud-page .section-title .icon {
-            width: 38px;
-            height: 38px;
-            flex: 0 0 38px;
-        }
-        .config-crud-page .section-title h3,
-        .config-crud-page h4 { font-size: 1.25rem; }
-    }
-</style>
-<div class="config-crud-page">
-<div class="card card-soft p-4 mb-4">
-    <div class="section-title">
-        <div class="icon"><i class="bi bi-door-open"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Cadastros</div>
-            <h3 class="fw-bold mb-0">Portas</h3>
+<?php
+$items = $this->data['items'] ?? [];
+$restaurantes = $this->data['restaurantes'] ?? [];
+$ativos = count(array_filter($items, static fn(array $item): bool => (int)($item['ativo'] ?? 0) === 1));
+?>
+
+<div class="fb-admin-page">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
+            <div>
+                <p class="fb-card__eyebrow">Estrutura de acesso</p>
+                <h1 class="fb-page-head__title">Portas</h1>
+                <p class="fb-page-head__subtitle">Organize os pontos de entrada utilizados na abertura e no acompanhamento dos turnos.</p>
+            </div>
         </div>
-    </div>
-</div>
-<div class="row g-4">
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="text-uppercase text-muted small">Cadastro</div>
-            <h4 class="fw-bold">Nova Porta</h4>
-            <form method="post" action="/?r=portas/create">
+        <div class="fb-summary-bar">
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Cadastradas</p>
+                <p class="fb-summary-chip__value"><?= count($items) ?></p>
+                <p class="fb-summary-chip__hint">portas no sistema</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Ativas</p>
+                <p class="fb-summary-chip__value"><?= $ativos ?></p>
+                <p class="fb-summary-chip__hint">disponíveis para seleção</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Restaurantes</p>
+                <p class="fb-summary-chip__value"><?= count($restaurantes) ?></p>
+                <p class="fb-summary-chip__hint">ambientes vinculáveis</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="fb-admin-layout">
+        <section class="fb-card fb-card--flat fb-admin-create">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Novo ponto de acesso</p>
+                    <h2 class="fb-card__title">Adicionar porta</h2>
+                    <p class="fb-card__subtitle">Vincule a porta ao restaurante correto.</p>
+                </div>
+                <span class="fb-admin-icon"><i class="bi bi-door-open"></i></span>
+            </div>
+            <form method="post" action="/?r=portas/create" class="fb-admin-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="mb-3">
-                    <label class="form-label">Restaurante</label>
-                    <select name="restaurante_id" class="form-select input-xl" required>
+                <label class="fb-field">
+                    <span class="fb-label">Restaurante</span>
+                    <select name="restaurante_id" class="fb-select" required>
                         <option value="">Selecione</option>
                         <?php foreach ($restaurantes as $rest): ?>
-                            <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                            <option value="<?= (int)$rest['id'] ?>"><?= h((string)$rest['nome']) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Nome</label>
-                    <input type="text" name="nome" class="form-control input-xl" required>
-                </div>
-                <button class="btn btn-success btn-xl w-100">Cadastrar</button>
+                </label>
+                <label class="fb-field">
+                    <span class="fb-label">Nome da porta</span>
+                    <input type="text" name="nome" class="fb-input" placeholder="Ex.: Entrada principal" required>
+                </label>
+                <button class="fb-btn fb-btn--primary fb-btn--lg" type="submit"><i class="bi bi-plus-lg"></i> Cadastrar porta</button>
             </form>
-        </div>
-    </div>
-    <div class="col-12 col-lg-8">
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Portas</h4>
-                <span class="text-muted small">Ligadas ao restaurante</span>
+        </section>
+
+        <section class="fb-card fb-card--flat fb-admin-list">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Pontos cadastrados</p>
+                    <h2 class="fb-card__title">Portas por restaurante</h2>
+                    <p class="fb-card__subtitle">Abra um registro para alterar vínculo, nome ou status.</p>
+                </div>
+                <span class="fb-badge"><?= count($items) ?> registros</span>
             </div>
-            <div class="row g-3">
-                <?php foreach ($this->data['items'] as $item): ?>
-                    <div class="col-12">
-                        <form method="post" action="/?r=portas/edit" class="card p-3">
-                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                            <details class="config-edit-details" open data-config-mobile-collapsed>
-                                <summary class="config-edit-summary">
+            <div class="fb-admin-records">
+                <?php foreach ($items as $item): ?>
+                    <?php $ativo = (int)($item['ativo'] ?? 0); ?>
+                    <form method="post" action="/?r=portas/edit" class="fb-admin-record">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                        <details>
+                            <summary>
+                                <span class="fb-admin-record__identity">
+                                    <span class="fb-admin-record__avatar"><i class="bi bi-door-open"></i></span>
                                     <span>
-                                        <?= h($item['nome']) ?>
-                                        <span class="badge <?= $item['ativo'] ? 'badge-success' : 'badge-soft' ?> ms-1"><?= $item['ativo'] ? 'Ativo' : 'Inativo' ?></span>
+                                        <strong><?= h((string)$item['nome']) ?></strong>
+                                        <small><?= h((string)($item['restaurante'] ?? 'Restaurante não informado')) ?></small>
                                     </span>
+                                </span>
+                                <span class="fb-admin-record__status">
+                                    <span class="fb-badge <?= $ativo ? 'fb-badge--ok' : 'fb-badge--nao-informado' ?>"><?= $ativo ? 'Ativa' : 'Inativa' ?></span>
                                     <i class="bi bi-chevron-down"></i>
-                                </summary>
-                            <div class="row g-3 align-items-end config-edit-body">
-                                <div class="col-12 col-md-5">
-                                    <label class="form-label small text-muted">Restaurante</label>
-                                    <select name="restaurante_id" class="form-select">
+                                </span>
+                            </summary>
+                            <div class="fb-admin-record__body">
+                                <label class="fb-field">
+                                    <span class="fb-label">Restaurante</span>
+                                    <select name="restaurante_id" class="fb-select">
                                         <?php foreach ($restaurantes as $rest): ?>
-                                            <option value="<?= (int)$rest['id'] ?>" <?= $item['restaurante_id'] == $rest['id'] ? 'selected' : '' ?>>
-                                                <?= h($rest['nome']) ?>
-                                            </option>
+                                            <option value="<?= (int)$rest['id'] ?>" <?= (int)$item['restaurante_id'] === (int)$rest['id'] ? 'selected' : '' ?>><?= h((string)$rest['nome']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted">Nome da porta</label>
-                                    <input type="text" name="nome" class="form-control" value="<?= h($item['nome']) ?>">
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Status</label>
-                                    <select name="ativo" class="form-select">
-                                        <option value="1" <?= $item['ativo'] ? 'selected' : '' ?>>Ativo</option>
-                                        <option value="0" <?= !$item['ativo'] ? 'selected' : '' ?>>Inativo</option>
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Nome da porta</span>
+                                    <input type="text" name="nome" class="fb-input" value="<?= h((string)$item['nome']) ?>" required>
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Status</span>
+                                    <select name="ativo" class="fb-select">
+                                        <option value="1" <?= $ativo ? 'selected' : '' ?>>Ativa</option>
+                                        <option value="0" <?= !$ativo ? 'selected' : '' ?>>Inativa</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <button class="btn btn-outline-primary w-100">Salvar</button>
-                                </div>
+                                </label>
+                                <button class="fb-btn fb-btn--primary" type="submit"><i class="bi bi-check2"></i> Salvar alterações</button>
                             </div>
-                            </details>
-                        </form>
-                    </div>
+                        </details>
+                    </form>
                 <?php endforeach; ?>
-                <?php if (empty($this->data['items'])): ?>
-                    <div class="col-12 text-muted">Sem registros.</div>
+                <?php if ($items === []): ?>
+                    <div class="fb-admin-empty"><i class="bi bi-door-open"></i><strong>Nenhuma porta cadastrada</strong><span>Adicione o primeiro ponto de entrada pelo formulário.</span></div>
                 <?php endif; ?>
             </div>
-        </div>
+        </section>
     </div>
 </div>
-</div>
-<script>
-(() => {
-    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
-    document.querySelectorAll('[data-config-mobile-collapsed]').forEach((panel) => {
-        if (isMobile) panel.removeAttribute('open');
-        else panel.setAttribute('open', 'open');
-    });
-})();
-</script>

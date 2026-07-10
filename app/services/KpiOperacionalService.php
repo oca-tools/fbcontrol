@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 final class KpiOperacionalService
 {
-    public const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+    public const STATUS_FILTERS = FiltroOperacionalService::STATUS_FILTERS;
 
     private OperacaoReadModelRepository $operacaoReadModelRepository;
 
@@ -83,14 +83,7 @@ final class KpiOperacionalService
      */
     public function lerFiltros(array $query): array
     {
-        return $this->normalizarPeriodo([
-            'data' => $this->normalizarData((string)($query['data'] ?? '')),
-            'data_inicio' => $this->normalizarData((string)($query['data_inicio'] ?? '')),
-            'data_fim' => $this->normalizarData((string)($query['data_fim'] ?? '')),
-            'restaurante_id' => sanitize_int_param($query['restaurante_id'] ?? ''),
-            'operacao_id' => sanitize_int_param($query['operacao_id'] ?? ''),
-            'status' => sanitize_enum_param($query['status'] ?? '', self::STATUS_FILTERS),
-        ]);
+        return $this->normalizarPeriodo(FiltroOperacionalService::lerFiltrosBase($query));
     }
 
     /**

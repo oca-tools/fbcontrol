@@ -2,7 +2,7 @@
     <div class="sidebar-top">
     <div class="mb-4 brand-block">
         <?php if (!empty($logoPath)): ?>
-            <img src="<?= h($logoPath) ?>?v=20260605" data-logo-light="<?= h($logoPath) ?>?v=20260605" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260605" alt="Logo do FBControl" class="brand-logo js-theme-logo">
+            <img src="<?= h($logoPath) ?>?v=20260705g" data-logo-light="<?= h($logoPath) ?>?v=20260705g" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260705g" alt="Logo do FBControl" class="brand-logo js-theme-logo">
         <?php endif; ?>
         <div class="brand-badge mx-auto">
             <i class="bi bi-stars"></i>
@@ -56,11 +56,9 @@
         <?php endif; ?>
         <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
             <div class="sidebar-section-label">Gestão e BI</div>
-            <a <?= $navAttrs('control/index') ?> href="/?r=control/index"><i class="bi bi-speedometer2"></i> Centro de Controle</a>
-            <a <?= $navAttrs(['dashboard/index', 'dashboard/restaurant']) ?> href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
-            <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
-                <a <?= $navAttrs('kpis/index') ?> href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
-            <?php endif; ?>
+            <a <?= $navAttrs(['operacao/index', 'control/index']) ?> href="/?r=operacao/index"><i class="bi bi-speedometer2"></i> Operação</a>
+            <a <?= $navAttrs(['analise/index', 'dashboard/index', 'dashboard/restaurant']) ?> href="/?r=analise/index"><i class="bi bi-bar-chart"></i> Análise</a>
+<?php /* KPIs Estratégicos virou a aba KPIs do hub Análise. */ ?>
             <a <?= $navAttrs('relatorios/index') ?> href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
             <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                 <a <?= $navAttrs('auditoria/index') ?> href="/?r=auditoria/index"><i class="bi bi-shield-check"></i> Auditoria</a>
@@ -68,12 +66,8 @@
             <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                 <a <?= $navAttrs('lgpd/index') ?> href="/?r=lgpd/index"><i class="bi bi-shield-lock"></i> LGPD</a>
             <?php endif; ?>
-            <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
-                <a <?= $navAttrs('relatoriosTematicos/index') ?> href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
-            <?php endif; ?>
-            <?php if ($activeShift): ?>
-                <a <?= $navAttrs('dashboard/restaurant') ?> href="/?r=dashboard/restaurant&id=<?= (int)$activeShift['restaurante_id'] ?>"><i class="bi bi-shop-window"></i> Dashboard do Restaurante</a>
-            <?php endif; ?>
+<?php /* Relatórios Temáticos virou a aba Temáticos do hub Análise. */ ?>
+<?php /* Dashboard do Restaurante saiu do menu: agora é drill-down dos hubs Operação e Análise. */ ?>
             <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                 <div class="sidebar-section-label">Administração</div>
             <?php endif; ?>
@@ -86,9 +80,7 @@
             <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                 <a <?= $navAttrs('usuarios/index') ?> href="/?r=usuarios/index"><i class="bi bi-people"></i> Usuários</a>
             <?php endif; ?>
-            <?php if (in_array($user['perfil'], ['admin'], true)): ?>
-                <a <?= $navAttrs('emailRelatorios/index') ?> href="/?r=emailRelatorios/index"><i class="bi bi-envelope-paper"></i> E-mail Diário</a>
-            <?php endif; ?>
+<?php /* E-mail Diário saiu do menu: agora é a seção "Envios automáticos" do hub Relatórios. */ ?>
         <?php endif; ?>
         </nav>
     </div>

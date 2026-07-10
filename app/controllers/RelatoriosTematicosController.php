@@ -1,33 +1,7 @@
 <?php
 class RelatoriosTematicosController extends Controller
 {
-    private function buildFilters(array $tematicos, bool $defaultDate = false): array
-    {
-        $status = normalize_mojibake(trim((string)($_GET['status'] ?? '')));
-        if (mb_strlen($status, 'UTF-8') > 40) {
-            $status = mb_substr($status, 0, 40, 'UTF-8');
-        }
-        $grupoNome = normalize_mojibake(trim((string)($_GET['grupo_nome'] ?? '')));
-        if (mb_strlen($grupoNome, 'UTF-8') > 120) {
-            $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
-        }
-        $query = normalize_mojibake(trim((string)($_GET['q'] ?? '')));
-        if (mb_strlen($query, 'UTF-8') > 120) {
-            $query = mb_substr($query, 0, 120, 'UTF-8');
-        }
-
-        return [
-            'data' => sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
-            'data_inicio' => sanitize_date_param($_GET['data_inicio'] ?? ''),
-            'data_fim' => sanitize_date_param($_GET['data_fim'] ?? ''),
-            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
-            'turno_id' => sanitize_int_param($_GET['turno_id'] ?? ''),
-            'status' => $status,
-            'grupo_nome' => $grupoNome,
-            'q' => $query,
-            'restaurante_ids' => array_map(fn($r) => (int)$r['id'], $tematicos),
-        ];
-    }
+    /* Filtros de relatório unificados em TematicAccessService::lerFiltrosRelatorio (faxina, etapa 9). */
 
     private function buildExportType(): string
     {
@@ -90,48 +64,19 @@ class RelatoriosTematicosController extends Controller
         return $meta;
     }
 
+    /**
+     * Rota legada dos relatórios temáticos: redireciona para a aba Temáticos do hub Análise
+     * preservando o filtro. A exportação (export) permanece neste controller.
+     */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $reservaModel = new ReservaTematicaModel();
-        $turnoModel = new ReservaTematicaTurnoModel();
-
-        $tematicos = (new TematicAccessService())->allTematicRestaurants();
-
-        $filters = $this->buildFilters($tematicos, true);
-
-        $summary = $reservaModel->summary($filters);
-        $byRestaurant = $reservaModel->totalsByRestaurant($filters);
-        $byTurno = $reservaModel->totalsByTurno($filters);
-        $byDay = $reservaModel->totalsByDay($filters);
-        $perPage = 20;
-        $page = max(1, (int)($_GET['page'] ?? 1));
-        $total = $reservaModel->countByFilters($filters);
-        $totalPages = max(1, (int)ceil($total / $perPage));
-        if ($page > $totalPages) {
-            $page = $totalPages;
-        }
-        $list = $reservaModel->listByFilters($filters, $perPage, ($page - 1) * $perPage);
-
-        $base = (int)($summary['pax_reservadas'] ?? 0);
-        $taxaComparecimento = $base > 0 ? round(((int)($summary['pax_comparecidas'] ?? 0) / $base) * 100, 1) : 0;
-
-        $this->view('relatorios_tematicos/index', [
-            'filters' => $filters,
-            'summary' => $summary,
-            'by_restaurant' => $byRestaurant,
-            'by_turno' => $byTurno,
-            'by_day' => $byDay,
-            'list' => $list,
-            'list_page' => $page,
-            'list_total_pages' => $totalPages,
-            'list_total' => $total,
-            'taxa_comparecimento' => $taxaComparecimento,
-            'restaurantes' => $tematicos,
-            'turnos' => $turnoModel->all(),
-        ]);
+        $query = $_GET;
+        unset($query['r'], $query['aba']);
+        $destino = '/?r=analise/index&aba=tematicos' . ($query !== [] ? '&' . http_build_query($query) : '');
+        $this->redirect($destino);
     }
 
     public function historico(): void
@@ -170,7 +115,7 @@ class RelatoriosTematicosController extends Controller
         $tematicos = (new TematicAccessService())->allTematicRestaurants();
         $turnos = (new ReservaTematicaTurnoModel())->all();
 
-        $filters = $this->buildFilters($tematicos, false);
+        $filters = TematicAccessService::lerFiltrosRelatorio($tematicos, false);
 
         $type = $this->buildExportType();
         $totalRows = $reservaModel->countByFilters($filters);

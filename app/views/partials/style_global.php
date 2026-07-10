@@ -1,98 +1,6 @@
-        :root {
-            --ab-success: #f97316;
-            --ab-warning: #f59e0b;
-            --ab-danger: #ef4444;
-            --ab-ink: #0f172a;
-            --ab-muted: #64748b;
-            --ab-primary: #f97316;
-            --ab-accent: #f97316;
-            --ab-accent-2: #fb923c;
-            --ab-surface: #f8fafc;
-            --ab-card: #ffffff;
-            --ab-border: #e2e8f0;
-            --ab-glow: rgba(249, 115, 22, 0.2);
-            --ab-page-bg: #f8fafc;
-            --ab-bg: #f8fafc;
-            --ab-grad-1: rgba(249,115,22,0.18);
-            --ab-grad-2: rgba(251,146,60,0.16);
-            --ab-sidebar-bg: #ffffff;
-            --ab-hover-bg: rgba(249, 115, 22, 0.12);
-            --ab-panel-bg: #ffffff;
-            --ab-soft-bg: #f8fafc;
-            --ab-input-bg: #ffffff;
-            --ab-input-text: #0f172a;
-            --ab-shadow-card: 0 18px 44px rgba(15, 23, 42, 0.08);
-            --ab-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
-            --ab-ring: 0 0 0 0.22rem rgba(249, 115, 22, 0.18);
-        }
-        html[data-theme='dark'] {
-            --ab-ink: #edf4ff;
-            --ab-muted: #a8b5c8;
-            --ab-surface: #121b2e;
-            --ab-card: #172338;
-            --ab-border: #324561;
-            --ab-page-bg: #0f1a2c;
-            --ab-bg: #0f1a2c;
-            --ab-grad-1: rgba(249,115,22,0.14);
-            --ab-grad-2: rgba(251,146,60,0.1);
-            --ab-sidebar-bg: #131f34;
-            --ab-hover-bg: rgba(249, 115, 22, 0.18);
-            --ab-panel-bg: #18263b;
-            --ab-soft-bg: #1c2d46;
-            --ab-input-bg: #122038;
-            --ab-input-text: #edf4ff;
-            --ab-shadow-card: 0 22px 48px rgba(2, 6, 23, 0.5);
-            --ab-shadow-soft: 0 10px 28px rgba(2, 6, 23, 0.34);
-            --ab-ring: 0 0 0 0.22rem rgba(251, 146, 60, 0.24);
-        }
-        html[data-theme='sand'] {
-            --ab-primary: #ea580c;
-            --ab-accent: #d97706;
-            --ab-accent-2: #f59e0b;
-            --ab-ink: #1f2937;
-            --ab-muted: #6b7280;
-            --ab-surface: #fffaf2;
-            --ab-card: #ffffff;
-            --ab-border: #f2d8b0;
-            --ab-page-bg: #fff8ef;
-            --ab-bg: #fff8ef;
-            --ab-grad-1: rgba(251, 146, 60, 0.2);
-            --ab-grad-2: rgba(245, 158, 11, 0.16);
-            --ab-sidebar-bg: #fff5e6;
-            --ab-hover-bg: rgba(245, 158, 11, 0.14);
-            --ab-panel-bg: #fffdf8;
-            --ab-soft-bg: #fff4de;
-            --ab-input-bg: #ffffff;
-            --ab-input-text: #1f2937;
-            --ab-shadow-card: 0 16px 38px rgba(146, 64, 14, 0.12);
-            --ab-shadow-soft: 0 10px 26px rgba(146, 64, 14, 0.09);
-            --ab-ring: 0 0 0 0.22rem rgba(217, 119, 6, 0.2);
-        }
-        html[data-theme='ocean'] {
-            --ab-primary: #0ea5e9;
-            --ab-accent: #0284c7;
-            --ab-accent-2: #06b6d4;
-            --ab-ink: #0f172a;
-            --ab-muted: #64748b;
-            --ab-surface: #f2fbff;
-            --ab-card: #ffffff;
-            --ab-border: #bde6f8;
-            --ab-page-bg: #edf9ff;
-            --ab-bg: #edf9ff;
-            --ab-grad-1: rgba(14, 165, 233, 0.18);
-            --ab-grad-2: rgba(6, 182, 212, 0.14);
-            --ab-sidebar-bg: #eef9ff;
-            --ab-hover-bg: rgba(14, 165, 233, 0.15);
-            --ab-panel-bg: #ffffff;
-            --ab-soft-bg: #e8f7ff;
-            --ab-input-bg: #ffffff;
-            --ab-input-text: #0f172a;
-            --ab-shadow-card: 0 18px 42px rgba(2, 132, 199, 0.11);
-            --ab-shadow-soft: 0 10px 26px rgba(2, 132, 199, 0.08);
-            --ab-ring: 0 0 0 0.22rem rgba(14, 165, 233, 0.18);
-        }
+        /* Paleta por tema, fonte e cores de link removidas na faxina (etapa 9):
+           a identidade "Do mar à mesa" define tudo em assets/css/tokens.css. */
         body {
-            font-family: "Manrope", sans-serif;
             background:
                 radial-gradient(1200px 600px at 10% -10%, var(--ab-grad-1), transparent 60%),
                 radial-gradient(900px 500px at 90% -20%, var(--ab-grad-2), transparent 60%),
@@ -102,18 +10,6 @@
             line-height: 1.42;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-        }
-        a {
-            color: #c2410c;
-        }
-        html[data-theme='dark'] a {
-            color: #fb923c;
-        }
-        html[data-theme='sand'] a {
-            color: #b45309;
-        }
-        html[data-theme='ocean'] a {
-            color: #0369a1;
         }
         *, *::before, *::after {
             box-sizing: border-box;
@@ -1133,25 +1029,25 @@
             pointer-events: none;
         }
         .app-toast {
-            width: min(94vw, 480px);
-            margin-top: 8px;
+            width: min(96vw, 560px);
+            margin-top: 12px;
             border: 1px solid color-mix(in srgb, var(--ab-border) 78%, white 22%);
             border-radius: 18px;
             background: color-mix(in srgb, var(--ab-card) 94%, white 6%);
             color: var(--ab-ink);
             box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
-            padding: 14px 16px;
+            padding: 18px 20px;
             display: grid;
-            grid-template-columns: 42px minmax(0, 1fr);
-            gap: 12px;
+            grid-template-columns: 48px minmax(0, 1fr);
+            gap: 15px;
             pointer-events: auto;
             animation: toast-in .22s ease-out;
             backdrop-filter: blur(8px);
         }
         .app-toast-icon,
         .app-alert-modal-icon {
-            width: 42px;
-            height: 42px;
+            width: 48px;
+            height: 48px;
             border-radius: 14px;
             display: inline-flex;
             align-items: center;
@@ -1159,7 +1055,8 @@
             color: #fff;
             background: linear-gradient(135deg, #0891b2, #22c55e);
             box-shadow: 0 12px 24px rgba(8, 145, 178, 0.24);
-            flex: 0 0 42px;
+            flex: 0 0 48px;
+            font-size: 1.1rem;
         }
         .app-toast[data-type="success"] .app-toast-icon,
         .app-alert-modal[data-type="success"] .app-alert-modal-icon {
@@ -1180,14 +1077,15 @@
         .app-alert-modal-title {
             font-weight: 850;
             line-height: 1.15;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
             color: var(--ab-ink);
+            font-size: 1.05rem;
         }
         .app-toast-message,
         .app-alert-modal-message {
             color: var(--ab-muted);
-            font-size: .94rem;
-            line-height: 1.35rem;
+            font-size: 1rem;
+            line-height: 1.5rem;
             overflow-wrap: anywhere;
         }
         .app-alert-overlay {
@@ -1203,7 +1101,7 @@
             animation: confirm-fade-in .16s ease-out;
         }
         .app-alert-modal {
-            width: min(94vw, 500px);
+            width: min(96vw, 600px);
             max-height: min(88vh, 680px);
             overflow-y: auto;
             border: 1px solid color-mix(in srgb, var(--ab-border) 80%, white 20%);
@@ -1211,14 +1109,14 @@
             background: color-mix(in srgb, var(--ab-card) 94%, white 6%);
             color: var(--ab-ink);
             box-shadow: 0 34px 92px rgba(2, 6, 23, 0.42);
-            padding: 18px;
+            padding: 24px;
             animation: confirm-pop-in .2s ease-out forwards;
         }
         .app-alert-modal-head {
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 15px;
+            margin-bottom: 16px;
         }
         .app-alert-modal-body {
             min-width: 0;
@@ -1227,10 +1125,40 @@
             display: flex;
             justify-content: flex-end;
             gap: 8px;
-            margin-top: 16px;
+            margin-top: 20px;
+        }
+        .app-alert-modal-actions .btn {
+            min-height: 44px;
+            padding-inline: 1.15rem;
         }
         body.app-alert-modal-open {
             overflow: hidden;
+        }
+        @media (max-width: 576px) {
+            .app-alert-wrap,
+            .app-alert-overlay {
+                padding: 10px;
+            }
+            .app-toast {
+                width: 100%;
+                padding: 16px;
+                grid-template-columns: 44px minmax(0, 1fr);
+                gap: 12px;
+            }
+            .app-toast-icon,
+            .app-alert-modal-icon {
+                width: 44px;
+                height: 44px;
+                flex-basis: 44px;
+            }
+            .app-alert-modal {
+                width: 100%;
+                max-height: calc(100vh - 20px);
+                padding: 20px;
+            }
+            .app-alert-modal-actions .btn {
+                width: 100%;
+            }
         }
         .app-inline-note {
             border: 1px solid var(--ab-border);

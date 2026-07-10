@@ -245,7 +245,7 @@ $showHostessTutorial = false;
                         </div>
 
                         <div class="col-12">
-                            <button class="btn btn-success btn-xl w-100" id="startShiftBtn" disabled>Iniciar turno</button>
+                            <button class="fb-btn fb-btn--primary fb-btn--lg w-100" id="startShiftBtn" disabled>Iniciar turno</button>
                         </div>
                     </div>
                 </form>
@@ -674,7 +674,7 @@ $showHostessTutorial = false;
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <div class="mb-3">
                     <label class="form-label">Número da UH</label>
-                        <input type="text" name="uh_numero" class="form-control input-xl" inputmode="numeric" required autofocus>
+                        <input type="text" name="uh_numero" class="form-control input-xl fb-input--big" inputmode="numeric" required autofocus>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Exceções rápidas</label>
@@ -713,7 +713,7 @@ $showHostessTutorial = false;
                         </div>
                     <?php endif; ?>
 
-                    <button type="submit" class="btn btn-success btn-xl w-100"><i class="bi bi-check2-circle me-1"></i>Registrar</button>
+                    <button type="submit" class="fb-btn fb-btn--primary fb-btn--lg w-100"><i class="bi bi-check2-circle me-1"></i>Registrar</button>
                 </form>
 
                 <?php if (!empty($lastEditableAccesses)): ?>
@@ -806,13 +806,13 @@ $showHostessTutorial = false;
                                     <td data-label="Operação"><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
                                     <td data-label="Status">
                                         <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
-                                            <span class="badge badge-warning">Duplicado</span>
+                                            <span class="fb-badge fb-badge--duplicado">Duplicado</span>
                                         <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
-                                            <span class="badge badge-danger">Fora do horário</span>
+                                            <span class="fb-badge fb-badge--fora-horario">Fora do horário</span>
                                         <?php elseif (($item['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
-                                            <span class="badge badge-soft">Múltiplo acesso</span>
+                                            <span class="fb-badge fb-badge--multiplo">Múltiplo acesso</span>
                                         <?php else: ?>
-                                            <span class="badge badge-success">OK</span>
+                                            <span class="fb-badge fb-badge--ok">OK</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

@@ -159,8 +159,15 @@
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
             overlay.className = 'app-alert-overlay';
+            const variantClass = cfg.variant === 'reservation' ? ' app-alert-modal--reservation' : '';
+            const details = Array.isArray(cfg.details) ? cfg.details.filter((item) => item && item.value) : [];
+            const detailsHtml = details.length
+                ? '<dl class="app-alert-modal-details">' + details.map((item) =>
+                    '<div><dt>' + escapeHtml(item.label || '') + '</dt><dd>' + escapeHtml(item.value || '') + '</dd></div>'
+                ).join('') + '</dl>'
+                : '';
             overlay.innerHTML =
-                '<div class="app-alert-modal" data-type="' + cfg.type + '" role="dialog" aria-modal="true" aria-labelledby="appAlertTitle" aria-describedby="appAlertMessage" tabindex="-1">' +
+                '<div class="app-alert-modal' + variantClass + '" data-type="' + cfg.type + '" role="dialog" aria-modal="true" aria-labelledby="appAlertTitle" aria-describedby="appAlertMessage" tabindex="-1">' +
                     '<div class="app-alert-modal-head">' +
                         '<span class="app-alert-modal-icon"><i class="bi ' + (icons[cfg.type] || icons.info) + '"></i></span>' +
                         '<div class="app-alert-modal-body">' +
@@ -168,6 +175,7 @@
                             '<div class="app-alert-modal-message" id="appAlertMessage">' + escapeHtml(cfg.message || '') + '</div>' +
                         '</div>' +
                     '</div>' +
+                    detailsHtml +
                     '<div class="app-alert-modal-actions">' +
                         '<button type="button" class="btn btn-primary js-app-alert-ok">' + escapeHtml(cfg.buttonText || 'Entendi') + '</button>' +
                     '</div>' +
@@ -1907,4 +1915,14 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
     overlay.style.display = 'none';
     // O guia é aberto somente quando o usuário clica no botão "Guia".
 })();
+</script>
+<script>
+// PWA (remake visual, etapa 8): service worker mínimo para instalação como app.
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {
+            // Instalação PWA é progressiva: falha silenciosa não afeta o uso normal.
+        });
+    });
+}
 </script>

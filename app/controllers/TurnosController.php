@@ -26,7 +26,7 @@ class TurnosController extends Controller
         $restOps = [];
         foreach ($restaurantes as $rest) {
             $ops = $opModel->byRestaurant((int)$rest['id']);
-            if (stripos($rest['nome'], 'La Brasa') !== false) {
+            if (TematicAccessService::isLaBrasa((string)$rest['nome'])) {
                 $ops = array_filter($ops, static function ($op) {
                     $name = mb_strtolower((string)($op['operacao'] ?? ''), 'UTF-8');
                     return strpos($name, 'almoço') !== false || strpos($name, 'almoco') !== false;

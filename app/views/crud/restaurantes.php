@@ -1,187 +1,159 @@
-<?php $flash = $this->data['flash'] ?? null; ?>
-<style>
-    .config-crud-page,
-    .config-crud-page .row,
-    .config-crud-page [class*="col-"] {
-        min-width: 0;
-    }
-    .config-crud-page .card {
-        overflow: hidden;
-    }
-    .config-edit-details > summary {
-        display: flex;
-    }
-    .config-edit-summary {
-        align-items: center;
-        justify-content: space-between;
-        gap: .75rem;
-        cursor: pointer;
-        list-style: none;
-        padding: .15rem 0 .85rem;
-        font-weight: 800;
-    }
-    .config-edit-summary::-webkit-details-marker {
-        display: none;
-    }
-    .config-edit-summary .bi-chevron-down {
-        color: var(--ab-primary);
-        transition: transform .18s ease;
-    }
-    .config-edit-details[open] .config-edit-summary .bi-chevron-down {
-        transform: rotate(180deg);
-    }
-    @media (max-width: 991.98px) {
-        .config-crud-page .card.p-4,
-        .config-crud-page .card-soft.p-4 {
-            padding: 1rem !important;
-            border-radius: 18px;
-        }
-        .config-edit-details > summary {
-            display: flex;
-        }
-        .config-edit-details:not([open]) .config-edit-body {
-            display: none !important;
-        }
-    }
-    @media (max-width: 575.98px) {
-        .config-crud-page .section-title .icon {
-            width: 38px;
-            height: 38px;
-            flex: 0 0 38px;
-        }
-        .config-crud-page .section-title h3,
-        .config-crud-page h4 {
-            font-size: 1.25rem;
-        }
-    }
-</style>
-<div class="config-crud-page">
-<div class="card card-soft p-4 mb-4">
-    <div class="section-title">
-        <div class="icon"><i class="bi bi-building"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Cadastros</div>
-            <h3 class="fw-bold mb-0">Restaurantes</h3>
+<?php
+$items = $this->data['items'] ?? [];
+$ativos = count(array_filter($items, static fn(array $item): bool => (int)($item['ativo'] ?? 0) === 1));
+$tematicos = count(array_filter($items, static fn(array $item): bool => ($item['tipo'] ?? '') === 'tematico'));
+?>
+
+<div class="fb-admin-page">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
+            <div>
+                <p class="fb-card__eyebrow">Estrutura operacional</p>
+                <h1 class="fb-page-head__title">Restaurantes</h1>
+                <p class="fb-page-head__subtitle">Cadastre ambientes e defina como cada restaurante participa dos fluxos de acesso e reservas.</p>
+            </div>
         </div>
-    </div>
-</div>
-<div class="row g-4">
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="text-uppercase text-muted small">Cadastro</div>
-            <h4 class="fw-bold">Novo Restaurante</h4>
-            <form method="post" action="/?r=restaurantes/create">
-                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="mb-3">
-                    <label class="form-label">Nome</label>
-                    <input type="text" name="nome" class="form-control input-xl" required>
+        <div class="fb-summary-bar">
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Cadastrados</p>
+                <p class="fb-summary-chip__value"><?= count($items) ?></p>
+                <p class="fb-summary-chip__hint">ambientes no sistema</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Ativos</p>
+                <p class="fb-summary-chip__value"><?= $ativos ?></p>
+                <p class="fb-summary-chip__hint">disponíveis na operação</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Temáticos</p>
+                <p class="fb-summary-chip__value"><?= $tematicos ?></p>
+                <p class="fb-summary-chip__hint">com fluxo de reservas</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="fb-admin-layout">
+        <section class="fb-card fb-card--flat fb-admin-create">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Novo cadastro</p>
+                    <h2 class="fb-card__title">Adicionar restaurante</h2>
+                    <p class="fb-card__subtitle">Configure o comportamento principal do ambiente.</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Tipo</label>
-                    <select name="tipo" class="form-select input-xl">
+                <span class="fb-admin-icon"><i class="bi bi-shop"></i></span>
+            </div>
+
+            <form method="post" action="/?r=restaurantes/create" class="fb-admin-form">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <label class="fb-field">
+                    <span class="fb-label">Nome</span>
+                    <input type="text" name="nome" class="fb-input" placeholder="Ex.: Restaurante Giardino" required>
+                </label>
+                <label class="fb-field">
+                    <span class="fb-label">Tipo de operação</span>
+                    <select name="tipo" class="fb-select">
                         <option value="buffet">Buffet</option>
                         <option value="tematico">Temático</option>
-                        <option value="area">Área</option>
+                        <option value="area">Área operacional</option>
                     </select>
+                </label>
+                <div class="fb-admin-options">
+                    <label class="fb-admin-check">
+                        <input type="checkbox" name="seleciona_porta_no_turno" value="1">
+                        <span><strong>Selecionar porta</strong><small>Solicita a porta ao iniciar o turno.</small></span>
+                    </label>
+                    <label class="fb-admin-check">
+                        <input type="checkbox" name="exige_pax" value="1" checked>
+                        <span><strong>Exigir PAX</strong><small>O lançamento exige quantidade de pessoas.</small></span>
+                    </label>
                 </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" name="seleciona_porta_no_turno" value="1" id="sel_porta">
-                    <label class="form-check-label" for="sel_porta">Seleciona porta no turno</label>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" name="exige_pax" value="1" id="exige_pax" checked>
-                    <label class="form-check-label" for="exige_pax">Exige PAX</label>
-                </div>
-                <button class="btn btn-success btn-xl w-100">Cadastrar</button>
+                <button class="fb-btn fb-btn--primary fb-btn--lg" type="submit"><i class="bi bi-plus-lg"></i> Cadastrar restaurante</button>
             </form>
-        </div>
-    </div>
-    <div class="col-12 col-lg-8">
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Restaurantes</h4>
-                <span class="text-muted small">Edite e organize</span>
+        </section>
+
+        <section class="fb-card fb-card--flat fb-admin-list">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Ambientes cadastrados</p>
+                    <h2 class="fb-card__title">Configuração operacional</h2>
+                    <p class="fb-card__subtitle">Selecione um restaurante para revisar ou alterar seus dados.</p>
+                </div>
+                <span class="fb-badge"><?= count($items) ?> registros</span>
             </div>
-            <div class="row g-3">
-                <?php foreach ($this->data['items'] as $item): ?>
+
+            <div class="fb-admin-records">
+                <?php foreach ($items as $item): ?>
                     <?php
                     $portaNoTurno = (int)($item['seleciona_porta_no_turno'] ?? 0);
                     $exigePax = (int)($item['exige_pax'] ?? 0);
                     $ativo = (int)($item['ativo'] ?? 0);
+                    $tipo = (string)($item['tipo'] ?? 'buffet');
                     ?>
-                    <div class="col-12">
-                        <form method="post" action="/?r=restaurantes/edit" class="card p-3">
-                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                            <details class="config-edit-details" open data-config-mobile-collapsed>
-                                <summary class="config-edit-summary">
+                    <form method="post" action="/?r=restaurantes/edit" class="fb-admin-record">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                        <details>
+                            <summary>
+                                <span class="fb-admin-record__identity">
+                                    <span class="fb-admin-record__avatar"><i class="bi bi-shop"></i></span>
                                     <span>
-                                        <?= h($item['nome']) ?>
-                                        <span class="badge <?= $ativo === 1 ? 'badge-success' : 'badge-soft' ?> ms-1"><?= $ativo === 1 ? 'Ativo' : 'Inativo' ?></span>
+                                        <strong><?= h((string)$item['nome']) ?></strong>
+                                        <small><?= h(ucfirst($tipo)) ?> · <?= $exigePax ? 'com PAX' : 'sem PAX' ?></small>
                                     </span>
+                                </span>
+                                <span class="fb-admin-record__status">
+                                    <span class="fb-badge <?= $ativo ? 'fb-badge--ok' : 'fb-badge--nao-informado' ?>"><?= $ativo ? 'Ativo' : 'Inativo' ?></span>
                                     <i class="bi bi-chevron-down"></i>
-                                </summary>
-                            <div class="row g-3 align-items-end config-edit-body">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted">Nome</label>
-                                    <input type="text" name="nome" class="form-control" value="<?= h($item['nome']) ?>">
-                                    <?php if (stripos($item['nome'], 'La Brasa') !== false): ?>
-                                        <div class="mt-2">
-                                        <span class="badge badge-warning">Híbrido (Buffet + Temático)</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Tipo</label>
-                                    <select name="tipo" class="form-select">
-                                        <option value="buffet" <?= $item['tipo'] === 'buffet' ? 'selected' : '' ?>>Buffet</option>
-                                        <option value="tematico" <?= $item['tipo'] === 'tematico' ? 'selected' : '' ?>>Temático</option>
-                                        <option value="area" <?= $item['tipo'] === 'area' ? 'selected' : '' ?>>Área</option>
+                                </span>
+                            </summary>
+                            <div class="fb-admin-record__body fb-admin-record__body--restaurant">
+                                <label class="fb-field">
+                                    <span class="fb-label">Nome</span>
+                                    <input type="text" name="nome" class="fb-input" value="<?= h((string)$item['nome']) ?>" required>
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Tipo</span>
+                                    <select name="tipo" class="fb-select">
+                                        <option value="buffet" <?= $tipo === 'buffet' ? 'selected' : '' ?>>Buffet</option>
+                                        <option value="tematico" <?= $tipo === 'tematico' ? 'selected' : '' ?>>Temático</option>
+                                        <option value="area" <?= $tipo === 'area' ? 'selected' : '' ?>>Área operacional</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Porta no turno</label>
-                                    <select name="seleciona_porta_no_turno" class="form-select">
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Porta no turno</span>
+                                    <select name="seleciona_porta_no_turno" class="fb-select">
                                         <option value="1" <?= $portaNoTurno === 1 ? 'selected' : '' ?>>Sim</option>
                                         <option value="0" <?= $portaNoTurno === 0 ? 'selected' : '' ?>>Não</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Exige PAX</label>
-                                    <select name="exige_pax" class="form-select">
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Exige PAX</span>
+                                    <select name="exige_pax" class="fb-select">
                                         <option value="1" <?= $exigePax === 1 ? 'selected' : '' ?>>Sim</option>
                                         <option value="0" <?= $exigePax === 0 ? 'selected' : '' ?>>Não</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Status</label>
-                                    <select name="ativo" class="form-select">
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Status</span>
+                                    <select name="ativo" class="fb-select">
                                         <option value="1" <?= $ativo === 1 ? 'selected' : '' ?>>Ativo</option>
                                         <option value="0" <?= $ativo === 0 ? 'selected' : '' ?>>Inativo</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <button class="btn btn-outline-primary w-100">Salvar</button>
-                                </div>
+                                </label>
+                                <button class="fb-btn fb-btn--primary" type="submit"><i class="bi bi-check2"></i> Salvar alterações</button>
                             </div>
-                            </details>
-                        </form>
-                    </div>
+                        </details>
+                    </form>
                 <?php endforeach; ?>
-                <?php if (empty($this->data['items'])): ?>
-                    <div class="col-12 text-muted">Sem registros.</div>
+
+                <?php if ($items === []): ?>
+                    <div class="fb-admin-empty">
+                        <i class="bi bi-shop"></i>
+                        <strong>Nenhum restaurante cadastrado</strong>
+                        <span>Use o formulário ao lado para criar o primeiro ambiente.</span>
+                    </div>
                 <?php endif; ?>
             </div>
-        </div>
+        </section>
     </div>
 </div>
-</div>
-<script>
-(() => {
-    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
-    document.querySelectorAll('[data-config-mobile-collapsed]').forEach((panel) => {
-        if (isMobile) panel.removeAttribute('open');
-        else panel.setAttribute('open', 'open');
-    });
-})();
-</script>

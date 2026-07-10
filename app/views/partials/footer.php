@@ -6,6 +6,7 @@
         </footer>
     </div>
 </div>
+<?php require __DIR__ . '/bottom_nav.php'; ?>
 <div id="exportToastWrap" class="export-toast-wrap" aria-live="polite" aria-atomic="true"></div>
 <div id="appAlertWrap" class="app-alert-wrap" aria-live="polite" aria-atomic="true"></div>
 <?php

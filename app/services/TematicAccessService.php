@@ -172,6 +172,49 @@ final class TematicAccessService
     }
 
     /**
+     * Sanitiza os filtros de consulta/exportação dos relatórios temáticos.
+     * Fonte única usada pelo hub Análise (aba Temáticos) e pela exportação.
+     *
+     * @param array $tematicos Restaurantes temáticos permitidos.
+     * @param bool $defaultDate Aplica a data de hoje quando nenhuma data for informada.
+     * @return array Filtros sanitizados.
+     */
+    public static function lerFiltrosRelatorio(array $tematicos, bool $defaultDate = false): array
+    {
+        $status = normalize_mojibake(trim((string)($_GET['status'] ?? '')));
+        if (mb_strlen($status, 'UTF-8') > 40) {
+            $status = mb_substr($status, 0, 40, 'UTF-8');
+        }
+        $grupoNome = normalize_mojibake(trim((string)($_GET['grupo_nome'] ?? '')));
+        if (mb_strlen($grupoNome, 'UTF-8') > 120) {
+            $grupoNome = mb_substr($grupoNome, 0, 120, 'UTF-8');
+        }
+        $query = normalize_mojibake(trim((string)($_GET['q'] ?? '')));
+        if (mb_strlen($query, 'UTF-8') > 120) {
+            $query = mb_substr($query, 0, 120, 'UTF-8');
+        }
+
+        $dataInicio = sanitize_date_param($_GET['data_inicio'] ?? '');
+        $dataFim = sanitize_date_param($_GET['data_fim'] ?? '');
+        $data = sanitize_date_param($_GET['data'] ?? '', $defaultDate ? date('Y-m-d') : '');
+        if ($dataInicio !== '' && $dataFim !== '') {
+            $data = '';
+        }
+
+        return [
+            'data' => $data,
+            'data_inicio' => $dataInicio,
+            'data_fim' => $dataFim,
+            'restaurante_id' => sanitize_int_param($_GET['restaurante_id'] ?? ''),
+            'turno_id' => sanitize_int_param($_GET['turno_id'] ?? ''),
+            'status' => $status,
+            'grupo_nome' => $grupoNome,
+            'q' => $query,
+            'restaurante_ids' => array_map(static fn($r) => (int)$r['id'], $tematicos),
+        ];
+    }
+
+    /**
      * Normaliza texto para comparacoes sem acentos e caixa.
      *
      * @param string $value Texto original.

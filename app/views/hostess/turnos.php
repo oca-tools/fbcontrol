@@ -210,11 +210,11 @@ $user = Auth::user();
                         </td>
                         <td data-label="Status">
                             <?php if ($isCancelado): ?>
-                                <span class="badge badge-danger">Cancelado</span>
+                                <span class="fb-badge fb-badge--danger">Cancelado</span>
                             <?php elseif ($isEncerrado): ?>
-                                <span class="badge badge-success">Encerrado</span>
+                                <span class="fb-badge fb-badge--ok">Encerrado</span>
                             <?php else: ?>
-                                <span class="badge badge-warning">Em andamento</span>
+                                <span class="fb-badge fb-badge--warn">Em andamento</span>
                             <?php endif; ?>
                         </td>
                     </tr>

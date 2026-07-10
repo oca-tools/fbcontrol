@@ -59,10 +59,34 @@ class ReservasTematicasController extends Controller
         return false;
     }
 
+    /**
+     * Criação de reservas em 2 passos (remake visual, etapa 7): disponibilidade como interface.
+     */
     public function reservas(): void
     {
+        $this->executarReservas('reservas');
+    }
+
+    /**
+     * Ambiente legado completo de reservas (mapa, cadastro assistido e edição), preservado.
+     */
+    public function reservasCompleta(): void
+    {
+        $this->executarReservas('completa');
+    }
+
+    private function executarReservas(string $modo): void
+    {
+        $rotaBase = '/?r=reservasTematicas/' . ($modo === 'completa' ? 'reservasCompleta' : 'reservas');
         $this->requireReservaAccess();
         $user = Auth::user();
+
+        if ($modo === 'reservas' && (int)($_GET['edit'] ?? 0) > 0) {
+            // A edição supervisionada continua no ambiente completo.
+            $query = $_GET;
+            unset($query['r']);
+            $this->redirect('/?r=reservasTematicas/reservasCompleta&' . http_build_query($query));
+        }
 
         $reservaModel = new ReservaTematicaModel();
         $turnoModel = new ReservaTematicaTurnoModel();
@@ -189,7 +213,7 @@ class ReservasTematicasController extends Controller
                     'restaurante' => normalize_mojibake((string)($row['restaurante'] ?? '')),
                     'turno_hora' => (string)($row['turno_hora'] ?? ''),
                     'usuario' => normalize_mojibake((string)($row['usuario'] ?? '')),
-                    'edit_url' => ReservaTematicaPolicy::canEdit($row, $user) ? '/?r=reservasTematicas/reservas&edit=' . (int)($row['id'] ?? 0) : '',
+                    'edit_url' => ReservaTematicaPolicy::canEdit($row, $user) ? '/?r=reservasTematicas/reservasCompleta&edit=' . (int)($row['id'] ?? 0) : '',
                 ];
             }
 
@@ -209,19 +233,6 @@ class ReservasTematicasController extends Controller
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if (!csrf_validate($_POST['csrf_token'] ?? '')) {
-                if (request_expects_json()) {
-                    json_response([
-                        'ok' => false,
-                        'type' => 'danger',
-                        'code' => 'csrf_invalido',
-                        'message' => 'Sessão expirada. Atualize a página e tente novamente.',
-                    ], 419);
-                }
-                set_flash('danger', 'Token inválido.');
-                $this->redirect('/?r=reservasTematicas/reservas');
-            }
-
             $tentativaService = new RegistrarTentativaReservaTematicaService();
             $comandoReserva = new CriarReservaCommand([
                 'acao' => $_POST['action'] ?? 'create',
@@ -247,6 +258,27 @@ class ReservasTematicasController extends Controller
                 'correlation_id' => $tentativaService->novaCorrelacao(),
             ]);
             $tentativaService->registrarInicio($comandoReserva);
+
+            if (!csrf_validate($_POST['csrf_token'] ?? '')) {
+                $mensagemCsrf = 'Sessão expirada. Atualize a página e tente novamente.';
+                $tentativaService->registrarRecusa(
+                    $comandoReserva,
+                    ServiceResult::failure('csrf_invalido', $mensagemCsrf),
+                    $mensagemCsrf
+                );
+                if (request_expects_json()) {
+                    json_response([
+                        'ok' => false,
+                        'type' => 'danger',
+                        'code' => 'csrf_invalido',
+                        'message' => $mensagemCsrf . ' Referência da tentativa: ' . $comandoReserva->correlationId . '.',
+                        'correlation_id' => $comandoReserva->correlationId,
+                    ], 401);
+                }
+                set_flash('danger', $mensagemCsrf . ' Referência da tentativa: ' . $comandoReserva->correlationId . '.');
+                $this->redirect($rotaBase);
+            }
+
             $resultadoReserva = (new CriarReservaService())->executar($comandoReserva);
             if (!$resultadoReserva->isSuccess()) {
                 $mensagemRecusa = $this->mensagemReservaTematicaParaUsuario($resultadoReserva);
@@ -275,7 +307,7 @@ class ReservasTematicasController extends Controller
                 );
                 $tentativaService->registrarSucesso($comandoReserva, $resultadoReserva, $confirmacao);
             }
-            $this->aplicarResultadoReservaTematica($resultadoReserva, '/?r=reservasTematicas/reservas');
+            $this->aplicarResultadoReservaTematica($resultadoReserva, $rotaBase);
         }
 
         $availability = $buildAvailability((string)($filters['data'] ?? date('Y-m-d')));
@@ -285,7 +317,7 @@ class ReservasTematicasController extends Controller
         if ($editItem) {
             if (!ReservaTematicaPolicy::canEdit($editItem, $user)) {
                 set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
-                $this->redirect('/?r=reservasTematicas/reservas');
+                $this->redirect($rotaBase);
             }
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
             $editItem['uh_numero'] = (string)($editItem['status'] ?? '') === ReservasTematicasConstants::STATUS_PRE_RESERVA
@@ -297,7 +329,18 @@ class ReservasTematicasController extends Controller
             $editItem['pax_adulto'] = (int)($editItem['pax_adulto'] ?? max(0, (int)($editItem['pax'] ?? 0) - (int)$editItem['qtd_chd']));
         }
 
-        $this->view('reservas_tematicas/reservas', [
+        $reservasDoTurno = [];
+        if ($modo === 'reservas' && !empty($filters['restaurante_id']) && !empty($filters['turno_id'])) {
+            $reservasDoTurno = $reservaModel->listByFilters([
+                'data' => (string)$filters['data'],
+                'restaurante_id' => (int)$filters['restaurante_id'],
+                'turno_id' => (int)$filters['turno_id'],
+                'status' => '',
+                'order' => 'status',
+            ]);
+        }
+
+        $this->view('reservas_tematicas/' . ($modo === 'completa' ? 'reservas_completa' : 'reservas'), [
             'restaurantes' => $restaurantes,
             'turnos' => $turnos,
             'periodos' => $periodos,
@@ -307,6 +350,7 @@ class ReservasTematicasController extends Controller
             'can_reserve' => $canReserveNow,
             'edit_item' => $editItem,
             'is_hostess' => $isHostess,
+            'reservas_do_turno' => $reservasDoTurno,
             'reservas_recentes' => $confirmacaoService->listarRecentes((int)$user['id']),
             'reconciliacao' => $confirmacaoService->reconciliarData(
                 (string)$filters['data'],
@@ -315,8 +359,25 @@ class ReservasTematicasController extends Controller
         ]);
     }
 
+    /**
+     * Check-in da operação temática (remake visual, etapa 7): fila de cartões mobile-first.
+     */
     public function operacao(): void
     {
+        $this->executarOperacao('operacao');
+    }
+
+    /**
+     * Ambiente legado de conferência e impressão, preservado para o fechamento do dia.
+     */
+    public function conferencia(): void
+    {
+        $this->executarOperacao('conferencia');
+    }
+
+    private function executarOperacao(string $modo): void
+    {
+        $rotaBase = '/?r=reservasTematicas/' . ($modo === 'conferencia' ? 'conferencia' : 'operacao');
         $this->requireOperacaoAccess();
         $user = Auth::user();
         $closedByTimeout = (new ShiftAutoCloseService())->closeForCurrentUser();
@@ -374,10 +435,10 @@ class ReservasTematicasController extends Controller
                         'type' => 'danger',
                         'code' => 'csrf_invalido',
                         'message' => 'Sessão expirada. Atualize a página e tente novamente.',
-                    ], 419);
+                    ], 401);
                 }
                 set_flash('danger', 'Token inválido.');
-                $this->redirect('/?r=reservasTematicas/operacao');
+                $this->redirect($rotaBase);
             }
             $resultadoOperacao = (new OperarReservaService())->executar(new OperarReservaCommand([
                 'acao' => $_POST['action'] ?? '',
@@ -397,7 +458,7 @@ class ReservasTematicasController extends Controller
                 'confirmou_status_final' => (int)($_POST['confirm_final'] ?? 0) === 1,
                 'acao_rapida' => $_POST['quick_action'] ?? '',
             ]));
-            $redirectOperacao = '/?r=reservasTematicas/operacao';
+            $redirectOperacao = $rotaBase;
             if ($resultadoOperacao->isSuccess() && !empty($resultadoOperacao->payload()['redirect_query'])) {
                 $redirectOperacao .= '&' . $resultadoOperacao->payload()['redirect_query'];
             }
@@ -435,7 +496,22 @@ class ReservasTematicasController extends Controller
             $closed = $fechamentoModel->isClosed((int)$filters['restaurante_id'], $filters['data'], (int)$filters['turno_id']);
         }
 
-        $this->view('reservas_tematicas/operacao', [
+        $capacidadeTurno = null;
+        if (!empty($filters['restaurante_id']) && !empty($filters['turno_id'])) {
+            $configTurnos = (new ReservaTematicaConfigModel())->turnosConfigForDate(
+                (int)$filters['restaurante_id'],
+                (string)$filters['data']
+            );
+            foreach ($configTurnos as $configTurno) {
+                if ((int)($configTurno['turno_id'] ?? 0) === (int)$filters['turno_id']) {
+                    $capacidadeTurno = (int)($configTurno['capacidade'] ?? 0);
+                    break;
+                }
+            }
+        }
+
+        $this->view('reservas_tematicas/' . ($modo === 'conferencia' ? 'conferencia' : 'operacao'), [
+            'capacidade_turno' => $capacidadeTurno,
             'restaurantes' => $restaurantes,
             'print_restaurantes' => $printRestaurants,
             'turnos' => $turnos,
@@ -449,8 +525,25 @@ class ReservasTematicasController extends Controller
         ]);
     }
 
+    /**
+     * Configuração temática como calendário por restaurante (remake visual, etapa 7).
+     */
     public function admin(): void
     {
+        $this->executarAdmin('admin');
+    }
+
+    /**
+     * Ambiente legado completo de configuração (capacidades, turnos, períodos), preservado.
+     */
+    public function adminCompleta(): void
+    {
+        $this->executarAdmin('completa');
+    }
+
+    private function executarAdmin(string $modo): void
+    {
+        $rotaBase = '/?r=reservasTematicas/' . ($modo === 'completa' ? 'adminCompleta' : 'admin');
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
@@ -492,7 +585,7 @@ class ReservasTematicasController extends Controller
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!csrf_validate($_POST['csrf_token'] ?? '')) {
                 set_flash('danger', 'Token inválido.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             $removeTurnoId = (int)($_POST['remove_turno_id'] ?? 0);
@@ -500,7 +593,7 @@ class ReservasTematicasController extends Controller
                 $turno = $turnoModel->find($removeTurnoId);
                 if (!$turno) {
                     set_flash('warning', 'Turno não encontrado.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 $result = $turnoModel->removeOrInactivate($removeTurnoId, (int)Auth::user()['id']);
@@ -509,14 +602,14 @@ class ReservasTematicasController extends Controller
                 } else {
                     set_flash('info', 'Turno com histórico foi inativado para preservar os dados.');
                 }
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             $action = $_POST['action'] ?? '';
             if ($action === 'bloqueio_data') {
                 if (!$canManageBloqueios) {
                     set_flash('danger', 'Somente admin e gerente podem alterar fechamentos dos temáticos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 $dataBloqueio = sanitize_date_param($_POST['data_bloqueio'] ?? '', '');
                 $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
@@ -525,15 +618,15 @@ class ReservasTematicasController extends Controller
                 $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
                 if ($dataBloqueio === '' || !in_array($restauranteId, $restIds, true)) {
                     set_flash('warning', 'Informe uma data e um restaurante temático válidos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 if (!in_array($modo, ['fechado', 'aberto', 'remover'], true)) {
                     set_flash('warning', 'Selecione uma ação válida para a data.');
-                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+                    $this->redirect($rotaBase . '&cap_data=' . urlencode($dataBloqueio));
                 }
                 if ($modo !== 'remover' && $motivo === '') {
                     set_flash('warning', 'Informe o motivo desta alteração de disponibilidade.');
-                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+                    $this->redirect($rotaBase . '&cap_data=' . urlencode($dataBloqueio));
                 }
                 if ($modo === 'remover') {
                     $bloqueioDataModel->removeOverride($restauranteId, $dataBloqueio, (int)Auth::user()['id']);
@@ -544,12 +637,12 @@ class ReservasTematicasController extends Controller
                         ? 'Restaurante aberto excepcionalmente nesta data.'
                         : 'Restaurante fechado para a data selecionada.');
                 }
-                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataBloqueio));
+                $this->redirect($rotaBase . '&cap_data=' . urlencode($dataBloqueio));
             }
             if ($action === 'bloqueio_semana') {
                 if (!$canManageBloqueios) {
                     set_flash('danger', 'Somente admin e gerente podem fechar períodos dos temáticos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 $dataInicio = sanitize_date_param($_POST['data_inicio'] ?? '', '');
                 $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
@@ -557,11 +650,11 @@ class ReservasTematicasController extends Controller
                 $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
                 if ($dataInicio === '' || !in_array($restauranteId, $restIds, true)) {
                     set_flash('warning', 'Informe a data inicial e um restaurante temático válidos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 if ($motivo === '') {
                     set_flash('warning', 'Informe o motivo do fechamento do período.');
-                    $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataInicio));
+                    $this->redirect($rotaBase . '&cap_data=' . urlencode($dataInicio));
                 }
 
                 $inicio = new DateTimeImmutable($dataInicio);
@@ -571,12 +664,12 @@ class ReservasTematicasController extends Controller
                 }
                 $dataFim = $inicio->modify('+6 days')->format('d/m/Y');
                 set_flash('success', 'Restaurante fechado por sete dias, até ' . $dataFim . '.');
-                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataInicio));
+                $this->redirect($rotaBase . '&cap_data=' . urlencode($dataInicio));
             }
             if ($action === 'bloqueio_semanal') {
                 if (!$canManageBloqueios) {
                     set_flash('danger', 'Somente admin e gerente podem alterar fechamentos semanais dos temáticos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 $restauranteId = (int)($_POST['restaurante_id'] ?? 0);
                 $diaSemana = (int)($_POST['dia_semana'] ?? -1);
@@ -585,15 +678,15 @@ class ReservasTematicasController extends Controller
                 $restIds = array_map(static fn($rest) => (int)$rest['id'], $this->getTematicRestaurants());
                 if (!in_array($restauranteId, $restIds, true) || $diaSemana < 0 || $diaSemana > 6) {
                     set_flash('warning', 'Informe restaurante e dia da semana válidos.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 if ($fechar && $motivo === '') {
                     set_flash('warning', 'Informe o motivo do fechamento semanal.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 $bloqueioSemanalModel->setClosed($restauranteId, $diaSemana, $fechar, $motivo, (int)Auth::user()['id']);
                 set_flash('success', $fechar ? 'Fechamento semanal salvo.' : 'Fechamento semanal removido.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
             if ($action === 'config_capacidade') {
                 $totais = $_POST['capacidade_total'] ?? [];
@@ -612,25 +705,25 @@ class ReservasTematicasController extends Controller
                     $configModel->updateConfig((int)$restId, $capacidadeTotal, $turnoCaps, (int)Auth::user()['id'], $autoCancelMin);
                 }
                 set_flash('success', 'Capacidades atualizadas e distribuídas entre os turnos ativos.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             if ($action === 'config_capacidade_data') {
                 $dataCapacidade = sanitize_date_param($_POST['capacidade_data'] ?? '', '');
                 if ($dataCapacidade === '') {
                     set_flash('warning', 'Informe uma data válida para a capacidade futura.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
                 $configModel->updateDateConfig($dataCapacidade, $_POST['capacidade_data_turno'] ?? [], (int)Auth::user()['id']);
                 set_flash('success', 'Capacidade específica da data atualizada.');
-                $this->redirect('/?r=reservasTematicas/admin&cap_data=' . urlencode($dataCapacidade));
+                $this->redirect($rotaBase . '&cap_data=' . urlencode($dataCapacidade));
             }
 
             if ($action === 'config_turnos') {
                 $items = $_POST['turnos'] ?? [];
                 $turnoModel->updateBatch($items, (int)Auth::user()['id']);
                 set_flash('success', 'Turnos atualizados.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             if ($action === 'add_turno') {
@@ -640,26 +733,26 @@ class ReservasTematicasController extends Controller
 
                 if ($horaInput === '') {
                     set_flash('warning', 'Informe o horário do novo turno.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 $hora = strlen($horaInput) === 5 ? ($horaInput . ':00') : $horaInput;
                 $horaValida = DateTime::createFromFormat('H:i:s', $hora);
                 if (!$horaValida || $horaValida->format('H:i:s') !== $hora) {
                     set_flash('warning', 'Horário inválido para novo turno.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 $turnoModel->create($hora, $ativo, $ordem, (int)Auth::user()['id']);
                 set_flash('success', 'Novo turno adicionado.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             if ($action === 'config_periodos') {
                 $items = $_POST['periodos'] ?? [];
                 $periodoModel->updateBatch($items, (int)Auth::user()['id']);
                 set_flash('success', 'Períodos atualizados.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
 
             if ($action === 'add_periodo') {
@@ -670,7 +763,7 @@ class ReservasTematicasController extends Controller
 
                 if ($inicioInput === '' || $fimInput === '') {
                     set_flash('warning', 'Informe início e fim do novo período.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 $inicio = strlen($inicioInput) === 5 ? ($inicioInput . ':00') : $inicioInput;
@@ -683,17 +776,17 @@ class ReservasTematicasController extends Controller
                     || !$fimValido || $fimValido->format('H:i:s') !== $fim
                 ) {
                     set_flash('warning', 'Horário inválido para novo período.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 if ($inicio >= $fim) {
                     set_flash('warning', 'O horário final deve ser maior que o inicial.');
-                    $this->redirect('/?r=reservasTematicas/admin');
+                    $this->redirect($rotaBase);
                 }
 
                 $periodoModel->create($inicio, $fim, $ativo, $ordem, (int)Auth::user()['id']);
                 set_flash('success', 'Novo período adicionado.');
-                $this->redirect('/?r=reservasTematicas/admin');
+                $this->redirect($rotaBase);
             }
         }
 
@@ -712,7 +805,44 @@ class ReservasTematicasController extends Controller
         $bloqueiosData = $bloqueioDataModel->activeByDate($capacidadeData);
         $bloqueiosSemanais = $bloqueioSemanalModel->all();
 
-        $this->view('reservas_tematicas/admin', [
+        $calendario = [];
+        $calendarioRestauranteId = 0;
+        if ($modo === 'admin') {
+            $calendarioRestauranteId = (int)($_GET['restaurante_id'] ?? 0);
+            $idsTematicos = array_map(static fn($rest) => (int)$rest['id'], $restaurantes);
+            if (!in_array($calendarioRestauranteId, $idsTematicos, true)) {
+                $calendarioRestauranteId = $idsTematicos[0] ?? 0;
+            }
+
+            if ($calendarioRestauranteId > 0) {
+                $capacidadePadraoTotal = 0;
+                foreach ($turnosConfig[$calendarioRestauranteId] ?? [] as $cfgPadrao) {
+                    $capacidadePadraoTotal += (int)($cfgPadrao['capacidade'] ?? 0);
+                }
+
+                $inicioMes = new DateTimeImmutable(substr($capacidadeData, 0, 7) . '-01');
+                $diasNoMes = (int)$inicioMes->format('t');
+                for ($diaMes = 1; $diaMes <= $diasNoMes; $diaMes++) {
+                    $dataDia = $inicioMes->modify('+' . ($diaMes - 1) . ' days');
+                    $dataStr = $dataDia->format('Y-m-d');
+                    $override = $bloqueioDataModel->find($calendarioRestauranteId, $dataStr);
+                    $capacidadeDia = 0;
+                    foreach ($configModel->turnosConfigForDate($calendarioRestauranteId, $dataStr) as $cfgDia) {
+                        $capacidadeDia += (int)($cfgDia['capacidade'] ?? 0);
+                    }
+                    $calendario[$dataStr] = [
+                        'dia' => $diaMes,
+                        'dia_semana' => (int)$dataDia->format('w'),
+                        'fechado_semanal' => $bloqueioSemanalModel->isClosed($calendarioRestauranteId, $dataStr),
+                        'override' => $override,
+                        'capacidade' => $capacidadeDia,
+                        'capacidade_especial' => $capacidadePadraoTotal > 0 && $capacidadeDia !== $capacidadePadraoTotal,
+                    ];
+                }
+            }
+        }
+
+        $this->view('reservas_tematicas/' . ($modo === 'completa' ? 'admin_completa' : 'admin'), [
             'restaurantes' => $restaurantes,
             'configs' => $configs,
             'turnos' => $turnos,
@@ -723,6 +853,8 @@ class ReservasTematicasController extends Controller
             'bloqueios_data' => $bloqueiosData,
             'bloqueios_semanais' => $bloqueiosSemanais,
             'can_manage_bloqueios' => $canManageBloqueios,
+            'calendario' => $calendario,
+            'calendario_restaurante_id' => $calendarioRestauranteId,
             'flash' => get_flash(),
         ]);
     }

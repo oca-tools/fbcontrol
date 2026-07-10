@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 final class RelatorioGerencialService
 {
-    public const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+    public const STATUS_FILTERS = FiltroOperacionalService::STATUS_FILTERS;
 
     private OperacaoReadModelRepository $operacaoReadModelRepository;
 
@@ -119,15 +119,12 @@ final class RelatorioGerencialService
      */
     public function buildFilters(array $query, bool $defaultDate = false): array
     {
-        return [
-            'data' => sanitize_date_param($query['data'] ?? '', $defaultDate ? date('Y-m-d') : ''),
-            'data_inicio' => sanitize_date_param($query['data_inicio'] ?? ''),
-            'data_fim' => sanitize_date_param($query['data_fim'] ?? ''),
-            'uh_numero' => sanitize_uh_param($query['uh_numero'] ?? ''),
-            'restaurante_id' => sanitize_int_param($query['restaurante_id'] ?? ''),
-            'operacao_id' => sanitize_int_param($query['operacao_id'] ?? ''),
-            'status' => sanitize_enum_param($query['status'] ?? '', self::STATUS_FILTERS),
-        ];
+        $filters = FiltroOperacionalService::lerFiltrosBase($query);
+        if ($defaultDate && $filters['data'] === '') {
+            $filters['data'] = date('Y-m-d');
+        }
+        $filters['uh_numero'] = sanitize_uh_param($query['uh_numero'] ?? '');
+        return $filters;
     }
 
     public function buildBiFilters(array $query, array $baseFilters): array

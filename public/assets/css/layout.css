@@ -62,32 +62,33 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 }
 
 .app-main {
-    padding: 1rem 1.2rem 2rem;
+    padding: var(--fb-space-4) var(--fb-space-4) calc(var(--fb-space-6) + 8px);
 }
 
 .app-content {
-    width: min(1480px, 100%);
+    width: min(var(--fb-page-max), 100%);
     margin: 0 auto;
     display: grid;
-    gap: 1rem;
+    gap: var(--fb-space-4);
 }
 
 .topbar {
     position: sticky;
     top: .7rem;
     z-index: 20;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--ab-border) 82%, #ffffff 18%);
-    background: color-mix(in srgb, var(--ab-panel-bg) 88%, #ffffff 12%);
-    box-shadow: var(--ab-shadow-soft);
-    backdrop-filter: blur(7px) saturate(115%);
-    padding: .62rem .82rem;
-    margin-bottom: .95rem;
+    border-radius: var(--fb-radius-xl);
+    border: 1px solid var(--fb-border);
+    background: color-mix(in srgb, var(--fb-card) 90%, transparent 10%);
+    box-shadow: var(--fb-shadow-1);
+    backdrop-filter: blur(10px) saturate(116%);
+    padding: var(--fb-space-3) var(--fb-space-4);
+    margin-bottom: var(--fb-space-4);
 }
 
 .topbar > div:first-child .h5 {
     margin-bottom: 0;
     font-size: 1.02rem;
+    font-weight: 700;
 }
 
 .topbar-actions {
@@ -98,14 +99,16 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 
 .topbar-runtime {
     font-size: .72rem;
+    color: var(--fb-muted);
 }
 
 .topbar .user-pill {
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ab-border) 82%, #ffffff 18%);
-    background: color-mix(in srgb, var(--ab-soft-bg) 78%, #ffffff 22%);
-    padding: .26rem .62rem;
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card-muted);
+    padding: .34rem .7rem;
     gap: .45rem;
+    box-shadow: var(--fb-shadow-1);
 }
 
 .topbar-theme {
@@ -113,11 +116,13 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 }
 
 .theme-chip {
-    border: 1px solid color-mix(in srgb, var(--ab-border) 75%, #94a3b8 25%);
+    border: 1px solid var(--fb-border);
     border-radius: 999px;
     padding: .28rem .58rem;
     font-size: .72rem;
     font-weight: 700;
+    background: var(--fb-card-muted);
+    color: var(--fb-muted);
 }
 
 .theme-switch {
@@ -126,8 +131,9 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
     gap: .35rem;
     padding: .28rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
-    background: color-mix(in srgb, var(--ab-soft-bg) 86%, #ffffff 14%);
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card-muted);
+    box-shadow: var(--fb-shadow-1);
 }
 
 .theme-btn {
@@ -140,15 +146,19 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
     justify-content: center;
     gap: .38rem;
     background: transparent;
-    color: var(--ab-muted);
+    color: var(--fb-muted);
     font-size: .71rem;
     font-weight: 700;
+    transition:
+        background var(--fb-dur-fast) var(--fb-ease),
+        color var(--fb-dur-fast) var(--fb-ease),
+        box-shadow var(--fb-dur-fast) var(--fb-ease);
 }
 
 .theme-btn.active {
-    color: var(--ab-ink);
-    background: color-mix(in srgb, var(--ab-card) 92%, #ffffff 8%);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+    color: var(--fb-ink);
+    background: var(--fb-card);
+    box-shadow: var(--fb-shadow-2);
 }
 
 .theme-btn-label {
@@ -168,10 +178,11 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 .swatch-ocean { background: linear-gradient(135deg, #0284c7 0%, #e0f2fe 100%); }
 
 .mobile-theme-panel {
-    border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
-    background: color-mix(in srgb, var(--ab-soft-bg) 80%, #ffffff 20%);
-    padding: .6rem;
+    border-radius: var(--fb-radius-lg);
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card-muted);
+    padding: .7rem;
+    box-shadow: var(--fb-shadow-1);
 }
 
 .mobile-theme-panel .theme-switch {
@@ -185,17 +196,17 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 
 .mobile-theme-panel .theme-btn {
     min-width: 0;
-    border: 1px solid color-mix(in srgb, var(--ab-border) 80%, #ffffff 20%);
-    background: var(--ab-card);
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card);
 }
 
 .mobile-theme-panel .theme-btn.active {
-    border-color: color-mix(in srgb, var(--ab-accent) 55%, #ffffff 45%);
+    border-color: color-mix(in srgb, var(--fb-action) 45%, var(--fb-border));
 }
 
 .mobile-nav {
-    border-radius: 12px;
-    box-shadow: var(--ab-shadow-soft);
+    border-radius: var(--fb-radius-lg);
+    box-shadow: var(--fb-shadow-1);
 }
 
 .mobile-nav .brand-main {
@@ -227,7 +238,7 @@ footer {
 
 @media (max-width: 992px) {
     .app-main {
-        padding: .7rem .68rem 1.2rem;
+        padding: .78rem .72rem 1.2rem;
     }
 
     .topbar {

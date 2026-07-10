@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FBControl · Conceito — Feedbacks e estados</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>body{margin:0;padding:24px;background:#DEDEDD;font-family:'Montserrat',system-ui,sans-serif}.wrap{max-width:820px;margin:0 auto}h1{font-size:18px;font-weight:600;color:#252525;margin:0 0 4px}.sub{font-size:13px;color:#7A7A79;margin:0 0 18px}</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Feedbacks e estados</h1>
+<p class="sub">Alerta inline, toast, banner, estado vazio (convite), skeleton de loading e erro.</p>
+<div style="background:#F4F4F3;border-radius:14px;padding:1.25rem;color:#252525">
+  <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9A9A99;font-weight:600;margin:0 0 10px">Feedbacks</p>
+  <div style="display:flex;flex-direction:column;gap:9px;margin:0 0 20px">
+    <div style="display:flex;align-items:center;gap:9px;background:#E4F1F7;border-radius:9px;padding:10px 13px;font-size:0.8rem;color:#215A73"><i class="ti ti-info-circle" style="font-size:16px"></i> Inline: contextual, no ponto do problema.</div>
+    <div style="display:inline-flex;align-self:flex-start;align-items:center;gap:9px;background:#252525;color:#fff;border-radius:999px;padding:9px 16px;font-size:0.8rem;box-shadow:0 8px 20px rgba(0,0,0,.18)"><i class="ti ti-circle-check" style="font-size:16px;color:#57C08A"></i> Reserva registrada</div>
+    <div style="display:flex;align-items:center;gap:9px;background:#FBF0DC;border-left:3px solid #C77A12;border-radius:0 9px 9px 0;padding:10px 13px;font-size:0.8rem;color:#8A5410"><i class="ti ti-alert-triangle" style="font-size:16px"></i> Banner: turno fechado para alterações.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+    <div style="background:#fff;border-radius:12px;padding:20px 16px;text-align:center;box-shadow:0 1px 2px rgba(37,37,37,.06)">
+      <div style="width:44px;height:44px;border-radius:12px;background:#FBEFE6;color:#E67E3C;display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="ti ti-calendar-plus" style="font-size:22px"></i></div>
+      <div style="font-size:0.9rem;font-weight:600">Nenhuma reserva ainda</div>
+      <div style="font-size:0.75rem;color:#9A9A99;margin:4px 0 12px">Comece criando a primeira do turno.</div>
+      <button style="background:#15B1C9;color:#fff;border:0;border-radius:9px;padding:8px 16px;font-size:0.8rem;font-weight:600;font-family:inherit">Nova reserva</button>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(37,37,37,.06)">
+      <div style="font-size:0.72rem;color:#9A9A99;margin:0 0 10px">Carregando…</div>
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 12px"><span style="width:32px;height:32px;border-radius:8px;background:#EDEDEC"></span><div style="flex:1"><div style="height:9px;width:70%;background:#EDEDEC;border-radius:4px;margin:0 0 6px"></div><div style="height:8px;width:45%;background:#F0F0EF;border-radius:4px"></div></div></div>
+      <div style="height:9px;width:100%;background:#EDEDEC;border-radius:4px;margin:0 0 6px"></div>
+      <div style="height:9px;width:85%;background:#F0F0EF;border-radius:4px"></div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:20px 16px;text-align:center;box-shadow:0 1px 2px rgba(37,37,37,.06)">
+      <div style="width:44px;height:44px;border-radius:12px;background:#FBE9E7;color:#C0433B;display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="ti ti-wifi-off" style="font-size:22px"></i></div>
+      <div style="font-size:0.9rem;font-weight:600">Sem conexão</div>
+      <div style="font-size:0.75rem;color:#9A9A99;margin:4px 0 12px">Seus dados não foram perdidos.</div>
+      <button style="background:#fff;color:#252525;border:1px solid #DcDcDb;border-radius:9px;padding:8px 16px;font-size:0.8rem;font-weight:600;font-family:inherit">Tentar de novo</button>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

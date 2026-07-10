@@ -408,3 +408,58 @@ function uh_label($uh): string
     }
     return $num;
 }
+
+/**
+ * Identidade visual de um restaurante (cor + ícone + tons), com cache por requisição.
+ * Aceita a linha do restaurante ou apenas o nome (útil em listas que só têm o nome).
+ *
+ * @param array|string $restaurante
+ * @return array{cor: string, icone: string, bg: string, texto: string}
+ */
+function restaurante_identidade($restaurante): array
+{
+    static $servico = null;
+    static $cache = [];
+
+    $chave = is_array($restaurante)
+        ? (string)($restaurante['id'] ?? $restaurante['nome'] ?? '')
+        : (string)$restaurante;
+    if ($chave !== '' && isset($cache[$chave])) {
+        return $cache[$chave];
+    }
+
+    if ($servico === null) {
+        $servico = new PerfilRestauranteService();
+    }
+    $identidade = $servico->identidade($restaurante);
+    if ($chave !== '') {
+        $cache[$chave] = $identidade;
+    }
+    return $identidade;
+}
+
+/**
+ * Renderiza o selo de identidade do restaurante (auto-contido, sem depender de CSS legado).
+ * Variantes: 'chip' (ícone + nome curto), 'icon' (quadrado só com o ícone), 'dot' (bolinha).
+ *
+ * @param array|string $restaurante Linha do restaurante ou nome.
+ */
+function restaurante_selo($restaurante, string $variante = 'chip'): string
+{
+    $identidade = restaurante_identidade($restaurante);
+    // Bootstrap Icons exige a classe base `bi` junto do ícone específico (ex.: "bi bi-water").
+    $classeIcone = h('bi ' . ltrim((string)$identidade['icone']));
+
+    if ($variante === 'dot') {
+        return '<span class="fb-rest-dot" style="background:' . h($identidade['cor']) . '" aria-hidden="true"></span>';
+    }
+    if ($variante === 'icon') {
+        return '<span class="fb-rest-icon" style="background:' . h($identidade['bg']) . ';color:' . h($identidade['cor'])
+            . '" aria-hidden="true"><i class="' . $classeIcone . '"></i></span>';
+    }
+
+    $nome = is_array($restaurante) ? (string)($restaurante['nome'] ?? '') : (string)$restaurante;
+    $nomeCurto = (string)preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake($nome));
+    return '<span class="fb-rest-selo" style="background:' . h($identidade['bg']) . ';color:' . h($identidade['texto']) . '">'
+        . '<i class="' . $classeIcone . '" aria-hidden="true"></i>' . h($nomeCurto) . '</span>';
+}

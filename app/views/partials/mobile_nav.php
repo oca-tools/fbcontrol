@@ -1,38 +1,15 @@
+<?php /* Navegação única (pilar 1): a barra superior mobile é só contexto de marca.
+   As ações (guia, demo, sair, tema) e os destinos secundários vivem na gaveta única
+   #mobileMenu, aberta pela barra inferior ("Mais"). Sem ações duplicadas. */ ?>
 <div class="mobile-nav">
-    <div class="brand">
+    <a class="brand" href="/?r=home" aria-label="FBControl — início" style="text-decoration: none;">
         <?php if (!empty($logoPath)): ?>
-            <img src="<?= h($logoPath) ?>?v=20260605" data-logo-light="<?= h($logoPath) ?>?v=20260605" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260605" alt="Logo do FBControl" class="mobile-brand-logo js-theme-logo">
+            <img src="<?= h($logoPath) ?>?v=20260705g" data-logo-light="<?= h($logoPath) ?>?v=20260705g" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260705g" alt="Logo do FBControl" class="mobile-brand-logo js-theme-logo">
         <?php else: ?>
             <span class="brand-main"><?= h($appName) ?></span>
         <?php endif; ?>
         <span class="brand-sub"><?= h($perfilLabel ?? ucfirst((string)($user['perfil'] ?? ''))) ?></span>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-        <?php if ($showGuidedTutorial): ?>
-            <button class="btn btn-sm btn-outline-primary js-open-tour" type="button" title="Abrir guia">
-                <i class="bi bi-question-circle"></i>
-            </button>
-        <?php endif; ?>
-        <?php if (($user['perfil'] ?? '') === 'admin'): ?>
-            <form method="post" action="/?r=demo/toggle" class="logout-inline-form d-inline-flex">
-                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
-                <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
-                <button class="btn btn-sm <?= app_demo_mode_enabled() ? 'btn-warning' : 'btn-outline-secondary' ?>" type="submit" title="Modo demonstração">
-                    <i class="bi bi-mortarboard"></i>
-                </button>
-            </form>
-        <?php endif; ?>
-        <form method="post" action="/?r=auth/logout" class="logout-inline-form d-inline-flex">
-            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-            <button class="btn btn-sm btn-outline-dark" type="submit" aria-label="Sair">
-                <i class="bi bi-box-arrow-right"></i>
-            </button>
-        </form>
-        <button class="btn btn-sm menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
-            <i class="bi bi-list"></i> Menu
-        </button>
-    </div>
+    </a>
 </div>
 <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
     <div class="offcanvas-header">
@@ -54,6 +31,25 @@
                     <div class="fw-semibold"><?= h($user['nome']) ?></div>
                     <div class="text-muted small">Hostess</div>
                 </div>
+            </div>
+        <?php endif; ?>
+        <?php if ($showGuidedTutorial || ($user['perfil'] ?? '') === 'admin'): ?>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <?php if ($showGuidedTutorial): ?>
+                    <button class="btn btn-sm btn-outline-primary js-open-tour" type="button" data-bs-dismiss="offcanvas">
+                        <i class="bi bi-question-circle"></i> Guia
+                    </button>
+                <?php endif; ?>
+                <?php if (($user['perfil'] ?? '') === 'admin'): ?>
+                    <form method="post" action="/?r=demo/toggle" class="logout-inline-form d-inline-flex">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
+                        <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
+                        <button class="btn btn-sm <?= app_demo_mode_enabled() ? 'btn-warning' : 'btn-outline-secondary' ?>" type="submit">
+                            <i class="bi bi-mortarboard"></i> Modo demo<?= app_demo_mode_enabled() ? ' (ativo)' : '' ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
         <div class="mb-3 mobile-theme-panel">
@@ -85,11 +81,9 @@
             <?php endif; ?>
             <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
                 <div class="mobile-menu-section-label">Gestão e BI</div>
-                <a <?= $navAttrs('control/index') ?> href="/?r=control/index"><i class="bi bi-speedometer2"></i> Centro de Controle</a>
-                <a <?= $navAttrs(['dashboard/index', 'dashboard/restaurant']) ?> href="/?r=dashboard/index"><i class="bi bi-bar-chart"></i> Dashboard Geral</a>
-                <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
-                    <a <?= $navAttrs('kpis/index') ?> href="/?r=kpis/index"><i class="bi bi-graph-up-arrow"></i> KPIs Estratégicos</a>
-                <?php endif; ?>
+                <a <?= $navAttrs(['operacao/index', 'control/index']) ?> href="/?r=operacao/index"><i class="bi bi-speedometer2"></i> Operação</a>
+                <a <?= $navAttrs(['analise/index', 'dashboard/index', 'dashboard/restaurant']) ?> href="/?r=analise/index"><i class="bi bi-bar-chart"></i> Análise</a>
+<?php /* KPIs Estratégicos virou a aba KPIs do hub Análise. */ ?>
                 <a <?= $navAttrs('relatorios/index') ?> href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
                 <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                     <a <?= $navAttrs('auditoria/index') ?> href="/?r=auditoria/index"><i class="bi bi-shield-check"></i> Auditoria</a>
@@ -97,12 +91,8 @@
                 <?php if (in_array($user['perfil'], ['admin'], true)): ?>
                     <a <?= $navAttrs('lgpd/index') ?> href="/?r=lgpd/index"><i class="bi bi-shield-lock"></i> LGPD</a>
                 <?php endif; ?>
-                <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
-                    <a <?= $navAttrs('relatoriosTematicos/index') ?> href="/?r=relatoriosTematicos/index"><i class="bi bi-clipboard-data"></i> Relatórios Temáticos</a>
-                <?php endif; ?>
-                <?php if ($activeShift): ?>
-                    <a <?= $navAttrs('dashboard/restaurant') ?> href="/?r=dashboard/restaurant&id=<?= (int)$activeShift['restaurante_id'] ?>"><i class="bi bi-shop-window"></i> Dashboard do Restaurante</a>
-                <?php endif; ?>
+<?php /* Relatórios Temáticos virou a aba Temáticos do hub Análise. */ ?>
+<?php /* Dashboard do Restaurante saiu do menu: agora é drill-down dos hubs Operação e Análise. */ ?>
                 <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
                     <div class="mobile-menu-section-label">Administração</div>
                 <?php endif; ?>

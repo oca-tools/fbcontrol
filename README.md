@@ -11,13 +11,16 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 - Login e perfis (`hostess`, `supervisor`, `gerente`, `admin`)
 - Registro operacional por turno (UH, PAX, restaurante, porta, operação)
 - Regras de duplicidade, fora de horário e múltiplo acesso
-- Dashboard geral + centro de controle
-- Relatórios operacionais e temáticos
+- Três hubs de gestão (remake visual 2026):
+  - **Operação** (`operacao/index`): monitor do dia em tempo real (ex-Centro de Controle), com drill-down por restaurante (`dashboard/restaurant`)
+  - **Análise** (`analise/index`): abas Visão geral, Temáticos e KPIs (ex-Dashboard Geral, Relatórios Temáticos e KPIs Estratégicos)
+  - **Relatórios** (`relatorios/index`): central de exportações + envios automáticos (ex-Relatórios e E-mail Diário); consulta em tela em `relatorios/consulta`
+- Reservas temáticas mobile-first: criação em 2 passos (`reservasTematicas/reservas`), check-in (`.../operacao`) e calendário de configuração (`.../admin`) — ambientes legados preservados em `reservasCompleta`, `conferencia` e `adminCompleta`
 - Vouchers + refeições de colaborador
-- Reservas temáticas (reserva, operação e administração)
-- KPIs estratégicos
 - Onboarding/tutorial de hostess
-- Envio de e-mail diário
+- Instalável como app (PWA): `public/manifest.webmanifest` + `sw.js`
+- Styleguide interno da identidade "Do mar à mesa" (`styleguide/index`, admin)
+- As rotas antigas (`dashboard/index`, `control/index`, `kpis/index`, `relatoriosTematicos/index`) seguem vivas como redirects
 
 ## Estrutura de pastas
 
@@ -79,6 +82,8 @@ mysql -u usuario -p nome_do_banco < sql/migration_v3_0_query_performance.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_1_audit_security.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_2_chd_age_labels.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_3_thematic_availability_overrides.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_4_perfil_operacional_restaurantes.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_5_identidade_restaurantes.sql
 ```
 
 Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v3_0.sql`.

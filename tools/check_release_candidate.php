@@ -61,6 +61,8 @@ try {
         'tools/test_thematic_availability.php',
         'tools/test_unit_validation.php',
         'tools/test_reservation_registration_flow.php',
+        'tools/test_reservation_attempt_audit.php',
+        'tools/audit_null_actors.php',
         'tools/test_security_controls.php',
         'tools/test_lgpd_controls.php',
         'tools/sanitize_lgpd_event_details.php',

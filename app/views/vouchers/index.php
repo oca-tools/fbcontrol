@@ -171,7 +171,7 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                     </div>
                 </div>
                 <div class="col-12">
-                    <button class="btn btn-primary btn-xl w-100">Registrar voucher</button>
+                    <button class="fb-btn fb-btn--primary fb-btn--lg w-100">Registrar voucher</button>
                 </div>
             </form>
         </div>

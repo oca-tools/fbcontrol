@@ -22,15 +22,15 @@ $showGuidedTutorial = $user && in_array(strtolower((string)($user['perfil'] ?? '
     <?php require __DIR__ . '/head_stylesheets.php'; ?>
 </head>
 <body data-route="<?= h((string)$currentRoute) ?>" data-role="<?= h((string)$currentRole) ?>" data-user-id="<?= (int)$currentUserId ?>">
+<?php if ($user): ?>
+    <?php require __DIR__ . '/layout_context.php'; ?>
+    <?php require __DIR__ . '/topnav.php'; ?>
+<?php endif; ?>
 <div class="app-shell">
-    <?php if ($user): ?>
-        <?php require __DIR__ . '/layout_context.php'; ?>
-        <?php require __DIR__ . '/sidebar.php'; ?>
-    <?php endif; ?>
     <div class="app-main">
         <?php if ($user): ?>
+            <?php /* mobile_nav fornece a barra superior mobile + o offcanvas #mobileMenu (usado também pelo topnav). */ ?>
             <?php require __DIR__ . '/mobile_nav.php'; ?>
-            <?php require __DIR__ . '/topbar.php'; ?>
         <?php endif; ?>
         <main class="app-content pb-4">
 

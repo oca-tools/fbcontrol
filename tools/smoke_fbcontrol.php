@@ -69,11 +69,12 @@ try {
     require $root . '/app/views/partials/header.php';
     $html = ob_get_clean();
 
+    // Shell novo (marca Oca): topnav com abas no desktop + offcanvas mobile; a sidebar/topbar legadas foram aposentadas.
     $record('render_header_main', strpos($html, '<main class=') !== false, 'main app-content');
-    $record('render_sidebar', strpos($html, 'sidebar-menu') !== false, 'sidebar desktop');
+    $record('render_topnav', strpos($html, 'fb-topnav') !== false, 'barra de abas desktop');
+    $record('render_topnav_tabs', strpos($html, 'fb-topnav__tab') !== false, 'abas primarias');
     $record('render_mobile_nav', strpos($html, 'mobileMenu') !== false, 'offcanvas mobile');
-    $record('render_topbar', strpos($html, 'topbar-theme') !== false, 'topbar desktop');
-    $record('render_theme_buttons', substr_count($html, 'js-theme-option') === 8, '4 botoes mobile + 4 desktop');
+    $record('render_theme_buttons', substr_count($html, 'js-theme-option') === 4, '4 botoes de tema no offcanvas');
 } catch (Throwable $e) {
     $record('fatal', false, $e->getMessage());
 }

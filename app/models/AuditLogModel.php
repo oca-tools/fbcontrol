@@ -18,6 +18,9 @@ class AuditLogModel extends Model
         if (!empty($filters['tabela'])) {
             $where .= " AND a.tabela = :tabela";
             $params[':tabela'] = (string)$filters['tabela'];
+        } else {
+            $where .= " AND a.tabela <> :attempt_table";
+            $params[':attempt_table'] = ReservasTematicasConstants::AUDIT_TABLE_ATTEMPTS;
         }
         if (!empty($filters['uh_numero'])) {
             $where .= " AND (a.dados_antes LIKE :general_uh_antes OR a.dados_depois LIKE :general_uh_depois)";
@@ -29,6 +32,45 @@ class AuditLogModel extends Model
         $stmt = $this->db->prepare("
             SELECT SQL_CALC_FOUND_ROWS a.*, u.nome AS usuario
             FROM auditoria a
+            LEFT JOIN usuarios u ON u.id = a.usuario_id
+            $where
+            ORDER BY a.criado_em DESC, a.id DESC
+            LIMIT " . max(1, min(500, $limit)) . " OFFSET " . max(0, $offset) . "
+        ");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+        $total = (int)$this->db->query("SELECT FOUND_ROWS()")->fetchColumn();
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    public function reservationAttemptLogsPage(array $filters, int $limit = 200, int $offset = 0): array
+    {
+        if (!empty($filters['tabela'])
+            && (string)$filters['tabela'] !== ReservasTematicasConstants::AUDIT_TABLE_ATTEMPTS) {
+            return ['rows' => [], 'total' => 0];
+        }
+
+        $where = "WHERE a.tabela = :attempt_table";
+        $params = [':attempt_table' => ReservasTematicasConstants::AUDIT_TABLE_ATTEMPTS];
+        $this->applyDateFilters($where, $params, 'a.criado_em', $filters);
+        if (!empty($filters['usuario_id'])) {
+            $where .= " AND a.usuario_id = :attempt_usuario_id";
+            $params[':attempt_usuario_id'] = (int)$filters['usuario_id'];
+        }
+        if (!empty($filters['uh_numero'])) {
+            $where .= " AND a.dados_depois LIKE :attempt_uh";
+            $params[':attempt_uh'] = '%"' . (string)$filters['uh_numero'] . '"%';
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT SQL_CALC_FOUND_ROWS a.*, u.nome AS usuario
+            FROM auditoria a
+            INNER JOIN (
+                SELECT MAX(id) AS ultimo_id
+                FROM auditoria
+                WHERE tabela = 'reservas_tematicas_tentativas'
+                GROUP BY JSON_UNQUOTE(JSON_EXTRACT(dados_depois, '$.correlation_id'))
+            ) tentativa_final ON tentativa_final.ultimo_id = a.id
             LEFT JOIN usuarios u ON u.id = a.usuario_id
             $where
             ORDER BY a.criado_em DESC, a.id DESC

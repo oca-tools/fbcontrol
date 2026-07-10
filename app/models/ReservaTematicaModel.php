@@ -886,8 +886,9 @@ class ReservaTematicaModel extends Model
 
     public function summary(array $filters): array
     {
-        $where = "WHERE 1=1";
         $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
@@ -895,33 +896,6 @@ class ReservaTematicaModel extends Model
         $qtdChdExpr = $this->qtdChdExpr('rsv');
         $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
         $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
-        if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
-            $placeholders = [];
-            foreach ($filters['restaurante_ids'] as $idx => $rid) {
-                $key = ':rest_id_' . $idx;
-                $placeholders[] = $key;
-                $params[$key] = (int)$rid;
-            }
-            $placeholders = implode(',', $placeholders);
-            $where .= " AND rsv.restaurante_id IN ($placeholders)";
-        }
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND rsv.data_reserva BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND rsv.data_reserva = :data";
-            $params[':data'] = $filters['data'];
-        }
-        if (!empty($filters['restaurante_id'])) {
-            $where .= " AND rsv.restaurante_id = :restaurante_id";
-            $params[':restaurante_id'] = $filters['restaurante_id'];
-        }
-        if (!empty($filters['turno_id'])) {
-            $where .= " AND rsv.turno_id = :turno_id";
-            $params[':turno_id'] = $filters['turno_id'];
-        }
-        $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $stmt = $this->db->prepare("
             SELECT
@@ -937,6 +911,10 @@ class ReservaTematicaModel extends Model
                 ,{$grupoLoteExpr} AS total_lotes
                 ,{$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
+            JOIN restaurantes r ON r.id = rsv.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            {$joinGroup}
             $where
         ");
         $stmt->execute($params);
@@ -960,37 +938,15 @@ class ReservaTematicaModel extends Model
 
     public function totalsByRestaurant(array $filters): array
     {
-        $where = "WHERE 1=1";
         $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
         $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
         $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
-        if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
-            $placeholders = [];
-            foreach ($filters['restaurante_ids'] as $idx => $rid) {
-                $key = ':rest_id_' . $idx;
-                $placeholders[] = $key;
-                $params[$key] = (int)$rid;
-            }
-            $placeholders = implode(',', $placeholders);
-            $where .= " AND rsv.restaurante_id IN ($placeholders)";
-        }
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND rsv.data_reserva BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND rsv.data_reserva = :data";
-            $params[':data'] = $filters['data'];
-        }
-        if (!empty($filters['turno_id'])) {
-            $where .= " AND rsv.turno_id = :turno_id";
-            $params[':turno_id'] = $filters['turno_id'];
-        }
-        $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $stmt = $this->db->prepare("
             SELECT r.nome AS restaurante,
@@ -1006,6 +962,9 @@ class ReservaTematicaModel extends Model
                     {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
             JOIN restaurantes r ON r.id = rsv.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            {$joinGroup}
             $where
             GROUP BY r.id
             ORDER BY total DESC, r.nome
@@ -1016,37 +975,15 @@ class ReservaTematicaModel extends Model
 
     public function totalsByTurno(array $filters): array
     {
-        $where = "WHERE 1=1";
         $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
         $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
         $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
-        if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
-            $placeholders = [];
-            foreach ($filters['restaurante_ids'] as $idx => $rid) {
-                $key = ':rest_id_' . $idx;
-                $placeholders[] = $key;
-                $params[$key] = (int)$rid;
-            }
-            $placeholders = implode(',', $placeholders);
-            $where .= " AND rsv.restaurante_id IN ($placeholders)";
-        }
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND rsv.data_reserva BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND rsv.data_reserva = :data";
-            $params[':data'] = $filters['data'];
-        }
-        if (!empty($filters['restaurante_id'])) {
-            $where .= " AND rsv.restaurante_id = :restaurante_id";
-            $params[':restaurante_id'] = $filters['restaurante_id'];
-        }
-        $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $stmt = $this->db->prepare("
             SELECT r.nome AS restaurante,
@@ -1064,6 +1001,8 @@ class ReservaTematicaModel extends Model
             FROM reservas_tematicas rsv
             JOIN restaurantes r ON r.id = rsv.restaurante_id
             JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            {$joinGroup}
             $where
             GROUP BY r.id, t.id
             ORDER BY r.nome, t.ordem, t.hora
@@ -1072,46 +1011,45 @@ class ReservaTematicaModel extends Model
         return $stmt->fetchAll();
     }
 
-    public function totalsByDay(array $filters): array
+    public function totalsByDay(array $filters, string $granularity = 'day'): array
     {
-        $where = "WHERE 1=1";
         $params = [];
+        $joinGroup = "";
+        $where = $this->buildListWhere($filters, $params, $joinGroup);
         $noShowCondition = $this->noShowCondition('rsv');
         $paxComparecidaExpr = $this->paxComparecidaExpr('rsv');
         $adultExpr = $this->paxAdultoExpr('rsv');
         $chdExpr = $this->paxChdExpr('rsv');
         $grupoLoteExpr = $this->grupoLoteCountExpr('rsv');
         $grupoNomeExpr = $this->grupoNomeCountExpr('rsv');
-        if (!empty($filters['restaurante_ids']) && is_array($filters['restaurante_ids'])) {
-            $placeholders = [];
-            foreach ($filters['restaurante_ids'] as $idx => $rid) {
-                $key = ':rest_id_' . $idx;
-                $placeholders[] = $key;
-                $params[$key] = (int)$rid;
-            }
-            $placeholders = implode(',', $placeholders);
-            $where .= " AND rsv.restaurante_id IN ($placeholders)";
+        $granularity = in_array($granularity, ['day', 'week', 'month'], true) ? $granularity : 'day';
+
+        $periodSelect = "rsv.data_reserva AS data,
+                   rsv.data_reserva AS periodo_inicio,
+                   rsv.data_reserva AS periodo_fim,
+                   'day' AS periodo_tipo";
+        $groupBy = "rsv.data_reserva";
+        $orderBy = "rsv.data_reserva DESC";
+        if ($granularity === 'week') {
+            $periodSelect = "MIN(rsv.data_reserva) AS data,
+                   MIN(rsv.data_reserva) AS periodo_inicio,
+                   MAX(rsv.data_reserva) AS periodo_fim,
+                   'week' AS periodo_tipo,
+                   YEARWEEK(rsv.data_reserva, 3) AS periodo_ordem";
+            $groupBy = "YEARWEEK(rsv.data_reserva, 3)";
+            $orderBy = "periodo_ordem DESC";
+        } elseif ($granularity === 'month') {
+            $periodSelect = "MIN(rsv.data_reserva) AS data,
+                   MIN(rsv.data_reserva) AS periodo_inicio,
+                   MAX(rsv.data_reserva) AS periodo_fim,
+                   'month' AS periodo_tipo,
+                   DATE_FORMAT(rsv.data_reserva, '%Y-%m') AS periodo_ordem";
+            $groupBy = "DATE_FORMAT(rsv.data_reserva, '%Y-%m')";
+            $orderBy = "periodo_ordem DESC";
         }
-        if (!empty($filters['data_inicio']) && !empty($filters['data_fim'])) {
-            $where .= " AND rsv.data_reserva BETWEEN :data_inicio AND :data_fim";
-            $params[':data_inicio'] = $filters['data_inicio'];
-            $params[':data_fim'] = $filters['data_fim'];
-        } elseif (!empty($filters['data'])) {
-            $where .= " AND rsv.data_reserva = :data";
-            $params[':data'] = $filters['data'];
-        }
-        if (!empty($filters['restaurante_id'])) {
-            $where .= " AND rsv.restaurante_id = :restaurante_id";
-            $params[':restaurante_id'] = $filters['restaurante_id'];
-        }
-        if (!empty($filters['turno_id'])) {
-            $where .= " AND rsv.turno_id = :turno_id";
-            $params[':turno_id'] = $filters['turno_id'];
-        }
-        $this->appendStatusFilter($where, $params, $filters['status'] ?? null, 'rsv');
 
         $stmt = $this->db->prepare("
-            SELECT rsv.data_reserva AS data,
+            SELECT {$periodSelect},
                    COUNT(*) AS total,
                    SUM(CASE WHEN rsv.status = 'Finalizada' THEN 1 ELSE 0 END) AS finalizadas,
                    SUM(CASE WHEN {$noShowCondition} THEN 1 ELSE 0 END) AS no_shows,
@@ -1123,9 +1061,13 @@ class ReservaTematicaModel extends Model
                     {$grupoLoteExpr} AS total_lotes,
                     {$grupoNomeExpr} AS total_grupos_nomeados
             FROM reservas_tematicas rsv
+            JOIN restaurantes r ON r.id = rsv.restaurante_id
+            JOIN reservas_tematicas_turnos t ON t.id = rsv.turno_id
+            JOIN unidades_habitacionais uh ON uh.id = rsv.uh_id
+            {$joinGroup}
             $where
-            GROUP BY rsv.data_reserva
-            ORDER BY rsv.data_reserva DESC
+            GROUP BY {$groupBy}
+            ORDER BY {$orderBy}
         ");
         $stmt->execute($params);
         return $stmt->fetchAll();

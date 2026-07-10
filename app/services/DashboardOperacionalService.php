@@ -3,13 +3,15 @@ declare(strict_types=1);
 
 final class DashboardOperacionalService
 {
-    public const STATUS_FILTERS = ['duplicado', 'fora_horario', 'multiplo', 'ok', 'nao_informado', 'day_use'];
+    public const STATUS_FILTERS = FiltroOperacionalService::STATUS_FILTERS;
 
     private OperacaoReadModelRepository $operacaoReadModelRepository;
+    private PerfilRestauranteService $perfilRestaurante;
 
     public function __construct(?OperacaoReadModelRepository $operacaoReadModelRepository = null)
     {
         $this->operacaoReadModelRepository = $operacaoReadModelRepository ?? new OperacaoReadModelRepository();
+        $this->perfilRestaurante = new PerfilRestauranteService($this->operacaoReadModelRepository);
     }
 
     /**
@@ -83,9 +85,10 @@ final class DashboardOperacionalService
         $filters['restaurante_id'] = $restauranteId;
 
         $restaurante = $this->operacaoReadModelRepository->buscarRestaurante($restauranteId);
-        $nomeRestaurante = (string)($restaurante['nome'] ?? '');
-        $podeFiltrarOperacao = $this->restaurantePermiteFiltroDeOperacao($nomeRestaurante);
-        $operacoesDisponiveis = $podeFiltrarOperacao ? $this->operacoesPorRestaurante($nomeRestaurante) : [];
+        $podeFiltrarOperacao = $this->perfilRestaurante->permiteFiltroOperacao($restaurante);
+        $operacoesDisponiveis = $podeFiltrarOperacao
+            ? $this->perfilRestaurante->operacoesParaPainelRestaurante($restaurante)
+            : [];
         if (!$podeFiltrarOperacao) {
             $filters['operacao_id'] = '';
         }
@@ -93,7 +96,7 @@ final class DashboardOperacionalService
         $operacaoSelecionada = !empty($filters['operacao_id'])
             ? $this->operacaoReadModelRepository->buscarOperacao((int)$filters['operacao_id'])
             : null;
-        $modoTematico = $this->restauranteOperaComoTematico($nomeRestaurante, $operacaoSelecionada);
+        $modoTematico = $this->perfilRestaurante->operaComoTematico($restaurante, $operacaoSelecionada);
         $tematicoFilters = [
             'data' => $filters['data'],
             'data_inicio' => $filters['data_inicio'],
@@ -127,16 +130,9 @@ final class DashboardOperacionalService
 
     private function lerFiltrosDoPainel(array $query, bool $dataPadrao): array
     {
-        $filters = [
-            'data' => sanitize_date_param($query['data'] ?? ''),
-            'data_inicio' => sanitize_date_param($query['data_inicio'] ?? ''),
-            'data_fim' => sanitize_date_param($query['data_fim'] ?? ''),
-            'restaurante_id' => sanitize_int_param($query['restaurante_id'] ?? ''),
-            'operacao_id' => sanitize_int_param($query['operacao_id'] ?? ''),
-            'status' => sanitize_enum_param($query['status'] ?? '', self::STATUS_FILTERS),
-        ];
-        if ($dataPadrao && $filters['data'] === '' && $filters['data_inicio'] === '' && $filters['data_fim'] === '') {
-            $filters['data'] = date('Y-m-d');
+        $filters = FiltroOperacionalService::lerFiltrosBase($query);
+        if ($dataPadrao) {
+            $filters = FiltroOperacionalService::aplicarDataPadraoSeVazio($filters, date('Y-m-d'));
         }
         return $filters;
     }
@@ -157,14 +153,11 @@ final class DashboardOperacionalService
 
     private function operacoesDisponiveisParaFiltro(array $filters): array
     {
-        if (!empty($filters['restaurante_id'])) {
-            $restaurante = $this->operacaoReadModelRepository->buscarRestaurante((int)$filters['restaurante_id']);
-            if ($restaurante && stripos((string)$restaurante['nome'], 'Corais') !== false) {
-                return $this->operacaoReadModelRepository->listarOperacoesBuffet();
-            }
-        }
+        $restaurante = !empty($filters['restaurante_id'])
+            ? $this->operacaoReadModelRepository->buscarRestaurante((int)$filters['restaurante_id'])
+            : null;
 
-        return $this->operacaoReadModelRepository->listarOperacoes();
+        return $this->perfilRestaurante->operacoesParaFiltroGeral($restaurante);
     }
 
     private function deveSomarOperacaoTematica(array $filters): bool
@@ -175,8 +168,7 @@ final class DashboardOperacionalService
 
         if (!empty($filters['operacao_id'])) {
             $operacao = $this->operacaoReadModelRepository->buscarOperacao((int)$filters['operacao_id']);
-            $nomeOperacao = mb_strtolower((string)($operacao['nome'] ?? ''), 'UTF-8');
-            return strpos($nomeOperacao, 'temático') !== false || strpos($nomeOperacao, 'tematico') !== false;
+            return $this->perfilRestaurante->operacaoEhTematica($operacao);
         }
 
         return true;
@@ -210,44 +202,6 @@ final class DashboardOperacionalService
             $filters,
             InteligenciaOperacionalConstants::DEFAULT_RECENT_LIMIT
         );
-    }
-
-    private function restaurantePermiteFiltroDeOperacao(string $nomeRestaurante): bool
-    {
-        return $nomeRestaurante === 'Restaurante Corais' || stripos($nomeRestaurante, 'La Brasa') !== false;
-    }
-
-    private function operacoesPorRestaurante(string $nomeRestaurante): array
-    {
-        if ($nomeRestaurante === 'Restaurante Corais') {
-            return $this->operacaoReadModelRepository->listarOperacoesBuffet();
-        }
-
-        if (stripos($nomeRestaurante, 'La Brasa') !== false) {
-            return array_values(array_filter($this->operacaoReadModelRepository->listarOperacoes(), static function ($operacao): bool {
-                $nomeOperacao = mb_strtolower((string)($operacao['nome'] ?? ''), 'UTF-8');
-                return strpos($nomeOperacao, 'almoço') !== false
-                    || strpos($nomeOperacao, 'almoco') !== false
-                    || strpos($nomeOperacao, 'temático') !== false
-                    || strpos($nomeOperacao, 'tematico') !== false;
-            }));
-        }
-
-        return $this->operacaoReadModelRepository->listarOperacoes();
-    }
-
-    private function restauranteOperaComoTematico(string $nomeRestaurante, ?array $operacaoSelecionada): bool
-    {
-        if (stripos($nomeRestaurante, 'Giardino') !== false || stripos($nomeRestaurante, 'IX') !== false) {
-            return true;
-        }
-
-        if (stripos($nomeRestaurante, 'La Brasa') !== false && $operacaoSelecionada) {
-            $nomeOperacao = mb_strtolower((string)($operacaoSelecionada['nome'] ?? ''), 'UTF-8');
-            return strpos($nomeOperacao, 'temático') !== false || strpos($nomeOperacao, 'tematico') !== false;
-        }
-
-        return false;
     }
 
     private function mergeTotalsByName(array $base, array $extra, string $nameKey = 'nome'): array

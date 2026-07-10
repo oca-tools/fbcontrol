@@ -88,16 +88,18 @@ $record(
     'public/uploads/.htaccess'
 );
 
-$kpiView = is_file('app/views/kpis/index.php') ? (string)file_get_contents('app/views/kpis/index.php') : '';
+// A tela de KPIs virou a aba do hub Análise (faxina, etapa 9); a aba não embute JSON,
+// então a garantia passa a ser a ausência de json_encode cru na saída.
+$kpiView = is_file('app/views/analise/_kpis.php') ? (string)file_get_contents('app/views/analise/_kpis.php') : '';
 $record(
     'kpi_view_uses_safe_json',
-    strpos($kpiView, 'json_for_html(') !== false
+    $kpiView !== ''
         && preg_match('/<\?=\s*json_encode\s*\(/i', $kpiView) !== 1
 );
 
 $voucherViews = [
     'app/views/vouchers/index.php',
-    'app/views/reports/index.php',
+    'app/views/reports/consulta.php',
 ];
 foreach ($voucherViews as $view) {
     $contents = is_file($view) ? (string)file_get_contents($view) : '';

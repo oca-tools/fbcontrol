@@ -4,14 +4,17 @@ declare(strict_types=1);
 class DashboardController extends Controller
 {
     /**
-     * Exibe o painel executivo de A&B com totais, fluxo por horário e últimos atendimentos.
+     * Rota legada do Dashboard Geral: redireciona para o hub Análise preservando o filtro.
      */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $this->view('dashboard/general', (new DashboardOperacionalService())->montarDashboardGeral($_GET));
+        $query = $_GET;
+        unset($query['r']);
+        $destino = '/?r=analise/index' . ($query !== [] ? '&' . http_build_query($query) : '');
+        $this->redirect($destino);
     }
 
     /**

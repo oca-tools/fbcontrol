@@ -1,187 +1,145 @@
 <?php
-$flash = $this->data['flash'] ?? null;
+$items = $this->data['items'] ?? [];
 $restaurantes = $this->data['restaurantes'] ?? [];
 $operacoes = $this->data['operacoes'] ?? [];
+$ativos = count(array_filter($items, static fn(array $item): bool => (int)($item['ativo'] ?? 0) === 1));
 ?>
-<style>
-    .config-crud-page,
-    .config-crud-page .row,
-    .config-crud-page [class*="col-"] { min-width: 0; }
-    .config-crud-page .card { overflow: hidden; }
-    .config-edit-details > summary { display: flex; }
-    .config-edit-summary {
-        align-items: center;
-        justify-content: space-between;
-        gap: .75rem;
-        cursor: pointer;
-        list-style: none;
-        padding: .15rem 0 .85rem;
-        font-weight: 800;
-    }
-    .config-edit-summary::-webkit-details-marker { display: none; }
-    .config-edit-summary .bi-chevron-down {
-        color: var(--ab-primary);
-        transition: transform .18s ease;
-    }
-    .config-edit-details[open] .config-edit-summary .bi-chevron-down { transform: rotate(180deg); }
-    .config-edit-summary-title {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    @media (max-width: 991.98px) {
-        .config-crud-page .card.p-4,
-        .config-crud-page .card-soft.p-4 {
-            padding: 1rem !important;
-            border-radius: 18px;
-        }
-        .config-edit-details > summary { display: flex; }
-        .config-edit-details:not([open]) .config-edit-body { display: none !important; }
-    }
-    @media (max-width: 575.98px) {
-        .config-crud-page .section-title .icon {
-            width: 38px;
-            height: 38px;
-            flex: 0 0 38px;
-        }
-        .config-crud-page .section-title h3,
-        .config-crud-page h4 { font-size: 1.25rem; }
-    }
-</style>
-<div class="config-crud-page">
-<div class="card card-soft p-4 mb-4">
-    <div class="section-title">
-        <div class="icon"><i class="bi bi-clock"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Cadastros</div>
-            <h3 class="fw-bold mb-0">Horários</h3>
+
+<div class="fb-admin-page">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
+            <div>
+                <p class="fb-card__eyebrow">Janelas operacionais</p>
+                <h1 class="fb-page-head__title">Horários</h1>
+                <p class="fb-page-head__subtitle">Defina início, encerramento e tolerância de cada operação por restaurante.</p>
+            </div>
         </div>
-    </div>
-</div>
-<div class="row g-4">
-    <div class="col-12 col-lg-4">
-        <div class="card p-4">
-            <div class="text-uppercase text-muted small">Cadastro</div>
-            <h4 class="fw-bold">Novo Horário</h4>
-            <form method="post" action="/?r=horarios/create">
+        <div class="fb-summary-bar">
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Configurados</p>
+                <p class="fb-summary-chip__value"><?= count($items) ?></p>
+                <p class="fb-summary-chip__hint">horários cadastrados</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Ativos</p>
+                <p class="fb-summary-chip__value"><?= $ativos ?></p>
+                <p class="fb-summary-chip__hint">janelas disponíveis</p>
+            </div>
+            <div class="fb-summary-chip">
+                <p class="fb-summary-chip__label">Combinações</p>
+                <p class="fb-summary-chip__value"><?= count($restaurantes) ?> × <?= count($operacoes) ?></p>
+                <p class="fb-summary-chip__hint">restaurantes e operações</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="fb-admin-layout">
+        <section class="fb-card fb-card--flat fb-admin-create">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Nova janela</p>
+                    <h2 class="fb-card__title">Adicionar horário</h2>
+                    <p class="fb-card__subtitle">Relacione restaurante, operação e período de funcionamento.</p>
+                </div>
+                <span class="fb-admin-icon"><i class="bi bi-clock"></i></span>
+            </div>
+            <form method="post" action="/?r=horarios/create" class="fb-admin-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="mb-3">
-                    <label class="form-label">Restaurante</label>
-                    <select name="restaurante_id" class="form-select input-xl" required>
+                <label class="fb-field">
+                    <span class="fb-label">Restaurante</span>
+                    <select name="restaurante_id" class="fb-select" required>
                         <option value="">Selecione</option>
                         <?php foreach ($restaurantes as $rest): ?>
-                            <option value="<?= (int)$rest['id'] ?>"><?= h($rest['nome']) ?></option>
+                            <option value="<?= (int)$rest['id'] ?>"><?= h((string)$rest['nome']) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Operação</label>
-                    <select name="operacao_id" class="form-select input-xl" required>
+                </label>
+                <label class="fb-field">
+                    <span class="fb-label">Operação</span>
+                    <select name="operacao_id" class="fb-select" required>
                         <option value="">Selecione</option>
                         <?php foreach ($operacoes as $op): ?>
-                            <option value="<?= (int)$op['id'] ?>"><?= h($op['nome']) ?></option>
+                            <option value="<?= (int)$op['id'] ?>"><?= h((string)$op['nome']) ?></option>
                         <?php endforeach; ?>
                     </select>
+                </label>
+                <div class="fb-admin-time-grid">
+                    <label class="fb-field"><span class="fb-label">Início</span><input type="time" name="hora_inicio" class="fb-input" required></label>
+                    <label class="fb-field"><span class="fb-label">Fim</span><input type="time" name="hora_fim" class="fb-input" required></label>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Hora início</label>
-                    <input type="time" name="hora_inicio" class="form-control input-xl" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Hora fim</label>
-                    <input type="time" name="hora_fim" class="form-control input-xl" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Tolerância (min)</label>
-                    <input type="number" name="tolerancia_min" class="form-control input-xl" value="0" min="0">
-                </div>
-                <button class="btn btn-success btn-xl w-100">Cadastrar</button>
+                <label class="fb-field">
+                    <span class="fb-label">Tolerância em minutos</span>
+                    <input type="number" name="tolerancia_min" class="fb-input" value="0" min="0">
+                </label>
+                <button class="fb-btn fb-btn--primary fb-btn--lg" type="submit"><i class="bi bi-plus-lg"></i> Cadastrar horário</button>
             </form>
-        </div>
-    </div>
-    <div class="col-12 col-lg-8">
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold mb-0">Horários</h4>
-                <span class="text-muted small">Operação por restaurante</span>
+        </section>
+
+        <section class="fb-card fb-card--flat fb-admin-list">
+            <div class="fb-card__head">
+                <div>
+                    <p class="fb-card__eyebrow">Janelas cadastradas</p>
+                    <h2 class="fb-card__title">Operação por restaurante</h2>
+                    <p class="fb-card__subtitle">Abra um horário para revisar os vínculos e limites.</p>
+                </div>
+                <span class="fb-badge"><?= count($items) ?> registros</span>
             </div>
-            <div class="row g-3">
-                <?php foreach ($this->data['items'] as $item): ?>
-                    <div class="col-12">
-                        <form method="post" action="/?r=horarios/edit" class="card p-3">
-                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                            <details class="config-edit-details" open data-config-mobile-collapsed>
-                                <summary class="config-edit-summary">
-                                    <span class="config-edit-summary-title">
-                                        <?= h($item['restaurante'] ?? 'Restaurante') ?> · <?= h($item['operacao'] ?? 'Operação') ?>
-                                        <span class="badge <?= $item['ativo'] ? 'badge-success' : 'badge-soft' ?> ms-1"><?= $item['ativo'] ? 'Ativo' : 'Inativo' ?></span>
+            <div class="fb-admin-records">
+                <?php foreach ($items as $item): ?>
+                    <?php $ativo = (int)($item['ativo'] ?? 0); ?>
+                    <form method="post" action="/?r=horarios/edit" class="fb-admin-record">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
+                        <details>
+                            <summary>
+                                <span class="fb-admin-record__identity">
+                                    <span class="fb-admin-record__avatar"><i class="bi bi-clock"></i></span>
+                                    <span>
+                                        <strong><?= h((string)($item['restaurante'] ?? 'Restaurante')) ?></strong>
+                                        <small><?= h((string)($item['operacao'] ?? 'Operação')) ?> · <?= h(substr((string)$item['hora_inicio'], 0, 5)) ?>–<?= h(substr((string)$item['hora_fim'], 0, 5)) ?></small>
                                     </span>
+                                </span>
+                                <span class="fb-admin-record__status">
+                                    <span class="fb-badge <?= $ativo ? 'fb-badge--ok' : 'fb-badge--nao-informado' ?>"><?= $ativo ? 'Ativo' : 'Inativo' ?></span>
                                     <i class="bi bi-chevron-down"></i>
-                                </summary>
-                            <div class="row g-3 align-items-end config-edit-body">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted">Restaurante</label>
-                                    <select name="restaurante_id" class="form-select">
+                                </span>
+                            </summary>
+                            <div class="fb-admin-record__body fb-admin-record__body--schedule">
+                                <label class="fb-field">
+                                    <span class="fb-label">Restaurante</span>
+                                    <select name="restaurante_id" class="fb-select">
                                         <?php foreach ($restaurantes as $rest): ?>
-                                            <option value="<?= (int)$rest['id'] ?>" <?= $item['restaurante_id'] == $rest['id'] ? 'selected' : '' ?>>
-                                                <?= h($rest['nome']) ?>
-                                            </option>
+                                            <option value="<?= (int)$rest['id'] ?>" <?= (int)$item['restaurante_id'] === (int)$rest['id'] ? 'selected' : '' ?>><?= h((string)$rest['nome']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted">Operação</label>
-                                    <select name="operacao_id" class="form-select">
+                                </label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Operação</span>
+                                    <select name="operacao_id" class="fb-select">
                                         <?php foreach ($operacoes as $op): ?>
-                                            <option value="<?= (int)$op['id'] ?>" <?= $item['operacao_id'] == $op['id'] ? 'selected' : '' ?>>
-                                                <?= h($op['nome']) ?>
-                                            </option>
+                                            <option value="<?= (int)$op['id'] ?>" <?= (int)$item['operacao_id'] === (int)$op['id'] ? 'selected' : '' ?>><?= h((string)$op['nome']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Início</label>
-                                    <input type="time" name="hora_inicio" class="form-control" value="<?= h($item['hora_inicio']) ?>">
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Fim</label>
-                                    <input type="time" name="hora_fim" class="form-control" value="<?= h($item['hora_fim']) ?>">
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Tolerância</label>
-                                    <input type="number" name="tolerancia_min" class="form-control" value="<?= h($item['tolerancia_min']) ?>">
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label small text-muted">Status</label>
-                                    <select name="ativo" class="form-select">
-                                        <option value="1" <?= $item['ativo'] ? 'selected' : '' ?>>Ativo</option>
-                                        <option value="0" <?= !$item['ativo'] ? 'selected' : '' ?>>Inativo</option>
+                                </label>
+                                <label class="fb-field"><span class="fb-label">Início</span><input type="time" name="hora_inicio" class="fb-input" value="<?= h((string)$item['hora_inicio']) ?>"></label>
+                                <label class="fb-field"><span class="fb-label">Fim</span><input type="time" name="hora_fim" class="fb-input" value="<?= h((string)$item['hora_fim']) ?>"></label>
+                                <label class="fb-field"><span class="fb-label">Tolerância</span><input type="number" name="tolerancia_min" class="fb-input" min="0" value="<?= h((string)$item['tolerancia_min']) ?>"></label>
+                                <label class="fb-field">
+                                    <span class="fb-label">Status</span>
+                                    <select name="ativo" class="fb-select">
+                                        <option value="1" <?= $ativo ? 'selected' : '' ?>>Ativo</option>
+                                        <option value="0" <?= !$ativo ? 'selected' : '' ?>>Inativo</option>
                                     </select>
-                                </div>
-                                <div class="col-12 col-md-2">
-                                    <button class="btn btn-outline-primary w-100">Salvar</button>
-                                </div>
+                                </label>
+                                <button class="fb-btn fb-btn--primary" type="submit"><i class="bi bi-check2"></i> Salvar alterações</button>
                             </div>
-                            </details>
-                        </form>
-                    </div>
+                        </details>
+                    </form>
                 <?php endforeach; ?>
-                <?php if (empty($this->data['items'])): ?>
-                    <div class="col-12 text-muted">Sem registros.</div>
+                <?php if ($items === []): ?>
+                    <div class="fb-admin-empty"><i class="bi bi-clock"></i><strong>Nenhum horário configurado</strong><span>Crie a primeira janela operacional pelo formulário.</span></div>
                 <?php endif; ?>
             </div>
-        </div>
+        </section>
     </div>
 </div>
-</div>
-<script>
-(() => {
-    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
-    document.querySelectorAll('[data-config-mobile-collapsed]').forEach((panel) => {
-        if (isMobile) panel.removeAttribute('open');
-        else panel.setAttribute('open', 'open');
-    });
-})();
-</script>

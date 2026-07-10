@@ -399,14 +399,54 @@ class RelatoriosController extends Controller
     }
 
     /**
-     * Exibe a central de relatórios para auditoria de acessos, consumo de colaboradores, vouchers e BI.
+     * Exibe o hub de relatórios: filtro único, cartões de exportação e envios automáticos.
      */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
-        $this->view('reports/index', (new RelatorioGerencialService())->montarTelaRelatorios($_GET));
+        $relatorioGerencialService = new RelatorioGerencialService();
+        $filters = $relatorioGerencialService->buildFilters($_GET, true);
+        $biFilters = $relatorioGerencialService->buildBiFilters($_GET, $filters);
+
+        $dados = [
+            'filters' => $filters,
+            'restaurantes' => $relatorioGerencialService->restaurantes(),
+            'operacoes' => $relatorioGerencialService->operacoes(),
+            'totais' => [
+                'consolidado' => $relatorioGerencialService->totalRegistrosConsolidados($filters),
+                'bi' => $relatorioGerencialService->totalRegistrosBi($biFilters),
+                'colaboradores' => $relatorioGerencialService->contarRefeicoesColaboradores($filters),
+                'vouchers' => $relatorioGerencialService->contarVouchers($filters),
+                'mapa' => $filters['data'] !== '' ? count($relatorioGerencialService->mapaDiario((string)$filters['data'])) : 0,
+            ],
+        ];
+
+        if ((Auth::user()['perfil'] ?? '') === 'admin') {
+            $emailModel = new DailyReportEmailModel();
+            $config = $emailModel->getConfig();
+            $logs = $emailModel->listLogs(1);
+            $dados['email_resumo'] = [
+                'ativo' => (int)($config['ativo'] ?? 0),
+                'hora_envio' => (string)($config['hora_envio'] ?? '23:00:00'),
+                'destinatarios' => count($emailModel->listRecipients()),
+                'ultimo_envio' => (string)($logs[0]['criado_em'] ?? ''),
+            ];
+        }
+
+        $this->view('reports/index', $dados);
+    }
+
+    /**
+     * Exibe a consulta em tela (jornada de UH, mapa diário, BI, colaboradores e vouchers).
+     */
+    public function consulta(): void
+    {
+        $this->requireAuth();
+        Auth::requireRole(['admin', 'supervisor', 'gerente']);
+
+        $this->view('reports/consulta', (new RelatorioGerencialService())->montarTelaRelatorios($_GET));
     }
 
     /**

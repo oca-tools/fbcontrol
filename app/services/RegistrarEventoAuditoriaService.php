@@ -57,6 +57,9 @@ final class RegistrarEventoAuditoriaService
             'general_logs' => $this->paginateQuery($query, 'general_page', function (int $limit, int $offset) use ($filters): array {
                 return $this->auditoriaRepository->paginarEventosGerais($filters, $limit, $offset);
             }),
+            'attempt_logs' => $this->paginateQuery($query, 'attempt_page', function (int $limit, int $offset) use ($filters): array {
+                return $this->auditoriaRepository->paginarTentativasReserva($filters, $limit, $offset);
+            }),
             'thematic_logs' => $this->paginateQuery($query, 'thematic_page', function (int $limit, int $offset) use ($filters): array {
                 return $this->auditoriaRepository->paginarEventosTematicos($filters, $limit, $offset);
             }),

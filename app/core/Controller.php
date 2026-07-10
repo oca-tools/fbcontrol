@@ -83,6 +83,15 @@ class Controller
     protected function requireAuth(): void
     {
         if (!Auth::check()) {
+            if (function_exists('request_expects_json') && request_expects_json()) {
+                json_response([
+                    'ok' => false,
+                    'type' => 'danger',
+                    'code' => 'sessao_expirada',
+                    'message' => 'Sua sessão expirou. Entre novamente antes de registrar a reserva.',
+                    'redirect' => AppConstants::ROUTE_LOGIN,
+                ], 401);
+            }
             $this->redirect(AppConstants::ROUTE_LOGIN);
         }
     }

@@ -8,6 +8,26 @@ class Auth
     private static ?bool $sessionBindingEnabled = null;
     private static ?bool $singleSessionEnabled = null;
 
+    private static function haltJsonOrRedirect(string $route, string $code, string $message, int $status): void
+    {
+        if (
+            function_exists('request_expects_json')
+            && function_exists('json_response')
+            && request_expects_json()
+        ) {
+            json_response([
+                'ok' => false,
+                'type' => 'danger',
+                'code' => $code,
+                'message' => $message,
+                'redirect' => $route,
+            ], $status);
+        }
+
+        header('Location: ' . $route);
+        exit;
+    }
+
     private static function isSessionBindingEnabled(): bool
     {
         if (self::$sessionBindingEnabled !== null) {
@@ -248,8 +268,12 @@ class Auth
                     set_flash(AppConstants::FLASH_WARNING, 'Sua sessão foi encerrada porque uma nova sessão foi iniciada neste usuário.');
                 }
                 self::logout();
-                header('Location: ' . AppConstants::ROUTE_LOGIN);
-                exit;
+                self::haltJsonOrRedirect(
+                    AppConstants::ROUTE_LOGIN,
+                    'sessao_substituida',
+                    'Sua sessão foi encerrada porque uma nova sessão foi iniciada neste usuário. Entre novamente para continuar.',
+                    401
+                );
             }
 
             // heartbeat simples
@@ -286,8 +310,12 @@ class Auth
                 set_flash(AppConstants::FLASH_WARNING, 'SessÃ£o encerrada por mudanÃ§a de contexto do navegador.');
             }
             self::logout();
-            header('Location: ' . AppConstants::ROUTE_LOGIN);
-            exit;
+            self::haltJsonOrRedirect(
+                AppConstants::ROUTE_LOGIN,
+                'sessao_contexto_alterado',
+                'Sessão encerrada por mudança de contexto do navegador. Entre novamente para continuar.',
+                401
+            );
         }
     }
 
@@ -306,8 +334,12 @@ class Auth
                 set_flash(AppConstants::FLASH_WARNING, 'Sessão encerrada por inatividade (' . (int)$timeoutMinutes . ' minutos).');
             }
             self::logout();
-            header('Location: ' . AppConstants::ROUTE_LOGIN);
-            exit;
+            self::haltJsonOrRedirect(
+                AppConstants::ROUTE_LOGIN,
+                'sessao_expirada',
+                'Sessão encerrada por inatividade. Entre novamente antes de continuar.',
+                401
+            );
         }
 
         $_SESSION['last_activity_at'] = $now;
@@ -328,8 +360,12 @@ class Auth
         $userId = (int)($_SESSION['user']['id'] ?? 0);
         if ($userId <= 0) {
             self::logout();
-            header('Location: ' . AppConstants::ROUTE_LOGIN);
-            exit;
+            self::haltJsonOrRedirect(
+                AppConstants::ROUTE_LOGIN,
+                'sessao_invalida',
+                'Sua sessão não pôde ser validada. Entre novamente para continuar.',
+                401
+            );
         }
 
         try {
@@ -353,8 +389,12 @@ class Auth
                 set_flash(AppConstants::FLASH_WARNING, 'Sua conta foi desativada. Entre em contato com a administração.');
             }
             self::logout();
-            header('Location: ' . AppConstants::ROUTE_LOGIN);
-            exit;
+            self::haltJsonOrRedirect(
+                AppConstants::ROUTE_LOGIN,
+                'usuario_inativo',
+                'Sua conta foi desativada. Entre em contato com a administração.',
+                403
+            );
         }
 
         $_SESSION['user'] = $sessionUser;
@@ -386,8 +426,12 @@ class Auth
             if (function_exists('set_flash')) {
                 set_flash(AppConstants::FLASH_DANGER, AppConstants::MESSAGE_FORBIDDEN);
             }
-            header('Location: ' . AppConstants::ROUTE_FORBIDDEN);
-            exit;
+            self::haltJsonOrRedirect(
+                AppConstants::ROUTE_FORBIDDEN,
+                $user ? 'acesso_negado' : 'sessao_expirada',
+                $user ? AppConstants::MESSAGE_FORBIDDEN : 'Sua sessão expirou. Entre novamente antes de continuar.',
+                $user ? 403 : 401
+            );
         }
     }
 }

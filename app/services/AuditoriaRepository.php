@@ -67,6 +67,11 @@ final class AuditoriaRepository extends RepositoryBase
         return (new AuditLogModel())->generalLogsPage($filters, $limit, $offset);
     }
 
+    public function paginarTentativasReserva(array $filters, int $limit, int $offset): array
+    {
+        return (new AuditLogModel())->reservationAttemptLogsPage($filters, $limit, $offset);
+    }
+
     /**
      * Lista trilhas de reservas temáticas para auditoria de operação e exceções.
      *

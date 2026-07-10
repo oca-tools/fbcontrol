@@ -1,0 +1,1129 @@
+/*
+ * FBControl — identidade Oca Hotels (remake visual, revisão de marca 2026-07-05).
+ *
+ * Paleta e tom derivados do site oficial ocahotels.com (themes/default/css/style.css):
+ *   --corporate-primary-color #E67E3C (laranja) · --highlight/secondary #15B1C9 (ciano)
+ *   --grey-base #525251 · branco/#EBEBEB · texto #252525 · fonte Montserrat.
+ *
+ * Convenção: laranja = MARCA (logo, aba ativa no shell, destaques de identidade);
+ *            ciano = AÇÃO (CTAs, seleção, foco, links).
+ *
+ * Três papéis neste arquivo, nesta ordem:
+ *   1. Tokens canônicos --fb-* (consumidos por components.css e telas do remake).
+ *   2. Ponte: re-aponta as variáveis legadas (ab-, ux-, ui-) para a paleta Oca.
+ *   3. Passe plano definitivo: neutraliza gradientes/sombras/raios inflados do CSS legado.
+ * Deve ser o ÚLTIMO stylesheet do <head>.
+ *
+ * Temas: light = Dia (claro) · dark = Noite (operação noturna).
+ */
+
+:root {
+    /* ---------- identidade Oca (claro) ---------- */
+    --fb-font: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --fb-bg: #F4F4F3;
+    --fb-card: #FFFFFF;
+    --fb-card-muted: #FBFBFA;
+    --fb-soft: #EBEBEB;
+    --fb-ink: #252525;
+    --fb-muted: #7A7A79;
+    --fb-border: #E2E2E2;
+    --fb-brand: #E67E3C;          /* laranja corporativo Oca */
+    --fb-brand-deep: #C9641F;
+    --fb-brand-bg: #FBEFE6;
+    --fb-action: #15B1C9;         /* ciano Oca — cor de ação/CTA */
+    --fb-action-hover: #0E93A8;
+    --fb-on-action: #FFFFFF;
+    --fb-link: #0E7C8E;
+    --fb-ok: #2E9E6B;        --fb-ok-bg: #E6F5EE;
+    --fb-warn: #C77A12;      --fb-warn-bg: #FBF0DC;
+    --fb-danger: #C0433B;    --fb-danger-bg: #FBE9E7;
+    --fb-info: #2E7C9E;      --fb-info-bg: #E4F1F7;
+    --fb-multi: #6C5CB0;     --fb-multi-bg: #ECE9F7;
+    --fb-neutral: #6B6B6A;   --fb-neutral-bg: #EDEDEC;
+    --fb-radius: 10px;
+    --fb-radius-lg: 12px;
+    --fb-radius-xl: 16px;
+    --fb-shadow: 0 1px 2px rgba(37, 37, 37, 0.06);
+    --fb-shadow-1: 0 1px 2px rgba(37, 37, 37, 0.06);
+    --fb-shadow-2: 0 6px 18px rgba(37, 37, 37, 0.10);
+    --fb-shadow-3: 0 14px 32px rgba(37, 37, 37, 0.16);
+    --fb-space-1: 4px;
+    --fb-space-2: 8px;
+    --fb-space-3: 12px;
+    --fb-space-4: 16px;
+    --fb-space-5: 24px;
+    --fb-space-6: 32px;
+    --fb-dur-fast: 120ms;
+    --fb-dur-base: 160ms;
+    --fb-dur-slow: 220ms;
+    --fb-ease: cubic-bezier(.2, .7, .3, 1);
+    --fb-page-max: 1180px;
+    --fb-ring: 0 0 0 0.2rem rgba(21, 177, 201, 0.22);
+
+    /* ---------- ponte: legado --ab-* (claro) ---------- */
+    --ab-success: #2E9E6B;
+    --ab-warning: #C77A12;
+    --ab-danger: #C0433B;
+    --ab-ink: #252525;
+    --ab-muted: #7A7A79;
+    --ab-primary: #15B1C9;
+    --ab-accent: #15B1C9;
+    --ab-accent-2: #E67E3C;
+    --ab-surface: #F4F4F3;
+    --ab-card: #FFFFFF;
+    --ab-border: #E2E2E2;
+    --ab-glow: transparent;
+    --ab-page-bg: #F4F4F3;
+    --ab-bg: #F4F4F3;
+    --ab-grad-1: transparent;
+    --ab-grad-2: transparent;
+    --ab-sidebar-bg: #FFFFFF;
+    --ab-hover-bg: rgba(21, 177, 201, 0.10);
+    --ab-panel-bg: #FFFFFF;
+    --ab-soft-bg: #EBEBEB;
+    --ab-input-bg: #FFFFFF;
+    --ab-input-text: #252525;
+    --ab-shadow-card: 0 1px 2px rgba(37, 37, 37, 0.06);
+    --ab-shadow-soft: none;
+    --ab-ring: 0 0 0 0.2rem rgba(21, 177, 201, 0.22);
+
+    /* ---------- ponte: legado --ux-* (design-system.css) ---------- */
+    --ux-font-sans: var(--fb-font);
+    --ux-font-title: var(--fb-font);
+    --ux-shadow-sm: none;
+    --ux-shadow-md: 0 1px 2px rgba(37, 37, 37, 0.06);
+    --ux-radius-sm: 8px;
+    --ux-radius-md: 10px;
+    --ux-radius-lg: 12px;
+    --ux-radius-xl: 14px;
+
+    /* ---------- ponte: legado --ui-* (revamp "Premium SaaS") ---------- */
+    --ui-radius-xs: 8px;
+    --ui-radius-sm: 10px;
+    --ui-radius-md: 12px;
+    --ui-radius-lg: 14px;
+    --ui-radius-xl: 16px;
+    --ui-shadow-sm: none;
+    --ui-shadow-md: 0 1px 2px rgba(37, 37, 37, 0.06);
+    --ui-shadow-lg: 0 1px 3px rgba(37, 37, 37, 0.08);
+}
+
+html[data-theme='dark'] {
+    /* ---------- identidade Oca (Noite) ---------- */
+    --fb-bg: #17181A;
+    --fb-card: #202225;
+    --fb-card-muted: #25282C;
+    --fb-soft: #2A2D31;
+    --fb-ink: #F2F2F1;
+    --fb-muted: #9A9A99;
+    --fb-border: #34373C;
+    --fb-brand: #F0955A;
+    --fb-brand-deep: #F0955A;
+    --fb-brand-bg: #3A2717;
+    --fb-action: #3CC3D8;
+    --fb-action-hover: #5FD0E1;
+    --fb-on-action: #08272D;
+    --fb-link: #5FD0E1;
+    --fb-ok: #57C08A;        --fb-ok-bg: #16352A;
+    --fb-warn: #E0A64A;      --fb-warn-bg: #3A2E16;
+    --fb-danger: #E5776E;    --fb-danger-bg: #3A211E;
+    --fb-info: #67AECB;      --fb-info-bg: #16303A;
+    --fb-multi: #A99AE0;     --fb-multi-bg: #262138;
+    --fb-neutral: #B4B4B3;   --fb-neutral-bg: #2C2F33;
+    --fb-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --fb-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+    --fb-shadow-2: 0 8px 20px rgba(0, 0, 0, 0.32);
+    --fb-shadow-3: 0 18px 40px rgba(0, 0, 0, 0.42);
+    --fb-ring: 0 0 0 0.2rem rgba(60, 195, 216, 0.28);
+
+    --ab-success: #57C08A;
+    --ab-warning: #E0A64A;
+    --ab-danger: #E5776E;
+    --ab-ink: #F2F2F1;
+    --ab-muted: #9A9A99;
+    --ab-primary: #3CC3D8;
+    --ab-accent: #3CC3D8;
+    --ab-accent-2: #F0955A;
+    --ab-surface: #1C1D20;
+    --ab-card: #202225;
+    --ab-border: #34373C;
+    --ab-glow: transparent;
+    --ab-page-bg: #17181A;
+    --ab-bg: #17181A;
+    --ab-grad-1: transparent;
+    --ab-grad-2: transparent;
+    --ab-sidebar-bg: #1B1C1F;
+    --ab-hover-bg: rgba(60, 195, 216, 0.14);
+    --ab-panel-bg: #202225;
+    --ab-soft-bg: #2A2D31;
+    --ab-input-bg: #1A1B1E;
+    --ab-input-text: #F2F2F1;
+    --ab-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --ab-shadow-soft: none;
+    --ab-ring: 0 0 0 0.2rem rgba(60, 195, 216, 0.28);
+    --ui-shadow-sm: none;
+    --ui-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Temas legados 'sand'/'ocean' reduzidos a apelidos do claro (a marca Oca é uma só). */
+html[data-theme='sand'],
+html[data-theme='ocean'] {
+    --ab-grad-1: transparent;
+    --ab-grad-2: transparent;
+    --ab-accent: #15B1C9;
+    --ab-accent-2: #E67E3C;
+    --ab-primary: #15B1C9;
+    --ab-page-bg: #F4F4F3;
+    --ab-bg: #F4F4F3;
+    --ab-card: #FFFFFF;
+    --ab-border: #E2E2E2;
+    --ab-ink: #252525;
+    --ab-muted: #7A7A79;
+}
+
+/* ============================================================
+ * Base: tipografia e fundo da marca (vence "Manrope"/gradientes legados).
+ * ============================================================ */
+body {
+    font-family: var(--fb-font);
+    background: var(--fb-bg);
+    letter-spacing: normal;
+    color: var(--fb-ink);
+}
+
+html[data-theme='dark'] body {
+    background: var(--fb-bg);
+}
+
+a {
+    color: var(--fb-link);
+}
+
+html[data-theme='dark'] a {
+    color: var(--fb-link);
+}
+
+/* ============================================================
+ * Hierarquia de ação (Bootstrap legado): CTA = ciano Oca.
+ * ============================================================ */
+.btn-primary,
+.btn-success {
+    --bs-btn-bg: var(--fb-action);
+    --bs-btn-border-color: var(--fb-action);
+    --bs-btn-color: var(--fb-on-action);
+    --bs-btn-hover-bg: var(--fb-action-hover);
+    --bs-btn-hover-border-color: var(--fb-action-hover);
+    --bs-btn-hover-color: var(--fb-on-action);
+    --bs-btn-active-bg: var(--fb-action-hover);
+    --bs-btn-active-border-color: var(--fb-action-hover);
+    --bs-btn-active-color: var(--fb-on-action);
+    --bs-btn-disabled-bg: var(--fb-action);
+    --bs-btn-disabled-border-color: var(--fb-action);
+    --bs-btn-disabled-color: var(--fb-on-action);
+    background-color: var(--fb-action);
+    border-color: var(--fb-action);
+    color: var(--fb-on-action);
+    background-image: none;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:active {
+    background-color: var(--fb-action-hover);
+    border-color: var(--fb-action-hover);
+    color: var(--fb-on-action);
+}
+
+.btn-outline-primary,
+.btn-outline-success {
+    --bs-btn-color: var(--fb-link);
+    --bs-btn-border-color: var(--fb-action);
+    --bs-btn-hover-bg: var(--fb-action);
+    --bs-btn-hover-border-color: var(--fb-action);
+    --bs-btn-hover-color: var(--fb-on-action);
+    --bs-btn-active-bg: var(--fb-action-hover);
+    --bs-btn-active-border-color: var(--fb-action-hover);
+    --bs-btn-active-color: var(--fb-on-action);
+    color: var(--fb-link);
+    border-color: var(--fb-action);
+    background-image: none;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active,
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+.btn-outline-success:active {
+    background-color: var(--fb-action);
+    border-color: var(--fb-action);
+    color: var(--fb-on-action);
+}
+
+/* ============================================================
+ * Passe plano definitivo: encerra as camadas de "revamp" legadas
+ * ("iOS-like refresh", "UI Revamp v3") que inflavam sombras/raios.
+ * ============================================================ */
+.card,
+.card-soft,
+.table-responsive,
+.saas-hero-card,
+.saas-table-card,
+.section-block,
+.auth-panel {
+    border-radius: 12px !important;
+    box-shadow: var(--fb-shadow-1) !important;
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card);
+}
+
+.badge-success {
+    background: var(--fb-ok-bg) !important;
+    color: var(--fb-ok) !important;
+    box-shadow: none !important;
+}
+
+.badge-warning {
+    background: var(--fb-warn-bg) !important;
+    color: var(--fb-warn) !important;
+    box-shadow: none !important;
+}
+
+.badge-danger {
+    background: var(--fb-danger-bg) !important;
+    color: var(--fb-danger) !important;
+    box-shadow: none !important;
+}
+
+.mobile-nav {
+    display: none;
+    border-radius: 0 !important;
+    box-shadow: var(--fb-shadow-1) !important;
+    border: 0;
+    border-bottom: 1px solid var(--fb-border);
+    background: var(--fb-card);
+}
+
+/* Cabeçalho dos hubs/telas do remake: título flutua no fundo, sem cartão-herói. */
+.analise-hub-page .saas-hero-card,
+.operacao-hub-page .saas-hero-card,
+.reports-hub-page .saas-hero-card,
+.tematico-checkin-page .saas-hero-card,
+.tematico-reservar-page .saas-hero-card,
+.tematico-config-page .saas-hero-card {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0.2rem 0.1rem 0.4rem !important;
+}
+
+.analise-hub-page .saas-hero-card::before,
+.analise-hub-page .saas-hero-card::after,
+.operacao-hub-page .saas-hero-card::before,
+.operacao-hub-page .saas-hero-card::after,
+.reports-hub-page .saas-hero-card::before,
+.reports-hub-page .saas-hero-card::after,
+.tematico-checkin-page .saas-hero-card::before,
+.tematico-checkin-page .saas-hero-card::after,
+.tematico-reservar-page .saas-hero-card::before,
+.tematico-reservar-page .saas-hero-card::after,
+.tematico-config-page .saas-hero-card::before,
+.tematico-config-page .saas-hero-card::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* Abas internas de filtro (in-page): a ativa usa o ciano de ação,
+   para não competir com o laranja de marca das abas do topo. */
+.fb-chip--active {
+    background: var(--fb-action);
+    border-color: var(--fb-action);
+    color: var(--fb-on-action);
+}
+
+/* Densidade dos controles no tamanho dos mockups. */
+.form-control.input-xl,
+.form-select.input-xl {
+    min-height: 44px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+}
+
+.fw-bold {
+    font-weight: 600 !important;
+}
+
+/* ============================================================
+ * Shell novo (marca Oca): barra de abas no topo no lugar da sidebar.
+ * A sidebar deixou de ser renderizada; aqui só resta cuidar do topnav
+ * e centralizar o conteúdo full-width. Mobile mantém a barra + bottom-nav.
+ * ============================================================ */
+.fb-topnav {
+    display: none;
+}
+
+@media (min-width: 1181px) {
+    .fb-topnav {
+        display: block;
+        position: sticky;
+        top: 0;
+        z-index: 1030;
+        background: color-mix(in srgb, var(--fb-card) 88%, transparent 12%);
+        border-bottom: 1px solid var(--fb-border);
+        backdrop-filter: blur(12px) saturate(118%);
+        box-shadow: var(--fb-shadow-1);
+    }
+
+    .fb-topnav__inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--fb-space-4);
+        max-width: var(--fb-page-max);
+        margin: 0 auto;
+        padding: 12px 24px;
+    }
+
+    .fb-topnav__left {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        min-width: 0;
+    }
+
+    .fb-topnav__brand {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        flex: 0 0 auto;
+    }
+
+    .fb-topnav__logo {
+        height: 30px;
+        width: auto;
+    }
+
+    .fb-topnav__wordmark {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--fb-ink);
+        letter-spacing: -0.2px;
+    }
+
+    .fb-topnav__wordmark span {
+        color: var(--fb-brand);
+    }
+
+    .fb-topnav__tabs {
+        display: flex;
+        gap: 2px;
+    }
+
+    .fb-topnav__tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--fb-muted);
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+            background var(--fb-dur-fast) var(--fb-ease),
+            color var(--fb-dur-fast) var(--fb-ease),
+            box-shadow var(--fb-dur-fast) var(--fb-ease),
+            transform var(--fb-dur-fast) var(--fb-ease);
+    }
+
+    .fb-topnav__tab i {
+        font-size: 15px;
+    }
+
+    .fb-topnav__tab:hover {
+        background: var(--fb-soft);
+        color: var(--fb-ink);
+        transform: translateY(-1px);
+    }
+
+    /* Aba ativa: identidade laranja Oca (marca), fundo tênue. */
+    .fb-topnav__tab.is-active {
+        background: var(--fb-brand-bg);
+        color: var(--fb-brand-deep);
+        font-weight: 600;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fb-brand) 18%, transparent);
+    }
+
+    .fb-topnav__right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+    }
+
+    .fb-topnav__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        background: transparent;
+        border-radius: 8px;
+        color: var(--fb-muted);
+        font-size: 17px;
+        cursor: pointer;
+        transition:
+            background var(--fb-dur-fast) var(--fb-ease),
+            color var(--fb-dur-fast) var(--fb-ease),
+            transform var(--fb-dur-fast) var(--fb-ease);
+    }
+
+    .fb-topnav__icon:hover {
+        background: var(--fb-soft);
+        color: var(--fb-ink);
+        transform: translateY(-1px);
+    }
+
+    .fb-topnav__logout {
+        margin: 0;
+        line-height: 0;
+    }
+
+    .fb-topnav__user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 6px 0 10px;
+    }
+
+    .fb-topnav__avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex: 0 0 auto;
+    }
+
+    .fb-topnav__avatar--fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--fb-brand);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .fb-topnav__username {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--fb-ink);
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .fb-topnav__menu {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 13px;
+        border: 1px solid var(--fb-border);
+        background: var(--fb-card);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--fb-ink);
+        cursor: pointer;
+        transition:
+            background var(--fb-dur-fast) var(--fb-ease),
+            border-color var(--fb-dur-fast) var(--fb-ease),
+            box-shadow var(--fb-dur-fast) var(--fb-ease),
+            transform var(--fb-dur-fast) var(--fb-ease);
+    }
+
+    .fb-topnav__menu:hover {
+        background: var(--fb-soft);
+        border-color: color-mix(in srgb, var(--fb-action) 28%, var(--fb-border));
+        box-shadow: var(--fb-shadow-1);
+        transform: translateY(-1px);
+    }
+
+    /* Conteúdo centralizado full-width (sem sidebar). */
+    .app-shell {
+        display: block;
+    }
+
+    .app-main {
+        max-width: var(--fb-page-max);
+        margin: 0 auto;
+        padding: 22px 24px 40px;
+    }
+}
+
+/* ============================================================
+ * Filtros em chips + folha (fb-filters.js). Mobile: barra de chips
+ * que abre a folha inferior. Desktop: form inline, sem chrome extra.
+ * ============================================================ */
+.fb-filterbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fb-filterbar__chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.fb-filterbar__chips::-webkit-scrollbar {
+    display: none;
+}
+
+.fb-filterbar__chip {
+    flex: 0 0 auto;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: var(--fb-soft);
+    color: var(--fb-ink);
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.fb-filterbar__chip--more {
+    background: var(--fb-brand-bg);
+    color: var(--fb-brand-deep);
+}
+
+.fb-filterbar__empty {
+    color: var(--fb-muted);
+    font-size: 0.82rem;
+}
+
+.fb-filterbar__toggle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 7px 14px;
+    border: 1px solid var(--fb-action);
+    border-radius: 999px;
+    background: var(--fb-card);
+    color: var(--fb-link);
+    font-family: var(--fb-font);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.fb-filters-sheet .fb-sheet__handle {
+    display: block;
+}
+
+@media (min-width: 1181px) {
+    /* Desktop: esconde a barra de chips; o form volta a ser inline, sem chrome de folha. */
+    .fb-filterbar {
+        display: none;
+    }
+
+    .fb-filters-sheet {
+        position: static !important;
+        transform: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .fb-filters-sheet .fb-sheet__handle {
+        display: none;
+    }
+
+    .fb-sheet-backdrop {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1180px) {
+    .fb-topnav {
+        display: none !important;
+    }
+
+    .mobile-nav {
+        display: flex;
+    }
+
+    .app-shell {
+        display: block;
+    }
+
+    .app-main {
+        max-width: 100%;
+        padding: 14px 14px 28px;
+    }
+
+    .app-content {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* ============================================================
+ * Remake visual 2.1: hierarquia operacional
+ * Datas, ocupação, métricas e textos auxiliares precisam ser lidos
+ * como informação de trabalho, não como texto decorativo.
+ * ============================================================ */
+.app-content .text-muted,
+.app-content .small,
+.app-content small,
+.app-content .fb-metric__delta,
+.app-content .fb-card__subtitle,
+.app-content .fb-empty,
+.app-content .fb-table-meta,
+.app-content .fb-reserve-topline p:not(.fb-card__eyebrow),
+.app-content .fb-reserve-form-stage__head p:not(.fb-card__eyebrow) {
+    color: color-mix(in srgb, var(--fb-muted) 62%, var(--fb-ink) 38%) !important;
+}
+
+.app-content .text-uppercase.text-muted.small,
+.app-content .section-title .text-muted.small,
+.app-content .card .text-uppercase.text-muted.small,
+.app-content .fb-card .text-uppercase.text-muted.small {
+    color: color-mix(in srgb, var(--fb-muted) 34%, var(--fb-ink) 66%) !important;
+    font-weight: 850 !important;
+    letter-spacing: .055em;
+}
+
+.app-content .section-title .text-muted:not(.small),
+.app-content .fb-card__subtitle,
+.app-content .card > .text-muted:not(.small),
+.app-content .card p.text-muted {
+    color: color-mix(in srgb, var(--fb-muted) 48%, var(--fb-ink) 52%) !important;
+    font-weight: 620;
+}
+
+.app-content .fb-card__eyebrow,
+.app-content .fb-metric__label,
+.app-content .metric-card .text-muted,
+.app-content .metric-card small,
+.app-content .saas-label,
+.app-content .section-kicker,
+.app-content .fb-label,
+.app-content label.form-label,
+.app-content th {
+    color: color-mix(in srgb, var(--fb-muted) 42%, var(--fb-ink) 58%) !important;
+    font-weight: 800 !important;
+    letter-spacing: .025em;
+}
+
+.app-content .fb-metric,
+.app-content .metric-card,
+.app-content .card,
+.app-content .fb-card,
+.app-content .section-block,
+.app-content .saas-mini-card {
+    border-color: color-mix(in srgb, var(--fb-border) 72%, var(--fb-ink) 28%);
+    box-shadow: 0 1px 2px rgba(37, 37, 37, 0.08);
+}
+
+.app-content .fb-metric {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-card) 88%, var(--fb-info-bg) 12%), var(--fb-card));
+}
+
+.app-content .fb-metric::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--fb-action);
+    opacity: .9;
+}
+
+.app-content .fb-metric__value,
+.app-content .metric-card .display-6,
+.app-content .fb-num,
+.app-content td.fb-num,
+.app-content .reservation-trace-metric strong,
+.app-content .reserva-day-metric strong,
+.app-content .usuarios-metric-chip strong {
+    color: var(--fb-ink) !important;
+    font-weight: 850 !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.app-content .fb-metric__value {
+    line-height: 1;
+}
+
+.app-content .fb-info-strong,
+.app-content .fb-reserve-datebar__availability,
+.app-content .fb-reserve-selected__capacity,
+.app-content .fb-reserve-card__overview,
+.app-content .reservation-trace-metric,
+.app-content .reserva-day-metric,
+.app-content .usuarios-metric-chip {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-card) 76%, var(--fb-info-bg) 24%), var(--fb-card));
+    border: 1px solid color-mix(in srgb, var(--fb-info) 22%, var(--fb-border));
+    box-shadow: var(--fb-shadow-1);
+}
+
+.app-content .fb-reserve-datebar__field {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-card) 74%, var(--fb-brand-bg) 26%), var(--fb-card));
+    border-color: color-mix(in srgb, var(--fb-brand) 24%, var(--fb-border));
+    box-shadow: var(--fb-shadow-1);
+}
+
+.app-content .fb-reserve-datebar__field span,
+.app-content .fb-reserve-card__overview > div:first-child span,
+.app-content .fb-reserve-card__overview-meta,
+.app-content .fb-reserve-selected__capacity span,
+.app-content .fb-reserve-selected__capacity small,
+.app-content .fb-reserve-datebar__availability small {
+    color: color-mix(in srgb, var(--fb-muted) 48%, var(--fb-ink) 52%) !important;
+    font-weight: 800;
+}
+
+.app-content .fb-reserve-datebar__field strong,
+.app-content .fb-reserve-selected__capacity > strong,
+.app-content .fb-reserve-card__overview > div:first-child strong {
+    color: var(--fb-ink) !important;
+    font-weight: 900;
+}
+
+.app-content .fb-reserve-datebar__availability {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-ok-bg) 78%, var(--fb-card) 22%), var(--fb-card));
+    border-color: color-mix(in srgb, var(--fb-ok) 34%, var(--fb-border));
+}
+
+.app-content .fb-reserve-datebar__availability strong {
+    color: var(--fb-ok) !important;
+    font-weight: 900;
+}
+
+.app-content .fb-reserve-selected__capacity {
+    display: grid;
+    min-width: 126px;
+    gap: 2px;
+    justify-items: end;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--fb-rest-color, var(--fb-ok)) 34%, var(--fb-border));
+    border-radius: 14px;
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--fb-rest-bg, var(--fb-ok-bg)) 68%, var(--fb-card) 32%),
+            var(--fb-card)
+        );
+    box-shadow: none;
+    text-align: right;
+}
+
+.app-content .fb-reserve-selected__capacity > strong {
+    color: var(--fb-rest-color, var(--fb-ok)) !important;
+    font-size: 1.7rem;
+    line-height: .95;
+}
+
+.app-content .fb-reserve-selected__capacity span {
+    color: color-mix(in srgb, var(--fb-rest-color, var(--fb-ok)) 58%, var(--fb-ink) 42%) !important;
+    font-size: .66rem;
+    line-height: 1;
+}
+
+.app-content .fb-reserve-selected__capacity small {
+    color: color-mix(in srgb, var(--fb-muted) 42%, var(--fb-ink) 58%) !important;
+    font-size: .74rem;
+    line-height: 1.1;
+}
+
+@media (max-width: 767px) {
+    .app-content .fb-reserve-selected__capacity {
+        grid-column: 1 / -1;
+        grid-template-columns: auto 1fr auto;
+        align-items: baseline;
+        justify-items: start;
+        min-width: 0;
+        padding: 9px 12px;
+        text-align: left;
+    }
+
+    .app-content .fb-reserve-selected__capacity small {
+        justify-self: end;
+        text-align: right;
+    }
+}
+
+html[data-theme='dark'] .app-content .fb-metric,
+html[data-theme='dark'] .app-content .fb-info-strong,
+html[data-theme='dark'] .app-content .fb-reserve-datebar__availability,
+html[data-theme='dark'] .app-content .fb-reserve-selected__capacity,
+html[data-theme='dark'] .app-content .fb-reserve-card__overview,
+html[data-theme='dark'] .app-content .reservation-trace-metric,
+html[data-theme='dark'] .app-content .reserva-day-metric,
+html[data-theme='dark'] .app-content .usuarios-metric-chip {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-card) 78%, var(--fb-info-bg) 22%), var(--fb-card));
+}
+
+@media (max-width: 575.98px) {
+    .app-content .fb-metric__value {
+        font-size: clamp(1.35rem, 7vw, 2rem);
+    }
+
+    .app-content .fb-reserve-datebar__availability {
+        width: 100%;
+        justify-content: flex-start;
+        border-radius: 14px;
+    }
+}
+
+/* Etapa 2: cards de decisão e indicadores com leitura mais explícita. */
+.app-content .fb-page-head,
+.app-content .saas-hero-card,
+.app-content .reports-hero,
+.app-content .auth-card {
+    border-color: color-mix(in srgb, var(--fb-action) 18%, var(--fb-border));
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--fb-card) 84%, var(--fb-info-bg) 16%) 0%, var(--fb-card) 58%),
+        var(--fb-card);
+    box-shadow: var(--fb-shadow-1);
+}
+
+.app-content .fb-page-head__title,
+.app-content .saas-title,
+.app-content .fb-card__title,
+.app-content .card-title {
+    color: var(--fb-ink) !important;
+    font-weight: 850 !important;
+}
+
+.app-content .fb-summary-chip,
+.app-content .stat-chip,
+.app-content .turno-pill {
+    --fb-chip-accent: var(--fb-action);
+    border-color: color-mix(in srgb, var(--fb-chip-accent) 28%, var(--fb-border));
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-chip-accent) 11%, var(--fb-card) 89%), var(--fb-card));
+    color: var(--fb-ink);
+    box-shadow: var(--fb-shadow-1);
+}
+
+.app-content .fb-summary-chip:nth-child(2n),
+.app-content .fb-metric:nth-child(2n) {
+    --fb-chip-accent: var(--fb-brand);
+    --fb-metric-accent: var(--fb-brand);
+}
+
+.app-content .fb-summary-chip:nth-child(3n),
+.app-content .fb-metric:nth-child(3n) {
+    --fb-chip-accent: var(--fb-ok);
+    --fb-metric-accent: var(--fb-ok);
+}
+
+.app-content .fb-summary-chip:nth-child(4n),
+.app-content .fb-metric:nth-child(4n) {
+    --fb-chip-accent: var(--fb-warn);
+    --fb-metric-accent: var(--fb-warn);
+}
+
+.app-content .fb-summary-chip__label,
+.app-content .fb-summary-chip__hint {
+    color: color-mix(in srgb, var(--fb-muted) 42%, var(--fb-ink) 58%) !important;
+    font-weight: 800;
+}
+
+.app-content .fb-summary-chip__value {
+    color: var(--fb-ink) !important;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.app-content .fb-metric {
+    --fb-metric-accent: var(--fb-action);
+    border-color: color-mix(in srgb, var(--fb-metric-accent) 18%, var(--fb-border));
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-metric-accent) 9%, var(--fb-card) 91%), var(--fb-card));
+}
+
+.app-content .fb-metric::before {
+    background: var(--fb-metric-accent);
+}
+
+.app-content .fb-metric__label {
+    color: color-mix(in srgb, var(--fb-muted) 30%, var(--fb-ink) 70%) !important;
+}
+
+.app-content .fb-metric__delta {
+    font-weight: 750;
+}
+
+.app-content .fb-table,
+.app-content .table,
+.app-content .saas-table-scroll,
+.app-content .table-responsive {
+    border-color: color-mix(in srgb, var(--fb-border) 70%, var(--fb-ink) 30%);
+}
+
+.app-content .table thead th,
+.app-content .saas-table-scroll .table thead th,
+.app-content .table-responsive .table thead th {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-brand-bg) 52%, var(--fb-card) 48%), var(--fb-card));
+    color: color-mix(in srgb, var(--fb-brand-deep) 74%, var(--fb-ink) 26%) !important;
+    font-weight: 850 !important;
+}
+
+.app-content .fb-input[type="date"],
+.app-content input[type="date"].form-control,
+.app-content .fb-input[type="number"],
+.app-content input[type="number"].form-control {
+    color: var(--fb-ink);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.app-content .fb-input[type="date"],
+.app-content input[type="date"].form-control {
+    border-color: color-mix(in srgb, var(--fb-brand) 22%, var(--fb-border));
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--fb-brand-bg) 28%, var(--fb-card) 72%), var(--fb-card));
+}
+
+.app-content .fb-input[type="number"],
+.app-content input[type="number"].form-control {
+    border-color: color-mix(in srgb, var(--fb-action) 18%, var(--fb-border));
+}
+
+html[data-theme='dark'] .app-content .fb-page-head,
+html[data-theme='dark'] .app-content .saas-hero-card,
+html[data-theme='dark'] .app-content .reports-hero,
+html[data-theme='dark'] .app-content .auth-card {
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--fb-card) 78%, var(--fb-info-bg) 22%) 0%, var(--fb-card) 60%),
+        var(--fb-card);
+}
+
+/* Etapa 3: badges e tags com função operacional mais evidente. */
+.app-content .fb-badge,
+.app-content .badge,
+.app-content .tag,
+.app-content .uh-badge {
+    min-height: 24px;
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-radius: 999px;
+    font-weight: 850;
+    letter-spacing: .01em;
+    box-shadow: 0 1px 1px rgba(37, 37, 37, 0.06);
+}
+
+.app-content .fb-badge {
+    padding: 4px 9px;
+}
+
+.app-content .fb-badge--outline {
+    background: color-mix(in srgb, var(--fb-info-bg) 62%, var(--fb-card) 38%);
+    border-color: color-mix(in srgb, var(--fb-info) 24%, var(--fb-border));
+    color: color-mix(in srgb, var(--fb-info) 78%, var(--fb-ink) 22%);
+}
+
+.app-content .fb-badge--ok,
+.app-content .badge-success {
+    background: color-mix(in srgb, var(--fb-ok-bg) 80%, var(--fb-card) 20%) !important;
+    border-color: color-mix(in srgb, var(--fb-ok) 34%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-ok) 78%, var(--fb-ink) 22%) !important;
+}
+
+.app-content .fb-badge--warn,
+.app-content .badge-warning {
+    background: color-mix(in srgb, var(--fb-warn-bg) 82%, var(--fb-card) 18%) !important;
+    border-color: color-mix(in srgb, var(--fb-warn) 36%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-warn) 74%, var(--fb-ink) 26%) !important;
+}
+
+.app-content .fb-badge--danger,
+.app-content .fb-badge--duplicado,
+.app-content .badge-danger {
+    background: color-mix(in srgb, var(--fb-danger-bg) 84%, var(--fb-card) 16%) !important;
+    border-color: color-mix(in srgb, var(--fb-danger) 36%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-danger) 78%, var(--fb-ink) 22%) !important;
+}
+
+.app-content .fb-badge--fora-horario {
+    background: color-mix(in srgb, var(--fb-warn-bg) 82%, var(--fb-card) 18%) !important;
+    border-color: color-mix(in srgb, var(--fb-warn) 36%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-warn) 74%, var(--fb-ink) 26%) !important;
+}
+
+.app-content .fb-badge--multiplo {
+    background: color-mix(in srgb, var(--fb-multi-bg) 82%, var(--fb-card) 18%) !important;
+    border-color: color-mix(in srgb, var(--fb-multi) 34%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-multi) 78%, var(--fb-ink) 22%) !important;
+}
+
+.app-content .fb-badge--day-use {
+    background: color-mix(in srgb, var(--fb-info-bg) 82%, var(--fb-card) 18%) !important;
+    border-color: color-mix(in srgb, var(--fb-info) 34%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-info) 78%, var(--fb-ink) 22%) !important;
+}
+
+.app-content .fb-badge--nao-informado,
+.app-content .badge-soft {
+    background: color-mix(in srgb, var(--fb-neutral-bg) 76%, var(--fb-card) 24%) !important;
+    border-color: color-mix(in srgb, var(--fb-neutral) 26%, var(--fb-border)) !important;
+    color: color-mix(in srgb, var(--fb-neutral) 58%, var(--fb-ink) 42%) !important;
+}
+
+.app-content .tag-rest-giardino,
+.app-content .tag-rest-ixu,
+.app-content .tag-rest-brasa,
+.app-content .tag-rest-corais,
+.app-content .tag-op-cafe,
+.app-content .tag-op-almoco,
+.app-content .tag-op-jantar,
+.app-content .tag-op-tematico,
+.app-content .tag-op-privileged {
+    border-color: transparent;
+    color: #fff !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .12);
+}
+
+.app-content .tag-rest-giardino { background: #2E9E6B !important; }
+.app-content .tag-rest-ixu { background: #6C5CB0 !important; }
+.app-content .tag-rest-brasa { background: #C0433B !important; }
+.app-content .tag-rest-corais { background: #2E7C9E !important; }
+.app-content .tag-op-cafe { background: #C77A12 !important; color: #252525 !important; text-shadow: none; }
+.app-content .tag-op-almoco { background: #2E9E6B !important; }
+.app-content .tag-op-jantar { background: #C0433B !important; }
+.app-content .tag-op-tematico { background: #6C5CB0 !important; }
+.app-content .tag-op-privileged { background: #2E7C9E !important; }
+
+html[data-theme='dark'] .app-content .fb-badge,
+html[data-theme='dark'] .app-content .badge,
+html[data-theme='dark'] .app-content .tag,
+html[data-theme='dark'] .app-content .uh-badge {
+    box-shadow: none;
+}

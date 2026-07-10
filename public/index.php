@@ -100,20 +100,7 @@ if ($route !== '' && !preg_match('/^[a-zA-Z0-9_\/-]+$/', $route)) {
     $route = 'errors/notFound';
 }
 if ($route === '' || $route === 'home') {
-    if (!Auth::check()) {
-        $route = 'auth/login';
-    } else {
-        $perfil = strtolower(trim((string)(Auth::user()['perfil'] ?? '')));
-        if ($perfil === AppConstants::ROLE_MANAGER) {
-            $route = 'dashboard/index';
-        } elseif (in_array($perfil, AppConstants::ACCESS_HOME_ROLES, true)) {
-            $route = 'access/index';
-        } else {
-            Auth::logout();
-            set_flash(AppConstants::FLASH_DANGER, 'Seu perfil de acesso precisa ser revisado pela administração.');
-            $route = 'auth/login';
-        }
-    }
+    $route = 'home/index';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -132,7 +119,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Falha de log nao interrompe retorno seguro.
             }
 
-            http_response_code(419);
+            http_response_code(401);
+            if (function_exists('request_expects_json') && request_expects_json()) {
+                json_response([
+                    'ok' => false,
+                    'type' => 'danger',
+                    'code' => 'csrf_invalido',
+                    'message' => 'Sua sessão expirou ou a página ficou aberta por muito tempo. Atualize a tela e tente novamente.',
+                    'redirect' => AppConstants::ROUTE_LOGIN,
+                ], 401);
+            }
             if (!headers_sent()) {
                 header('Content-Type: text/html; charset=utf-8');
             }

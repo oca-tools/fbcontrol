@@ -186,7 +186,7 @@ $preselect = $this->data['preselect'] ?? [];
                         <?php endif; ?>
 
                         <div class="col-12">
-                            <button class="btn btn-success btn-xl w-100">Iniciar turno</button>
+                            <button class="fb-btn fb-btn--primary fb-btn--lg w-100">Iniciar turno</button>
                         </div>
                     </div>
                 </form>

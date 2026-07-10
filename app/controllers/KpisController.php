@@ -12,14 +12,17 @@ class KpisController extends Controller
     }
 
     /**
-     * Exibe os indicadores gerenciais de ocupação, fluxo, alertas e performance de reservas temáticas.
+     * Rota legada dos KPIs: redireciona para a aba KPIs do hub Análise preservando o filtro.
      */
     public function index(): void
     {
         $this->requireAuth();
         Auth::requireRole(['admin', 'gerente']);
 
-        $this->view('kpis/index', (new KpiOperacionalService())->montarPainelKpis($_GET, Auth::user()));
+        $query = $_GET;
+        unset($query['r'], $query['aba']);
+        $destino = '/?r=analise/index&aba=kpis' . ($query !== [] ? '&' . http_build_query($query) : '');
+        $this->redirect($destino);
     }
 
     /**
