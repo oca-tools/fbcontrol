@@ -2,7 +2,7 @@
         <footer class="mt-4 text-center text-muted small">
             <div>Grand Oca Maragogi Resort</div>
             <div><a href="/?r=privacidade/index" class="text-muted">Privacidade e LGPD</a></div>
-            <div style="font-size:.72rem; color:#94a3b8; opacity:.75;">Desenvolvido por Gilson Matias</div>
+            <div style="font-size:.72rem; color:var(--fb-muted); opacity:.75;">Desenvolvido por Gilson Matias</div>
         </footer>
     </div>
 </div>

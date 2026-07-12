@@ -1120,20 +1120,6 @@ body.mobile-beginner .form-label {
     align-items: center;
 }
 
-.fb-checkin-capacity {
-    display: grid;
-    gap: var(--fb-space-3);
-    padding: var(--fb-space-4);
-}
-
-.fb-checkin-capacity__head {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: var(--fb-space-3);
-    flex-wrap: wrap;
-}
-
 .fb-checkin-statusbar {
     padding: var(--fb-space-3) var(--fb-space-4);
 }
@@ -1149,65 +1135,9 @@ body.mobile-beginner .form-label {
     gap: var(--fb-space-3);
 }
 
-.fb-checkin-card {
-    display: grid;
-    gap: var(--fb-space-3);
-    padding: var(--fb-space-4);
-    border-left: 4px solid var(--fb-checkin-accent, var(--fb-action));
-}
-
-.fb-checkin-card.is-muted {
-    opacity: 0.76;
-}
-
-.fb-checkin-card__head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--fb-space-3);
-}
-
-.fb-checkin-card__identity {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--fb-space-3);
-    min-width: 0;
-}
-
-.fb-checkin-card__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--fb-checkin-accent, var(--fb-action)) 14%, var(--fb-card) 86%);
-    color: var(--fb-checkin-accent, var(--fb-action));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    flex: 0 0 auto;
-}
-
-.fb-checkin-card__title {
-    margin: 0 0 8px;
-    font-size: 1rem;
-    font-weight: 700;
-}
-
-.fb-checkin-card__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--fb-space-2);
-}
-
-.fb-checkin-card__state {
-    flex: 0 0 auto;
-}
-
-.fb-checkin-card__body {
-    display: grid;
-    gap: var(--fb-space-3);
-}
-
+/* .fb-checkin-card raiz/head/identity/icon/title/meta/state/body removidos:
+   substituídos pelo cartão-bilhete (.fb-bilhete). Só as subpartes abaixo
+   (note/details/actions/summary/inline-form) seguem no rodapé do bilhete. */
 .fb-checkin-card__note {
     display: grid;
     gap: 4px;
@@ -1486,15 +1416,6 @@ body.mobile-beginner .form-label {
     .fb-checkin-toolbar__grid,
     .fb-checkin-inline-form {
         grid-template-columns: 1fr;
-    }
-
-    .fb-checkin-card__head {
-        grid-template-columns: 1fr;
-        display: grid;
-    }
-
-    .fb-checkin-card__state {
-        justify-self: start;
     }
 
     .fb-reserve-toolbar__controls {
@@ -2924,32 +2845,8 @@ body {
     gap: .04rem;
 }
 
-.sidebar-section-label,
-.mobile-menu-section-label {
-    display: flex;
-    align-items: center;
-    gap: .42rem;
-    margin: .78rem .55rem .34rem;
-    color: color-mix(in srgb, var(--ab-muted) 78%, var(--ab-ink) 22%);
-    font-size: .66rem;
-    font-weight: 850;
-    letter-spacing: .08em;
-    line-height: 1;
-    text-transform: uppercase;
-}
-
-.sidebar-section-label:first-child,
-.mobile-menu-section-label:first-child {
-    margin-top: .15rem;
-}
-
-.sidebar-section-label::after,
-.mobile-menu-section-label::after {
-    content: "";
-    flex: 1 1 auto;
-    height: 1px;
-    background: color-mix(in srgb, var(--ab-border) 72%, transparent);
-}
+/* (Removido) .sidebar-section-label / .mobile-menu-section-label — rótulos de
+   seção da sidebar aposentada e do menu mobile antigo; o launcher usa .fb-launcher__label. */
 
 .sidebar .nav-link,
 .offcanvas .nav-link {
@@ -3433,8 +3330,6 @@ html[data-theme='dark'] .offcanvas {
     border-color: color-mix(in srgb, var(--ab-border) 76%, #ffffff 24%);
 }
 
-html[data-theme='dark'] .sidebar-section-label,
-html[data-theme='dark'] .mobile-menu-section-label,
 html[data-theme='dark'] .topbar-eyebrow {
     color: color-mix(in srgb, var(--ab-muted) 72%, #ffffff 28%);
 }
@@ -3475,11 +3370,6 @@ html[data-theme='dark'] .app-content .saas-hero-card {
 @media (max-width: 992px) {
     .topbar {
         display: none;
-    }
-
-    .mobile-menu-section-label {
-        margin-left: .25rem;
-        margin-right: .25rem;
     }
 }
 

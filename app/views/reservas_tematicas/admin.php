@@ -46,14 +46,16 @@ foreach ($bloqueiosSemanais as $bloqueioSemanal) {
 }
 ?>
 <div class="saas-page tematico-config-page">
-    <section class="saas-hero-card">
-        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
             <div>
-                <div class="saas-label">Temáticos</div>
-                <h3 class="saas-title mb-1">Config. Temáticas</h3>
-                <p class="saas-subtitle mb-0">Capacidade, bloqueios e exceções — dia a dia, num lugar só.</p>
+                <p class="fb-card__eyebrow">Temáticos</p>
+                <h3 class="fb-page-head__title">Config. Temáticas</h3>
+                <p class="fb-page-head__subtitle">Capacidade, bloqueios e exceções — dia a dia, num lugar só.</p>
             </div>
-            <a class="fb-btn" href="/?r=reservasTematicas/adminCompleta"><i class="bi bi-sliders"></i> Ambiente completo</a>
+            <div class="fb-page-head__actions">
+                <a class="fb-btn" href="/?r=reservasTematicas/adminCompleta"><i class="bi bi-sliders"></i> Ambiente completo</a>
+            </div>
         </div>
     </section>
 

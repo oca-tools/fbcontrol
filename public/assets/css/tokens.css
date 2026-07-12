@@ -312,19 +312,8 @@ html[data-theme='dark'] a {
     background: var(--fb-card);
 }
 
-/* Cabeçalho dos hubs/telas do remake: título flutua no fundo, sem cartão-herói. */
-.analise-hub-page .saas-hero-card,
-.operacao-hub-page .saas-hero-card,
-.reports-hub-page .saas-hero-card,
-.tematico-checkin-page .saas-hero-card,
-.tematico-reservar-page .saas-hero-card,
-.tematico-config-page .saas-hero-card {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    padding: 0.2rem 0.1rem 0.4rem !important;
-}
+/* (Removido) Achatamento do .saas-hero-card nos hubs: os hubs migraram para
+   .fb-page-head (componente único de cabeçalho), tornando este bloco morto. */
 
 .analise-hub-page .saas-hero-card::before,
 .analise-hub-page .saas-hero-card::after,

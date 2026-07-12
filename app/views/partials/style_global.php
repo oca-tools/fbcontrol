@@ -2189,8 +2189,6 @@
         }
         .theme-btn .swatch-light { background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-color: #cbd5e1; }
         .theme-btn .swatch-dark { background: linear-gradient(135deg, #1e293b, #0f172a); border-color: #334155; }
-        .theme-btn .swatch-sand { background: linear-gradient(135deg, #fb923c, #f59e0b); border-color: #fbbf24; }
-        .theme-btn .swatch-ocean { background: linear-gradient(135deg, #0ea5e9, #06b6d4); border-color: #22d3ee; }
         .theme-btn-label {
             display: none;
         }
@@ -3009,18 +3007,6 @@
             }
             .mobile-nav .menu-btn {
                 min-width: 78px;
-            }
-            .offcanvas .offcanvas-body .mobile-theme-panel {
-                border: 1px solid color-mix(in srgb, var(--ab-border) 82%, transparent);
-                background: color-mix(in srgb, var(--ab-soft-bg) 70%, var(--ab-card) 30%);
-                border-radius: 14px;
-                padding: 0.65rem;
-            }
-            .offcanvas .offcanvas-body .mobile-theme-panel .text-muted.small {
-                font-size: 0.72rem !important;
-                letter-spacing: 0.04em;
-                text-transform: uppercase;
-                margin-bottom: 0.45rem !important;
             }
             .offcanvas .offcanvas-body .theme-switch-compact {
                 display: grid;

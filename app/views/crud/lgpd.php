@@ -12,16 +12,18 @@ $dbError = (string)($this->data['db_error'] ?? '');
 ?>
 
 <div class="saas-page lgpd-page">
-    <section class="saas-hero-card">
-        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
             <div>
-                <div class="saas-label">Governança</div>
-                <h3 class="saas-title mb-1">Conformidade LGPD</h3>
-                <p class="saas-subtitle mb-0">Solicitações de titulares, incidentes e retenção de dados.</p>
+                <p class="fb-card__eyebrow">Governança</p>
+                <h3 class="fb-page-head__title">Conformidade LGPD</h3>
+                <p class="fb-page-head__subtitle">Solicitações de titulares, incidentes e retenção de dados.</p>
             </div>
-            <a class="btn btn-sm btn-outline-primary" href="/?r=privacidade/index" target="_blank" rel="noopener">
-                <i class="bi bi-box-arrow-up-right"></i> Aviso de privacidade
-            </a>
+            <div class="fb-page-head__actions">
+                <a class="btn btn-sm btn-outline-primary" href="/?r=privacidade/index" target="_blank" rel="noopener">
+                    <i class="bi bi-box-arrow-up-right"></i> Aviso de privacidade
+                </a>
+            </div>
         </div>
     </section>
 
@@ -337,7 +339,7 @@ $dbError = (string)($this->data['db_error'] ?? '');
         .lgpd-page .saas-kpi-grid {
             grid-template-columns: 1fr;
         }
-        .lgpd-page .saas-headline .btn {
+        .lgpd-page .fb-page-head__actions .btn {
             width: 100%;
         }
         .lgpd-page .saas-table-card {

@@ -174,35 +174,8 @@ html[data-theme='dark'] .sidebar .nav-link:hover i {
 
 .swatch-light { background: linear-gradient(135deg, #f97316 0%, #f8fafc 100%); }
 .swatch-dark { background: linear-gradient(135deg, #0f172a 0%, #1f2937 100%); }
-.swatch-sand { background: linear-gradient(135deg, #f59e0b 0%, #fff7ed 100%); }
-.swatch-ocean { background: linear-gradient(135deg, #0284c7 0%, #e0f2fe 100%); }
-
-.mobile-theme-panel {
-    border-radius: var(--fb-radius-lg);
-    border: 1px solid var(--fb-border);
-    background: var(--fb-card-muted);
-    padding: .7rem;
-    box-shadow: var(--fb-shadow-1);
-}
-
-.mobile-theme-panel .theme-switch {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .35rem;
-    border: 0;
-    padding: 0;
-    background: transparent;
-}
-
-.mobile-theme-panel .theme-btn {
-    min-width: 0;
-    border: 1px solid var(--fb-border);
-    background: var(--fb-card);
-}
-
-.mobile-theme-panel .theme-btn.active {
-    border-color: color-mix(in srgb, var(--fb-action) 45%, var(--fb-border));
-}
+/* (Removido) .swatch-sand/.swatch-ocean e .mobile-theme-panel* — temas Areia/Oceano
+   aposentados e painel de tema do menu mobile antigo (o launcher usa .theme-switch-compact). */
 
 .mobile-nav {
     border-radius: var(--fb-radius-lg);

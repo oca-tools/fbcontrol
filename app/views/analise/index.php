@@ -17,14 +17,16 @@ $subtitulos = [
 ];
 ?>
 <div class="saas-page analise-hub-page">
-    <section class="saas-hero-card">
-        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
             <div>
-                <div class="saas-label">Inteligência A&amp;B</div>
-                <h3 class="saas-title mb-1">Análise</h3>
-                <p class="saas-subtitle mb-0"><?= h($subtitulos[$aba] ?? $subtitulos['visao']) ?></p>
+                <p class="fb-card__eyebrow">Inteligência A&amp;B</p>
+                <h3 class="fb-page-head__title">Análise</h3>
+                <p class="fb-page-head__subtitle"><?= h($subtitulos[$aba] ?? $subtitulos['visao']) ?></p>
             </div>
-            <a class="fb-btn" href="/?<?= h(http_build_query(array_merge($datasAtuais, ['r' => 'relatorios/index']))) ?>"><i class="bi bi-download"></i> Exportar recorte</a>
+            <div class="fb-page-head__actions">
+                <a class="fb-btn" href="/?<?= h(http_build_query(array_merge($datasAtuais, ['r' => 'relatorios/index']))) ?>"><i class="bi bi-download"></i> Exportar recorte</a>
+            </div>
         </div>
     </section>
 

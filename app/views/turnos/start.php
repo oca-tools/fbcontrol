@@ -7,14 +7,16 @@ $needConfirm = $this->data['need_confirm'] ?? false;
 $preselect = $this->data['preselect'] ?? [];
 ?>
 <div class="saas-page shift-start-page">
-    <section class="saas-hero-card">
-        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
             <div>
-                <div class="saas-label">Turno operacional</div>
-                <h3 class="saas-title mb-1">Iniciar turno</h3>
-                <p class="saas-subtitle mb-0">Selecione restaurante, operação e porta para começar o registro.</p>
+                <p class="fb-card__eyebrow">Turno operacional</p>
+                <h3 class="fb-page-head__title">Iniciar turno</h3>
+                <p class="fb-page-head__subtitle">Selecione restaurante, operação e porta para começar o registro.</p>
             </div>
-            <span class="badge badge-soft"><i class="bi bi-check2-circle"></i> Checklist rápido</span>
+            <div class="fb-page-head__actions">
+                <span class="badge badge-soft"><i class="bi bi-check2-circle"></i> Checklist rápido</span>
+            </div>
         </div>
     </section>
 
@@ -162,12 +164,11 @@ $preselect = $this->data['preselect'] ?? [];
         margin-top: 0.1rem;
     }
     @media (max-width: 576px) {
-        .shift-start-page .saas-hero-card,
         .shift-start-page .saas-table-card {
             padding: 1rem;
             border-radius: 16px;
         }
-        .shift-start-page .saas-headline .badge {
+        .shift-start-page .fb-page-head__actions .badge {
             width: 100%;
             justify-content: center;
         }

@@ -13,14 +13,16 @@ $alertasHoje = (int)($stats['duplicados'] ?? 0) + (int)($stats['fora_horario'] ?
 $paginaLink = static fn(int $pagina): string => '/?' . http_build_query(['r' => 'operacao/index', 'page' => $pagina]);
 ?>
 <div class="saas-page operacao-hub-page">
-    <section class="saas-hero-card">
-        <div class="saas-headline d-flex flex-wrap gap-3 align-items-start justify-content-between">
+    <section class="fb-page-head">
+        <div class="fb-page-head__meta">
             <div>
-                <div class="saas-label">Monitor do dia</div>
-                <h3 class="saas-title mb-1">Operação</h3>
-                <p class="saas-subtitle mb-0"><?= h(format_date_br($today)) ?> · turnos vencidos são encerrados automaticamente.</p>
+                <p class="fb-card__eyebrow">Monitor do dia</p>
+                <h3 class="fb-page-head__title">Operação</h3>
+                <p class="fb-page-head__subtitle"><?= h(format_date_br($today)) ?> · turnos vencidos são encerrados automaticamente.</p>
             </div>
-            <span class="fb-badge fb-badge--ok" style="align-self: center;"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fb-ok); margin-right: 4px;"></span>ao vivo · atualiza a cada 60s</span>
+            <div class="fb-page-head__actions">
+                <span class="fb-badge fb-badge--ok"><span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fb-ok); margin-right: 4px;"></span>ao vivo · atualiza a cada 60s</span>
+            </div>
         </div>
     </section>
 
