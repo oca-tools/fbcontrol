@@ -83,26 +83,22 @@ $queryAtual = array_filter($filters, static fn($v) => $v !== '');
         </form>
     </section>
 
-    <div class="fb-metric-grid fb-mt">
-        <div class="fb-metric">
-            <p class="fb-metric__label">PAX no recorte</p>
-            <p class="fb-metric__value"><?= number_format($totalPax, 0, ',', '.') ?></p>
-            <p class="fb-metric__delta">inclui temáticos finalizados</p>
+    <div class="fb-heroline fb-mt">
+        <div class="fb-hero">
+            <span class="fb-hero__value"><?= number_format($totalPax, 0, ',', '.') ?></span>
+            <span class="fb-hero__label">PAX no recorte · inclui temáticos finalizados</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Acessos registrados</p>
-            <p class="fb-metric__value"><?= number_format($totalAcessos, 0, ',', '.') ?></p>
-            <p class="fb-metric__delta">lançamentos de salão</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value"><?= number_format($totalAcessos, 0, ',', '.') ?></span>
+            <span class="fb-stat__label">acessos registrados</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Alertas</p>
-            <p class="fb-metric__value" <?= $alertasAtivos > 0 ? 'style="color: var(--fb-danger);"' : '' ?>><?= number_format($alertasAtivos, 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= $dupCount ?> dup · <?= $foraCount ?> fora · <?= $multiploCount ?> múlt</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value<?= $alertasAtivos > 0 ? ' fb-stat__value--danger' : '' ?>"><?= number_format($alertasAtivos, 0, ',', '.') ?></span>
+            <span class="fb-stat__label"><?= $dupCount ?> dup · <?= $foraCount ?> fora · <?= $multiploCount ?> múlt</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Exceções (PAX)</p>
-            <p class="fb-metric__value"><?= number_format((int)($stats['nao_informado_pax'] ?? 0) + (int)($stats['day_use_pax'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= (int)($stats['nao_informado_pax'] ?? 0) ?> não inf. · <?= (int)($stats['day_use_pax'] ?? 0) ?> day use</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value"><?= number_format((int)($stats['nao_informado_pax'] ?? 0) + (int)($stats['day_use_pax'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-stat__label"><?= (int)($stats['nao_informado_pax'] ?? 0) ?> não inf. · <?= (int)($stats['day_use_pax'] ?? 0) ?> day use (exceções PAX)</span>
         </div>
     </div>
 

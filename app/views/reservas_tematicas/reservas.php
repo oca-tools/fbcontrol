@@ -645,7 +645,9 @@ function fbAdicionarLinhaLote() {
             submit.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Registrando...';
         }
 
-        fetch(form.action, {
+        // form.action é sombreado pelo <input name="action">, retornando o elemento
+        // em vez da URL. getAttribute garante a rota correta (senão: 404 NOT FOUND).
+        fetch(form.getAttribute('action'), {
             method: 'POST',
             body: formData,
             headers: {

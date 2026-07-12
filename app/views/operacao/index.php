@@ -24,26 +24,22 @@ $paginaLink = static fn(int $pagina): string => '/?' . http_build_query(['r' => 
         </div>
     </section>
 
-    <div class="fb-metric-grid fb-mt">
-        <div class="fb-metric">
-            <p class="fb-metric__label">PAX hoje</p>
-            <p class="fb-metric__value"><?= number_format((int)($stats['total_pax'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta">inclui temáticos finalizados</p>
+    <div class="fb-heroline fb-mt">
+        <div class="fb-hero">
+            <span class="fb-hero__value"><?= number_format((int)($stats['total_pax'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-hero__label">PAX hoje · inclui temáticos finalizados</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Registros hoje</p>
-            <p class="fb-metric__value"><?= number_format((int)($stats['total_acessos'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= number_format($totalRegistros, 0, ',', '.') ?> movimentos no dia</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value"><?= number_format((int)($stats['total_acessos'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-stat__label">registros hoje</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Turnos abertos</p>
-            <p class="fb-metric__value"><?= count($activeShifts) ?></p>
-            <p class="fb-metric__delta"><?= count($activeRestaurants) ?> restaurante(s) ativo(s)</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value"><?= count($activeShifts) ?></span>
+            <span class="fb-stat__label"><?= count($activeRestaurants) ?> restaurante(s) ativo(s)</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Alertas hoje</p>
-            <p class="fb-metric__value" <?= $alertasHoje > 0 ? 'style="color: var(--fb-danger);"' : '' ?>><?= number_format($alertasHoje, 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= (int)($stats['duplicados'] ?? 0) ?> dup · <?= (int)($stats['fora_horario'] ?? 0) ?> fora de horário</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value<?= $alertasHoje > 0 ? ' fb-stat__value--danger' : '' ?>"><?= number_format($alertasHoje, 0, ',', '.') ?></span>
+            <span class="fb-stat__label"><?= (int)($stats['duplicados'] ?? 0) ?> dup · <?= (int)($stats['fora_horario'] ?? 0) ?> fora de horário</span>
         </div>
     </div>
 

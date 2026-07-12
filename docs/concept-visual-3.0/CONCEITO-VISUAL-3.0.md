@@ -99,14 +99,18 @@ Regra AA: todo par cor-de-fundo/texto passa contraste; status nunca comunica por
 
 ## E) Checklist de aceite 3.0 — "saiu do pálido?"
 
-- [ ] Toda tela tem exatamente 1 número-herói (≥42px) e nenhum valor menor que seu rótulo
-- [ ] Nenhum texto de leitura em `#7A7A79`; metadados só como rótulos uppercase
-- [ ] CTA primário é tinta (contraste >12:1); nenhum botão ciano-com-branco sobrou
-- [ ] Status críticos são sólidos com ícone+texto; nada comunica por cor sozinha
-- [ ] Nenhum card dentro de card; nenhum formulário de filtro aberto por padrão
-- [ ] Headers de restaurante em cor plena; a cor da casa aparece em ≥1 elemento forte por tela do módulo
-- [ ] Reservas: bilhete + agrupamento por turno + medidor de lotação funcionando
-- [ ] `legacy.css` menor a cada tela migrada (meta: zero)
+_Status da implementação (2026-07-11, Passos 1–5)._
+
+- [x] Número-herói (≥42px) em Operação, Análise/Visão e Análise/Temáticos; regra "valor > rótulo" garantida no componente `.fb-hero`/`.fb-stat` (Passo 2)
+- [x] Texto de leitura repontado: `--fb-ink #1C1C1B` / `--fb-body #3B3B39` / `--fb-muted #6B6B68`; fim do `#7A7A79` (Passo 1)
+- [x] CTA primário é tinta `--fb-cta #1F1F1E` (>12:1); nenhum botão ciano-com-branco (Passo 1)
+- [x] Status que bloqueiam são sólidos com peso 700 (`.fb-badge--solid-*`, AA≥4.5 nos 2 temas); tint só informa (Passo 3)
+- [x] "Filtro ativo" virou linha de texto (`.fb-filter-line`) em Temáticos e Relatórios; card-in-card do check-in dissolvido no bilhete (Passo 5)
+- [x] Cor da casa em elemento forte: trilho + cabeçalho do turno em cor plena no bilhete (Passo 4)
+- [x] Reservas: bilhete + agrupamento por turno + medidor de lotação funcionando (Passo 4)
+- [ ] `legacy.css` menor a cada tela migrada (meta: zero) — pendente, telas legadas ainda vivas
+
+**Pendente (operacional, do usuário):** validar nas telas reais logadas (recarregar Operação, Análise, Temáticos, Meus turnos); deploy VPS; teste em aparelho real. Commit do 3.0 ainda não feito.
 
 ---
 

@@ -1277,6 +1277,177 @@ body.mobile-beginner .form-label {
     flex-wrap: wrap;
 }
 
+/* ---------- reservas-bilhete (conceito 3.0, Passo 4): fila por turno + canhoto ---------- */
+.fb-turno-group {
+    display: grid;
+    gap: var(--fb-space-3);
+}
+.fb-turno-group + .fb-turno-group {
+    margin-top: var(--fb-space-4);
+}
+.fb-turno-group__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px var(--fb-space-3);
+    flex-wrap: wrap;
+    padding: 11px 16px;
+    border-radius: var(--fb-radius-lg);
+    background: var(--fb-turno-accent, var(--fb-ink));
+    color: #fff;
+}
+.fb-turno-group__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    margin: 0;
+}
+.fb-turno-group__count {
+    font-weight: 800;
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+.fb-turno-group__count span {
+    opacity: 0.72;
+    font-weight: 500;
+    font-size: 0.78rem;
+}
+.fb-turno-group__meter {
+    width: 100%;
+    height: 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.28);
+    overflow: hidden;
+}
+.fb-turno-group__meter > i {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    background: #fff;
+}
+.fb-turno-group__sub {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.72rem;
+    opacity: 0.9;
+}
+
+.fb-bilhete {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    grid-template-areas: "rail main stub" "foot foot foot";
+    background: var(--fb-card);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--fb-radius-lg);
+    overflow: hidden;
+}
+.fb-bilhete.is-muted {
+    opacity: 0.64;
+}
+.fb-bilhete__rail {
+    grid-area: rail;
+    background: var(--fb-bilhete-accent, var(--fb-action));
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 12px 6px;
+}
+.fb-bilhete__hora {
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.fb-bilhete__railicon {
+    font-size: 0.82rem;
+    opacity: 0.85;
+}
+.fb-bilhete__main {
+    grid-area: main;
+    padding: 12px 14px;
+    border-right: 1.5px dashed var(--fb-border);
+    min-width: 0;
+}
+.fb-bilhete__uhrow {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.fb-bilhete__uh {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--fb-ink);
+    font-variant-numeric: tabular-nums;
+}
+.fb-bilhete__uh--pending {
+    color: var(--fb-warn);
+}
+.fb-bilhete__titular {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fb-body, var(--fb-muted));
+}
+.fb-bilhete__chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+.fb-bilhete__stub {
+    grid-area: stub;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    text-align: center;
+}
+.fb-bilhete__foot {
+    grid-area: foot;
+    padding: 0 14px 12px;
+    display: grid;
+    gap: var(--fb-space-3);
+}
+
+.fb-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 7px;
+    background: var(--fb-soft);
+    color: var(--fb-ink);
+    white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+    .fb-bilhete {
+        grid-template-columns: 52px 1fr;
+        grid-template-areas: "rail main" "rail stub" "foot foot";
+    }
+    .fb-bilhete__main {
+        border-right: 0;
+        border-bottom: 1.5px dashed var(--fb-border);
+    }
+    .fb-bilhete__stub {
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
 @media (max-width: 1180px) {
     .fb-checkin-toolbar__grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -59,7 +59,7 @@ $iniciaisTopnav = mb_strtoupper(mb_substr(trim((string)($user['nome'] ?? '?')), 
                 <span class="fb-topnav__username"><?= h((string)($user['nome'] ?? '')) ?></span>
             </div>
             <button class="fb-topnav__menu" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
-                <i class="bi bi-grid"></i> Menu
+                <i class="bi bi-grid-3x3-gap"></i> Tudo
             </button>
             <form method="post" action="/?r=auth/logout" class="fb-topnav__logout">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">

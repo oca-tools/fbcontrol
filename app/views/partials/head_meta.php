@@ -3,7 +3,7 @@
 <title><?= h($appName) ?></title>
 <script>
 (function () {
-    var allowedThemes = ['light', 'dark', 'sand', 'ocean'];
+    var allowedThemes = ['light', 'dark'];
     try {
         var savedTheme = localStorage.getItem('oca_theme');
         var theme = allowedThemes.indexOf(savedTheme) >= 0 ? savedTheme : 'light';
@@ -29,3 +29,4 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="/assets/js/fb-filters.js?v=20260705g" defer></script>
+<script src="/assets/js/fb-launcher.js?v=20260711a" defer></script>

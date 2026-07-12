@@ -25,15 +25,15 @@ if (!empty($user)):
         ];
     }
 ?>
-<div class="fb-bottomnav-spacer d-lg-none" aria-hidden="true"></div>
-<nav class="fb-bottomnav d-lg-none" aria-label="Navegação principal">
+<div class="fb-bottomnav-spacer" aria-hidden="true"></div>
+<nav class="fb-bottomnav" aria-label="Navegação principal">
     <?php foreach ($bottomNavItems as $bottomNavItem): ?>
         <a class="fb-bottomnav__item<?= ($currentRoute ?? '') === $bottomNavItem['route'] ? ' fb-bottomnav__item--active' : '' ?>" href="/?r=<?= h($bottomNavItem['route']) ?>">
             <i class="bi <?= h($bottomNavItem['icon']) ?>"></i><?= h($bottomNavItem['label']) ?>
         </a>
     <?php endforeach; ?>
     <button class="fb-bottomnav__item" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
-        <i class="bi bi-list"></i>Mais
+        <i class="bi bi-grid-3x3-gap"></i>Tudo
     </button>
 </nav>
 <?php endif; ?>

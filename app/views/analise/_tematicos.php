@@ -36,10 +36,10 @@ $badgeStatusReserva = static function (string $status): string {
         return 'fb-badge fb-badge--ok';
     }
     if (strpos($flat, 'compareceu') !== false) {
-        return 'fb-badge fb-badge--danger';
+        return 'fb-badge fb-badge--solid-danger';
     }
     if (strpos($flat, 'cancel') !== false) {
-        return 'fb-badge fb-badge--nao-informado';
+        return 'fb-badge fb-badge--solid-neutral';
     }
     return 'fb-badge fb-badge--day-use';
 };
@@ -150,14 +150,12 @@ if (!empty($filters['q'])) {
         <?php endif; ?>
 
         <?php if ($filtroAtivoResumo !== []): ?>
-            <div class="fb-summary-bar">
+            <p class="fb-filter-line">
+                <i class="bi bi-funnel" aria-hidden="true"></i>
                 <?php foreach ($filtroAtivoResumo as $itemResumo): ?>
-                    <div class="fb-summary-chip">
-                        <p class="fb-summary-chip__label">Filtro ativo</p>
-                        <p class="fb-summary-chip__value" style="font-size: 1rem;"><?= h($itemResumo) ?></p>
-                    </div>
+                    <span class="fb-filter-line__item"><?= h($itemResumo) ?></span>
                 <?php endforeach; ?>
-            </div>
+            </p>
         <?php endif; ?>
 
         <form method="get" action="/" class="fb-tematic-analysis__filter-form" data-fb-filters>
@@ -219,26 +217,22 @@ if (!empty($filters['q'])) {
         </form>
     </section>
 
-    <div class="fb-metric-grid fb-mt">
-        <div class="fb-metric">
-            <p class="fb-metric__label">Reservas</p>
-            <p class="fb-metric__value"><?= number_format((int)($summary['total_reservas'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= (int)($summary['total_grupos'] ?? 0) ?> grupos · <?= (int)($summary['total_lotes'] ?? 0) ?> lotes</p>
+    <div class="fb-heroline fb-mt">
+        <div class="fb-hero">
+            <span class="fb-hero__value"><?= number_format((int)($summary['total_reservas'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-hero__label">reservas · <?= (int)($summary['total_grupos'] ?? 0) ?> grupos · <?= (int)($summary['total_lotes'] ?? 0) ?> lotes</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">PAX reservadas</p>
-            <p class="fb-metric__value"><?= number_format((int)($summary['pax_reservadas'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= (int)($summary['pax_adulto_reservadas'] ?? 0) ?> adultos · <?= (int)($summary['pax_chd_reservadas'] ?? 0) ?> CHD</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value"><?= number_format((int)($summary['pax_reservadas'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-stat__label"><?= (int)($summary['pax_adulto_reservadas'] ?? 0) ?> adultos · <?= (int)($summary['pax_chd_reservadas'] ?? 0) ?> CHD (PAX reservadas)</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">Comparecimento</p>
-            <p class="fb-metric__value"><?= number_format((int)($summary['pax_comparecidas'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta fb-metric__delta--up"><?= number_format($taxaComparecimento, 1, ',', '.') ?>% do recorte</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value fb-stat__value--ok"><?= number_format($taxaComparecimento, 1, ',', '.') ?>%</span>
+            <span class="fb-stat__label"><?= number_format((int)($summary['pax_comparecidas'] ?? 0), 0, ',', '.') ?> PAX compareceram</span>
         </div>
-        <div class="fb-metric">
-            <p class="fb-metric__label">No-show</p>
-            <p class="fb-metric__value" <?= (int)($summary['pax_nao_comparecidas'] ?? 0) > 0 ? 'style="color: var(--fb-danger);"' : '' ?>><?= number_format((int)($summary['pax_nao_comparecidas'] ?? 0), 0, ',', '.') ?></p>
-            <p class="fb-metric__delta"><?= (int)($summary['no_shows'] ?? 0) ?> reservas não compareceram</p>
+        <div class="fb-stat">
+            <span class="fb-stat__value<?= (int)($summary['pax_nao_comparecidas'] ?? 0) > 0 ? ' fb-stat__value--danger' : '' ?>"><?= number_format((int)($summary['pax_nao_comparecidas'] ?? 0), 0, ',', '.') ?></span>
+            <span class="fb-stat__label">no-show · <?= (int)($summary['no_shows'] ?? 0) ?> reservas faltaram</span>
         </div>
     </div>
 
@@ -315,7 +309,7 @@ if (!empty($filters['q'])) {
                                 <span class="fb-badge"><?= (int)($row['total'] ?? 0) ?> reservas</span>
                                 <span class="fb-badge fb-badge--ok"><?= (int)($row['finalizadas'] ?? 0) ?> finalizadas</span>
                                 <?php if ((int)($row['no_shows'] ?? 0) > 0): ?>
-                                    <span class="fb-badge fb-badge--danger"><?= (int)($row['no_shows'] ?? 0) ?> no-show</span>
+                                    <span class="fb-badge fb-badge--solid-danger"><?= (int)($row['no_shows'] ?? 0) ?> no-show</span>
                                 <?php endif; ?>
                             </div>
                         </article>

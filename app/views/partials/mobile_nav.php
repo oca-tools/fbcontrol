@@ -11,105 +11,123 @@
         <span class="brand-sub"><?= h($perfilLabel ?? ucfirst((string)($user['perfil'] ?? ''))) ?></span>
     </a>
 </div>
-<div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="mobileMenuLabel"><?= h($appName) ?></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
-    </div>
+<?php
+/* Launcher de módulos: grade de azulejos coloridos pela identidade, no lugar da
+   lista vertical estilo sidebar. Mesmo componente serve mobile (folha inferior)
+   e desktop (popover central) — só a pele muda por breakpoint (CSS .fb-launcher).
+   Cor por azulejo = área; texto no tom escuro da própria família (AA). */
+$perfilLauncher = (string)($user['perfil'] ?? '');
+$ehGestor = in_array($perfilLauncher, ['admin', 'supervisor', 'gerente'], true);
+$launcherTile = static function (string $route, $match, string $icon, string $label, string $accent = '') use ($navIsActive): void {
+    $ativo = $navIsActive($match ?: $route);
+    echo '<a class="fb-tile' . ($ativo ? ' is-active' : '') . '" href="/?r=' . h($route) . '"'
+        . ' data-search="' . h(mb_strtolower($label, 'UTF-8')) . '"'
+        . ($accent !== '' ? ' style="--fb-tile-accent: ' . h($accent) . ';"' : '')
+        . ($ativo ? ' aria-current="page"' : '') . '>'
+        . '<i class="bi ' . h($icon) . ' fb-tile__icon" aria-hidden="true"></i>'
+        . '<span class="fb-tile__label">' . h($label) . '</span></a>';
+};
+$launcherAdminTile = static function (string $route, string $icon, string $label) use ($launcherTile): void {
+    $launcherTile($route, $route, $icon, $label);
+};
+?>
+<div class="offcanvas offcanvas-bottom fb-launcher" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
     <div class="offcanvas-body">
-        <?php if ($user['perfil'] === 'hostess'): ?>
-            <div class="d-flex align-items-center gap-2 mb-3">
-                <?php $safeMobileProfilePhoto = safe_public_upload_url((string)($user['foto_path'] ?? ''), 'profiles'); ?>
-                <?php if ($safeMobileProfilePhoto !== ''): ?>
-                    <img src="<?= h($safeMobileProfilePhoto) ?>" alt="Foto" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
-                <?php else: ?>
-                    <div class="d-flex align-items-center justify-content-center bg-light" style="width:44px;height:44px;border-radius:50%;">
-                        <i class="bi bi-person"></i>
-                    </div>
+        <div class="fb-launcher__head">
+            <h5 class="fb-launcher__title" id="mobileMenuLabel">FB<span>Control</span> · tudo</h5>
+            <button type="button" class="fb-launcher__close" data-bs-dismiss="offcanvas" aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
+        </div>
+
+        <div class="fb-launcher__search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="text" data-fb-launcher-search placeholder="Buscar tela…" autocomplete="off" aria-label="Buscar tela">
+        </div>
+
+        <div class="fb-launcher__section">
+            <p class="fb-launcher__label">Dia a dia</p>
+            <div class="fb-launcher__grid">
+                <?php if (in_array($perfilLauncher, ['admin', 'hostess', 'supervisor', 'gerente'], true)): ?>
+                    <?php $launcherTile('access/index', 'access/index', 'bi-clipboard-check', 'Registro', '#2E7C9E'); ?>
                 <?php endif; ?>
-                <div>
-                    <div class="fw-semibold"><?= h($user['nome']) ?></div>
-                    <div class="text-muted small">Hostess</div>
+                <?php if ($perfilLauncher === 'hostess'): ?>
+                    <?php $launcherTile('hostess/turnos', 'hostess/turnos', 'bi-calendar-week', 'Meus turnos', '#4E8B3B'); ?>
+                <?php endif; ?>
+                <?php if (in_array($perfilLauncher, ['admin', 'supervisor', 'hostess', 'gerente'], true)): ?>
+                    <?php $launcherTile('vouchers/index', 'vouchers/index', 'bi-ticket-perforated', 'Vouchers', '#B07D2A'); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if ($ehGestor): ?>
+            <div class="fb-launcher__section">
+                <p class="fb-launcher__label">Gestão e BI</p>
+                <div class="fb-launcher__grid">
+                    <?php $launcherTile('operacao/index', ['operacao/index', 'control/index'], 'bi-speedometer2', 'Operação', '#1F1F1E'); ?>
+                    <?php $launcherTile('analise/index', ['analise/index', 'dashboard/index', 'dashboard/restaurant'], 'bi-bar-chart', 'Análise', '#15B1C9'); ?>
+                    <?php $launcherTile('relatorios/index', 'relatorios/index', 'bi-file-earmark-text', 'Relatórios', '#E67E3C'); ?>
                 </div>
             </div>
         <?php endif; ?>
-        <?php if ($showGuidedTutorial || ($user['perfil'] ?? '') === 'admin'): ?>
-            <div class="d-flex flex-wrap gap-2 mb-3">
-                <?php if ($showGuidedTutorial): ?>
-                    <button class="btn btn-sm btn-outline-primary js-open-tour" type="button" data-bs-dismiss="offcanvas">
-                        <i class="bi bi-question-circle"></i> Guia
-                    </button>
-                <?php endif; ?>
-                <?php if (($user['perfil'] ?? '') === 'admin'): ?>
-                    <form method="post" action="/?r=demo/toggle" class="logout-inline-form d-inline-flex">
-                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                        <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
-                        <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
-                        <button class="btn btn-sm <?= app_demo_mode_enabled() ? 'btn-warning' : 'btn-outline-secondary' ?>" type="submit">
-                            <i class="bi bi-mortarboard"></i> Modo demo<?= app_demo_mode_enabled() ? ' (ativo)' : '' ?>
-                        </button>
-                    </form>
-                <?php endif; ?>
+
+        <?php if ($canTematicas): ?>
+            <div class="fb-launcher__section">
+                <p class="fb-launcher__label">Temáticos</p>
+                <div class="fb-launcher__grid">
+                    <?php if ($ehGestor || $canTematicasReserva): ?>
+                        <?php $launcherTile('reservasTematicas/reservas', 'reservasTematicas/reservas', 'bi-calendar-heart', 'Reservas', '#6C5CB0'); ?>
+                    <?php endif; ?>
+                    <?php $launcherTile('reservasTematicas/operacao', 'reservasTematicas/operacao', 'bi-clipboard-data', 'Operação temática', '#6C5CB0'); ?>
+                    <?php if ($ehGestor): ?>
+                        <?php $launcherTile('reservasTematicas/admin', 'reservasTematicas/admin', 'bi-sliders', 'Config. temáticas', '#6C5CB0'); ?>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
-        <div class="mb-3 mobile-theme-panel">
-            <div class="text-muted small mb-2">Tema visual</div>
-            <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
-                <?php require __DIR__ . '/theme_switch_buttons.php'; ?>
-            </div>
-        </div>
-        <div class="nav flex-column gap-1">
-            <div class="mobile-menu-section-label">Operação</div>
-            <?php if (in_array($user['perfil'], ['admin', 'hostess', 'supervisor', 'gerente'], true)): ?>
-                <a <?= $navAttrs('access/index') ?> href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
+
+        <?php if ($ehGestor): ?>
+            <?php
+            $mostrarAdmin = in_array($perfilLauncher, ['admin', 'gerente'], true);
+            $ehAdmin = $perfilLauncher === 'admin';
+            ?>
+            <?php if ($mostrarAdmin): ?>
+                <div class="fb-launcher__section">
+                    <p class="fb-launcher__label">Administração</p>
+                    <div class="fb-launcher__grid fb-launcher__grid--admin">
+                        <?php if ($ehAdmin): ?>
+                            <?php $launcherAdminTile('restaurantes/index', 'bi-building', 'Restaurantes'); ?>
+                            <?php $launcherAdminTile('portas/index', 'bi-door-open', 'Portas'); ?>
+                            <?php $launcherAdminTile('operacoes/index', 'bi-collection', 'Operações'); ?>
+                            <?php $launcherAdminTile('horarios/index', 'bi-clock', 'Horários'); ?>
+                        <?php endif; ?>
+                        <?php $launcherAdminTile('usuarios/index', 'bi-people', 'Usuários'); ?>
+                        <?php $launcherAdminTile('auditoria/index', 'bi-shield-check', 'Auditoria'); ?>
+                        <?php if ($ehAdmin): ?>
+                            <?php $launcherAdminTile('lgpd/index', 'bi-shield-lock', 'LGPD'); ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
             <?php endif; ?>
-            <?php if ($user['perfil'] === 'hostess'): ?>
-                <a <?= $navAttrs('hostess/turnos') ?> href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
+        <?php endif; ?>
+
+        <div class="fb-launcher__utility">
+            <?php if ($showGuidedTutorial): ?>
+                <button class="fb-btn fb-btn--ghost js-open-tour" type="button" data-bs-dismiss="offcanvas"><i class="bi bi-question-circle"></i> Guia</button>
             <?php endif; ?>
-            <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'hostess', 'gerente'], true)): ?>
-                <a <?= $navAttrs('vouchers/index') ?> href="/?r=vouchers/index"><i class="bi bi-ticket-perforated"></i> Vouchers</a>
-            <?php endif; ?>
-            <?php if ($canTematicas): ?>
-                <div class="mobile-menu-section-label">Temáticos</div>
-                <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true) || $canTematicasReserva): ?>
-                    <a <?= $navAttrs('reservasTematicas/reservas') ?> href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
-                <?php endif; ?>
-                <a <?= $navAttrs('reservasTematicas/operacao') ?> href="/?r=reservasTematicas/operacao"><i class="bi bi-clipboard-data"></i> Operação Temática</a>
-                <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
-                    <a <?= $navAttrs('reservasTematicas/admin') ?> href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
-                <?php endif; ?>
-            <?php endif; ?>
-            <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
-                <div class="mobile-menu-section-label">Gestão e BI</div>
-                <a <?= $navAttrs(['operacao/index', 'control/index']) ?> href="/?r=operacao/index"><i class="bi bi-speedometer2"></i> Operação</a>
-                <a <?= $navAttrs(['analise/index', 'dashboard/index', 'dashboard/restaurant']) ?> href="/?r=analise/index"><i class="bi bi-bar-chart"></i> Análise</a>
-<?php /* KPIs Estratégicos virou a aba KPIs do hub Análise. */ ?>
-                <a <?= $navAttrs('relatorios/index') ?> href="/?r=relatorios/index"><i class="bi bi-file-earmark-text"></i> Relatórios</a>
-                <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
-                    <a <?= $navAttrs('auditoria/index') ?> href="/?r=auditoria/index"><i class="bi bi-shield-check"></i> Auditoria</a>
-                <?php endif; ?>
-                <?php if (in_array($user['perfil'], ['admin'], true)): ?>
-                    <a <?= $navAttrs('lgpd/index') ?> href="/?r=lgpd/index"><i class="bi bi-shield-lock"></i> LGPD</a>
-                <?php endif; ?>
-<?php /* Relatórios Temáticos virou a aba Temáticos do hub Análise. */ ?>
-<?php /* Dashboard do Restaurante saiu do menu: agora é drill-down dos hubs Operação e Análise. */ ?>
-                <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
-                    <div class="mobile-menu-section-label">Administração</div>
-                <?php endif; ?>
-                <?php if (in_array($user['perfil'], ['admin'], true)): ?>
-                    <a <?= $navAttrs('restaurantes/index') ?> href="/?r=restaurantes/index"><i class="bi bi-building"></i> Restaurantes</a>
-                    <a <?= $navAttrs('portas/index') ?> href="/?r=portas/index"><i class="bi bi-door-open"></i> Portas</a>
-                    <a <?= $navAttrs('operacoes/index') ?> href="/?r=operacoes/index"><i class="bi bi-collection"></i> Operações</a>
-                    <a <?= $navAttrs('horarios/index') ?> href="/?r=horarios/index"><i class="bi bi-clock"></i> Horários</a>
-                <?php endif; ?>
-                <?php if (in_array($user['perfil'], ['admin', 'gerente'], true)): ?>
-                    <a <?= $navAttrs('usuarios/index') ?> href="/?r=usuarios/index"><i class="bi bi-people"></i> Usuários</a>
-                <?php endif; ?>
+            <?php if ($perfilLauncher === 'admin'): ?>
+                <form method="post" action="/?r=demo/toggle" class="logout-inline-form d-inline-flex">
+                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
+                    <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
+                    <button class="fb-btn fb-btn--ghost" type="submit"><i class="bi bi-mortarboard"></i> Modo demo<?= app_demo_mode_enabled() ? ' (ativo)' : '' ?></button>
+                </form>
             <?php endif; ?>
             <form method="post" action="/?r=auth/logout" class="logout-inline-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <button class="nav-link text-danger logout-link-btn" type="submit"><i class="bi bi-box-arrow-right"></i> Sair</button>
+                <button class="fb-btn fb-btn--ghost" type="submit" style="color: var(--fb-danger);"><i class="bi bi-box-arrow-right"></i> Sair</button>
             </form>
+            <div class="theme-switch theme-switch-compact" role="group" aria-label="Selecionar tema">
+                <?php require __DIR__ . '/theme_switch_buttons.php'; ?>
+            </div>
         </div>
     </div>
 </div>

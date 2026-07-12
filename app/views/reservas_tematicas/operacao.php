@@ -62,6 +62,40 @@ $percentualLotacao = ($capacidadeTurno !== null && (int) $capacidadeTurno > 0)
     ? min(100, (int) round(($paxAtivos / (int) $capacidadeTurno) * 100))
     : null;
 
+/* Passo 4 (reservas-bilhete): agrupa as reservas por turno para a fila com cabeçalho-medidor. */
+$gruposReserva = [];
+foreach ($reservas as $reservaRow) {
+    $horaTurno = trim((string) ($reservaRow['turno_hora'] ?? ''));
+    $chaveTurno = $horaTurno !== '' ? $horaTurno : 'sem-turno';
+    if (!isset($gruposReserva[$chaveTurno])) {
+        $gruposReserva[$chaveTurno] = [
+            'hora' => $horaTurno,
+            'reservas' => [],
+            'pax_ativos' => 0,
+            'no_show' => 0,
+            'aguardando' => 0,
+            'restaurantes' => [],
+        ];
+    }
+    $estadoRow = $normalizarStatusCard($reservaRow);
+    $gruposReserva[$chaveTurno]['reservas'][] = $reservaRow;
+    if (in_array($estadoRow, ['aguardando', 'pre', 'finalizada'], true)) {
+        $gruposReserva[$chaveTurno]['pax_ativos'] += (int) ($reservaRow['pax'] ?? 0);
+    }
+    if ($estadoRow === 'no_show') {
+        $gruposReserva[$chaveTurno]['no_show']++;
+    }
+    if (in_array($estadoRow, ['aguardando', 'pre'], true)) {
+        $gruposReserva[$chaveTurno]['aguardando']++;
+    }
+    $nomeRest = normalize_mojibake((string) ($reservaRow['restaurante'] ?? ''));
+    if ($nomeRest !== '') {
+        $gruposReserva[$chaveTurno]['restaurantes'][$nomeRest] = true;
+    }
+}
+ksort($gruposReserva);
+$turnoUnicoComCapacidade = (count($gruposReserva) === 1 && $percentualLotacao !== null);
+
 $restauranteSelecionadoNome = 'Todos os restaurantes';
 if ($restrictedRestaurant) {
     $restauranteSelecionadoNome = normalize_mojibake((string) $restrictedRestaurant['nome']);
@@ -159,21 +193,6 @@ if ($capacidadeTurno !== null) {
         </form>
     </section>
 
-    <?php if ($percentualLotacao !== null): ?>
-        <section class="fb-card fb-card--flat fb-checkin-capacity">
-            <div class="fb-checkin-capacity__head">
-                <div>
-                    <p class="fb-card__eyebrow">Capacidade do turno</p>
-                    <h2 class="fb-card__title">Ocupação acompanhada em tempo real</h2>
-                </div>
-                <strong class="fb-num"><?= number_format($paxAtivos, 0, ',', '.') ?> / <?= number_format((int) $capacidadeTurno, 0, ',', '.') ?> PAX</strong>
-            </div>
-            <div class="fb-progress">
-                <div class="fb-progress__bar <?= $percentualLotacao >= 100 ? 'fb-progress__bar--full' : ($percentualLotacao >= 85 ? 'fb-progress__bar--warn' : '') ?>" style="width: <?= $percentualLotacao ?>%;"></div>
-            </div>
-        </section>
-    <?php endif; ?>
-
     <section class="fb-card fb-card--flat fb-checkin-statusbar">
         <div class="fb-checkin-statusbar__chips">
             <a class="fb-chip<?= ($filters['status'] ?? '') === '' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('')) ?>">Todas <?= (int) ($summary['total'] ?? 0) ?></a>
@@ -198,111 +217,6 @@ if ($capacidadeTurno !== null) {
     <?php endif; ?>
 
     <section class="fb-checkin-list">
-        <?php foreach ($reservas as $reserva): ?>
-            <?php
-            $estado = $normalizarStatusCard($reserva);
-            $ehPre = $estado === 'pre';
-            $titular = normalize_mojibake((string) ($reserva['titular_nome_display'] ?? $reserva['titular_nome'] ?? '-'));
-            $grupoDisplay = trim(normalize_mojibake((string) ($reserva['grupo_nome_display'] ?? $reserva['grupo_nome'] ?? '')));
-            $uhDisplay = $ehPre ? 'UH pendente' : ('UH ' . uh_label((string) ($reserva['uh_numero'] ?? '')));
-            $paxReserva = (int) ($reserva['pax'] ?? 0);
-            $chdReserva = (int) ($reserva['qtd_chd'] ?? 0);
-            $paxReal = ($reserva['pax_real'] ?? null);
-            $identReserva = restaurante_identidade((string) ($reserva['restaurante'] ?? ''));
-            $nomeRestauranteCurto = (string) preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake((string) ($reserva['restaurante'] ?? '')));
-            $classes = 'fb-card fb-checkin-card';
-            if (in_array($estado, ['finalizada', 'no_show', 'cancelada'], true)) {
-                $classes .= ' is-muted';
-            }
-            ?>
-            <article class="<?= h($classes) ?>" style="--fb-checkin-accent: <?= h($identReserva['cor']) ?>;">
-                <div class="fb-checkin-card__head">
-                    <div class="fb-checkin-card__identity">
-                        <span class="fb-checkin-card__icon"><i class="bi <?= h($identReserva['icone']) ?>" aria-hidden="true"></i></span>
-                        <div>
-                            <p class="fb-checkin-card__title"><?= h($titular) ?></p>
-                            <div class="fb-checkin-card__meta">
-                                <span class="fb-badge fb-badge--outline"><?= h($uhDisplay) ?></span>
-                                <span class="fb-badge fb-badge--outline"><?= $paxReserva ?> PAX<?= $chdReserva > 0 ? ' · ' . $chdReserva . ' CHD' : '' ?></span>
-                                <span class="fb-badge fb-badge--outline"><?= h((string) ($reserva['turno_hora'] ?? '')) ?></span>
-                                <span class="fb-badge fb-badge--outline"><?= h($nomeRestauranteCurto) ?></span>
-                                <?php if ($grupoDisplay !== '' && $grupoDisplay !== '-'): ?>
-                                    <span class="fb-badge fb-badge--outline">Grupo <?= h($grupoDisplay) ?></span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="fb-checkin-card__state">
-                        <?php if ($estado === 'aguardando'): ?>
-                            <span class="fb-badge fb-badge--day-use">Reservada</span>
-                        <?php elseif ($estado === 'pre'): ?>
-                            <span class="fb-badge fb-badge--warn">UH pendente</span>
-                        <?php elseif ($estado === 'finalizada'): ?>
-                            <span class="fb-badge fb-badge--ok">Finalizada</span>
-                        <?php elseif ($estado === 'no_show'): ?>
-                            <span class="fb-badge fb-badge--danger">No-show</span>
-                        <?php else: ?>
-                            <span class="fb-badge fb-badge--nao-informado">Cancelada</span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="fb-checkin-card__body">
-                    <?php if ($estado === 'finalizada' && $paxReal !== null && $paxReal !== ''): ?>
-                        <div class="fb-checkin-card__note">
-                            <strong>Entrada confirmada</strong>
-                            <span><?= (int) $paxReal ?> PAX registrados no check-in.</span>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php if (!$closed && in_array($estado, ['aguardando', 'pre'], true)): ?>
-                        <?php if ($ehPre): ?>
-                            <div class="fb-checkin-card__note">
-                                <strong>Pré-reserva sem UH</strong>
-                                <span>Abra a conferência para vincular a habitação antes do check-in.</span>
-                            </div>
-                        <?php else: ?>
-                            <details class="fb-checkin-card__details">
-                                <summary class="fb-btn fb-btn--primary"><i class="bi bi-check2-circle"></i> Confirmar entrada</summary>
-                                <form method="post" action="/?r=reservasTematicas/operacao" class="fb-checkin-inline-form">
-                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                    <input type="hidden" name="action" value="quick_status">
-                                    <input type="hidden" name="quick_action" value="finalizar">
-                                    <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
-                                    <div>
-                                        <label class="fb-label">PAX presentes</label>
-                                        <input type="number" min="0" inputmode="numeric" class="fb-input" name="pax_real" value="<?= $paxReserva ?>">
-                                    </div>
-                                    <button type="submit" class="fb-btn fb-btn--primary">Salvar confirmação</button>
-                                </form>
-                            </details>
-                        <?php endif; ?>
-
-                        <details class="fb-checkin-card__details">
-                            <summary class="fb-checkin-card__summary"><i class="bi bi-three-dots"></i> Ações complementares</summary>
-                            <div class="fb-checkin-card__actions">
-                                <form method="post" action="/?r=reservasTematicas/operacao">
-                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                    <input type="hidden" name="action" value="quick_status">
-                                    <input type="hidden" name="quick_action" value="nao_compareceu">
-                                    <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
-                                    <button type="submit" class="fb-btn fb-btn--danger" data-confirm-title="Confirmar no-show" data-confirm="Marcar a reserva de <?= h($titular) ?> como não compareceu?" data-confirm-yes="Sim, marcar" data-confirm-no="Voltar">Não compareceu</button>
-                                </form>
-                                <form method="post" action="/?r=reservasTematicas/operacao">
-                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                    <input type="hidden" name="action" value="quick_status">
-                                    <input type="hidden" name="quick_action" value="cancelar">
-                                    <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
-                                    <button type="submit" class="fb-btn" data-confirm-title="Cancelar reserva" data-confirm="Cancelar a reserva de <?= h($titular) ?>?" data-confirm-yes="Sim, cancelar" data-confirm-no="Voltar">Cancelar</button>
-                                </form>
-                                <a class="fb-btn fb-btn--ghost" href="/?<?= h(http_build_query(array_merge($queryFiltros, ['r' => 'reservasTematicas/conferencia', 'q' => (string) ($reserva['uh_numero'] ?? '')]))) ?>">Abrir na conferência</a>
-                            </div>
-                        </details>
-                    <?php endif; ?>
-                </div>
-            </article>
-        <?php endforeach; ?>
-
         <?php if (empty($reservas)): ?>
             <div class="fb-card fb-empty">
                 <i class="bi bi-calendar-heart"></i>
@@ -310,6 +224,154 @@ if ($capacidadeTurno !== null) {
                 <p>Ajuste o filtro ou confira a data e o turno selecionados.</p>
             </div>
         <?php endif; ?>
+
+        <?php foreach ($gruposReserva as $grupo): ?>
+            <?php
+            $grupoReservas = $grupo['reservas'];
+            $grupoHora = $grupo['hora'] !== '' ? $grupo['hora'] : 'Sem turno';
+            $grupoRestNomes = array_keys($grupo['restaurantes']);
+            $grupoRestUnico = count($grupoRestNomes) === 1 ? (string) $grupoRestNomes[0] : '';
+            $grupoIdent = $grupoRestUnico !== '' ? restaurante_identidade($grupoRestUnico) : null;
+            $grupoAccent = $grupoIdent['cor'] ?? 'var(--fb-ink)';
+            $grupoLabel = $grupoRestUnico !== ''
+                ? (string) preg_replace('/^Restaurante\s+/iu', '', $grupoRestUnico)
+                : (count($grupoRestNomes) . ' restaurantes');
+            $lugaresLivres = $turnoUnicoComCapacidade ? max(0, (int) $capacidadeTurno - $paxAtivos) : null;
+            ?>
+            <div class="fb-turno-group">
+                <div class="fb-turno-group__head" style="--fb-turno-accent: <?= h($grupoAccent) ?>;">
+                    <p class="fb-turno-group__title">
+                        <i class="bi <?= h($grupoIdent['icone'] ?? 'bi-clock') ?>" aria-hidden="true"></i>
+                        <?= h($grupoHora) ?> · <?= h($grupoLabel) ?>
+                    </p>
+                    <?php if ($turnoUnicoComCapacidade): ?>
+                        <span class="fb-turno-group__count"><?= number_format($paxAtivos, 0, ',', '.') ?><span>/<?= number_format((int) $capacidadeTurno, 0, ',', '.') ?> PAX</span></span>
+                        <div class="fb-turno-group__meter"><i style="width: <?= $percentualLotacao ?>%;"></i></div>
+                        <div class="fb-turno-group__sub">
+                            <span><?= count($grupoReservas) ?> reservas · <?= (int) $grupo['aguardando'] ?> aguardando</span>
+                            <span><?= $lugaresLivres ?> lugares livres</span>
+                        </div>
+                    <?php else: ?>
+                        <span class="fb-turno-group__count"><?= number_format((int) $grupo['pax_ativos'], 0, ',', '.') ?><span> PAX · <?= count($grupoReservas) ?> reservas</span></span>
+                        <div class="fb-turno-group__sub">
+                            <span><?= (int) $grupo['aguardando'] ?> aguardando</span>
+                            <?php if ((int) $grupo['no_show'] > 0): ?><span><?= (int) $grupo['no_show'] ?> no-show</span><?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <?php foreach ($grupoReservas as $reserva): ?>
+                    <?php
+                    $estado = $normalizarStatusCard($reserva);
+                    $ehPre = $estado === 'pre';
+                    $titular = normalize_mojibake((string) ($reserva['titular_nome_display'] ?? $reserva['titular_nome'] ?? '-'));
+                    $grupoDisplay = trim(normalize_mojibake((string) ($reserva['grupo_nome_display'] ?? $reserva['grupo_nome'] ?? '')));
+                    $uhNumero = uh_label((string) ($reserva['uh_numero'] ?? ''));
+                    $paxReserva = (int) ($reserva['pax'] ?? 0);
+                    $chdReserva = (int) ($reserva['qtd_chd'] ?? 0);
+                    $paxReal = ($reserva['pax_real'] ?? null);
+                    $identReserva = restaurante_identidade((string) ($reserva['restaurante'] ?? ''));
+                    $nomeRestauranteCurto = (string) preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake((string) ($reserva['restaurante'] ?? '')));
+                    $acionavel = !$closed && in_array($estado, ['aguardando', 'pre'], true);
+                    $bilheteClasses = 'fb-bilhete';
+                    if (in_array($estado, ['finalizada', 'no_show', 'cancelada'], true)) {
+                        $bilheteClasses .= ' is-muted';
+                    }
+                    ?>
+                    <article class="<?= h($bilheteClasses) ?>" style="--fb-bilhete-accent: <?= h($identReserva['cor']) ?>;">
+                        <div class="fb-bilhete__rail">
+                            <span class="fb-bilhete__hora"><?= h((string) ($reserva['turno_hora'] ?? $grupoHora)) ?></span>
+                            <i class="bi <?= h($identReserva['icone']) ?> fb-bilhete__railicon" aria-hidden="true"></i>
+                        </div>
+                        <div class="fb-bilhete__main">
+                            <div class="fb-bilhete__uhrow">
+                                <?php if ($ehPre): ?>
+                                    <span class="fb-bilhete__uh fb-bilhete__uh--pending">UH?</span>
+                                <?php else: ?>
+                                    <span class="fb-bilhete__uh"><?= h($uhNumero) ?></span>
+                                <?php endif; ?>
+                                <span class="fb-bilhete__titular"><?= h($titular) ?></span>
+                            </div>
+                            <div class="fb-bilhete__chips">
+                                <span class="fb-tag"><i class="bi bi-person" aria-hidden="true"></i> <?= $paxReserva ?> PAX</span>
+                                <?php if ($chdReserva > 0): ?>
+                                    <span class="fb-tag"><i class="bi bi-emoji-smile" aria-hidden="true"></i> <?= $chdReserva ?> CHD</span>
+                                <?php endif; ?>
+                                <?php if ($grupoRestUnico === ''): ?>
+                                    <span class="fb-tag"><?= h($nomeRestauranteCurto) ?></span>
+                                <?php endif; ?>
+                                <?php if ($grupoDisplay !== '' && $grupoDisplay !== '-'): ?>
+                                    <span class="fb-tag"><i class="bi bi-people" aria-hidden="true"></i> <?= h($grupoDisplay) ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="fb-bilhete__stub">
+                            <?php if ($estado === 'aguardando'): ?>
+                                <span class="fb-badge fb-badge--day-use">Reservada</span>
+                            <?php elseif ($estado === 'pre'): ?>
+                                <span class="fb-badge fb-badge--warn">UH pendente</span>
+                            <?php elseif ($estado === 'finalizada'): ?>
+                                <span class="fb-badge fb-badge--ok">Finalizada</span>
+                                <?php if ($paxReal !== null && $paxReal !== ''): ?>
+                                    <span class="fb-tag"><?= (int) $paxReal ?> entraram</span>
+                                <?php endif; ?>
+                            <?php elseif ($estado === 'no_show'): ?>
+                                <span class="fb-badge fb-badge--solid-danger">No-show</span>
+                            <?php else: ?>
+                                <span class="fb-badge fb-badge--solid-neutral">Cancelada</span>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($acionavel): ?>
+                            <div class="fb-bilhete__foot">
+                                <?php if ($ehPre): ?>
+                                    <div class="fb-checkin-card__note">
+                                        <strong>Pré-reserva sem UH</strong>
+                                        <span>Abra a conferência para vincular a habitação antes do check-in.</span>
+                                    </div>
+                                <?php else: ?>
+                                    <details class="fb-checkin-card__details">
+                                        <summary class="fb-btn fb-btn--primary"><i class="bi bi-check2-circle"></i> Confirmar entrada</summary>
+                                        <form method="post" action="/?r=reservasTematicas/operacao" class="fb-checkin-inline-form">
+                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                            <input type="hidden" name="action" value="quick_status">
+                                            <input type="hidden" name="quick_action" value="finalizar">
+                                            <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
+                                            <div>
+                                                <label class="fb-label">PAX presentes</label>
+                                                <input type="number" min="0" inputmode="numeric" class="fb-input" name="pax_real" value="<?= $paxReserva ?>">
+                                            </div>
+                                            <button type="submit" class="fb-btn fb-btn--primary">Salvar confirmação</button>
+                                        </form>
+                                    </details>
+                                <?php endif; ?>
+
+                                <details class="fb-checkin-card__details">
+                                    <summary class="fb-checkin-card__summary"><i class="bi bi-three-dots"></i> Ações complementares</summary>
+                                    <div class="fb-checkin-card__actions">
+                                        <form method="post" action="/?r=reservasTematicas/operacao">
+                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                            <input type="hidden" name="action" value="quick_status">
+                                            <input type="hidden" name="quick_action" value="nao_compareceu">
+                                            <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
+                                            <button type="submit" class="fb-btn fb-btn--danger" data-confirm-title="Confirmar no-show" data-confirm="Marcar a reserva de <?= h($titular) ?> como não compareceu?" data-confirm-yes="Sim, marcar" data-confirm-no="Voltar">Não compareceu</button>
+                                        </form>
+                                        <form method="post" action="/?r=reservasTematicas/operacao">
+                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                            <input type="hidden" name="action" value="quick_status">
+                                            <input type="hidden" name="quick_action" value="cancelar">
+                                            <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
+                                            <button type="submit" class="fb-btn" data-confirm-title="Cancelar reserva" data-confirm="Cancelar a reserva de <?= h($titular) ?>?" data-confirm-yes="Sim, cancelar" data-confirm-no="Voltar">Cancelar</button>
+                                        </form>
+                                        <a class="fb-btn fb-btn--ghost" href="/?<?= h(http_build_query(array_merge($queryFiltros, ['r' => 'reservasTematicas/conferencia', 'q' => (string) ($reserva['uh_numero'] ?? '')]))) ?>">Abrir na conferência</a>
+                                    </div>
+                                </details>
+                            </div>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
     </section>
 
     <?php if ($podeFecharTurno && !$closed && !empty($filters['restaurante_id']) && !empty($filters['turno_id'])): ?>

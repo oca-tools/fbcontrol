@@ -125,9 +125,9 @@ foreach ($bloqueiosSemanais as $bloqueioSemanal) {
                         <span class="fb-muted" style="font-size: 0.78rem;"><?= h(normalize_mojibake((string)($restauranteAtual['nome'] ?? ''))) ?> · <?= h($estadoDia) ?></span>
                     </div>
                     <?php if ($estadoDia === 'bloqueado'): ?>
-                        <span class="fb-badge fb-badge--danger">bloqueado</span>
+                        <span class="fb-badge fb-badge--solid-danger">bloqueado</span>
                     <?php elseif ($estadoDia === 'fechamento semanal'): ?>
-                        <span class="fb-badge fb-badge--nao-informado">fechado</span>
+                        <span class="fb-badge fb-badge--solid-neutral">fechado</span>
                     <?php else: ?>
                         <span class="fb-badge fb-badge--ok">aberto</span>
                     <?php endif; ?>

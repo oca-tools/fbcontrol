@@ -5,12 +5,10 @@
     const html = document.documentElement;
     const options = Array.from(document.querySelectorAll('.js-theme-option'));
     const labels = Array.from(document.querySelectorAll('.js-theme-label'));
-    const allowed = ['light', 'dark', 'sand', 'ocean'];
+    const allowed = ['light', 'dark'];
     const labelsByTheme = {
         light: 'Tema claro',
-        dark: 'Tema escuro',
-        sand: 'Tema areia',
-        ocean: 'Tema oceano'
+        dark: 'Tema escuro'
     };
 
     function normalizeTheme(theme) {

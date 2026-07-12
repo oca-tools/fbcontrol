@@ -137,22 +137,16 @@ $exportCards = [
             </div>
         </div>
 
-        <div class="fb-summary-bar">
+        <p class="fb-filter-line">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
             <?php if ($filtrosAtivos === []): ?>
-                <div class="fb-summary-chip">
-                    <p class="fb-summary-chip__label">Recorte</p>
-                    <p class="fb-summary-chip__value">Sem filtro ativo</p>
-                    <p class="fb-summary-chip__hint">Use o formulario abaixo para refinar.</p>
-                </div>
+                Sem filtro ativo — use o formulario abaixo para refinar.
             <?php else: ?>
                 <?php foreach ($filtrosAtivos as $filtroAtivo): ?>
-                    <div class="fb-summary-chip">
-                        <p class="fb-summary-chip__label"><?= h($filtroAtivo['label']) ?></p>
-                        <p class="fb-summary-chip__value" style="font-size: 1rem;"><?= h($filtroAtivo['value']) ?></p>
-                    </div>
+                    <span class="fb-filter-line__item"><?= h($filtroAtivo['label']) ?>: <?= h($filtroAtivo['value']) ?></span>
                 <?php endforeach; ?>
             <?php endif; ?>
-        </div>
+        </p>
     </section>
 
     <section class="fb-card fb-card--flat fb-report-filter">

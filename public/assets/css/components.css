@@ -46,14 +46,14 @@
 }
 
 .fb-btn--primary {
-    background: var(--fb-action);
-    border-color: var(--fb-action);
-    color: var(--fb-on-action);
+    background: var(--fb-cta);
+    border-color: var(--fb-cta);
+    color: var(--fb-on-cta);
 }
 .fb-btn--primary:hover {
-    background: var(--fb-action-hover);
-    border-color: var(--fb-action-hover);
-    color: var(--fb-on-action);
+    background: var(--fb-cta-hover);
+    border-color: var(--fb-cta-hover);
+    color: var(--fb-on-cta);
 }
 
 .fb-btn--ghost {
@@ -215,6 +215,80 @@
     gap: 10px;
 }
 
+/* ---------- filtro ativo como linha de texto (Passo 5: "filtro ativo" sem cartão) ---------- */
+.fb-filter-line {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--fb-muted);
+}
+.fb-filter-line > i {
+    color: var(--fb-muted);
+    font-size: 0.9rem;
+    align-self: center;
+}
+.fb-filter-line__item {
+    color: var(--fb-ink);
+    font-weight: 700;
+}
+.fb-filter-line__item + .fb-filter-line__item::before {
+    content: "·";
+    color: var(--fb-muted);
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+/* ---------- número-herói (Zona 2 do conceito 3.0: números no fundo, 1 herói) ---------- */
+.fb-heroline {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+}
+.fb-hero__value {
+    display: block;
+    font-size: clamp(2.6rem, 9vw, 3.25rem);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--fb-ink);
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+}
+.fb-hero__label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fb-muted);
+    margin: 4px 0 0;
+}
+.fb-stat {
+    padding-bottom: 6px;
+}
+.fb-stat__value {
+    display: block;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--fb-ink);
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+}
+.fb-stat__label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--fb-muted);
+    margin: 3px 0 0;
+}
+.fb-stat__value--ok { color: var(--fb-ok); }
+.fb-stat__value--danger { color: var(--fb-danger); }
+
 /* ---------- chips de filtro e abas ---------- */
 .fb-chip {
     display: inline-flex;
@@ -281,6 +355,13 @@
 /* Aliases semânticos para estados fora do fluxo de acesso (turnos, reservas etc.). */
 .fb-badge--danger { background: var(--fb-danger-bg); color: var(--fb-danger); }
 .fb-badge--warn { background: var(--fb-warn-bg); color: var(--fb-warn); }
+
+/* Badges sólidos: estados que BLOQUEIAM (no-show, esgotado, encerrado). Preenchimento
+   forte = "isto trava a operação", diferente do tint que apenas informa. */
+.fb-badge--solid-danger { background: var(--fb-solid-danger-bg); color: var(--fb-solid-danger-fg); font-weight: 700; }
+.fb-badge--solid-warn { background: var(--fb-solid-warn-bg); color: var(--fb-solid-warn-fg); font-weight: 700; }
+.fb-badge--solid-neutral { background: var(--fb-solid-neutral-bg); color: var(--fb-solid-neutral-fg); font-weight: 700; }
+.fb-badge--solid-ok { background: var(--fb-solid-ok-bg); color: var(--fb-solid-ok-fg); font-weight: 700; }
 
 /* ---------- formulários ---------- */
 .fb-field { margin-bottom: 0.9rem; }
@@ -439,6 +520,13 @@
 .fb-bottomnav__item--active { color: var(--fb-brand); }
 .fb-bottomnav__item:hover { color: var(--fb-brand-deep); text-decoration: none; }
 
+/* A bottom nav acompanha a troca de shell da topnav (≥1181px = desktop com abas).
+   Antes sumia em 992px (d-lg-none), deixando 992–1180px — ex.: iPad Pro — sem menu. */
+@media (min-width: 1181px) {
+    .fb-bottomnav,
+    .fb-bottomnav-spacer { display: none; }
+}
+
 /* ---------- folha inferior (bottom sheet de filtros) ---------- */
 .fb-sheet-backdrop {
     position: fixed;
@@ -564,8 +652,6 @@
     .fb-metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
     .fb-summary-bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
-    .fb-bottomnav { display: none; }
-
     .fb-table thead { display: table-header-group; }
     .fb-table thead th {
         text-align: left;
@@ -592,4 +678,121 @@
     .fb-sheet-backdrop.is-open { display: none; }
 
     .fb-btn--lg { width: auto; }
+}
+
+/* ============ launcher de módulos (rework de navegação) ============
+   Reaproveita o offcanvas #mobileMenu do Bootstrap (foco/ESC/backdrop e os
+   gatilhos "Menu"/"Mais" já fiados). Muda a pele: folha inferior no mobile,
+   popover central no desktop — e o corpo vira uma grade de azulejos coloridos
+   pela identidade, no lugar da lista vertical estilo sidebar. */
+.fb-launcher.offcanvas {
+    --bs-offcanvas-width: 100%;
+    /* O menu de navegação é a camada mais alta: acima da folha de filtros (1060)
+       e do toast (1080), senão eles vazam por cima do launcher aberto. */
+    z-index: 1090;
+    height: min(92vh, 760px);
+    border: 0;
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    background: var(--fb-bg);
+    color: var(--fb-ink);
+}
+/* O único offcanvas do app é o launcher; sobe o backdrop acima dos overlays de página. */
+.offcanvas-backdrop { z-index: 1086; }
+.fb-launcher .offcanvas-body { padding: 6px 18px 22px; }
+
+.fb-launcher__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 4px 12px;
+    position: sticky;
+    top: 0;
+    background: var(--fb-bg);
+    z-index: 2;
+}
+.fb-launcher__title { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--fb-ink); }
+.fb-launcher__title span { color: var(--fb-brand); }
+.fb-launcher__close {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid var(--fb-border); background: var(--fb-card);
+    color: var(--fb-ink); font-size: 1.1rem; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+
+.fb-launcher__search { position: relative; margin: 0 0 16px; }
+.fb-launcher__search > i {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--fb-muted); font-size: 1rem; pointer-events: none;
+}
+.fb-launcher__search input {
+    width: 100%; height: 44px; padding: 0 14px 0 40px;
+    border-radius: 12px; border: 1px solid var(--fb-border);
+    background: var(--fb-card); color: var(--fb-ink); font-size: 0.95rem;
+    font-family: inherit;
+}
+.fb-launcher__search input:focus { outline: none; border-color: var(--fb-action); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fb-action) 22%, transparent); }
+
+.fb-launcher__section + .fb-launcher__section { margin-top: 18px; }
+.fb-launcher__label {
+    margin: 0 0 10px; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--fb-muted);
+}
+.fb-launcher__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fb-launcher__grid--admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Azulejo calmo: fundo neutro (card), a identidade vive num chip de ícone tingido,
+   rótulo em ink. Sem carnaval de cor no fundo. --fb-tile-accent = cor da área. */
+.fb-tile {
+    --fb-tile-accent: var(--fb-muted);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 9px; text-align: center; text-decoration: none;
+    border-radius: 15px; padding: 14px 8px; min-height: 92px;
+    background: var(--fb-card); color: var(--fb-ink);
+    font-weight: 600; border: 1px solid var(--fb-border); position: relative;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.fb-tile:hover { transform: translateY(-2px); border-color: var(--fb-tile-accent); }
+.fb-tile:active { transform: translateY(0); }
+.fb-tile__icon {
+    width: 46px; height: 46px; border-radius: 13px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; line-height: 1; flex: 0 0 auto;
+    background: color-mix(in srgb, var(--fb-tile-accent) 16%, var(--fb-card));
+    color: var(--fb-tile-accent);
+}
+.fb-tile__label { font-size: 0.8rem; line-height: 1.2; color: var(--fb-ink); }
+.fb-tile.is-active {
+    border-color: var(--fb-tile-accent);
+    box-shadow: inset 0 0 0 1px var(--fb-tile-accent);
+}
+.fb-tile.is-active .fb-tile__icon { background: var(--fb-tile-accent); color: #fff; }
+.fb-tile.is-active::after {
+    content: ""; position: absolute; top: 9px; right: 9px;
+    width: 7px; height: 7px; border-radius: 50%; background: var(--fb-tile-accent);
+}
+
+.fb-launcher__utility {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--fb-border);
+}
+.fb-launcher__utility .theme-switch { margin-left: auto; }
+
+@media (min-width: 992px) {
+    .fb-launcher.offcanvas.offcanvas-bottom {
+        top: 50%; bottom: auto; left: 50%; right: auto;
+        width: min(760px, 92vw); height: auto; max-height: 86vh;
+        border-radius: 20px;
+        transform: translate(-50%, -48%) scale(0.97);
+        opacity: 0; visibility: hidden;
+        transition: transform 0.2s ease, opacity 0.2s ease, visibility 0.2s;
+        box-shadow: 0 24px 60px rgba(28, 28, 27, 0.28);
+    }
+    .fb-launcher.offcanvas.offcanvas-bottom.show {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1; visibility: visible;
+    }
+    .fb-launcher .fb-launcher__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .fb-launcher .fb-launcher__grid--admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
