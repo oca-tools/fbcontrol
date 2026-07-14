@@ -465,7 +465,14 @@ class ReservasTematicasController extends Controller
             $this->aplicarResultadoReservaTematica($resultadoOperacao, $redirectOperacao);
         }
 
-        $reservas = $reservaModel->listByFilters($filters);
+        // A fila operacional renderiza o turno completo e filtra busca/status no
+        // cliente (instantâneo, sem reload) — isso também mantém os contadores dos
+        // chips corretos. A conferência/impressão preserva o filtro do servidor.
+        $listFilters = $filters;
+        if ($modo === 'operacao') {
+            unset($listFilters['q'], $listFilters['status'], $listFilters['titular'], $listFilters['uh_numero']);
+        }
+        $reservas = $reservaModel->listByFilters($listFilters);
         $summary = [
             'total' => count($reservas),
             'pre_reserva' => 0,

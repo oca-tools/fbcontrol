@@ -21,15 +21,6 @@ $queryFiltros = array_filter([
     'status' => (string)($filters['status'] ?? ''),
 ], static fn($v) => $v !== '');
 
-$statusLink = static function (string $status) use ($queryFiltros): string {
-    $query = $queryFiltros;
-    unset($query['status']);
-    if ($status !== '') {
-        $query['status'] = $status;
-    }
-
-    return '/?' . http_build_query(array_merge($query, ['r' => 'reservasTematicas/operacao']));
-};
 
 $normalizarStatusCard = static function (array $row): string {
     $status = normalize_mojibake((string)($row['status_reserva'] ?? $row['status'] ?? ''));
@@ -159,11 +150,16 @@ if ($capacidadeTurno !== null) {
         </div>
     </section>
 
-    <section class="fb-card fb-card--flat fb-reserve-toolbar fb-checkin-toolbar">
-        <form method="get" action="/" class="fb-reserve-toolbar__form">
-            <input type="hidden" name="r" value="reservasTematicas/operacao">
-            <div class="fb-reserve-toolbar__field">
-                <label class="fb-label">Recorte operacional</label>
+    <section class="fb-card fb-card--flat fb-checkin-searchbar">
+        <div class="fb-checkin-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="text" data-fb-checkin-search placeholder="Buscar por UH ou titular…" autocomplete="off" aria-label="Buscar reserva" value="<?= h((string) ($filters['q'] ?? '')) ?>">
+            <span class="fb-checkin-search__count" data-fb-checkin-count aria-live="polite"></span>
+        </div>
+        <details class="fb-checkin-recorte">
+            <summary class="fb-btn fb-btn--ghost"><i class="bi bi-sliders"></i> Trocar recorte</summary>
+            <form method="get" action="/" class="fb-checkin-recorte__form">
+                <input type="hidden" name="r" value="reservasTematicas/operacao">
                 <div class="fb-checkin-toolbar__grid">
                     <input type="date" class="fb-input" name="data" value="<?= h($dataSelecionada) ?>">
                     <?php if ($restrictedRestaurant): ?>
@@ -183,26 +179,25 @@ if ($capacidadeTurno !== null) {
                             <option value="<?= (int) $turno['id'] ?>" <?= ($filters['turno_id'] ?? '') == $turno['id'] ? 'selected' : '' ?>><?= h((string) ($turno['hora'] ?? $turno['nome'] ?? ('Turno ' . (int) $turno['id']))) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <input type="text" class="fb-input" name="q" value="<?= h((string) ($filters['q'] ?? '')) ?>" placeholder="Buscar por UH ou titular">
                 </div>
-            </div>
-            <div class="fb-reserve-toolbar__controls">
-                <button type="submit" class="fb-btn fb-btn--primary">Filtrar</button>
-                <a class="fb-btn fb-btn--ghost" href="/?r=reservasTematicas/operacao">Hoje</a>
-            </div>
-        </form>
+                <div class="fb-reserve-toolbar__controls">
+                    <button type="submit" class="fb-btn fb-btn--primary">Aplicar recorte</button>
+                    <a class="fb-btn fb-btn--ghost" href="/?r=reservasTematicas/operacao">Hoje</a>
+                </div>
+            </form>
+        </details>
     </section>
 
     <section class="fb-card fb-card--flat fb-checkin-statusbar">
-        <div class="fb-checkin-statusbar__chips">
-            <a class="fb-chip<?= ($filters['status'] ?? '') === '' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('')) ?>">Todas <?= (int) ($summary['total'] ?? 0) ?></a>
-            <a class="fb-chip<?= ($filters['status'] ?? '') === 'Reservada' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('Reservada')) ?>">Aguardando <?= (int) ($summary['reservada'] ?? 0) ?></a>
+        <div class="fb-checkin-statusbar__chips" data-fb-checkin-chips>
+            <button type="button" class="fb-chip fb-chip--active" data-status-filter="">Todas <?= (int) ($summary['total'] ?? 0) ?></button>
+            <button type="button" class="fb-chip" data-status-filter="aguardando">Aguardando <?= (int) ($summary['reservada'] ?? 0) ?></button>
             <?php if ((int) ($summary['pre_reserva'] ?? 0) > 0): ?>
-                <a class="fb-chip<?= ($filters['status'] ?? '') === 'Pre-reserva' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('Pre-reserva')) ?>">UH pendente <?= (int) $summary['pre_reserva'] ?></a>
+                <button type="button" class="fb-chip" data-status-filter="pre">UH pendente <?= (int) $summary['pre_reserva'] ?></button>
             <?php endif; ?>
-            <a class="fb-chip<?= ($filters['status'] ?? '') === 'Finalizada' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('Finalizada')) ?>">Finalizadas <?= (int) ($summary['finalizada'] ?? 0) ?></a>
-            <a class="fb-chip<?= ($filters['status'] ?? '') === 'Nao compareceu' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('Nao compareceu')) ?>">No-show <?= (int) ($summary['nao_compareceu'] ?? 0) ?></a>
-            <a class="fb-chip<?= ($filters['status'] ?? '') === 'Cancelada' ? ' fb-chip--active' : '' ?>" href="<?= h($statusLink('Cancelada')) ?>">Canceladas <?= (int) ($summary['cancelada'] ?? 0) ?></a>
+            <button type="button" class="fb-chip" data-status-filter="finalizada">Finalizadas <?= (int) ($summary['finalizada'] ?? 0) ?></button>
+            <button type="button" class="fb-chip" data-status-filter="no_show">No-show <?= (int) ($summary['nao_compareceu'] ?? 0) ?></button>
+            <button type="button" class="fb-chip" data-status-filter="cancelada">Canceladas <?= (int) ($summary['cancelada'] ?? 0) ?></button>
         </div>
     </section>
 
@@ -221,9 +216,15 @@ if ($capacidadeTurno !== null) {
             <div class="fb-card fb-empty">
                 <i class="bi bi-calendar-heart"></i>
                 <p class="fb-empty__title">Nenhuma reserva neste recorte</p>
-                <p>Ajuste o filtro ou confira a data e o turno selecionados.</p>
+                <p>Ajuste o recorte ou confira a data e o turno selecionados.</p>
             </div>
         <?php endif; ?>
+
+        <div class="fb-card fb-empty" data-fb-checkin-noresults hidden>
+            <i class="bi bi-search"></i>
+            <p class="fb-empty__title">Nada encontrado</p>
+            <p>Nenhuma reserva bate com a busca ou o filtro atual.</p>
+        </div>
 
         <?php foreach ($gruposReserva as $grupo): ?>
             <?php
@@ -277,8 +278,9 @@ if ($capacidadeTurno !== null) {
                     if (in_array($estado, ['finalizada', 'no_show', 'cancelada'], true)) {
                         $bilheteClasses .= ' is-muted';
                     }
+                    $buscaBilhete = mb_strtolower(trim($uhNumero . ' ' . $titular . ' ' . $grupoDisplay . ' ' . $nomeRestauranteCurto), 'UTF-8');
                     ?>
-                    <article class="<?= h($bilheteClasses) ?>" style="--fb-bilhete-accent: <?= h($identReserva['cor']) ?>;">
+                    <article class="<?= h($bilheteClasses) ?>" style="--fb-bilhete-accent: <?= h($identReserva['cor']) ?>;" data-estado="<?= h($estado) ?>" data-busca="<?= h($buscaBilhete) ?>">
                         <div class="fb-bilhete__rail">
                             <span class="fb-bilhete__hora"><?= h((string) ($reserva['turno_hora'] ?? $grupoHora)) ?></span>
                             <i class="bi <?= h($identReserva['icone']) ?> fb-bilhete__railicon" aria-hidden="true"></i>
@@ -330,20 +332,17 @@ if ($capacidadeTurno !== null) {
                                         <span>Abra a conferência para vincular a habitação antes do check-in.</span>
                                     </div>
                                 <?php else: ?>
-                                    <details class="fb-checkin-card__details">
-                                        <summary class="fb-btn fb-btn--primary"><i class="bi bi-check2-circle"></i> Confirmar entrada</summary>
-                                        <form method="post" action="/?r=reservasTematicas/operacao" class="fb-checkin-inline-form">
-                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                            <input type="hidden" name="action" value="quick_status">
-                                            <input type="hidden" name="quick_action" value="finalizar">
-                                            <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
-                                            <div>
-                                                <label class="fb-label">PAX presentes</label>
-                                                <input type="number" min="0" inputmode="numeric" class="fb-input" name="pax_real" value="<?= $paxReserva ?>">
-                                            </div>
-                                            <button type="submit" class="fb-btn fb-btn--primary">Salvar confirmação</button>
-                                        </form>
-                                    </details>
+                                    <form method="post" action="/?r=reservasTematicas/operacao" class="fb-checkin-inline-form">
+                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                        <input type="hidden" name="action" value="quick_status">
+                                        <input type="hidden" name="quick_action" value="finalizar">
+                                        <input type="hidden" name="id" value="<?= (int) $reserva['id'] ?>">
+                                        <div class="fb-checkin-pax">
+                                            <label class="fb-label" for="pax-<?= (int) $reserva['id'] ?>">PAX presentes</label>
+                                            <input type="number" min="0" inputmode="numeric" class="fb-input" id="pax-<?= (int) $reserva['id'] ?>" name="pax_real" value="<?= $paxReserva ?>">
+                                        </div>
+                                        <button type="submit" class="fb-btn fb-btn--primary fb-checkin-confirm"><i class="bi bi-check2-circle"></i> Confirmar entrada</button>
+                                    </form>
                                 <?php endif; ?>
 
                                 <details class="fb-checkin-card__details">

@@ -30,3 +30,4 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <script src="/assets/js/fb-filters.js?v=20260705g" defer></script>
 <script src="/assets/js/fb-launcher.js?v=20260711a" defer></script>
+<script src="/assets/js/fb-checkin.js?v=20260711a" defer></script>

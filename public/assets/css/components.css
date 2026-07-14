@@ -595,17 +595,27 @@
 .fb-rest-selo {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
+    gap: 7px;
+    padding: 4px 13px 4px 5px;
     border-radius: 999px;
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1.3;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.25;
     white-space: nowrap;
+    border: 1.5px solid color-mix(in srgb, var(--rest-cor, currentColor) 42%, transparent);
 }
 
 .fb-rest-selo i {
-    font-size: 0.9em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 23px;
+    height: 23px;
+    border-radius: 50%;
+    background: var(--rest-cor, currentColor);
+    color: #fff;
+    font-size: 12px;
+    flex: 0 0 auto;
 }
 
 .fb-rest-icon {
@@ -617,6 +627,28 @@
     border-radius: 9px;
     font-size: 17px;
     flex: 0 0 auto;
+}
+
+/* "Você está em [RESTAURANTE]" — contexto do restaurante bem destacado
+   (legibilidade para a equipe: identifica o posto num relance). */
+.fb-rest-hero { display: flex; align-items: center; gap: 14px; }
+.fb-rest-hero__icon {
+    width: 58px; height: 58px; border-radius: 16px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 2rem;
+    background: color-mix(in srgb, var(--rest-cor, var(--fb-muted)) 16%, var(--fb-card));
+    color: var(--rest-cor, var(--fb-muted));
+    border: 2px solid color-mix(in srgb, var(--rest-cor, var(--fb-muted)) 45%, transparent);
+}
+.fb-rest-hero__eyebrow {
+    display: block; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--fb-muted); font-weight: 700;
+}
+.fb-rest-hero__name {
+    display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.1; color: var(--fb-ink);
+}
+.fb-rest-hero__op {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.92rem; color: var(--fb-muted); font-weight: 600; margin-top: 3px;
 }
 
 .fb-rest-dot {
@@ -796,3 +828,171 @@
     .fb-launcher .fb-launcher__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .fb-launcher .fb-launcher__grid--admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* ============ iniciar turno: seleção visual (access/start) ============ */
+.fb-startshift-page { display: grid; gap: var(--fb-space-4); }
+.fb-startshift { display: grid; gap: var(--fb-space-4); }
+.fb-startshift__step { display: grid; gap: 12px; }
+.fb-startshift__steplabel {
+    display: flex; align-items: center; gap: 8px; margin: 0;
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--fb-muted);
+}
+.fb-startshift__steplabel span {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--fb-soft); color: var(--fb-ink);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 0.74rem; font-weight: 700;
+}
+.fb-startshift__cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
+}
+.fb-startpick {
+    position: relative;
+    isolation: isolate;
+    -webkit-appearance: none; appearance: none;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 18px 12px; border-radius: 16px; border: 2px solid var(--fb-border);
+    background-color: var(--fb-card); color: var(--fb-ink); font-family: inherit; cursor: pointer;
+    text-align: center; transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.fb-startpick:hover { transform: translateY(-2px); }
+.fb-startpick:active { transform: translateY(0); }
+.fb-startpick.is-picked { border-color: var(--fb-pick-accent, var(--fb-ink)); }
+/* Tint do selecionado via camada (cor plana + opacity), robusto em qualquer motor. */
+.fb-startpick.is-picked::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--fb-pick-accent, var(--fb-ink)); opacity: 0.10;
+    z-index: -1; pointer-events: none;
+}
+.fb-startpick__icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; flex: 0 0 auto;
+    background-color: color-mix(in srgb, var(--fb-pick-accent, var(--fb-muted)) 16%, var(--fb-card));
+    color: var(--fb-pick-accent, var(--fb-muted));
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+.fb-startpick.is-picked .fb-startpick__icon { background-color: var(--fb-pick-accent, var(--fb-ink)); color: #fff; }
+.fb-startpick__name { font-size: 0.98rem; font-weight: 600; }
+
+/* Check no canto do cartão de restaurante selecionado (identificação clara). */
+.fb-startshift__cards .fb-startpick.is-picked::after {
+    content: "✓";
+    position: absolute; top: 8px; right: 8px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--fb-pick-accent, var(--fb-ink)); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 700; line-height: 1;
+}
+
+.fb-startshift__services { display: grid; gap: 8px; }
+.fb-startpick--service {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 16px; text-align: left;
+}
+/* "agora" chama a atenção antes mesmo do toque. */
+.fb-startpick--service.is-now:not(.is-picked) {
+    border-color: color-mix(in srgb, var(--fb-ok) 45%, var(--fb-border));
+}
+.fb-startpick--service.is-picked {
+    border-color: var(--fb-pick-accent, var(--fb-ink));
+    box-shadow: inset 4px 0 0 var(--fb-pick-accent, var(--fb-ink));
+}
+/* Turno encerrado = só identificação: não selecionável, sem hover, cursor normal. */
+.fb-startpick--service.is-past { opacity: 0.55; }
+.fb-startpick:disabled,
+.fb-startpick--service.is-past { cursor: default; }
+.fb-startpick:disabled:hover,
+.fb-startpick--service.is-past:hover { transform: none; border-color: var(--fb-border); }
+.fb-startpick__body { display: grid; gap: 3px; min-width: 0; }
+.fb-startpick--service .fb-startpick__name { font-size: 1rem; }
+.fb-startpick__window { font-size: 0.88rem; color: var(--fb-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.fb-startpick__badge {
+    flex: 0 0 auto; font-size: 0.74rem; font-weight: 700;
+    border-radius: 999px; padding: 4px 12px;
+}
+.fb-startpick__badge--now { background: var(--fb-ok-bg); color: var(--fb-ok); }
+.fb-startpick__badge--past { background: var(--fb-soft); color: var(--fb-muted); }
+
+.fb-startshift__doors { display: flex; gap: 8px; flex-wrap: wrap; }
+.fb-startshift__doors .fb-chip { min-height: 44px; font-size: 0.92rem; padding: 8px 18px; }
+.fb-startshift__doors .fb-chip.is-picked {
+    background: var(--fb-pick-accent, var(--fb-ink));
+    border-color: var(--fb-pick-accent, var(--fb-ink));
+    color: #fff;
+}
+
+.fb-startshift__confirm {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    border-radius: 12px; border: 1px solid var(--fb-warn); background: var(--fb-warn-bg);
+    color: var(--fb-ink); font-size: 0.95rem; cursor: pointer;
+}
+.fb-startshift__confirm input { width: 20px; height: 20px; flex: 0 0 auto; }
+
+.fb-startshift__footer {
+    display: flex; align-items: center; gap: var(--fb-space-3); flex-wrap: wrap;
+    padding: 16px; border-radius: 14px;
+    border: 1px solid var(--fb-border); background: var(--fb-card);
+}
+.fb-startshift__summary { flex: 1 1 200px; margin: 0; font-size: 0.98rem; color: var(--fb-muted); }
+.fb-startshift__summary.is-set { color: var(--fb-ink); font-weight: 600; }
+.fb-startshift__footer .fb-btn { flex: 0 0 auto; }
+@media (max-width: 560px) {
+    .fb-startshift__footer .fb-btn { flex: 1 1 100%; }
+}
+
+/* ============ wizard de iniciar turno (um passo por tela) ============ */
+.fb-startwiz { display: grid; gap: var(--fb-space-4); max-width: 600px; margin: 0 auto; }
+.fb-startwiz__bar { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.fb-startwiz__back {
+    -webkit-appearance: none; appearance: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: 0; color: var(--fb-muted); font-family: inherit;
+    font-size: 0.92rem; font-weight: 600; cursor: pointer; padding: 6px 4px;
+}
+.fb-startwiz__back:hover { color: var(--fb-ink); }
+.fb-startwiz__dots { display: flex; gap: 7px; margin-left: auto; }
+.fb-startwiz__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fb-border); transition: background 0.15s ease, transform 0.15s ease; }
+.fb-startwiz__dot.is-active { background: var(--fb-ink); transform: scale(1.2); }
+.fb-startwiz__dot.is-done { background: var(--fb-muted); }
+.fb-startwiz__panel { display: grid; gap: 14px; }
+.fb-startwiz__title { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: var(--fb-ink); }
+.fb-startwiz__hint { margin: -6px 0 4px; color: var(--fb-muted); font-size: 0.95rem; }
+
+/* Passo 1: cartões de restaurante grandes, em grade de 2 colunas (pares: 2x2, 2x3…). */
+.fb-startshift__cards--lg { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.fb-startpick--lg { padding: 26px 14px; gap: 14px; }
+.fb-startpick--lg .fb-startpick__icon { width: 68px; height: 68px; border-radius: 18px; font-size: 2.1rem; }
+.fb-startpick--lg .fb-startpick__name { font-size: 1.05rem; }
+
+/* Desktop: o wizard vira um cartão contido e centralizado, com respiro. */
+@media (min-width: 992px) {
+    .fb-startwiz {
+        max-width: 600px;
+        margin: clamp(24px, 5vh, 60px) auto;
+        padding: 30px 40px 36px;
+        gap: 22px;
+        background: var(--fb-card);
+        border: 1px solid var(--fb-border);
+        border-radius: 22px;
+        box-shadow: var(--fb-shadow-2);
+    }
+    .fb-startwiz__panel { gap: 18px; }
+    .fb-startwiz__title { font-size: 1.7rem; }
+    .fb-startwiz__hint { font-size: 1rem; }
+}
+
+/* Passo confirmar: resumo */
+.fb-startwiz__review { display: grid; gap: 10px; }
+.fb-startwiz__reviewrow {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border: 1px solid var(--fb-border); border-radius: 14px; background: var(--fb-card);
+}
+.fb-startwiz__reviewicon {
+    width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    background: color-mix(in srgb, var(--fb-pick-accent, var(--fb-muted)) 16%, var(--fb-card));
+    color: var(--fb-pick-accent, var(--fb-muted));
+}
+.fb-startwiz__reviewrow > div { display: grid; min-width: 0; }
+.fb-startwiz__reviewlabel { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fb-muted); font-weight: 700; }
+.fb-startwiz__reviewval { font-size: 1.02rem; font-weight: 600; color: var(--fb-ink); }

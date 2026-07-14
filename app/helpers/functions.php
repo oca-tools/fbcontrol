@@ -460,6 +460,6 @@ function restaurante_selo($restaurante, string $variante = 'chip'): string
 
     $nome = is_array($restaurante) ? (string)($restaurante['nome'] ?? '') : (string)$restaurante;
     $nomeCurto = (string)preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake($nome));
-    return '<span class="fb-rest-selo" style="background:' . h($identidade['bg']) . ';color:' . h($identidade['texto']) . '">'
+    return '<span class="fb-rest-selo" style="--rest-cor:' . h($identidade['cor']) . ';background:' . h($identidade['bg']) . ';color:' . h($identidade['texto']) . '">'
         . '<i class="' . $classeIcone . '" aria-hidden="true"></i>' . h($nomeCurto) . '</span>';
 }

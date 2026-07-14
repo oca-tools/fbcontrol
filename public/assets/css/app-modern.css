@@ -1130,6 +1130,84 @@ body.mobile-beginner .form-label {
     gap: var(--fb-space-2);
 }
 
+/* Chip de status como <button> (paridade visual com o <a>.fb-chip) */
+button.fb-chip {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* Barra de busca instantânea da fila de check-in + recorte recolhível */
+.fb-checkin-searchbar {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--fb-space-3);
+    flex-wrap: wrap;
+    padding: var(--fb-space-3) var(--fb-space-4);
+}
+.fb-checkin-search {
+    position: relative;
+    flex: 1 1 260px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.fb-checkin-search > i {
+    position: absolute;
+    left: 14px;
+    color: var(--fb-muted);
+    font-size: 1rem;
+    pointer-events: none;
+}
+.fb-checkin-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 46px;
+    padding: 0 14px 0 40px;
+    border-radius: 12px;
+    border: 1px solid var(--fb-border);
+    background: var(--fb-card);
+    color: var(--fb-ink);
+    font-size: 1rem;
+    font-family: inherit;
+}
+.fb-checkin-search input:focus {
+    outline: none;
+    border-color: var(--fb-action);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fb-action) 22%, transparent);
+}
+.fb-checkin-search__count {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--fb-muted);
+    white-space: nowrap;
+}
+.fb-checkin-recorte {
+    flex: 0 0 auto;
+}
+.fb-checkin-recorte[open] {
+    flex: 1 1 100%;
+}
+.fb-checkin-recorte > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+}
+.fb-checkin-recorte > summary::-webkit-details-marker {
+    display: none;
+}
+.fb-checkin-recorte__form {
+    display: grid;
+    gap: var(--fb-space-3);
+    margin-top: var(--fb-space-3);
+    width: 100%;
+}
+
+/* Check-in: campo de PAX visível (sem expander) + confirmar em alvo confortável */
+.fb-checkin-confirm {
+    min-height: 46px;
+}
+
 .fb-checkin-list {
     display: grid;
     gap: var(--fb-space-3);

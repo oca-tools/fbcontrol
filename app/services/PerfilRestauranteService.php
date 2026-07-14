@@ -78,6 +78,12 @@ final class PerfilRestauranteService
         if (strpos($flat, 'ix') !== false) {
             return ['cor' => '#6C5CB0', 'icone' => 'bi-star'];
         }
+        if (strpos($flat, 'privileg') !== false) {
+            return ['cor' => '#2E6FA8', 'icone' => 'bi-award'];
+        }
+        if (strpos($flat, 'vip') !== false) {
+            return ['cor' => '#B07D2A', 'icone' => 'bi-gem'];
+        }
         return self::IDENTIDADE_NEUTRA;
     }
 

@@ -151,123 +151,110 @@ $showHostessTutorial = false;
 
 <div class="saas-page access-page">
 <?php if ($mode === 'start'): ?>
-    <div class="row justify-content-center access-start-grid">
-        <div class="col-12 col-lg-8">
-            <div class="card p-4 saas-hero-card">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <div class="text-uppercase text-muted small">Turno operacional</div>
-                        <h3 class="fw-bold mb-1">Iniciar turno</h3>
-                        <p class="text-muted mb-0">Selecione o restaurante e a Operação do seu turno.</p>
-                    </div>
-                    <div class="d-flex gap-2 flex-wrap justify-content-end">
-                        <?php if ($allowHostessTutorial): ?>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="openHostessTutorialStart">
-                                <i class="bi bi-mortarboard me-1"></i>Tutorial
+    <div class="fb-startwiz" id="startWiz">
+        <div class="fb-startwiz__bar">
+            <button type="button" class="fb-startwiz__back" id="wizBack" hidden><i class="bi bi-arrow-left"></i> Voltar</button>
+            <div class="fb-startwiz__dots" id="wizDots" aria-hidden="true"></div>
+        </div>
+
+        <?php if ($toleranceAlert): ?>
+            <div class="app-inline-note is-warning"><?= h($toleranceAlert) ?></div>
+        <?php endif; ?>
+
+        <form method="post" action="/?r=access/start" id="startShiftForm" data-single-rest="<?= count($restaurantes) === 1 ? '1' : '0' ?>" data-need-confirm="<?= $needConfirm ? '1' : '0' ?>">
+            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+            <input type="hidden" name="confirm_start" id="confirm_start" value="0">
+            <input type="hidden" name="restaurante_id" id="sel_restaurante" value="<?= h((string)($preselect['restaurante_id'] ?? '')) ?>">
+            <input type="hidden" name="operacao_id" id="sel_operacao" value="<?= h((string)($preselect['operacao_id'] ?? '')) ?>">
+            <input type="hidden" name="porta_id" id="sel_porta" value="<?= h((string)($preselect['porta_id'] ?? '')) ?>">
+
+            <section class="fb-startwiz__panel" data-wstep="restaurante">
+                <h2 class="fb-startwiz__title">Onde você está?</h2>
+                <p class="fb-startwiz__hint">Toque no seu restaurante.</p>
+                <div class="fb-startshift__cards fb-startshift__cards--lg">
+                    <?php foreach ($restaurantes as $rest): ?>
+                        <?php $identStart = restaurante_identidade($rest); ?>
+                        <button type="button" class="fb-startpick fb-startpick--lg" data-pick-rest="<?= (int)$rest['id'] ?>" style="--fb-pick-accent: <?= h($identStart['cor']) ?>;">
+                            <span class="fb-startpick__icon"><i class="bi <?= h($identStart['icone']) ?>" aria-hidden="true"></i></span>
+                            <span class="fb-startpick__name"><?= h(normalize_mojibake((string)$rest['nome'])) ?></span>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+
+            <section class="fb-startwiz__panel" data-wstep="operacao" hidden>
+                <h2 class="fb-startwiz__title">Qual serviço?</h2>
+                <p class="fb-startwiz__hint" id="wizRestHint"></p>
+                <?php
+                $agoraStart = date('H:i:s');
+                $identStartMap = [];
+                foreach ($restaurantes as $restIdent) {
+                    $identStartMap[(int)$restIdent['id']] = restaurante_identidade($restIdent);
+                }
+                ?>
+                <?php foreach ($restOps as $restId => $ops): ?>
+                    <?php
+                    // Disponíveis (agora/futuro) por horário no topo; indisponíveis (encerrado) embaixo.
+                    $opsOrdenados = $ops;
+                    usort($opsOrdenados, static function ($a, $b) use ($agoraStart) {
+                        $fimA = (string)($a['hora_fim'] ?? '');
+                        $fimB = (string)($b['hora_fim'] ?? '');
+                        $encA = ($fimA !== '' && $agoraStart > $fimA) ? 1 : 0;
+                        $encB = ($fimB !== '' && $agoraStart > $fimB) ? 1 : 0;
+                        if ($encA !== $encB) {
+                            return $encA <=> $encB;
+                        }
+                        return strcmp((string)($a['hora_inicio'] ?? ''), (string)($b['hora_inicio'] ?? ''));
+                    });
+                    ?>
+                    <div class="fb-startshift__services" data-rest-group="<?= (int)$restId ?>" style="--fb-pick-accent: <?= h($identStartMap[(int)$restId]['cor'] ?? 'var(--fb-ink)') ?>;" hidden>
+                        <?php foreach ($opsOrdenados as $op): ?>
+                            <?php
+                            $inicioOp = (string)($op['hora_inicio'] ?? '');
+                            $fimOp = (string)($op['hora_fim'] ?? '');
+                            $ehAgora = $inicioOp !== '' && $fimOp !== '' && $agoraStart >= $inicioOp && $agoraStart <= $fimOp;
+                            $encerradoOp = $fimOp !== '' && $agoraStart > $fimOp;
+                            ?>
+                            <button type="button" class="fb-startpick fb-startpick--service<?= $ehAgora ? ' is-now' : ($encerradoOp ? ' is-past' : '') ?>"<?= $encerradoOp ? '' : ' data-pick-op="' . (int)$op['operacao_id'] . '"' ?> data-rest="<?= (int)$restId ?>" data-now="<?= $ehAgora ? '1' : '0' ?>"<?= $encerradoOp ? ' disabled aria-disabled="true"' : '' ?>>
+                                <span class="fb-startpick__body">
+                                    <span class="fb-startpick__name"><?= h(normalize_mojibake((string)$op['operacao'])) ?></span>
+                                    <span class="fb-startpick__window"><?= h(substr($inicioOp, 0, 5)) ?> – <?= h(substr($fimOp, 0, 5)) ?></span>
+                                </span>
+                                <?php if ($ehAgora): ?>
+                                    <span class="fb-startpick__badge fb-startpick__badge--now">agora</span>
+                                <?php elseif ($encerradoOp): ?>
+                                    <span class="fb-startpick__badge fb-startpick__badge--past">encerrado</span>
+                                <?php endif; ?>
                             </button>
-                        <?php endif; ?>
-                        <span class="turno-pill">Checklist rápido</span>
+                        <?php endforeach; ?>
                     </div>
-                </div>
+                <?php endforeach; ?>
+            </section>
 
-                <?php if ($toleranceAlert): ?>
-                    <div class="app-inline-note is-warning"><?= h($toleranceAlert) ?></div>
+            <section class="fb-startwiz__panel" data-wstep="porta" hidden>
+                <h2 class="fb-startwiz__title">Qual porta?</h2>
+                <p class="fb-startwiz__hint">Selecione a entrada do seu posto.</p>
+                <?php foreach ($doorsByRestaurant as $restId => $doors): ?>
+                    <div class="fb-startshift__doors" data-door-group="<?= (int)$restId ?>" style="--fb-pick-accent: <?= h($identStartMap[(int)$restId]['cor'] ?? 'var(--fb-ink)') ?>;" hidden>
+                        <?php foreach ($doors as $door): ?>
+                            <button type="button" class="fb-chip" data-pick-door="<?= (int)$door['id'] ?>" data-rest="<?= (int)$restId ?>"><?= h(normalize_mojibake((string)$door['nome'])) ?></button>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            </section>
+
+            <section class="fb-startwiz__panel" data-wstep="confirmar" hidden>
+                <h2 class="fb-startwiz__title">Pronto para iniciar</h2>
+                <div class="fb-startwiz__review" id="wizReview"></div>
+                <?php if ($needConfirm): ?>
+                    <label class="fb-startshift__confirm">
+                        <input type="checkbox" value="1" id="confirm_early" name="confirm_early" required>
+                        <span>Confirmo o início fora do horário permitido.</span>
+                    </label>
                 <?php endif; ?>
-
-<?php if ($needConfirm): ?>
-                    <div class="app-inline-note is-warning">
-                        O turno está sendo iniciado fora do horário. Confirme para continuar.
-                    </div>
-                <?php endif; ?>
-
-                <form method="post" action="/?r=access/start">
-                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                    <input type="hidden" name="confirm_start" id="confirm_start" value="0">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label">Restaurante</label>
-                            <select class="form-select input-xl" name="restaurante_id" id="restaurante_id" required>
-                                <option value="">Selecione</option>
-                                <?php foreach ($restaurantes as $rest): ?>
-                                    <option value="<?= (int)$rest['id'] ?>" <?= ($preselect['restaurante_id'] ?? '') == $rest['id'] ? 'selected' : '' ?>>
-                                        <?= h($rest['nome']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label">Operação</label>
-                            <select class="form-select input-xl" name="operacao_id" id="operacao_id" required>
-                                <option value="">Selecione</option>
-                                <?php foreach ($restOps as $restId => $ops): ?>
-                                    <?php foreach ($ops as $op): ?>
-                                        <option value="<?= (int)$op['operacao_id'] ?>"
-                                            data-rest="<?= (int)$restId ?>"
-                                            <?= ($preselect['operacao_id'] ?? '') == $op['operacao_id'] ? 'selected' : '' ?>>
-                                            <?= h($op['operacao']) ?> (<?= h($op['hora_inicio']) ?> - <?= h($op['hora_fim']) ?>)
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="col-12" id="porta_wrapper" style="display:none;">
-                            <label class="form-label">Porta</label>
-                            <select class="form-select input-xl" name="porta_id" id="porta_id">
-                                <option value="">Selecione</option>
-                                <?php foreach ($doorsByRestaurant as $restId => $doors): ?>
-                                    <?php foreach ($doors as $door): ?>
-                                        <option value="<?= (int)$door['id'] ?>" data-rest="<?= (int)$restId ?>"
-                                            <?= ($preselect['porta_id'] ?? '') == $door['id'] ? 'selected' : '' ?>>
-                                            <?= h($door['nome']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <?php if ($needConfirm): ?>
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="1" id="confirm_early" name="confirm_early" required>
-                                    <label class="form-check-label" for="confirm_early">
-                                    Confirmo o início fora do horário.
-                                    </label>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-
-                        <div class="col-12">
-                            <div class="app-inline-note is-secondary mb-0">
-                                <strong>Checklist:</strong> confirme restaurante, operação e porta antes de iniciar.
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <button class="fb-btn fb-btn--primary fb-btn--lg w-100" id="startShiftBtn" disabled>Iniciar turno</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-
-    <div id="startShiftConfirm" class="export-toast-wrap" style="display:none;">
-        <div class="export-toast" style="max-width:min(92vw,640px);">
-            <div class="ok-icon" style="background:linear-gradient(135deg,#f97316,#fb923c);">
-                <i class="bi bi-play-fill"></i>
-            </div>
-            <div class="flex-grow-1">
-                <div class="txt mb-1" id="startShiftConfirmTitle">Confirmar início do turno</div>
-                <div class="small text-muted" id="startShiftConfirmBody"></div>
-                <div class="mt-3 d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-outline-secondary" id="startShiftNo">Não</button>
-                    <button type="button" class="btn btn-primary" id="startShiftYes">Sim, iniciar turno</button>
-                </div>
-            </div>
-        </div>
+                <button type="submit" class="fb-btn fb-btn--primary fb-btn--lg" id="startShiftBtn"><i class="bi bi-play-fill"></i> Iniciar turno</button>
+            </section>
+        </form>
     </div>
     <?php if ($allowHostessTutorial): ?>
     <div class="modal fade" id="hostessTutorialModalStart" tabindex="-1" aria-hidden="true">
@@ -309,157 +296,172 @@ $showHostessTutorial = false;
     <?php endif; ?>
     <script>
     const draftKey = 'ab_turno_start_draft';
-    const restauranteSelect = document.getElementById('restaurante_id');
-    const operacaoSelect = document.getElementById('operacao_id');
-    const portaSelect = document.getElementById('porta_id');
-    const portaWrapper = document.getElementById('porta_wrapper');
-    const startBtn = document.getElementById('startShiftBtn');
+    const startForm = document.getElementById('startShiftForm');
+    const wiz = document.getElementById('startWiz');
+    const selRest = document.getElementById('sel_restaurante');
+    const selOp = document.getElementById('sel_operacao');
+    const selPorta = document.getElementById('sel_porta');
     const needConfirm = <?= $needConfirm ? 'true' : 'false' ?>;
     const confirmEarly = document.getElementById('confirm_early');
-    const startForm = document.querySelector("form[action='/?r=access/start']");
     const confirmStart = document.getElementById('confirm_start');
-    const confirmBox = document.getElementById('startShiftConfirm');
-    const confirmBody = document.getElementById('startShiftConfirmBody');
-    const btnNo = document.getElementById('startShiftNo');
-    const btnYes = document.getElementById('startShiftYes');
-    let pendingSubmit = false;
-
-    function filterOptions(select, restId) {
-        Array.from(select.options).forEach((opt) => {
-            if (!opt.dataset.rest) return;
-            opt.style.display = opt.dataset.rest === restId ? 'block' : 'none';
-        });
-    }
-
-    function canStartShift() {
-        const hasRestaurant = restauranteSelect.value !== '';
-        const hasOperacao = operacaoSelect.value !== '';
-        const doorVisible = portaWrapper.style.display !== 'none';
-        const hasDoor = !doorVisible || portaSelect.value !== '';
-        return hasRestaurant && hasOperacao && hasDoor;
-    }
-
-    function updateStartButtonState() {
-        if (startBtn) startBtn.disabled = !canStartShift();
-    }
-
-    function updateFilters() {
-        const restId = restauranteSelect.value;
-        filterOptions(operacaoSelect, restId);
-        filterOptions(portaSelect, restId);
-
-        const opSelected = operacaoSelect.options[operacaoSelect.selectedIndex];
-        if (opSelected && opSelected.dataset.rest && opSelected.dataset.rest !== restId) {
-            operacaoSelect.value = '';
-        }
-        const doorSelected = portaSelect.options[portaSelect.selectedIndex];
-        if (doorSelected && doorSelected.dataset.rest && doorSelected.dataset.rest !== restId) {
-            portaSelect.value = '';
-        }
-
-        const hasPorta = Array.from(portaSelect.options).some(opt => opt.dataset.rest === restId);
-        portaWrapper.style.display = hasPorta ? 'block' : 'none';
-        updateStartButtonState();
-    }
-
-    function buildStartSummary() {
-        const userName = '<?= h(Auth::user()['nome'] ?? '') ?>';
-        const restLabel = restauranteSelect?.selectedOptions?.[0]?.text || 'N/D';
-        const opLabel = operacaoSelect?.selectedOptions?.[0]?.text || 'N/D';
-        const doorLabel = (portaWrapper?.style?.display !== 'none' ? (portaSelect?.selectedOptions?.[0]?.text || 'N/D') : 'N/A');
-        let html = ''
-            + '<strong>Usuário:</strong> ' + userName + '<br>'
-            + '<strong>Restaurante:</strong> ' + restLabel + '<br>'
-            + '<strong>Operação:</strong> ' + opLabel + '<br>'
-            + '<strong>Porta:</strong> ' + doorLabel;
-        if (needConfirm) {
-            html += '<br><span class="status-warning">Atenção: início fora do horário permitido.</span>';
-        }
-        return html;
-    }
-
-    function openStartConfirm() {
-        if (!confirmBox || !confirmBody) return;
-        confirmBody.innerHTML = buildStartSummary();
-        confirmBox.style.display = 'flex';
-    }
-
-    function closeStartConfirm() {
-        if (confirmBox) confirmBox.style.display = 'none';
-    }
-
-    restauranteSelect.addEventListener('change', updateFilters);
-    operacaoSelect.addEventListener('change', updateStartButtonState);
-    portaSelect.addEventListener('change', updateStartButtonState);
-    updateFilters();
-
-    const draft = JSON.parse(localStorage.getItem(draftKey) || '{}');
-    if (draft.restaurante_id) restauranteSelect.value = draft.restaurante_id;
-    updateFilters();
-    if (draft.operacao_id) operacaoSelect.value = draft.operacao_id;
-    if (draft.porta_id) portaSelect.value = draft.porta_id;
-    updateStartButtonState();
-
-    function saveDraft() {
-        localStorage.setItem(draftKey, JSON.stringify({
-            restaurante_id: restauranteSelect.value,
-            operacao_id: operacaoSelect.value,
-            porta_id: portaSelect.value
-        }));
-    }
-    restauranteSelect.addEventListener('change', saveDraft);
-    operacaoSelect.addEventListener('change', saveDraft);
-    portaSelect.addEventListener('change', saveDraft);
-
     let dirty = false;
-    function markDirty() { dirty = true; }
-    restauranteSelect.addEventListener('change', markDirty);
-    operacaoSelect.addEventListener('change', markDirty);
-    portaSelect.addEventListener('change', markDirty);
 
-    window.addEventListener('beforeunload', (e) => {
-        if (!dirty) return;
-        e.preventDefault();
-        e.returnValue = '';
-    });
+    if (startForm && wiz) {
+        const singleRest = startForm.dataset.singleRest === '1';
+        const panels = {};
+        Array.prototype.slice.call(startForm.querySelectorAll('[data-wstep]')).forEach(function (p) { panels[p.dataset.wstep] = p; });
+        const stepOp = panels.operacao;
+        const stepPorta = panels.porta;
+        const restCards = Array.prototype.slice.call(startForm.querySelectorAll('[data-pick-rest]'));
+        const opGroups = Array.prototype.slice.call(startForm.querySelectorAll('[data-rest-group]'));
+        const doorGroups = Array.prototype.slice.call(startForm.querySelectorAll('[data-door-group]'));
+        const backBtn = document.getElementById('wizBack');
+        const dotsWrap = document.getElementById('wizDots');
+        const restHint = document.getElementById('wizRestHint');
+        const reviewEl = document.getElementById('wizReview');
+        const labels = { rest: '', op: '', door: '', restIcon: '', restColor: '' };
+        let history = [];
 
-    if (startForm) {
-        startForm.addEventListener('submit', (e) => {
-            if (pendingSubmit) {
-                pendingSubmit = false;
-                dirty = false;
-                return;
+        function opGroupFor(id) { return opGroups.find(function (g) { return g.dataset.restGroup === String(id); }) || null; }
+        function doorGroupFor(id) { return doorGroups.find(function (g) { return g.dataset.doorGroup === String(id); }) || null; }
+        function needsDoor() { return !!doorGroupFor(selRest.value); }
+        function textOf(el, sel) { var n = el.querySelector(sel); return n ? n.textContent.trim() : el.textContent.trim(); }
+        function canStart() { return selRest.value !== '' && selOp.value !== '' && (!needsDoor() || selPorta.value !== ''); }
+
+        function sequence() {
+            var seq = [];
+            if (!singleRest) seq.push('restaurante');
+            seq.push('operacao');
+            if (needsDoor()) seq.push('porta');
+            seq.push('confirmar');
+            return seq;
+        }
+        function renderDots(current) {
+            if (!dotsWrap) return;
+            var seq = sequence();
+            var idx = seq.indexOf(current);
+            var html = '';
+            for (var i = 0; i < seq.length; i++) {
+                html += '<span class="fb-startwiz__dot' + (i === idx ? ' is-active' : (i < idx ? ' is-done' : '')) + '"></span>';
             }
-            if (!canStartShift()) {
-                e.preventDefault();
-                return;
+            dotsWrap.innerHTML = html;
+        }
+        function showPanel(step) {
+            Object.keys(panels).forEach(function (k) { panels[k].hidden = k !== step; });
+            if (backBtn) backBtn.hidden = history.length <= 1;
+            renderDots(step);
+            try { window.scrollTo(0, 0); } catch (e) {}
+        }
+        function goTo(step) {
+            if (history[history.length - 1] !== step) history.push(step);
+            showPanel(step);
+        }
+        function back() {
+            if (history.length > 1) { history.pop(); showPanel(history[history.length - 1]); }
+        }
+
+        function saveDraft() {
+            try {
+                localStorage.setItem(draftKey, JSON.stringify({ restaurante_id: selRest.value, operacao_id: selOp.value, porta_id: selPorta.value }));
+            } catch (e) {}
+        }
+        function clearPicked(root, sel) { root.querySelectorAll(sel + '.is-picked').forEach(function (el) { el.classList.remove('is-picked'); }); }
+
+        function updateReview() {
+            if (!reviewEl) return;
+            var rows = ''
+                + '<div class="fb-startwiz__reviewrow"><span class="fb-startwiz__reviewicon" style="--fb-pick-accent:' + (labels.restColor || '#1F1F1E') + '"><i class="bi ' + (labels.restIcon || 'bi-shop') + '"></i></span><div><span class="fb-startwiz__reviewlabel">Restaurante</span><span class="fb-startwiz__reviewval">' + (labels.rest || '—') + '</span></div></div>'
+                + '<div class="fb-startwiz__reviewrow"><span class="fb-startwiz__reviewicon"><i class="bi bi-clock-history"></i></span><div><span class="fb-startwiz__reviewlabel">Serviço</span><span class="fb-startwiz__reviewval">' + (labels.op || '—') + '</span></div></div>';
+            if (needsDoor()) {
+                rows += '<div class="fb-startwiz__reviewrow"><span class="fb-startwiz__reviewicon"><i class="bi bi-door-open"></i></span><div><span class="fb-startwiz__reviewlabel">Porta</span><span class="fb-startwiz__reviewval">' + (labels.door || '—') + '</span></div></div>';
             }
+            reviewEl.innerHTML = rows;
+        }
+
+        function pickOp(id, card) {
+            selOp.value = String(id);
+            if (stepOp) clearPicked(stepOp, '[data-pick-op]');
+            if (card) card.classList.add('is-picked');
+            labels.op = card ? textOf(card, '.fb-startpick__name') : '';
+            var win = card ? card.querySelector('.fb-startpick__window') : null;
+            if (win && labels.op) { labels.op += ' · ' + win.textContent.trim(); }
+            saveDraft();
+        }
+        function pickDoor(id, chip) {
+            selPorta.value = String(id);
+            if (stepPorta) clearPicked(stepPorta, '[data-pick-door]');
+            if (chip) chip.classList.add('is-picked');
+            labels.door = chip ? chip.textContent.trim() : '';
+            saveDraft();
+        }
+        function pickRest(id, card, skipPreselect) {
+            selRest.value = String(id);
+            restCards.forEach(function (c) { c.classList.toggle('is-picked', c === card); });
+            labels.rest = card ? textOf(card, '.fb-startpick__name') : '';
+            var iconEl = card ? card.querySelector('.fb-startpick__icon i') : null;
+            labels.restIcon = iconEl ? iconEl.className.replace('bi ', '').trim() : '';
+            labels.restColor = card ? card.style.getPropertyValue('--fb-pick-accent').trim() : '';
+            var og = opGroupFor(id);
+            opGroups.forEach(function (g) { g.hidden = g !== og; });
+            selOp.value = ''; labels.op = '';
+            if (og) clearPicked(og, '[data-pick-op]');
+            var dg = doorGroupFor(id);
+            doorGroups.forEach(function (g) { g.hidden = g !== dg; });
+            selPorta.value = ''; labels.door = '';
+            if (dg) clearPicked(dg, '[data-pick-door]');
+            if (restHint) restHint.textContent = labels.rest;
+            if (!skipPreselect && og) {
+                var nowCard = og.querySelector('[data-now="1"]');
+                if (nowCard) { pickOp(nowCard.dataset.pickOp, nowCard); }
+            }
+            saveDraft();
+        }
+
+        startForm.addEventListener('click', function (e) {
+            var rest = e.target.closest ? e.target.closest('[data-pick-rest]') : null;
+            if (rest) { dirty = true; pickRest(rest.dataset.pickRest, rest, false); goTo('operacao'); return; }
+            var op = e.target.closest ? e.target.closest('[data-pick-op]') : null;
+            if (op) { dirty = true; pickOp(op.dataset.pickOp, op); updateReview(); goTo(needsDoor() ? 'porta' : 'confirmar'); return; }
+            var door = e.target.closest ? e.target.closest('[data-pick-door]') : null;
+            if (door) { dirty = true; pickDoor(door.dataset.pickDoor, door); updateReview(); goTo('confirmar'); return; }
+        });
+        if (backBtn) backBtn.addEventListener('click', back);
+
+        // Restaura seleção (preseleção do servidor > rascunho); wizard começa no 1º passo.
+        var draft = {};
+        try { draft = JSON.parse(localStorage.getItem(draftKey) || '{}'); } catch (e) { draft = {}; }
+        var initRest = selRest.value || draft.restaurante_id || (singleRest && restCards.length === 1 ? restCards[0].dataset.pickRest : '');
+        if (initRest) {
+            var rc = restCards.find(function (c) { return c.dataset.pickRest === String(initRest); }) || null;
+            var initOp = selOp.value || draft.operacao_id || '';
+            pickRest(initRest, rc, initOp !== '');
+            if (initOp !== '') {
+                var og2 = opGroupFor(initRest);
+                var opCard = og2 ? og2.querySelector('[data-pick-op="' + initOp + '"]') : null;
+                if (opCard) { pickOp(initOp, opCard); }
+            }
+            var initDoor = selPorta.value || draft.porta_id || '';
+            if (initDoor !== '') {
+                var dg2 = doorGroupFor(initRest);
+                var doorChip = dg2 ? dg2.querySelector('[data-pick-door="' + initDoor + '"]') : null;
+                if (doorChip) { pickDoor(initDoor, doorChip); }
+            }
+            updateReview();
+        }
+        history = [(singleRest && selRest.value !== '') ? 'operacao' : 'restaurante'];
+        showPanel(history[0]);
+
+        window.addEventListener('beforeunload', function (e) {
+            if (!dirty) return;
             e.preventDefault();
-            openStartConfirm();
+            e.returnValue = '';
         });
-    }
 
-    if (btnNo) {
-        btnNo.addEventListener('click', () => {
-            pendingSubmit = false;
-            closeStartConfirm();
-        });
-    }
-    if (confirmBox) {
-        confirmBox.addEventListener('click', (e) => {
-            if (e.target === confirmBox) {
-                pendingSubmit = false;
-                closeStartConfirm();
-            }
-        });
-    }
-    if (btnYes) {
-        btnYes.addEventListener('click', () => {
-            if (needConfirm && confirmEarly) confirmEarly.checked = true;
-            if (confirmStart) confirmStart.value = '1';
-            pendingSubmit = true;
-            closeStartConfirm();
-            startForm?.requestSubmit();
+        startForm.addEventListener('submit', function (e) {
+            if (!canStart()) { e.preventDefault(); goTo('restaurante'); return; }
+            if (needConfirm && confirmEarly) { confirmEarly.checked = true; }
+            if (confirmStart) { confirmStart.value = '1'; }
+            dirty = false;
         });
     }
 
@@ -582,12 +584,17 @@ $showHostessTutorial = false;
         <div class="col-12 col-lg-7">
             <div class="card p-4 saas-hero-card">
                 <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <div class="text-uppercase text-muted small">Registro em tempo real</div>
-                        <h3 class="fw-bold mb-1"><i class="bi bi-shop-window me-1"></i>
-                            <span class="tag <?= restaurant_badge_class($turno['restaurante']) ?>"><?= h($turno['restaurante']) ?></span>
-                        </h3>
-                        <div class="text-muted">Operação: <span class="tag <?= operation_badge_class($turno['operacao']) ?>"><?= h($turno['operacao']) ?></span></div>
+                    <?php
+                    $identReg = restaurante_identidade($turno['restaurante']);
+                    $nomeReg = (string)preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake((string)$turno['restaurante']));
+                    ?>
+                    <div class="fb-rest-hero">
+                        <span class="fb-rest-hero__icon" style="--rest-cor: <?= h($identReg['cor']) ?>;"><i class="bi <?= h($identReg['icone']) ?>" aria-hidden="true"></i></span>
+                        <div>
+                            <span class="fb-rest-hero__eyebrow">Você está em</span>
+                            <span class="fb-rest-hero__name"><?= h($nomeReg) ?></span>
+                            <span class="fb-rest-hero__op"><i class="bi bi-clock-history" aria-hidden="true"></i> <?= h(normalize_mojibake((string)$turno['operacao'])) ?></span>
+                        </div>
                     </div>
                     <div class="d-flex gap-2 flex-wrap access-register-actions">
                         <?php if ($allowHostessTutorial): ?>
