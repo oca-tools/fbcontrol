@@ -235,6 +235,7 @@ $showHostessTutorial = false;
                 <h2 class="fb-startwiz__title">Qual porta?</h2>
                 <p class="fb-startwiz__hint">Selecione a entrada do seu posto.</p>
                 <?php foreach ($doorsByRestaurant as $restId => $doors): ?>
+                    <?php if (empty($doors)) { continue; } // restaurante sem porta: o passo é pulado ?>
                     <div class="fb-startshift__doors" data-door-group="<?= (int)$restId ?>" style="--fb-pick-accent: <?= h($identStartMap[(int)$restId]['cor'] ?? 'var(--fb-ink)') ?>;" hidden>
                         <?php foreach ($doors as $door): ?>
                             <button type="button" class="fb-chip" data-pick-door="<?= (int)$door['id'] ?>" data-rest="<?= (int)$restId ?>"><?= h(normalize_mojibake((string)$door['nome'])) ?></button>
@@ -324,7 +325,10 @@ $showHostessTutorial = false;
 
         function opGroupFor(id) { return opGroups.find(function (g) { return g.dataset.restGroup === String(id); }) || null; }
         function doorGroupFor(id) { return doorGroups.find(function (g) { return g.dataset.doorGroup === String(id); }) || null; }
-        function needsDoor() { return !!doorGroupFor(selRest.value); }
+        function needsDoor() {
+            var g = doorGroupFor(selRest.value);
+            return !!(g && g.querySelector('[data-pick-door]'));
+        }
         function textOf(el, sel) { var n = el.querySelector(sel); return n ? n.textContent.trim() : el.textContent.trim(); }
         function canStart() { return selRest.value !== '' && selOp.value !== '' && (!needsDoor() || selPorta.value !== ''); }
 
