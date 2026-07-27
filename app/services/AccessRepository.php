@@ -173,7 +173,7 @@ final class AccessRepository extends RepositoryBase implements AccessRepositoryI
 
     private function buscarUhPorNumero(string $uhNumero): ?array
     {
-        $stmt = $this->db->prepare("SELECT * FROM unidades_habitacionais WHERE numero = :numero LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM unidades_habitacionais WHERE numero = :numero AND ativo = 1 LIMIT 1");
         $stmt->execute([':numero' => trim($uhNumero)]);
         $row = $stmt->fetch();
         return $row ?: null;

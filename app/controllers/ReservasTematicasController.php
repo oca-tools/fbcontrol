@@ -144,6 +144,30 @@ class ReservasTematicasController extends Controller
             return $availability;
         };
 
+        if (($_GET['ajax'] ?? '') === 'reservation_status') {
+            $correlationId = CriarReservaCommand::normalizeCorrelationId((string)($_GET['correlation_id'] ?? ''));
+            if ($correlationId === '') {
+                json_response([
+                    'ok' => false,
+                    'status' => 'invalid_request',
+                    'message' => 'Referência de tentativa inválida.',
+                ], 400);
+            }
+
+            $commandStatus = new CriarReservaCommand([
+                'usuario_id' => (int)$user['id'],
+                'usuario' => $user,
+                'correlation_id' => $correlationId,
+            ]);
+            $confirmation = $confirmacaoService->confirmarPorCorrelacao($commandStatus);
+            json_response([
+                'ok' => true,
+                'status' => $confirmation !== [] ? 'confirmed' : 'not_found',
+                'correlation_id' => $correlationId,
+                'confirmation' => $confirmation,
+            ]);
+        }
+
         if (($_GET['ajax'] ?? '') === 'availability') {
             $dateAjax = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
             header('Content-Type: application/json; charset=utf-8');
@@ -234,6 +258,10 @@ class ReservasTematicasController extends Controller
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tentativaService = new RegistrarTentativaReservaTematicaService();
+            $correlationId = CriarReservaCommand::normalizeCorrelationId((string)($_POST['correlation_id'] ?? ''));
+            if ($correlationId === '') {
+                $correlationId = $tentativaService->novaCorrelacao();
+            }
             $comandoReserva = new CriarReservaCommand([
                 'acao' => $_POST['action'] ?? 'create',
                 'usuario_id' => (int)$user['id'],
@@ -255,7 +283,7 @@ class ReservasTematicasController extends Controller
                 'batch_pax' => $_POST['batch_pax'] ?? [],
                 'batch_chd_idades' => $_POST['batch_chd_idades'] ?? [],
                 'grupo_responsavel' => $_POST['grupo_responsavel'] ?? '',
-                'correlation_id' => $tentativaService->novaCorrelacao(),
+                'correlation_id' => $correlationId,
             ]);
             $tentativaService->registrarInicio($comandoReserva);
 

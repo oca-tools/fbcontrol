@@ -6,7 +6,7 @@ chdir($root);
 
 $checks = [];
 $warns = [];
-$versionExpected = $argv[1] ?? '3.0';
+$versionExpected = $argv[1] ?? '4.4';
 $php = PHP_BINARY ?: 'php';
 
 $record = static function (string $name, bool $ok, string $detail = '') use (&$checks): void {
@@ -39,15 +39,17 @@ try {
     $requiredFiles = [
         'README.md',
         'CHANGELOG.md',
-        'docs/RELEASE_3_0.md',
+        'docs/RELEASE_4_4.md',
         'docs/INSTALACAO_VPS.md',
         'docs/LGPD_OPERACAO.md',
-        'sql/schema_v3_0.sql',
+        'sql/schema_v4_0.sql',
         'sql/migration_v2_9_performance_indexes.sql',
         'sql/migration_v3_0_query_performance.sql',
         'sql/migration_v3_1_audit_security.sql',
         'sql/migration_v3_2_chd_age_labels.sql',
         'sql/migration_v3_3_thematic_availability_overrides.sql',
+        'sql/migration_v3_6_unidades_habitacionais_validacao.sql',
+        'sql/migration_v3_7_reservas_idempotencia.sql',
         'tools/run_checks.php',
         'tools/healthcheck_fbcontrol.php',
         'tools/check_db_context.php',
@@ -56,6 +58,10 @@ try {
         'tools/check_audit_sanitizer.php',
         'tools/apply_audit_security_migration.php',
         'tools/apply_thematic_availability_migration.php',
+        'tools/apply_reservation_idempotency_migration.php',
+        'tools/backup_database.php',
+        'tools/reset_operational_data.php',
+        'deploy/vps/deploy_v4_reset.sh',
         'tools/sanitize_audit_sensitive_data.php',
         'tools/test_critical_rules.php',
         'tools/test_thematic_availability.php',
@@ -78,7 +84,7 @@ try {
         $record('file_' . str_replace(['/', '.', '-'], '_', $file), is_file($file), $file);
     }
 
-    $schema = is_file('sql/schema_v3_0.sql') ? (string)file_get_contents('sql/schema_v3_0.sql') : '';
+    $schema = is_file('sql/schema_v4_0.sql') ? (string)file_get_contents('sql/schema_v4_0.sql') : '';
     foreach ([
         'reservas_tematicas_bloqueios_datas',
         'reservas_tematicas_bloqueios_semanais',
@@ -88,6 +94,8 @@ try {
         'idx_acessos_rest_oper_data',
         'idx_res_tem_duplicate_lookup',
         'idade_label',
+        'uq_res_tem_correlation_item',
+        'reservas_tematicas_bloqueios_semanais',
     ] as $needle) {
         $record('schema_contains_' . $needle, strpos($schema, $needle) !== false, $needle);
     }
@@ -118,7 +126,7 @@ try {
     }
 
     $readme = is_file('README.md') ? (string)file_get_contents('README.md') : '';
-    $record('readme_release_commands', strpos($readme, 'php tools/run_checks.php') !== false && strpos($readme, 'php tools/build_release.php 3.0') !== false, 'comandos de release documentados');
+    $record('readme_release_commands', strpos($readme, 'php tools/run_checks.php') !== false && strpos($readme, 'php tools/build_release.php 4.4') !== false, 'comandos de release documentados');
 } catch (Throwable $e) {
     $record('fatal', false, $e->getMessage());
 }

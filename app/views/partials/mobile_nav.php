@@ -2,7 +2,7 @@
    As ações (guia, demo, sair, tema) e os destinos secundários vivem na gaveta única
    #mobileMenu, aberta pela barra inferior ("Mais"). Sem ações duplicadas. */ ?>
 <div class="mobile-nav">
-    <a class="brand" href="/?r=home" aria-label="FBControl — início" style="text-decoration: none;">
+    <a class="brand" href="/?r=auth/login" aria-label="FBControl — início" style="text-decoration: none;">
         <?php if (!empty($logoPath)): ?>
             <img src="<?= h($logoPath) ?>?v=20260705g" data-logo-light="<?= h($logoPath) ?>?v=20260705g" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260705g" alt="Logo do FBControl" class="mobile-brand-logo js-theme-logo">
         <?php else: ?>
@@ -116,7 +116,7 @@ $launcherAdminTile = static function (string $route, string $icon, string $label
             <?php if ($perfilLauncher === 'admin'): ?>
                 <form method="post" action="/?r=demo/toggle" class="logout-inline-form d-inline-flex">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                    <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
+                    <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=auth/login'))) ?>">
                     <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
                     <button class="fb-btn fb-btn--ghost" type="submit"><i class="bi bi-mortarboard"></i> Modo demo<?= app_demo_mode_enabled() ? ' (ativo)' : '' ?></button>
                 </form>

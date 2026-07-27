@@ -20,7 +20,7 @@
         <?php if (($user['perfil'] ?? '') === 'admin'): ?>
             <form method="post" action="/?r=demo/toggle" class="d-flex align-items-center">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=home'))) ?>">
+                <input type="hidden" name="return_to" value="<?= h(sanitize_local_redirect_path((string)($_SERVER['REQUEST_URI'] ?? '/?r=auth/login'))) ?>">
                 <input type="hidden" name="demo_mode" value="<?= app_demo_mode_enabled() ? '0' : '1' ?>">
                 <button class="btn <?= app_demo_mode_enabled() ? 'btn-warning' : 'btn-outline-secondary' ?> btn-sm topbar-theme" type="submit" title="Ignora validações de horário nesta sessão admin para treinamento">
                     <i class="bi bi-mortarboard"></i>

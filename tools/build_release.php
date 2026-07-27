@@ -5,7 +5,7 @@ $root = dirname(__DIR__);
 chdir($root);
 
 $dryRun = in_array('--dry-run', $argv ?? [], true);
-$version = preg_replace('/[^0-9A-Za-z._-]/', '', $argv[1] ?? '3.0') ?: '3.0';
+$version = preg_replace('/[^0-9A-Za-z._-]/', '', $argv[1] ?? '4.4') ?: '4.4';
 $stamp = date('Ymd_His');
 $output = $argv[2] ?? ($root . DIRECTORY_SEPARATOR . 'fbcontrol_release_' . $version . '_' . $stamp . '.tar.gz');
 $stderrNull = PHP_OS_FAMILY === 'Windows' ? '2>NUL' : '2>/dev/null';

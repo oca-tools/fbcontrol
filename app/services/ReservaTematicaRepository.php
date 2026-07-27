@@ -10,6 +10,8 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
     private ?bool $hasPaxChdColumnCache = null;
     private ?bool $hasQtdChdColumnCache = null;
     private ?bool $hasGrupoNomeColumnCache = null;
+    private ?bool $hasCorrelationIdColumnCache = null;
+    private ?bool $hasCorrelationItemColumnCache = null;
     private ?bool $hasGruposTableCache = null;
     private ?bool $hasChdTableCache = null;
 
@@ -69,6 +71,7 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
     public function atualizarReserva(int $reservaId, array $dadosReserva, int $usuarioId): void
     {
         [, , $params] = $this->montarCamposReserva($dadosReserva);
+        unset($params[':correlation_id'], $params[':correlation_item']);
         $sets = [
             'restaurante_id = :restaurante_id',
             'data_reserva = :data_reserva',
@@ -204,6 +207,20 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
         $stmt->execute([':id' => $reservaId]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    public function buscarReservasPorCorrelacao(string $correlationId, int $usuarioId): array
+    {
+        if ($correlationId === '' || $usuarioId <= 0 || !$this->hasCorrelationIdColumn()) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare("\n            SELECT id, grupo_id\n            FROM reservas_tematicas\n            WHERE correlation_id = :correlation_id\n              AND usuario_id = :usuario_id\n            ORDER BY id\n        ");
+        $stmt->execute([
+            ':correlation_id' => $correlationId,
+            ':usuario_id' => $usuarioId,
+        ]);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -579,6 +596,16 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
             $values[] = ':grupo_nome';
             $params[':grupo_nome'] = $dadosReserva['grupo_nome'] ?? null;
         }
+        if ($this->hasCorrelationIdColumn()) {
+            $columns[] = 'correlation_id';
+            $values[] = ':correlation_id';
+            $params[':correlation_id'] = $dadosReserva['correlation_id'] ?? null;
+        }
+        if ($this->hasCorrelationItemColumn()) {
+            $columns[] = 'correlation_item';
+            $values[] = ':correlation_item';
+            $params[':correlation_item'] = max(0, (int)($dadosReserva['correlation_item'] ?? 0));
+        }
 
         return [$columns, $values, $params];
     }
@@ -644,6 +671,16 @@ final class ReservaTematicaRepository extends RepositoryBase implements ReservaT
     private function hasGrupoNomeColumn(): bool
     {
         return $this->hasColumn('grupo_nome', $this->hasGrupoNomeColumnCache);
+    }
+
+    private function hasCorrelationIdColumn(): bool
+    {
+        return $this->hasColumn('correlation_id', $this->hasCorrelationIdColumnCache);
+    }
+
+    private function hasCorrelationItemColumn(): bool
+    {
+        return $this->hasColumn('correlation_item', $this->hasCorrelationItemColumnCache);
     }
 
     private function hasGruposTable(): bool

@@ -714,20 +714,29 @@
 
 /* ============ launcher de módulos (rework de navegação) ============
    Reaproveita o offcanvas #mobileMenu do Bootstrap (foco/ESC/backdrop e os
-   gatilhos "Menu"/"Mais" já fiados). Muda a pele: folha inferior no mobile,
-   popover central no desktop — e o corpo vira uma grade de azulejos coloridos
-   pela identidade, no lugar da lista vertical estilo sidebar. */
+   gatilhos "Tudo" já fiados). Popup CENTRALIZADO em todas as larguras —
+   o corpo é uma grade de azulejos pela identidade, no lugar da sidebar. */
 .fb-launcher.offcanvas {
     --bs-offcanvas-width: 100%;
     /* O menu de navegação é a camada mais alta: acima da folha de filtros (1060)
        e do toast (1080), senão eles vazam por cima do launcher aberto. */
     z-index: 1090;
-    height: min(92vh, 760px);
+    top: 50%; bottom: auto; left: 50%; right: auto;
+    width: min(760px, 94vw);
+    height: auto;
+    max-height: min(88vh, 760px);
     border: 0;
-    border-top-left-radius: 22px;
-    border-top-right-radius: 22px;
+    border-radius: 20px;
     background: var(--fb-bg);
     color: var(--fb-ink);
+    transform: translate(-50%, -48%) scale(0.97);
+    opacity: 0; visibility: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0.2s;
+    box-shadow: 0 24px 60px rgba(28, 28, 27, 0.28);
+}
+.fb-launcher.offcanvas.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1; visibility: visible;
 }
 /* O único offcanvas do app é o launcher; sobe o backdrop acima dos overlays de página. */
 .offcanvas-backdrop { z-index: 1086; }
@@ -811,23 +820,7 @@
 }
 .fb-launcher__utility .theme-switch { margin-left: auto; }
 
-@media (min-width: 992px) {
-    .fb-launcher.offcanvas.offcanvas-bottom {
-        top: 50%; bottom: auto; left: 50%; right: auto;
-        width: min(760px, 92vw); height: auto; max-height: 86vh;
-        border-radius: 20px;
-        transform: translate(-50%, -48%) scale(0.97);
-        opacity: 0; visibility: hidden;
-        transition: transform 0.2s ease, opacity 0.2s ease, visibility 0.2s;
-        box-shadow: 0 24px 60px rgba(28, 28, 27, 0.28);
-    }
-    .fb-launcher.offcanvas.offcanvas-bottom.show {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 1; visibility: visible;
-    }
-    .fb-launcher .fb-launcher__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .fb-launcher .fb-launcher__grid--admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
+/* (Centralização vale para todas as larguras — regra única na base acima.) */
 
 /* ============ iniciar turno: seleção visual (access/start) ============ */
 .fb-startshift-page { display: grid; gap: var(--fb-space-4); }

@@ -29,6 +29,12 @@ interface ReservaTematicaRepositoryInterface
     public function buscarReserva(int $reservaId): ?array;
 
     /**
+     * Recupera reservas criadas pela mesma tentativa de envio, para evitar
+     * duplicidade quando a conexão do operador falha após a persistência.
+     */
+    public function buscarReservasPorCorrelacao(string $correlationId, int $usuarioId): array;
+
+    /**
      * Soma o PAX reservado no turno para validar disponibilidade antes de novas reservas.
      */
     public function somarPaxDoTurno(int $restauranteId, string $dataReserva, int $turnoId): int;

@@ -1585,6 +1585,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             <form method="post" action="/?r=reservasTematicas/reservasCompleta" data-no-lock="1" data-ajax-alerts="1">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="action" id="reservaActionInput" value="<?= $editItem ? 'update' : 'create' ?>">
+                <input type="hidden" name="correlation_id" id="reservaCorrelationId" value="">
                 <?php if ($editItem): ?>
                     <input type="hidden" name="id" value="<?= (int)$editItem['id'] ?>">
                 <?php endif; ?>
@@ -2411,6 +2412,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const actionInput = document.getElementById('reservaActionInput');
     const reservaForm = document.querySelector('form[action="/?r=reservasTematicas/reservasCompleta"]');
     const confirmationStorageKey = 'fbReservationConfirmation';
+    const correlationInput = document.getElementById('reservaCorrelationId');
     const singleFields = [
         document.querySelector('input[name=\"uh_numero\"]'),
         document.querySelector('input[name=\"titular_nome\"]'),
@@ -2506,6 +2508,96 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 btn.removeAttribute('disabled');
             }
         });
+    };
+
+    const createCorrelationId = () => {
+        if (window.crypto?.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+        if (window.crypto?.getRandomValues) {
+            const values = new Uint32Array(4);
+            window.crypto.getRandomValues(values);
+            return Array.from(values, (value) => value.toString(16).padStart(8, '0')).join('-');
+        }
+        return `reservation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    };
+
+    const ensureCorrelationId = () => {
+        if (!correlationInput) return '';
+        if (!correlationInput.value) {
+            correlationInput.value = createCorrelationId();
+        }
+        return correlationInput.value;
+    };
+
+    const clearCorrelationId = () => {
+        if (correlationInput) correlationInput.value = '';
+    };
+
+    const delay = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+    const checkReservationStatus = async (correlationId) => {
+        if (!correlationId) return null;
+        const statusUrl = new URL('/?r=reservasTematicas/reservasCompleta', window.location.origin);
+        statusUrl.searchParams.set('ajax', 'reservation_status');
+        statusUrl.searchParams.set('correlation_id', correlationId);
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            try {
+                const response = await fetch(statusUrl.toString(), {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
+                });
+                const payload = await response.json();
+                if (payload?.status === 'confirmed' && payload.confirmation?.protocolo) {
+                    return payload.confirmation;
+                }
+            } catch (ignored) {
+                // A próxima consulta confirma se o servidor voltou a responder.
+            }
+            if (attempt < 2) await delay(700);
+        }
+        return null;
+    };
+
+    const persistConfirmationAndRedirect = async (confirmation, fallbackMessage) => {
+        if (confirmation?.protocolo) {
+            try {
+                sessionStorage.setItem(confirmationStorageKey, JSON.stringify(confirmation));
+            } catch (error) {
+                await (window.fbAlerts?.show({
+                    type: 'success',
+                    title: 'Reserva confirmada no banco',
+                    message: `Protocolo ${confirmation.protocolo}. Anote este número para conferência.`,
+                    modal: true,
+                    buttonText: 'Conferido'
+                }) || Promise.resolve());
+            }
+        } else if (fallbackMessage) {
+            window.fbAlerts?.afterRedirect?.(fallbackMessage, { type: 'success', title: 'Alteração confirmada' });
+        }
+
+        window.fbAlerts?.clearSavedForms?.();
+        clearCorrelationId();
+        window.setTimeout(() => {
+            window.location.assign('/?r=reservasTematicas/reservasCompleta');
+        }, 80);
+    };
+
+    const recoverUncertainSubmission = async (correlationId) => {
+        const confirmation = await checkReservationStatus(correlationId);
+        if (confirmation) {
+            await persistConfirmationAndRedirect(confirmation, 'Reserva confirmada no banco.');
+            return true;
+        }
+        await (window.fbAlerts?.show({
+            type: 'warning',
+            title: 'Confirmação pendente',
+            message: 'O servidor não devolveu uma resposta conclusiva. Seus dados foram mantidos; ao tentar novamente, esta mesma referência será usada e não criará uma reserva duplicada.',
+            modal: true,
+            buttonText: 'Entendi'
+        }) || Promise.resolve());
+        return false;
     };
 
     const extractReservaAlertFromHtml = (html) => {
@@ -2637,6 +2729,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         return {
             ...normalized,
             ok: normalized.ok === undefined ? response?.ok === true : normalized.ok,
+            http_status: response?.status || 0,
             type: normalized.type || (response?.ok ? 'success' : 'danger'),
             code,
             message: message.trim() || (response && response.status === 404
@@ -2720,6 +2813,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
         event.preventDefault();
         setReservaSubmitting(true);
+        const correlationId = ensureCorrelationId();
         try {
             const submitUrl = new URL('/?r=reservasTematicas/reservasCompleta', window.location.origin);
             const response = await fetch(submitUrl.toString(), {
@@ -2733,12 +2827,18 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             });
             const payload = await parseReservaResponse(response);
             if (!response.ok || payload.ok === false) {
+                const uncertain = !payload.code || Number(payload.http_status || 0) >= 500;
+                if (uncertain) {
+                    await recoverUncertainSubmission(correlationId);
+                    return;
+                }
                 await (window.fbAlerts?.show({
                     type: payload.type || 'danger',
                     message: payload.message || 'Não foi possível salvar a reserva. Revise os dados e tente novamente.',
                     modal: true,
                     buttonText: 'Corrigir'
                 }) || Promise.resolve());
+                clearCorrelationId();
                 return;
             }
 
@@ -2746,18 +2846,11 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
             const confirmation = payload?.payload?.confirmacao;
             const hasPersistentConfirmation = Boolean(confirmation?.protocolo && confirmation?.nova_reserva);
             if (hasPersistentConfirmation) {
-                try {
-                    sessionStorage.setItem(confirmationStorageKey, JSON.stringify(confirmation));
-                } catch (error) {
-                    await (window.fbAlerts?.show({
-                        type: 'success',
-                        title: 'Reserva confirmada no banco',
-                        message: `Protocolo ${confirmation.protocolo}. Anote este número para conferência.`,
-                        modal: true,
-                        buttonText: 'Conferido'
-                    }) || Promise.resolve());
-                }
-            } else if (window.fbAlerts?.afterRedirect) {
+                await persistConfirmationAndRedirect(confirmation, successMessage);
+                return;
+            }
+            clearCorrelationId();
+            if (window.fbAlerts?.afterRedirect) {
                 window.fbAlerts.afterRedirect(successMessage, { type: 'success', title: 'Alteração confirmada' });
             } else {
                 window.fbAlerts?.success(successMessage, 'Alteração confirmada');
@@ -2768,7 +2861,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 window.location.assign(redirect);
             }, 80);
         } catch (error) {
-            await (window.fbAlerts?.error('Falha de comunicação ao salvar. Verifique sua conexão e tente novamente.') || Promise.resolve());
+            await recoverUncertainSubmission(correlationId);
         } finally {
             setReservaSubmitting(false);
         }

@@ -74,6 +74,7 @@ final class RegistrarTentativaReservaTematicaService
                 'protocolo' => $confirmacao['protocolo'] ?? null,
                 'reservas_ids' => $confirmacao['reservas_ids'] ?? [],
                 'grupo_id' => $confirmacao['grupo_id'] ?? null,
+                'reenvio_idempotente' => !empty($resultado->payload()['idempotent_replay']),
             ])
         );
     }

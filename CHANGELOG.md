@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.4 - retomada operacional e rastreabilidade
+
+- A rota raiz volta ao login; a pagina publica de agradecimento e seus componentes foram removidos da release.
+- Auditoria agora traduz eventos tecnicos para portugues e separa visualmente resultado da acao e responsavel.
+- Tentativas de reserva recusadas, aceitas ou recebidas permanecem rastreaveis; a nova rotina de reset preserva a estrutura do resort e o administrador informado, removendo apenas dados operacionais apos backup.
+- Novo `schema_v4_0.sql` consolidado e scripts de backup/reset/deploy controlado para a retomada da operacao.
+
 ## 4.3 - navegação única (plano 2.0, pilar 1)
 
 - Fim da redundância de menus no mobile: a barra superior deixou de duplicar ações (guia, modo demo, sair, botão "Menu") e passou a ser só contexto de marca (logo + perfil, com link para a home).

@@ -74,7 +74,7 @@ try {
     $record('render_topnav', strpos($html, 'fb-topnav') !== false, 'barra de abas desktop');
     $record('render_topnav_tabs', strpos($html, 'fb-topnav__tab') !== false, 'abas primarias');
     $record('render_mobile_nav', strpos($html, 'mobileMenu') !== false, 'offcanvas mobile');
-    $record('render_theme_buttons', substr_count($html, 'js-theme-option') === 4, '4 botoes de tema no offcanvas');
+    $record('render_theme_buttons', substr_count($html, 'js-theme-option') === 2, '2 botoes de tema no offcanvas');
 } catch (Throwable $e) {
     $record('fatal', false, $e->getMessage());
 }

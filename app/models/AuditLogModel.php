@@ -117,7 +117,13 @@ class AuditLogModel extends Model
                        JSON_UNQUOTE(JSON_EXTRACT(l.dados_antes, '$.data_reserva')),
                        rsv.data_reserva
                    ) AS data_reserva,
-                   COALESCE(uh_depois.numero, uh_antes.numero, uh.numero, 'Nao informado') AS uh_numero
+                   COALESCE(uh_depois.numero, uh_antes.numero, uh.numero, 'Nao informado') AS uh_numero,
+                   uh_antes.numero AS uh_antes_numero,
+                   uh_depois.numero AS uh_depois_numero,
+                   r_antes.nome AS restaurante_antes,
+                   r_depois.nome AS restaurante_depois,
+                   t_antes.hora AS turno_antes_hora,
+                   t_depois.hora AS turno_depois_hora
             FROM reservas_tematicas_logs l
             LEFT JOIN reservas_tematicas rsv ON rsv.id = l.reserva_id
             LEFT JOIN restaurantes r ON r.id = rsv.restaurante_id

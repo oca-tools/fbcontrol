@@ -30,6 +30,25 @@ final class ReservaTematicaConfirmacaoRepository extends RepositoryBase
         return $stmt->fetchAll();
     }
 
+    public function buscarReservasPorCorrelacao(string $correlationId, int $usuarioId): array
+    {
+        if ($correlationId === '' || $usuarioId <= 0) {
+            return [];
+        }
+
+        try {
+            $stmt = $this->db->prepare("\n                SELECT rsv.id\n                FROM reservas_tematicas rsv\n                WHERE rsv.correlation_id = :correlation_id\n                  AND rsv.usuario_id = :usuario_id\n                ORDER BY rsv.id\n            ");
+            $stmt->execute([
+                ':correlation_id' => $correlationId,
+                ':usuario_id' => $usuarioId,
+            ]);
+            return $this->buscarReservasPorIds(array_column($stmt->fetchAll(), 'id'));
+        } catch (Throwable $ignored) {
+            // A migration pode ainda não ter sido aplicada em uma instalação antiga.
+            return [];
+        }
+    }
+
     public function listarRecentesDoUsuario(int $usuarioId, int $limit = 40): array
     {
         $limit = max(10, min(100, $limit));

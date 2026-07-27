@@ -3,7 +3,7 @@
     "short_name": "FBControl",
     "description": "Operação de Alimentos & Bebidas do Grand Oca Maragogi: registro de acessos, reservas temáticas e gestão.",
     "lang": "pt-BR",
-    "start_url": "/?r=home",
+    "start_url": "/?r=auth/login",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait",

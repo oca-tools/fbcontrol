@@ -128,8 +128,10 @@ try {
         throw new RuntimeException('Erro de UH inválida não informou a UH 342.');
     }
 
+    $correlationId = 'test-idempotencia-' . bin2hex(random_bytes(8));
     $individual = $service->executar(new CriarReservaCommand($base + [
         'acao' => ReservasTematicasConstants::ACTION_CREATE,
+        'correlation_id' => $correlationId,
         'uh_numero' => '3200',
         'titular_nome' => 'Teste reserva individual',
         'pax' => 1,
@@ -138,6 +140,18 @@ try {
         throw new RuntimeException('Reserva válida da UH 3200 falhou: ' . $individual->message());
     }
     $individualId = (int)$individual->payload()['reserva_id'];
+    $reenvioIndividual = $service->executar(new CriarReservaCommand($base + [
+        'acao' => ReservasTematicasConstants::ACTION_CREATE,
+        'correlation_id' => $correlationId,
+        'uh_numero' => '3200',
+        'titular_nome' => 'Teste reserva individual',
+        'pax' => 1,
+    ]));
+    if (!$reenvioIndividual->isSuccess()
+        || empty($reenvioIndividual->payload()['idempotent_replay'])
+        || (int)($reenvioIndividual->payload()['reservas_ids'][0] ?? 0) !== $individualId) {
+        throw new RuntimeException('Reenvio com a mesma referência criou ou deixou de localizar a reserva original.');
+    }
     $edicaoGerencial = $service->executar(new CriarReservaCommand(array_merge($base, [
         'acao' => ReservasTematicasConstants::ACTION_UPDATE,
         'usuario' => $gerencia,

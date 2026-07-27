@@ -873,32 +873,65 @@ document.querySelectorAll('form[method="post"]:not([data-no-lock])').forEach((fo
         end.value = fmt(today);
     });
 
+    const dateFilterGroups = [
+        ['data', 'data_inicio', 'data_fim'],
+        ['flow_data', 'flow_data_inicio', 'flow_data_fim'],
+        ['candle_data', 'candle_data_inicio', 'candle_data_fim'],
+    ];
+
+    function visibleDateField(form, name) {
+        const fields = form.querySelectorAll(`input[name="${name}"]`);
+        for (const field of fields) {
+            if (field.type !== 'hidden' && !field.disabled) return field;
+        }
+        return null;
+    }
+
+    function syncDateFilterMode(form, changedName = '', initial = false) {
+        if (!(form instanceof HTMLFormElement)) return;
+
+        dateFilterGroups.forEach(([singleName, startName, endName]) => {
+            const single = visibleDateField(form, singleName);
+            const start = visibleDateField(form, startName);
+            const end = visibleDateField(form, endName);
+            if (!single || !start || !end) return;
+
+            const hasPeriod = start.value !== '' || end.value !== '';
+            if (changedName === singleName && single.value !== '') {
+                start.value = '';
+                end.value = '';
+                form.dataset.dateFilterMode = 'single';
+                return;
+            }
+            if ((changedName === startName || changedName === endName) && hasPeriod) {
+                single.value = '';
+                form.dataset.dateFilterMode = 'range';
+                return;
+            }
+
+            // Links salvos, histórico do navegador e filtros antigos podem carregar
+            // data única e período juntos. O período vence para evitar um recorte ambíguo.
+            if (initial && hasPeriod && single.value !== '') {
+                single.value = '';
+            }
+            form.dataset.dateFilterMode = hasPeriod ? 'range' : (single.value !== '' ? 'single' : '');
+        });
+    }
+
     document.addEventListener('change', (event) => {
         const input = event.target;
         if (!(input instanceof HTMLInputElement)) return;
-        const form = input.closest('form[data-ajax-filter]');
-        if (!form) return;
-
-        const groups = [
-            ['data', 'data_inicio', 'data_fim'],
-            ['flow_data', 'flow_data_inicio', 'flow_data_fim'],
-            ['candle_data', 'candle_data_inicio', 'candle_data_fim'],
-        ];
-
-        groups.forEach(([singleName, startName, endName]) => {
-            if (input.name === singleName && input.value !== '') {
-                const start = form.querySelector(`input[name="${startName}"]:not([type="hidden"])`);
-                const end = form.querySelector(`input[name="${endName}"]:not([type="hidden"])`);
-                if (start) start.value = '';
-                if (end) end.value = '';
-            }
-
-            if ((input.name === startName || input.name === endName) && input.value !== '') {
-                const single = form.querySelector(`input[name="${singleName}"]:not([type="hidden"])`);
-                if (single) single.value = '';
-            }
-        });
+        if (!dateFilterGroups.some(([single, start, end]) => [single, start, end].includes(input.name))) return;
+        const form = input.closest('form');
+        if (form) syncDateFilterMode(form, input.name);
     });
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (form instanceof HTMLFormElement) syncDateFilterMode(form);
+    });
+
+    document.querySelectorAll('form').forEach((form) => syncDateFilterMode(form, '', true));
 
     window.addEventListener('popstate', () => {
         window.location.reload();

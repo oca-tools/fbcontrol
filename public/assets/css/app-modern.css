@@ -1208,6 +1208,42 @@ button.fb-chip {
     min-height: 46px;
 }
 
+/* Registro Temático da hostess: hero + ações de turno, e os forms dentro do bilhete */
+.fb-tematica-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--fb-space-3);
+    flex-wrap: wrap;
+}
+.fb-tematica-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: flex-end;
+}
+.fb-tematica-confirm {
+    flex: 1 1 420px;
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+.fb-tematica-noshow {
+    flex: 0 0 auto;
+}
+.fb-tematica-noshow .fb-btn {
+    color: var(--fb-danger);
+}
+@media (max-width: 767px) {
+    .fb-tematica-confirm {
+        grid-template-columns: 1fr;
+    }
+    .fb-tematica-noshow {
+        flex: 1 1 100%;
+    }
+}
+
 .fb-checkin-list {
     display: grid;
     gap: var(--fb-space-3);
@@ -1956,6 +1992,7 @@ html[data-theme='dark'] .fb-auth-context {
 .fb-field__control {
     position: relative;
     display: block;
+    min-width: 0;
 }
 
 .fb-field__control > i {
@@ -1963,18 +2000,22 @@ html[data-theme='dark'] .fb-auth-context {
     z-index: 2;
     top: 50%;
     left: 14px;
+    width: 18px;
+    text-align: center;
     color: var(--fb-muted);
+    pointer-events: none;
     transform: translateY(-50%);
 }
 
 .fb-field__control .form-control {
     min-height: 50px;
-    padding-inline: 42px 14px;
+    padding-left: 48px !important;
+    padding-right: 16px !important;
     border-radius: var(--fb-radius);
 }
 
 .fb-field__control--password .form-control {
-    padding-right: 48px;
+    padding-right: 56px !important;
 }
 
 .fb-auth-pass-toggle {
@@ -1998,6 +2039,17 @@ html[data-theme='dark'] .fb-auth-context {
 .fb-auth-pass-toggle:focus-visible {
     background: var(--fb-soft);
     color: var(--fb-ink);
+}
+
+html[data-theme='dark'] .fb-field__control .form-control {
+    background: color-mix(in srgb, var(--fb-card) 80%, #0a1728 20%);
+    color: var(--fb-ink);
+    border-color: color-mix(in srgb, var(--fb-border) 72%, #8da4bc 28%);
+}
+
+html[data-theme='dark'] .fb-field__control > i,
+html[data-theme='dark'] .fb-auth-pass-toggle {
+    color: color-mix(in srgb, var(--fb-muted) 78%, #ffffff 22%);
 }
 
 .fb-auth-submit {

@@ -30,7 +30,7 @@ $iniciaisTopnav = mb_strtoupper(mb_substr(trim((string)($user['nome'] ?? '?')), 
 <nav class="fb-topnav" aria-label="Navegação principal">
     <div class="fb-topnav__inner">
         <div class="fb-topnav__left">
-            <a class="fb-topnav__brand" href="/?r=home" aria-label="FBControl — início">
+            <a class="fb-topnav__brand" href="/?r=auth/login" aria-label="FBControl — início">
                 <?php if (!empty($logoPath)): ?>
                     <img src="<?= h($logoPath) ?>?v=20260705g" data-logo-light="<?= h($logoPath) ?>?v=20260705g" data-logo-dark="/assets/logo-fbcontrol-dark.svg?v=20260705g" alt="FBControl" class="fb-topnav__logo js-theme-logo">
                 <?php else: ?>

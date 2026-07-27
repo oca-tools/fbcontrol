@@ -21,25 +21,10 @@ $showHostessTutorial = false;
 ?>
 
 <style>
-    .access-start-grid .saas-hero-card,
-    .access-register-grid .saas-hero-card {
-        border-radius: 24px;
-        box-shadow: var(--ab-shadow-card);
-    }
-    .access-register-grid .section-block {
-        border: 1px solid var(--ab-border);
-        border-radius: 22px;
-        padding: 1rem;
-        background: var(--ab-card);
-        box-shadow: var(--ab-shadow-soft);
-    }
-    .access-register-grid .recent-live-table td,
-    .access-register-grid .recent-live-table th {
-        white-space: nowrap;
-    }
+    /* Registro (buffet): resíduo mínimo — layout local; componentes vêm do sistema fb-*. */
     .access-register-grid .quick-uh-wrap {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
     }
     .access-register-actions {
@@ -53,98 +38,28 @@ $showHostessTutorial = false;
     .access-primary-form .mb-3 {
         margin-bottom: 0 !important;
     }
-    .access-pax-control {
-        display: grid;
-        grid-template-columns: 56px minmax(0, 1fr) 56px;
-        gap: .65rem;
-        align-items: stretch;
-    }
-    .access-pax-control .btn,
-    .access-pax-control .form-control {
-        min-height: 54px;
-    }
     @media (max-width: 991.98px) {
-        .access-start-grid .saas-hero-card,
-        .access-register-grid .saas-hero-card,
-        .access-register-grid .section-block {
-            border-radius: 18px;
-            padding: 1rem !important;
-        }
         .access-register-actions {
             width: 100%;
             justify-content: stretch;
         }
         .access-register-actions form,
-        .access-register-actions .btn {
+        .access-register-actions .fb-btn {
             flex: 1 1 auto;
         }
     }
     @media (max-width: 575.98px) {
-        .access-page h3 {
-            font-size: 1.25rem;
-            line-height: 1.2;
-        }
         .access-register-actions {
             display: grid !important;
             grid-template-columns: 1fr;
         }
         .access-register-actions form,
-        .access-register-actions .btn {
+        .access-register-actions .fb-btn {
             width: 100%;
         }
-        .access-register-grid .quick-uh-wrap {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .access-register-grid .quick-uh-wrap .btn {
-            min-height: 44px;
-            white-space: normal;
-            line-height: 1.15;
-        }
-        .access-pax-control {
-            grid-template-columns: 52px minmax(0, 1fr) 52px;
-        }
-        .access-register-grid .recent-live-table,
-        .access-register-grid .recent-live-table tbody,
-        .access-register-grid .recent-live-table tr,
-        .access-register-grid .recent-live-table td {
-            display: block;
-            width: 100%;
-        }
-        .access-register-grid .recent-live-table thead {
-            display: none;
-        }
-        .access-register-grid .recent-live-table tr {
-            border: 1px solid var(--ab-border);
-            border-radius: 16px;
-            background: var(--ab-card);
-            padding: .85rem;
-            margin-bottom: .75rem;
-            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
-        }
-        .access-register-grid .recent-live-table td {
-            border: 0;
-            padding: .35rem 0 !important;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            white-space: normal;
-            text-align: right;
-        }
-        .access-register-grid .recent-live-table td::before {
-            content: attr(data-label);
-            color: var(--ab-muted);
-            font-size: .72rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: left;
-        }
-        .access-register-grid .recent-live-table td .tag,
-        .access-register-grid .recent-live-table td .uh-badge,
-        .access-register-grid .recent-live-table td .badge {
-            max-width: 62%;
-            white-space: normal;
-            text-align: center;
+        .access-register-grid .quick-uh-wrap .fb-chip {
+            flex: 1 1 45%;
+            justify-content: center;
         }
     }
 </style>
@@ -586,8 +501,8 @@ $showHostessTutorial = false;
 <?php else: ?>
     <div class="row g-4 access-register-grid">
         <div class="col-12 col-lg-7">
-            <div class="card p-4 saas-hero-card">
-                <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="fb-card fb-card--flat">
+                <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
                     <?php
                     $identReg = restaurante_identidade($turno['restaurante']);
                     $nomeReg = (string)preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake((string)$turno['restaurante']));
@@ -602,18 +517,18 @@ $showHostessTutorial = false;
                     </div>
                     <div class="d-flex gap-2 flex-wrap access-register-actions">
                         <?php if ($allowHostessTutorial): ?>
-                            <button type="button" class="btn btn-outline-primary" id="openHostessTutorial">
-                                <i class="bi bi-mortarboard me-1"></i>Tutorial
+                            <button type="button" class="fb-btn fb-btn--ghost js-open-tour" id="openHostessTutorial">
+                                <i class="bi bi-question-circle"></i> Guia
                             </button>
                         <?php endif; ?>
                         <form method="post" action="/?r=turnos/end">
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                            <button class="btn btn-outline-danger" data-confirm="Confirma encerramento do turno?" data-confirm-title="Encerrar turno" data-confirm-type="danger"><i class="bi bi-box-arrow-right me-1"></i>Encerrar turno</button>
+                            <button class="fb-btn fb-btn--danger" data-confirm="Confirma encerramento do turno?" data-confirm-title="Encerrar turno" data-confirm-type="danger"><i class="bi bi-box-arrow-right"></i> Encerrar turno</button>
                         </form>
                         <?php if ($canCancel): ?>
                             <form method="post" action="/?r=turnos/cancel">
                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                                <button class="btn btn-outline-secondary" data-confirm="Confirma cancelamento do turno sem registros?" data-confirm-title="Cancelar turno"><i class="bi bi-x-circle me-1"></i>Cancelar turno</button>
+                                <button class="fb-btn" data-confirm="Confirma cancelamento do turno sem registros?" data-confirm-title="Cancelar turno"><i class="bi bi-x-circle"></i> Cancelar turno</button>
                             </form>
                         <?php endif; ?>
                     </div>
@@ -684,29 +599,29 @@ $showHostessTutorial = false;
                 <form method="post" action="/?r=access/register" class="access-primary-form">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <div class="mb-3">
-                    <label class="form-label">Número da UH</label>
-                        <input type="text" name="uh_numero" class="form-control input-xl fb-input--big" inputmode="numeric" required autofocus>
+                        <label class="fb-label">Número da UH</label>
+                        <input type="text" name="uh_numero" class="fb-input fb-input--big" inputmode="numeric" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Exceções rápidas</label>
+                        <label class="fb-label">Exceções rápidas</label>
                         <div class="quick-uh-wrap" id="uhQuickExceptions">
-                            <button type="button" class="btn btn-outline-primary btn-sm js-quick-uh" data-uh="998" data-label="Não informado">
-                                <i class="bi bi-question-circle me-1"></i>Não informado
+                            <button type="button" class="fb-chip js-quick-uh" data-uh="998" data-label="Não informado">
+                                <i class="bi bi-question-circle"></i> Não informado
                             </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm js-quick-uh" data-uh="999" data-label="Day use">
-                                <i class="bi bi-sun me-1"></i>Day use
+                            <button type="button" class="fb-chip js-quick-uh" data-uh="999" data-label="Day use">
+                                <i class="bi bi-sun"></i> Day use
                             </button>
                         </div>
-                        <div class="small text-muted mt-1" id="uhQuickHint">Toque para preencher a UH automaticamente.</div>
+                        <div class="small fb-muted mt-1" id="uhQuickHint">Toque para preencher a UH automaticamente.</div>
                     </div>
 
                     <?php if ($turno['exige_pax'] == 1): ?>
                         <div class="mb-3">
-                            <label class="form-label">Quantidade de PAX</label>
-                            <div class="access-pax-control">
-                                <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(-1)">-</button>
-                                <input type="number" min="1" name="pax" id="pax" class="form-control input-xl text-center" value="1" required>
-                                <button class="btn btn-outline-secondary btn-xl" type="button" onclick="adjustPax(1)">+</button>
+                            <label class="fb-label">Quantidade de PAX</label>
+                            <div class="fb-reserve-stepper">
+                                <button class="fb-stepper__btn" type="button" onclick="adjustPax(-1)" aria-label="Diminuir PAX"><i class="bi bi-dash"></i></button>
+                                <input type="number" min="1" name="pax" id="pax" class="fb-input fb-num text-center" value="1" required>
+                                <button class="fb-stepper__btn" type="button" onclick="adjustPax(1)" aria-label="Aumentar PAX"><i class="bi bi-plus"></i></button>
                             </div>
                         </div>
                     <?php else: ?>
@@ -731,32 +646,32 @@ $showHostessTutorial = false;
                     <hr class="my-4">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <div class="text-uppercase text-muted small">Correção rápida (2 min)</div>
-                            <div class="small text-muted">
+                            <p class="fb-card__eyebrow">Correção rápida (2 min)</p>
+                            <div class="small fb-muted">
                                 Ajuste UH ou PAX dos dois últimos lançamentos feitos neste turno.
                             </div>
                         </div>
-                        <span class="badge badge-warning">Janela curta</span>
+                        <span class="fb-badge fb-badge--warn">Janela curta</span>
                     </div>
                     <div class="d-grid gap-2">
                         <?php foreach ($lastEditableAccesses as $idx => $editable): ?>
                             <form method="post" action="/?r=access/correct_last" class="row g-2 align-items-end quick-correction-row">
                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                 <input type="hidden" name="access_id" value="<?= (int)$editable['id'] ?>">
-                                <div class="col-12 small text-muted">
+                                <div class="col-12 small fb-muted">
                                     <?= $idx === 0 ? 'Mais recente' : 'Registro anterior' ?>:
                                     UH <?= h(uh_label($editable['uh_numero'])) ?> - PAX <?= (int)$editable['pax'] ?>
                                 </div>
                                 <div class="col-5">
-                                    <label class="form-label mb-1">UH</label>
-                                    <input type="text" inputmode="numeric" name="uh_corrigida" class="form-control input-xl" value="<?= h($editable['uh_numero']) ?>" required>
+                                    <label class="fb-label mb-1">UH</label>
+                                    <input type="text" inputmode="numeric" name="uh_corrigida" class="fb-input" value="<?= h($editable['uh_numero']) ?>" required>
                                 </div>
                                 <div class="col-4">
-                                    <label class="form-label mb-1">PAX</label>
-                                    <input type="number" min="1" name="pax_corrigido" class="form-control input-xl" value="<?= (int)$editable['pax'] ?>" required>
+                                    <label class="fb-label mb-1">PAX</label>
+                                    <input type="number" min="1" name="pax_corrigido" class="fb-input" value="<?= (int)$editable['pax'] ?>" required>
                                 </div>
                                 <div class="col-3">
-                                    <button type="submit" class="btn btn-outline-primary btn-xl w-100" data-confirm="Confirmar correção deste lançamento?" data-confirm-title="Corrigir lançamento">
+                                    <button type="submit" class="fb-btn w-100" data-confirm="Confirmar correção deste lançamento?" data-confirm-title="Corrigir lançamento">
                                         OK
                                     </button>
                                 </div>
@@ -767,26 +682,26 @@ $showHostessTutorial = false;
             </div>
 
             <?php if (!empty($this->data['is_corais'])): ?>
-                <div class="section-block mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="fb-card fb-card--flat mt-4">
+                    <div class="fb-card__head">
                         <div>
-                            <div class="text-uppercase text-muted small">Registros adicionais</div>
-                            <h5 class="fw-bold mb-0">Colaboradores</h5>
+                            <p class="fb-card__eyebrow">Registros adicionais</p>
+                            <h5 class="fb-card__title">Colaboradores</h5>
                         </div>
-                        <span class="badge badge-soft">Exclusivo Corais</span>
+                        <span class="fb-badge fb-badge--nao-informado">Exclusivo Corais</span>
                     </div>
                     <form method="post" action="/?r=access/register_colaborador" class="row g-3">
                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                         <div class="col-12 col-md-8">
-                            <label class="form-label">Nome do colaborador</label>
-                            <input type="text" name="nome_colaborador" class="form-control input-xl" required>
+                            <label class="fb-label">Nome do colaborador</label>
+                            <input type="text" name="nome_colaborador" class="fb-input" required>
                         </div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Quantidade de refeições</label>
-                            <input type="number" min="1" name="quantidade" class="form-control input-xl text-center" value="1" required>
+                            <label class="fb-label">Quantidade de refeições</label>
+                            <input type="number" min="1" name="quantidade" class="fb-input text-center" value="1" required>
                         </div>
                         <div class="col-12">
-                            <button class="btn btn-outline-primary btn-xl w-100">Registrar refeição</button>
+                            <button class="fb-btn fb-btn--lg">Registrar refeição</button>
                         </div>
                     </form>
                 </div>
@@ -794,46 +709,53 @@ $showHostessTutorial = false;
         </div>
 
         <div class="col-12 col-lg-5">
-            <div class="section-block">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="fw-bold mb-0">Últimos acessos</h4>
-                    <span class="text-muted small">Ao vivo</span>
+            <div class="fb-card fb-card--flat">
+                <div class="fb-card__head">
+                    <h5 class="fb-card__title">Últimos acessos</h5>
+                    <span class="fb-badge fb-badge--ok"><span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--fb-ok); margin-right: 4px;"></span>ao vivo</span>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle recent-live-table">
-                        <thead>
+                <table class="fb-table">
+                    <thead>
+                        <tr>
+                            <th>UH</th>
+                            <th>PAX</th>
+                            <th>Operação</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recentes as $item): ?>
+                            <?php $uhRaw = trim((string)($item['uh_numero'] ?? '')); ?>
                             <tr>
-                                <th>UH</th>
-                                <th>PAX</th>
-                                <th>Operação</th>
-                                <th>Status</th>
+                                <td data-label="UH">
+                                    <?php if ($uhRaw === '998'): ?>
+                                        <span class="fb-badge fb-badge--nao-informado">998 · não inf.</span>
+                                    <?php elseif ($uhRaw === '999'): ?>
+                                        <span class="fb-badge fb-badge--day-use">999 · day use</span>
+                                    <?php else: ?>
+                                        <strong class="fb-num" style="font-size: 1.05rem;"><?= h($uhRaw) ?></strong>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="PAX" class="fb-num"><?= h($item['pax']) ?></td>
+                                <td data-label="Operação"><?= h(normalize_mojibake((string)$item['operacao'])) ?></td>
+                                <td data-label="Status">
+                                    <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
+                                        <span class="fb-badge fb-badge--duplicado">Duplicado</span>
+                                    <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
+                                        <span class="fb-badge fb-badge--fora-horario">Fora do horário</span>
+                                    <?php elseif (($item['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
+                                        <span class="fb-badge fb-badge--multiplo">Múltiplo acesso</span>
+                                    <?php else: ?>
+                                        <span class="fb-badge fb-badge--ok">OK</span>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($recentes as $item): ?>
-                                <tr>
-                                    <td data-label="UH"><span class="uh-badge <?= uh_badge_class($item['uh_numero']) ?>"><?= h(uh_label($item['uh_numero'])) ?></span></td>
-                                    <td data-label="PAX"><?= h($item['pax']) ?></td>
-                                    <td data-label="Operação"><span class="tag <?= operation_badge_class($item['operacao']) ?>"><?= h($item['operacao']) ?></span></td>
-                                    <td data-label="Status">
-                                        <?php if (($item['status_operacional'] ?? '') === 'Duplicado'): ?>
-                                            <span class="fb-badge fb-badge--duplicado">Duplicado</span>
-                                        <?php elseif (($item['status_operacional'] ?? '') === 'Fora do Horário'): ?>
-                                            <span class="fb-badge fb-badge--fora-horario">Fora do horário</span>
-                                        <?php elseif (($item['status_operacional'] ?? '') === 'Múltiplo Acesso'): ?>
-                                            <span class="fb-badge fb-badge--multiplo">Múltiplo acesso</span>
-                                        <?php else: ?>
-                                            <span class="fb-badge fb-badge--ok">OK</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                            <?php if (empty($recentes)): ?>
-                                <tr><td colspan="4" class="text-muted">Sem registros.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                        <?php endforeach; ?>
+                        <?php if (empty($recentes)): ?>
+                            <tr><td colspan="4" class="fb-muted">Sem registros.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -914,7 +836,7 @@ $showHostessTutorial = false;
         if (!uhInput) return;
         const current = (uhInput.value || '').trim();
         quickUhButtons.forEach((btn) => {
-            btn.classList.toggle('active', btn.dataset.uh === current);
+            btn.classList.toggle('fb-chip--active', btn.dataset.uh === current);
         });
         if (!quickHint) return;
         if (current === '998') {

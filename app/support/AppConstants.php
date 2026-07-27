@@ -8,7 +8,7 @@ final class AppConstants
 {
     public const APP_NAME = 'FBControl';
 
-    public const ROUTE_HOME = '/?r=home';
+    public const ROUTE_HOME = '/?r=auth/login';
     public const ROUTE_LOGIN = '/?r=auth/login';
     public const ROUTE_ACCESS_INDEX = '/?r=access/index';
     public const ROUTE_DASHBOARD_INDEX = '/?r=dashboard/index';

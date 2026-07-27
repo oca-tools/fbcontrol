@@ -1,4 +1,4 @@
-# FBControl v3.0
+# FBControl v4.4
 
 Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido de acesso, turnos, auditoria, relatórios e reservas temáticas.
 
@@ -51,7 +51,7 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 
 ## Instalação rápida
 1. Crie o banco MySQL/MariaDB com charset `utf8mb4`.
-2. Execute `sql/schema_v3_0.sql`.
+2. Execute `sql/schema_v4_0.sql`.
 3. Ajuste variáveis de ambiente ou `config/config.local.php`.
 4. Configure o servidor web apontando para `public`.
 5. Acesse: `/?r=auth/login`.
@@ -59,7 +59,7 @@ Plataforma operacional A&B para hotéis e resorts, com foco em registro rápido 
 Exemplo local com MySQL CLI:
 
 ```bash
-mysql -u usuario -p nome_do_banco < sql/schema_v3_0.sql
+mysql -u usuario -p nome_do_banco < sql/schema_v4_0.sql
 ```
 
 ## Upgrade de bancos antigos
@@ -84,9 +84,22 @@ mysql -u usuario -p nome_do_banco < sql/migration_v3_2_chd_age_labels.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_3_thematic_availability_overrides.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_4_perfil_operacional_restaurantes.sql
 mysql -u usuario -p nome_do_banco < sql/migration_v3_5_identidade_restaurantes.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_6_unidades_habitacionais_validacao.sql
+mysql -u usuario -p nome_do_banco < sql/migration_v3_7_reservas_idempotencia.sql
 ```
 
-Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v3_0.sql`.
+### Confirmação de reservas em conexão instável
+
+Após a migration `v3_7`, cada envio de reserva temática recebe uma referência técnica
+única. Se a conexão cair depois de o servidor gravar a reserva, o aplicativo consulta
+essa referência e mostra o protocolo já confirmado; um reenvio da mesma tentativa não
+cria uma segunda reserva. Para reaplicar a estrutura com segurança:
+
+```bash
+php tools/apply_reservation_idempotency_migration.php
+```
+
+Observação: `migration_v2_1_lgpd.sql` só é necessária ao atualizar bancos muito antigos. As tabelas LGPD já estão em `schema_v4_0.sql`.
 
 Como alternativa idempotente ao comando MySQL, a migration pode usar a configuracao do aplicativo:
 
@@ -189,7 +202,7 @@ Higiene de release:
 
 ```bash
 php tools/check_release_hygiene.php
-php tools/build_release.php 3.0
+php tools/build_release.php 4.4
 ```
 
 O builder gera um pacote `.tar.gz` somente com arquivos rastreados e exclui `config.local.php`, uploads reais, backups e artefatos temporários. O `public/uploads/.htaccess` permanece para manter proteção no Apache.

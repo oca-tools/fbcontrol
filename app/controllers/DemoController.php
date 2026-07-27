@@ -7,12 +7,12 @@ class DemoController extends Controller
         Auth::requireRole(['admin']);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('/?r=home');
+            $this->redirect(AppConstants::ROUTE_LOGIN);
         }
 
         if (!csrf_validate($_POST['csrf_token'] ?? '')) {
             set_flash('danger', 'Token inválido.');
-            $this->redirect('/?r=home');
+            $this->redirect(AppConstants::ROUTE_LOGIN);
         }
 
         $_SESSION['demo_mode'] = (int)($_POST['demo_mode'] ?? 0) === 1 ? 1 : 0;
@@ -23,6 +23,6 @@ class DemoController extends Controller
                 : 'Modo demonstração desativado.'
         );
 
-        $this->redirect(sanitize_local_redirect_path((string)($_POST['return_to'] ?? '/?r=home')));
+        $this->redirect(sanitize_local_redirect_path((string)($_POST['return_to'] ?? AppConstants::ROUTE_LOGIN)));
     }
 }

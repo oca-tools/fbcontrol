@@ -46,6 +46,26 @@ final class ReservaTematicaConfirmacaoService
         ];
     }
 
+    /**
+     * Reconstitui a confirmação depois de uma perda de conexão sem criar nada
+     * novamente. O usuário só enxerga uma reserva quando ela existe no banco.
+     */
+    public function confirmarPorCorrelacao(CriarReservaCommand $command): array
+    {
+        $rows = $this->repository->buscarReservasPorCorrelacao($command->correlationId, $command->usuarioId);
+        if ($rows === []) {
+            return [];
+        }
+
+        return $this->confirmarPersistencia(
+            $command,
+            ServiceResult::success('Reserva confirmada.', [
+                'reservas_ids' => array_map(static fn(array $row): int => (int)$row['id'], $rows),
+                'grupo_id' => (int)($rows[0]['grupo_id'] ?? 0),
+            ])
+        );
+    }
+
     public function listarRecentes(int $usuarioId, int $limit = 8): array
     {
         $rows = $this->repository->listarRecentesDoUsuario($usuarioId, max(30, $limit * 8));

@@ -166,7 +166,7 @@ class AccessModel extends Model
             return false;
         }
 
-        $stmtUh = $this->db->prepare("SELECT id FROM unidades_habitacionais WHERE numero = :numero LIMIT 1");
+        $stmtUh = $this->db->prepare("SELECT id FROM unidades_habitacionais WHERE numero = :numero AND ativo = 1 LIMIT 1");
         $stmtUh->execute([':numero' => $uhNumero]);
         $uh = $stmtUh->fetch();
         if (!$uh) {

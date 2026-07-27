@@ -189,7 +189,7 @@ function upload_limit_bytes(int $appMaxBytes): int
     return min($limits);
 }
 
-function sanitize_local_redirect_path(string $value, string $fallback = '/?r=home'): string
+function sanitize_local_redirect_path(string $value, string $fallback = '/?r=auth/login'): string
 {
     if (preg_match('/[\x00-\x1F\x7F]/', $value)) {
         return $fallback;

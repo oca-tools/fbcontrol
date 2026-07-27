@@ -54,6 +54,20 @@ final class CriarReservaCommand
         $this->batchPax = is_array($dados['batch_pax'] ?? null) ? $dados['batch_pax'] : [];
         $this->batchChdIdades = is_array($dados['batch_chd_idades'] ?? null) ? $dados['batch_chd_idades'] : [];
         $this->grupoResponsavel = normalize_mojibake(trim((string)($dados['grupo_responsavel'] ?? '')));
-        $this->correlationId = trim((string)($dados['correlation_id'] ?? ''));
+        $this->correlationId = self::normalizeCorrelationId((string)($dados['correlation_id'] ?? ''));
+    }
+
+    /**
+     * Aceita somente a chave opaca gerada pelo navegador para uma tentativa.
+     * Ela nunca deve carregar dados pessoais ou comandos do cliente.
+     */
+    public static function normalizeCorrelationId(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9_-]{15,79}$/', $value)) {
+            return '';
+        }
+
+        return $value;
     }
 }

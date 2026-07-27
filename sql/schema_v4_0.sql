@@ -1,8 +1,4 @@
 ﻿
--- FBControl 3.0
--- Schema consolidado para instalacoes novas.
--- Para bancos existentes, aplique as migrations versionadas em ordem.
-
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
@@ -784,6 +780,9 @@ CREATE TABLE `vouchers` (
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+-- FBControl 4.0
+-- Schema consolidado para instalacoes novas e reinicializacoes controladas.
+-- Para bancos existentes, preserve a base e aplique apenas migrations necessarias.
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

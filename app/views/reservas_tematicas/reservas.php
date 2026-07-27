@@ -361,6 +361,7 @@ if ($temSelecao && $restauranteSelecionado) {
                 <form method="post" action="/?r=reservasTematicas/reservas" class="fb-reserve-form" id="reservaCadastroForm" data-reserva-context="<?= h(normalize_mojibake((string)$restauranteSelecionado['nome'])) ?> · <?= h($rotuloTurno($turnoSelecionado)) ?>" data-reserva-date="<?= h(format_date_br($dataSelecionada)) ?>">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="action" value="create" id="reservaActionInput">
+                    <input type="hidden" name="correlation_id" value="" id="reservaCorrelationId">
                     <input type="hidden" name="restaurante_id" value="<?= $restauranteSelecionadoId ?>">
                     <input type="hidden" name="turno_id" value="<?= $turnoSelecionadoId ?>">
                     <input type="hidden" name="data_reserva" value="<?= h($dataSelecionada) ?>">
@@ -544,6 +545,61 @@ function fbAdicionarLinhaLote() {
 (function () {
     var form = document.getElementById('reservaCadastroForm');
     if (!form || !window.fetch) { return; }
+    var correlationInput = document.getElementById('reservaCorrelationId');
+
+    function createCorrelationId() {
+        if (window.crypto && window.crypto.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+        if (window.crypto && window.crypto.getRandomValues) {
+            var values = new Uint32Array(4);
+            window.crypto.getRandomValues(values);
+            return Array.prototype.map.call(values, function (value) {
+                return value.toString(16).padStart(8, '0');
+            }).join('-');
+        }
+        return 'reservation-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function ensureCorrelationId() {
+        if (!correlationInput) { return ''; }
+        if (!correlationInput.value) { correlationInput.value = createCorrelationId(); }
+        return correlationInput.value;
+    }
+
+    function clearCorrelationId() {
+        if (correlationInput) { correlationInput.value = ''; }
+    }
+
+    function checkReservationStatus(correlationId) {
+        if (!correlationId) { return Promise.resolve(null); }
+        var url = new URL('/?r=reservasTematicas/reservas', window.location.origin);
+        url.searchParams.set('ajax', 'reservation_status');
+        url.searchParams.set('correlation_id', correlationId);
+        var retries = 0;
+        function check() {
+            return fetch(url.toString(), {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
+            }).then(function (response) {
+                return response.json();
+            }).then(function (payload) {
+                if (payload && payload.status === 'confirmed' && payload.confirmation && payload.confirmation.protocolo) {
+                    return payload.confirmation;
+                }
+                if (retries++ < 2) {
+                    return new Promise(function (resolve) { window.setTimeout(resolve, 700); }).then(check);
+                }
+                return null;
+            }).catch(function () {
+                if (retries++ < 2) {
+                    return new Promise(function (resolve) { window.setTimeout(resolve, 700); }).then(check);
+                }
+                return null;
+            });
+        }
+        return check();
+    }
 
     function activeMode() {
         var active = document.querySelector('[data-reserve-mode-button].is-active');
@@ -583,6 +639,31 @@ function fbAdicionarLinhaLote() {
         return Promise.resolve();
     }
 
+    function resolveUncertainSubmission(correlationId, formData) {
+        return checkReservationStatus(correlationId).then(function (confirmation) {
+            if (confirmation) {
+                return alertReservation(
+                    'success',
+                    'Reserva confirmada no banco',
+                    'A conexão foi interrompida, mas esta reserva foi gravada com segurança. Protocolo ' + confirmation.protocolo + '.',
+                    reservationDetails(formData, { correlation_id: correlationId }),
+                    'Conferido'
+                ).then(function () {
+                    clearCorrelationId();
+                    window.location.assign('/?r=reservasTematicas/reservas');
+                    return true;
+                });
+            }
+            return alertReservation(
+                'warning',
+                'Confirmação pendente',
+                'O servidor não devolveu uma resposta conclusiva. Os dados foram mantidos; ao tentar novamente, esta mesma referência será usada e não criará uma reserva duplicada.',
+                reservationDetails(formData, { correlation_id: correlationId }),
+                'Entendi'
+            ).then(function () { return false; });
+        });
+    }
+
     function plainTextFromHtml(html) {
         var doc;
         try {
@@ -597,7 +678,10 @@ function fbAdicionarLinhaLote() {
     function parseReservationResponse(response) {
         var contentType = String(response.headers.get('content-type') || '').toLowerCase();
         if (contentType.indexOf('application/json') !== -1) {
-            return response.json();
+            return response.json().then(function (payload) {
+                payload.http_status = response.status;
+                return payload;
+            });
         }
 
         return response.text().then(function (text) {
@@ -609,6 +693,7 @@ function fbAdicionarLinhaLote() {
                     ok: false,
                     type: 'danger',
                     code: 'sessao_expirada',
+                    http_status: response.status,
                     message: 'Sua sessão expirou ou foi encerrada. Entre novamente antes de registrar a reserva.',
                     redirect: '/?r=auth/login'
                 };
@@ -619,6 +704,7 @@ function fbAdicionarLinhaLote() {
                     ok: false,
                     type: 'danger',
                     code: 'acesso_negado',
+                    http_status: response.status,
                     message: 'Seu usuário não tem permissão para concluir esta ação.',
                     redirect: '/?r=errors/forbidden'
                 };
@@ -628,6 +714,7 @@ function fbAdicionarLinhaLote() {
                 ok: false,
                 type: 'danger',
                 code: 'resposta_invalida',
+                http_status: response.status,
                 message: readable || 'O servidor respondeu em um formato inesperado. Atualize a página e tente novamente.'
             };
         });
@@ -639,6 +726,7 @@ function fbAdicionarLinhaLote() {
 
         var submit = form.querySelector('button[type="submit"]');
         var originalHtml = submit ? submit.innerHTML : '';
+        var correlationId = ensureCorrelationId();
         var formData = new FormData(form);
         if (submit) {
             submit.disabled = true;
@@ -661,6 +749,9 @@ function fbAdicionarLinhaLote() {
                 var payload = result && result.payload ? result.payload : {};
                 var details = reservationDetails(formData, payload);
                 if (!result || !result.ok) {
+                    if (!result || result.code === 'resposta_invalida' || Number(result.http_status || 0) >= 500) {
+                        return resolveUncertainSubmission(correlationId, formData);
+                    }
                     return alertReservation(
                         result && result.type === 'warning' ? 'warning' : 'danger',
                         'Reserva não realizada',
@@ -668,6 +759,7 @@ function fbAdicionarLinhaLote() {
                         details,
                         'Corrigir dados'
                     ).then(function () {
+                        clearCorrelationId();
                         if (result && result.redirect && ['sessao_expirada', 'acesso_negado'].indexOf(result.code || '') !== -1) {
                             window.location.assign(result.redirect);
                         }
@@ -681,17 +773,12 @@ function fbAdicionarLinhaLote() {
                     details,
                     'Registrar outra reserva'
                 ).then(function () {
+                    clearCorrelationId();
                     window.location.assign(result.redirect || window.location.href);
                 });
             })
             .catch(function () {
-                return alertReservation(
-                    'danger',
-                    'Não foi possível concluir a reserva',
-                    'A conexão foi interrompida antes da confirmação. Os dados preenchidos foram mantidos para nova tentativa.',
-                    reservationDetails(formData, {}),
-                    'Corrigir dados'
-                );
+                return resolveUncertainSubmission(correlationId, formData);
             })
             .finally(function () {
                 if (submit) {

@@ -37,6 +37,8 @@ Em bancos existentes, validar/aplicar as migrations versionadas:
 13. `sql/migration_v3_1_audit_security.sql`
 14. `sql/migration_v3_2_chd_age_labels.sql`
 15. `sql/migration_v3_3_thematic_availability_overrides.sql`
+16. `sql/migration_v3_6_unidades_habitacionais_validacao.sql`
+17. `sql/migration_v3_7_reservas_idempotencia.sql`
 
 ## Validacao local
 

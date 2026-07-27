@@ -5,7 +5,7 @@
     <h1>Esta página não está disponível.</h1>
     <p><?= h($message ?? 'O endereço pode ter mudado ou não fazer mais parte do fluxo atual.') ?></p>
     <div class="fb-system-state__actions">
-        <a href="/?r=home" class="btn btn-primary"><i class="bi bi-house"></i> Ir para o início</a>
+        <a href="/?r=auth/login" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Ir para o acesso</a>
         <a href="/?r=auth/login" class="btn btn-outline-primary"><i class="bi bi-box-arrow-in-right"></i> Tela de login</a>
     </div>
 </div>

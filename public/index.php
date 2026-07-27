@@ -99,8 +99,8 @@ if ($route !== '' && !preg_match('/^[a-zA-Z0-9_\/-]+$/', $route)) {
     http_response_code(400);
     $route = 'errors/notFound';
 }
-if ($route === '' || $route === 'home') {
-    $route = 'home/index';
+if ($route === '' || $route === 'home' || $route === 'home/index') {
+    $route = 'auth/login';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

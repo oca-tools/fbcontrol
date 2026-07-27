@@ -19,6 +19,21 @@ final class CriarReservaService implements CriarReservaServiceInterface
     public function executar(CriarReservaCommand $command): ServiceResult
     {
         try {
+            if ($command->acao !== ReservasTematicasConstants::ACTION_UPDATE && $command->correlationId !== '') {
+                $existentes = $this->reservas->buscarReservasPorCorrelacao($command->correlationId, $command->usuarioId);
+                if ($existentes !== []) {
+                    return ServiceResult::success(
+                        'Reserva já confirmada para esta tentativa.',
+                        [
+                            'reservas_ids' => array_map(static fn(array $row): int => (int)$row['id'], $existentes),
+                            'grupo_id' => (int)($existentes[0]['grupo_id'] ?? 0),
+                            'idempotent_replay' => true,
+                        ],
+                        'reserva_ja_confirmada'
+                    );
+                }
+            }
+
             if ($command->hostessForaDaJanela) {
                 return ServiceResult::failure(
                     ReservasTematicasConstants::CODE_FORA_JANELA_RESERVA,
@@ -47,6 +62,22 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 ? $this->atualizarReserva($command)
                 : $this->criarReservaIndividual($command);
         } catch (Throwable $error) {
+            if ($command->acao !== ReservasTematicasConstants::ACTION_UPDATE
+                && $command->correlationId !== ''
+                && $this->isDuplicateCorrelationError($error)) {
+                $existentes = $this->reservas->buscarReservasPorCorrelacao($command->correlationId, $command->usuarioId);
+                if ($existentes !== []) {
+                    return ServiceResult::success(
+                        'Reserva já confirmada para esta tentativa.',
+                        [
+                            'reservas_ids' => array_map(static fn(array $row): int => (int)$row['id'], $existentes),
+                            'grupo_id' => (int)($existentes[0]['grupo_id'] ?? 0),
+                            'idempotent_replay' => true,
+                        ],
+                        'reserva_ja_confirmada'
+                    );
+                }
+            }
             return $this->falhaDePersistencia($command, $error);
         }
     }
@@ -193,7 +224,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
             ], $command->usuarioId);
 
             $grupoNome = $command->grupoNome !== '' ? $command->grupoNome : $command->grupoResponsavel;
-            foreach ($itensDoGrupo as $item) {
+            foreach ($itensDoGrupo as $itemIndex => $item) {
                 $payload = $this->montarPayloadReserva($command, [
                     'uh_id' => $item['uh_id'],
                     'titular_nome' => $command->grupoResponsavel,
@@ -203,6 +234,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
                     'qtd_chd' => $item['qtd_chd'],
                     'grupo_id' => $grupoId > ReservasTematicasConstants::DEFAULT_ZERO ? $grupoId : null,
                     'grupo_nome' => $grupoNome,
+                    'correlation_item' => $itemIndex,
                 ]);
                 $reservaId = $this->reservas->criarReserva($payload, $command->usuarioId);
                 $this->reservas->substituirIdadesChd($reservaId, $item['idades']);
@@ -510,7 +542,16 @@ final class CriarReservaService implements CriarReservaServiceInterface
             'excedente_motivo' => null,
             'excedente_autor_id' => null,
             'excedente_em' => null,
+            'correlation_id' => $command->acao === ReservasTematicasConstants::ACTION_UPDATE || $command->correlationId === '' ? null : $command->correlationId,
+            'correlation_item' => 0,
             'idades_chd' => [],
         ], $dados);
+    }
+
+    private function isDuplicateCorrelationError(Throwable $error): bool
+    {
+        $message = strtolower($error->getMessage());
+        return strpos($message, 'uq_res_tem_correlation_item') !== false
+            || (strpos($message, 'duplicate') !== false && strpos($message, 'correlation') !== false);
     }
 }

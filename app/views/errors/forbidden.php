@@ -5,7 +5,7 @@
     <h1>Você não tem acesso a esta área.</h1>
     <p><?= h($message ?? 'Seu perfil não possui a permissão necessária. Volte ao início ou entre com outra conta autorizada.') ?></p>
     <div class="fb-system-state__actions">
-        <a href="/?r=home" class="btn btn-primary"><i class="bi bi-house"></i> Ir para o início</a>
+        <a href="/?r=auth/login" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Ir para o acesso</a>
         <a href="/?r=auth/login" class="btn btn-outline-primary"><i class="bi bi-box-arrow-in-right"></i> Trocar acesso</a>
     </div>
 </div>
