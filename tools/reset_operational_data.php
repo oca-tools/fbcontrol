@@ -74,6 +74,9 @@ try {
     foreach ([
         ['lgpd_config', 'atualizado_por'],
         ['lgpd_retencao_politicas', 'atualizado_por'],
+        // A capacidade por data e uma configuracao estrutural preservada.
+        // O autor antigo pode ser removido porque a coluna aceita NULL.
+        ['reservas_tematicas_capacidades_datas', 'usuario_id'],
         ['reservas_tematicas_bloqueios_semanais', 'usuario_id'],
     ] as [$table, $column]) {
         $statement = $db->prepare('UPDATE `' . $table . '` SET `' . $column . '` = NULL WHERE `' . $column . '` IS NOT NULL AND `' . $column . '` <> :admin_id');
