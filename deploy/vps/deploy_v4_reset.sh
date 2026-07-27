@@ -38,7 +38,6 @@ trap restart_apache_if_needed EXIT
 echo "== Preparando backup =="
 mkdir -p "${BACKUP}" "${TMP}" "${NEW}"
 tar -czf "${BACKUP}/release_anterior.tar.gz" -C "${CURRENT}" .
-php "${CURRENT}/tools/backup_database.php" "${BACKUP}/banco_antes_do_reset.sql"
 
 echo "== Extraindo versao 4.4 =="
 tar -xzf "${PACKAGE}" -C "${NEW}"
@@ -53,6 +52,11 @@ if [[ -d "${CURRENT}/public/uploads" ]]; then
     cp -a "${CURRENT}/public/uploads/." "${NEW}/public/uploads/"
 fi
 mkdir -p "${NEW}/public/uploads/profiles" "${NEW}/public/uploads/vouchers" "${NEW}/logs"
+
+# Releases legadas podem nao conter o utilitario de backup. A versao nova ja
+# recebeu a configuracao ativa e e usada somente para gerar o dump preventivo.
+echo "== Backup do banco de producao =="
+php "${NEW}/tools/backup_database.php" "${BACKUP}/banco_antes_do_reset.sql"
 
 echo "== Validando codigo =="
 find "${NEW}/app" "${NEW}/public" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
