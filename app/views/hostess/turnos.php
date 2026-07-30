@@ -23,13 +23,14 @@ $profileQuery = static function (array $changes = []) use ($reservationFilters, 
     return '/?' . http_build_query($params);
 };
 $statusClass = static function (string $status): string {
-    return match ($status) {
+    $classes = [
         'Finalizada' => 'success',
-        'Nao compareceu', 'Não compareceu' => 'warning',
+        'Nao compareceu' => 'warning',
+        'Não compareceu' => 'warning',
         'Cancelada' => 'danger',
         'Pre-reserva' => 'info',
-        default => 'neutral',
-    };
+    ];
+    return $classes[$status] ?? 'neutral';
 };
 $tabLink = static function (string $tab) use ($profileQuery): string {
     return $profileQuery(['aba' => $tab, 'page' => '']);
