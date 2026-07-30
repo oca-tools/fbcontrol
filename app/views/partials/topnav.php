@@ -16,13 +16,9 @@ if (in_array($perfilTopnav, ['admin', 'supervisor', 'gerente'], true)) {
 } else {
     $abasPrimarias = [
         ['rota' => 'access/index', 'match' => ['access/index'], 'icone' => 'bi-clipboard-check', 'label' => 'Registro'],
+        ['rota' => 'reservasTematicas/reservas', 'match' => ['reservasTematicas/reservas', 'reservasTematicas/conferencia'], 'icone' => 'bi-calendar-heart', 'label' => 'Reservas'],
         ['rota' => 'vouchers/index', 'match' => ['vouchers/index'], 'icone' => 'bi-ticket-perforated', 'label' => 'Vouchers'],
     ];
-    if (!empty($canTematicas)) {
-        $abasPrimarias[] = ['rota' => 'reservasTematicas/operacao', 'match' => ['reservasTematicas/operacao', 'reservasTematicas/reservas', 'reservasTematicas/conferencia'], 'icone' => 'bi-calendar-heart', 'label' => 'Temáticos'];
-    } else {
-        $abasPrimarias[] = ['rota' => 'hostess/turnos', 'match' => ['hostess/turnos'], 'icone' => 'bi-calendar-week', 'label' => 'Meus turnos'];
-    }
 }
 $fotoTopnav = safe_public_upload_url((string)($user['foto_path'] ?? ''), 'profiles');
 $iniciaisTopnav = mb_strtoupper(mb_substr(trim((string)($user['nome'] ?? '?')), 0, 1, 'UTF-8'), 'UTF-8');

@@ -42,13 +42,13 @@ tar -czf "${BACKUP}/release_anterior.tar.gz" -C "${CURRENT}" .
 echo "== Extraindo versao 4.4 =="
 tar -xzf "${PACKAGE}" -C "${NEW}"
 
-if [[ -f "${CURRENT}/config/config.local.php" ]]; then
+if [[ -f "${CURRENT}/config/config.local.php" && "${CURRENT}/config/config.local.php" != "${NEW}/config/config.local.php" ]]; then
     install -D -m 0640 "${CURRENT}/config/config.local.php" "${NEW}/config/config.local.php"
 fi
-if [[ -d "${CURRENT}/logs" ]]; then
+if [[ -d "${CURRENT}/logs" && "${CURRENT}/logs" != "${NEW}/logs" ]]; then
     cp -a "${CURRENT}/logs/." "${NEW}/logs/"
 fi
-if [[ -d "${CURRENT}/public/uploads" ]]; then
+if [[ -d "${CURRENT}/public/uploads" && "${CURRENT}/public/uploads" != "${NEW}/public/uploads" ]]; then
     cp -a "${CURRENT}/public/uploads/." "${NEW}/public/uploads/"
 fi
 mkdir -p "${NEW}/public/uploads/profiles" "${NEW}/public/uploads/vouchers" "${NEW}/logs"
@@ -92,7 +92,7 @@ APACHE_STOPPED=0
 systemctl restart php*-fpm 2>/dev/null || true
 
 echo "== Validando producao =="
-php "${APP}/current/tools/healthcheck_fbcontrol.php" --strict
+APP_ENV=production php "${APP}/current/tools/healthcheck_fbcontrol.php" --strict
 php "${APP}/current/tools/check_db_context.php"
 php -r 'require "'"${APP}"'"/current/app/bootstrap_cli.php"; $db=Database::getInstance(); echo "Usuarios ativos: ".$db->query("SELECT COUNT(*) FROM usuarios WHERE ativo=1")->fetchColumn().PHP_EOL; echo "Reservas tematicas: ".$db->query("SELECT COUNT(*) FROM reservas_tematicas")->fetchColumn().PHP_EOL; echo "Auditoria: ".$db->query("SELECT COUNT(*) FROM auditoria")->fetchColumn().PHP_EOL;'
 

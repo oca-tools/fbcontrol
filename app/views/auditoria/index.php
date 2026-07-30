@@ -236,7 +236,7 @@ $buildChanges = static function (array $before, array $after) use ($auditFieldLa
     return $changes;
 };
 
-$renderChanges = static function (array $before, array $after, string $empty = 'Sem mudanças de campos registradas') use ($buildChanges): void {
+$renderChanges = static function (array $before, array $after, string $empty = 'Sem mudanças de campos registradas', int $max = 3) use ($buildChanges): void {
     $changes = $buildChanges($before, $after);
     if ($changes === []) {
         echo '<span class="audit-muted">' . h($empty) . '</span>';
@@ -244,19 +244,11 @@ $renderChanges = static function (array $before, array $after, string $empty = '
     }
     ?>
     <div class="audit-changes">
-        <?php foreach (array_slice($changes, 0, 3) as $change): ?>
+        <?php foreach (array_slice($changes, 0, $max) as $change): ?>
             <span class="audit-change"><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></span>
         <?php endforeach; ?>
     </div>
-    <?php if (count($changes) > 3): ?>
-        <details class="audit-details"><summary>Ver <?= count($changes) - 3 ?> alteração(ões) adicional(is)</summary>
-            <div class="audit-detail-list">
-                <?php foreach (array_slice($changes, 3) as $change): ?>
-                    <div><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></div>
-                <?php endforeach; ?>
-            </div>
-        </details>
-    <?php endif;
+    <?php if (count($changes) > $max): ?><span class="audit-muted">+<?= count($changes) - $max ?> alteração(ões) no histórico</span><?php endif;
 };
 
 $renderEvidence = static function (array $payload, string $label = 'Ver evidência técnica'): void {
@@ -419,9 +411,11 @@ html[data-theme="dark"] .audit-page .audit-pagination .page-link { color: #d5e4f
                     if (!empty($log['turno_antes_hora'])) { $displayBefore['turno_id'] = substr((string)$log['turno_antes_hora'], 0, 5); }
                     if (!empty($log['turno_depois_hora'])) { $displayAfter['turno_id'] = substr((string)$log['turno_depois_hora'], 0, 5); }
                     $meta = $auditActionMeta($log['acao'] ?? '');
+                    $isCreation = strtolower(trim((string)($log['acao'] ?? ''))) === 'create';
+                    $changes = $buildChanges($displayBefore, $displayAfter);
                     $reservation = 'UH ' . (string)($log['uh_numero'] ?? 'não informada') . ' · ' . (string)($log['data_reserva'] ?? 'data não informada');
                 ?>
-                <article class="audit-event"><div class="audit-event-icon <?= h($meta[1]) ?>"><i class="bi <?= h($meta[2]) ?>"></i></div><div class="audit-event-main"><div class="audit-event-title"><?= h($meta[0]) ?><span class="audit-badge <?= h($meta[1]) ?>"><?= h($meta[3]) ?></span><span class="audit-badge neutral"><?= h($auditActorLabel($log, 'sistema')) ?></span></div><div class="audit-event-time"><?= h($formatDateTime($log['criado_em'] ?? '')) ?> · <?= h($reservation) ?><?= !empty($log['reserva_criador']) ? ' · Criada por ' . h($log['reserva_criador']) : '' ?></div></div><div class="audit-context audit-event-context"><b>Destino</b><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? 'Não informado') ?></span> · <?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5) ?: 'Sem turno') ?></div><div class="audit-context audit-event-changes"><b><?= !empty($log['justificativa']) ? 'Justificativa' : 'Alterações realizadas' ?></b><?php if (!empty($log['justificativa'])): ?><?= h($log['justificativa']) ?><?php else: ?><?php $renderChanges($displayBefore, $displayAfter); ?><?php endif; ?></div><div class="audit-event-more"><details class="audit-details"><summary>Ver alterações</summary><div class="audit-detail-list"><?php $renderChanges($displayBefore, $displayAfter); ?></div></details><?php $renderEvidence(['antes' => $before, 'depois' => $after]); ?></div></article>
+                <article class="audit-event"><div class="audit-event-icon <?= h($meta[1]) ?>"><i class="bi <?= h($meta[2]) ?>"></i></div><div class="audit-event-main"><div class="audit-event-title"><?= h($meta[0]) ?><span class="audit-badge <?= h($meta[1]) ?>"><?= h($meta[3]) ?></span><span class="audit-badge neutral"><?= h($auditActorLabel($log, 'sistema')) ?></span></div><div class="audit-event-time"><?= h($formatDateTime($log['criado_em'] ?? '')) ?> · <?= h($reservation) ?><?= !empty($log['reserva_criador']) ? ' · Criada por ' . h($log['reserva_criador']) : '' ?></div></div><div class="audit-context audit-event-context"><b>Destino</b><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? 'Não informado') ?></span> · <?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5) ?: 'Sem turno') ?></div><div class="audit-context audit-event-changes"><b><?= !empty($log['justificativa']) ? 'Justificativa' : ($isCreation ? 'Registro inicial' : 'Alterações realizadas') ?></b><?php if (!empty($log['justificativa'])): ?><?= h($log['justificativa']) ?><?php elseif ($isCreation): ?><span class="audit-muted">Dados iniciais da reserva registrados.</span><?php else: ?><?php $renderChanges($displayBefore, $displayAfter); ?><?php endif; ?></div><div class="audit-event-more"><?php if (!$isCreation && count($changes) > 3): ?><details class="audit-details"><summary>Ver todas as <?= count($changes) ?> alterações</summary><div class="audit-detail-list"><?php foreach ($changes as $change): ?><div><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></div><?php endforeach; ?></div></details><?php endif; ?><?php if (!$isCreation): ?><?php $renderEvidence(['antes' => $before, 'depois' => $after], 'Dados técnicos'); ?><?php endif; ?></div></article>
             <?php endforeach; ?>
             <?php if (empty($thematicLogs['rows'] ?? [])): $renderEmpty('Nenhum histórico de reserva temática no filtro.'); endif; ?>
         </div>

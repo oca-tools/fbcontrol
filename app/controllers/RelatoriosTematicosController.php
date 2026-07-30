@@ -82,7 +82,6 @@ class RelatoriosTematicosController extends Controller
     public function historico(): void
     {
         $this->requireAuth();
-        Auth::requireRole(['admin', 'supervisor', 'gerente']);
 
         $reservaId = sanitize_int_param($_GET['id'] ?? '');
         if ($reservaId <= 0) {
@@ -90,6 +89,23 @@ class RelatoriosTematicosController extends Controller
                 'ok' => false,
                 'message' => 'Informe uma reserva válida para consultar o histórico.',
             ], 422);
+        }
+
+        $user = Auth::user() ?? [];
+        $perfil = (string)($user['perfil'] ?? '');
+        if (!in_array($perfil, ['admin', 'supervisor', 'gerente', 'hostess'], true)) {
+            json_response(['ok' => false, 'message' => 'Você não possui permissão para consultar este histórico.'], 403);
+        }
+
+        $reserva = (new ReservaTematicaModel())->find($reservaId);
+        if ($reserva === null) {
+            json_response([
+                'ok' => false,
+                'message' => 'A reserva informada não foi localizada.',
+            ], 404);
+        }
+        if ($perfil === 'hostess' && (int)($reserva['usuario_id'] ?? 0) !== (int)($user['id'] ?? 0)) {
+            json_response(['ok' => false, 'message' => 'Você pode consultar apenas o histórico das suas próprias reservas.'], 403);
         }
 
         $historico = (new ReservaTematicaHistoricoService())->obter($reservaId);

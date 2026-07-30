@@ -681,6 +681,10 @@ class ReservaTematicaModel extends Model
             $where .= " AND rsv.restaurante_id = :restaurante_id";
             $params[':restaurante_id'] = $filters['restaurante_id'];
         }
+        if (!empty($filters['usuario_id'])) {
+            $where .= " AND rsv.usuario_id = :usuario_id";
+            $params[':usuario_id'] = (int)$filters['usuario_id'];
+        }
         if (!empty($filters['turno_id'])) {
             $where .= " AND rsv.turno_id = :turno_id";
             $params[':turno_id'] = $filters['turno_id'];

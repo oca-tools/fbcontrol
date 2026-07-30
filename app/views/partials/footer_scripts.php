@@ -57,7 +57,8 @@
     if (!menu) return;
     const key = 'oca_sidebar_scroll_v2';
     const updateOverflowState = () => {
-        const needsScroll = menu.scrollHeight > menu.clientHeight + 2;
+        // Pequenas diferenças de arredondamento em tablets não devem criar uma barra inútil.
+        const needsScroll = menu.scrollHeight > menu.clientHeight + 6;
         menu.classList.toggle('has-scroll', needsScroll);
         if (!needsScroll) {
             menu.scrollTop = 0;
@@ -72,7 +73,18 @@
         }
     } catch (e) {}
     updateOverflowState();
+    requestAnimationFrame(updateOverflowState);
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(updateOverflowState).catch(() => {});
+    }
     window.addEventListener('resize', updateOverflowState);
+
+    if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(updateOverflowState);
+        observer.observe(menu);
+        const sidebar = menu.closest('.sidebar');
+        if (sidebar) observer.observe(sidebar);
+    }
 
     let timer = null;
     const persist = () => {
@@ -89,6 +101,41 @@
     document.querySelectorAll('.sidebar .nav-link').forEach((lnk) => {
         lnk.addEventListener('click', persist);
     });
+})();
+
+// Exibe rolagem horizontal apenas nos quadros que realmente precisam dela.
+// Evita a barra permanente em tabelas curtas, especialmente em tablets.
+(function () {
+    const selector = '.table-responsive, .saas-table-scroll, .auto-table-wrap';
+    let frame = null;
+
+    const refresh = () => {
+        frame = null;
+        document.querySelectorAll(selector).forEach((node) => {
+            const needsScroll = node.scrollWidth > node.clientWidth + 4;
+            node.classList.toggle('has-overflow-x', needsScroll);
+        });
+    };
+
+    const scheduleRefresh = () => {
+        if (frame !== null) return;
+        frame = requestAnimationFrame(refresh);
+    };
+
+    window.fbcontrolRefreshScrollContainers = scheduleRefresh;
+    scheduleRefresh();
+    window.addEventListener('load', scheduleRefresh, { once: true });
+    window.addEventListener('resize', scheduleRefresh, { passive: true });
+
+    if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(scheduleRefresh);
+        document.querySelectorAll(selector).forEach((node) => observer.observe(node));
+    }
+
+    // Conteúdo paginado ou atualizado via AJAX recebe a mesma regra sem recarregar a página.
+    if ('MutationObserver' in window && document.body) {
+        new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
+    }
 })();
 
 // Alertas globais: erro em modal bloqueante; sucesso/aviso leve em toast.

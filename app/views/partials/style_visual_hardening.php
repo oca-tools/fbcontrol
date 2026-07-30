@@ -1,4 +1,4 @@
-        /* Hardening visual global: evita estouro lateral e moderniza barra de rolagem das tabelas */
+        /* Hardening visual global: evita estouro lateral e só exibe rolagem quando há conteúdo excedente. */
         .app-content,
         .app-content > *,
         .saas-page,
@@ -32,10 +32,17 @@
         .saas-table-scroll,
         .auto-table-wrap {
             max-width: 100%;
-            overflow-x: auto !important;
+            overflow-x: hidden !important;
             overflow-y: visible;
             scrollbar-width: thin;
             scrollbar-color: color-mix(in srgb, var(--ab-accent) 68%, #ffffff 32%) transparent;
+        }
+        .table-responsive.has-overflow-x,
+        .saas-table-scroll.has-overflow-x,
+        .auto-table-wrap.has-overflow-x {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
         }
         .table-responsive::-webkit-scrollbar,
         .saas-table-scroll::-webkit-scrollbar,

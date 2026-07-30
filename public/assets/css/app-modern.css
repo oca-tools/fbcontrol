@@ -36,6 +36,7 @@
     align-items: center;
     gap: var(--fb-space-3);
     min-height: 66px;
+    max-width: 100%;
 }
 
 .fb-reserve-datebar__field {
@@ -44,6 +45,23 @@
     gap: var(--fb-space-2);
     align-items: center;
     min-width: 340px;
+}
+
+/* A barra de data não pode criar rolagem lateral em tablets de operação. */
+@media (min-width: 768px) and (max-width: 1200px) and (orientation: landscape) {
+    .fb-reserve-datebar__form {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .fb-reserve-datebar__field {
+        flex: 1 1 300px;
+        min-width: 0;
+    }
+
+    .fb-reserve-datebar__availability {
+        flex: 0 1 auto;
+    }
 }
 
 .fb-reserve-datebar__field > i {

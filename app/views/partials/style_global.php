@@ -1613,7 +1613,8 @@
             padding: 2px;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-x: contain;
-            scrollbar-gutter: stable both-edges;
+            /* Não reserve espaço para uma barra que pode nem existir. */
+            scrollbar-gutter: auto;
         }
         .table-responsive::before,
         .table-responsive::after {
@@ -3226,6 +3227,50 @@
             .stat-chip {
                 max-width: 100%;
                 overflow-wrap: anywhere;
+            }
+        }
+
+        /* Tablets operacionais ficam em paisagem: o app usa toda a largura e evita barras de layout. */
+        @media (min-width: 768px) and (max-width: 1200px) and (orientation: landscape) {
+            html,
+            body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden !important;
+            }
+            .app-shell {
+                width: 100%;
+                max-width: 100%;
+                min-height: 100dvh;
+                padding: 10px !important;
+                overflow-x: hidden;
+            }
+            .app-main,
+            .app-content {
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            .app-main {
+                padding: 10px 10px 22px !important;
+            }
+            .mobile-nav {
+                top: 6px;
+                padding: 0.48rem 0.7rem !important;
+            }
+            body[data-route^="reservasTematicas/"] .app-main {
+                padding: 10px 10px 22px !important;
+            }
+            body[data-route^="reservasTematicas/"] .topbar {
+                margin-bottom: 10px;
+            }
+            body[data-route="reservasTematicas/reservas"] .fb-reserve-datebar__form {
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            body[data-route="reservasTematicas/reservas"] .fb-reserve-datebar__field {
+                min-width: 0;
+                flex: 1 1 300px;
             }
         }
 

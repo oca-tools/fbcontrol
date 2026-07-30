@@ -9,14 +9,9 @@ if (!empty($user)):
     if ($perfilBottomNav === 'hostess') {
         $bottomNavItems = [
             ['route' => 'access/index', 'icon' => 'bi-clipboard-check', 'label' => 'Registro'],
+            ['route' => 'reservasTematicas/reservas', 'icon' => 'bi-calendar-heart', 'label' => 'Reservas'],
+            ['route' => 'vouchers/index', 'icon' => 'bi-ticket-perforated', 'label' => 'Vouchers'],
         ];
-        if (!empty($canTematicas)) {
-            $bottomNavItems[] = ['route' => 'vouchers/index', 'icon' => 'bi-ticket-perforated', 'label' => 'Vouchers'];
-            $bottomNavItems[] = ['route' => 'reservasTematicas/operacao', 'icon' => 'bi-calendar-heart', 'label' => 'Temáticos'];
-        } else {
-            $bottomNavItems[] = ['route' => 'hostess/turnos', 'icon' => 'bi-calendar-week', 'label' => 'Meus turnos'];
-            $bottomNavItems[] = ['route' => 'vouchers/index', 'icon' => 'bi-ticket-perforated', 'label' => 'Vouchers'];
-        }
     } else {
         $bottomNavItems = [
             ['route' => 'operacao/index', 'icon' => 'bi-speedometer2', 'label' => 'Operação'],

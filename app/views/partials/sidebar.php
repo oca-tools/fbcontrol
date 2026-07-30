@@ -38,13 +38,13 @@
         <?php if (in_array($user['perfil'], ['admin', 'hostess', 'supervisor', 'gerente'], true)): ?>
             <a <?= $navAttrs('access/index') ?> href="/?r=access/index"><i class="bi bi-clipboard-check"></i> Registro</a>
         <?php endif; ?>
-        <?php if ($user['perfil'] === 'hostess'): ?>
-            <a <?= $navAttrs('hostess/turnos') ?> href="/?r=hostess/turnos"><i class="bi bi-calendar-week"></i> Meus turnos</a>
+        <?php if ($user['perfil'] === 'hostess' && $canTematicasReserva): ?>
+            <a <?= $navAttrs(['reservasTematicas/reservas', 'reservasTematicas/conferencia']) ?> href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas</a>
         <?php endif; ?>
         <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'hostess', 'gerente'], true)): ?>
             <a <?= $navAttrs('vouchers/index') ?> href="/?r=vouchers/index"><i class="bi bi-ticket-perforated"></i> Vouchers</a>
         <?php endif; ?>
-        <?php if ($canTematicas): ?>
+        <?php if ($canTematicas && $perfilAtual !== 'hostess'): ?>
             <div class="sidebar-section-label">Temáticos</div>
             <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true) || $canTematicasReserva): ?>
                 <a <?= $navAttrs('reservasTematicas/reservas') ?> href="/?r=reservasTematicas/reservas"><i class="bi bi-calendar-heart"></i> Reservas Temáticas</a>
@@ -53,6 +53,10 @@
             <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
                 <a <?= $navAttrs('reservasTematicas/admin') ?> href="/?r=reservasTematicas/admin"><i class="bi bi-sliders"></i> Config. Temáticas</a>
             <?php endif; ?>
+        <?php endif; ?>
+        <?php if ($perfilAtual === 'hostess'): ?>
+            <div class="sidebar-section-label">Minha conta</div>
+            <a <?= $navAttrs(['hostess/perfil', 'hostess/turnos']) ?> href="/?r=hostess/perfil"><i class="bi bi-person-circle"></i> Meu perfil</a>
         <?php endif; ?>
         <?php if (in_array($user['perfil'], ['admin', 'supervisor', 'gerente'], true)): ?>
             <div class="sidebar-section-label">Gestão e BI</div>

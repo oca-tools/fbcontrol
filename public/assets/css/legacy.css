@@ -1616,7 +1616,8 @@
             padding: 2px;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-x: contain;
-            scrollbar-gutter: stable both-edges;
+            /* Não reserve espaço para uma barra que pode nem existir. */
+            scrollbar-gutter: auto;
         }
         .table-responsive::before,
         .table-responsive::after {
@@ -3019,7 +3020,7 @@
             }
         }
 
-        /* Hardening visual global: evita estouro lateral e moderniza barra de rolagem das tabelas */
+        /* Hardening visual global: evita estouro lateral e só exibe rolagem quando há conteúdo excedente. */
         .app-content,
         .app-content > *,
         .saas-page,
@@ -3053,10 +3054,17 @@
         .saas-table-scroll,
         .auto-table-wrap {
             max-width: 100%;
-            overflow-x: auto !important;
+            overflow-x: hidden !important;
             overflow-y: visible;
             scrollbar-width: thin;
             scrollbar-color: color-mix(in srgb, var(--ab-accent) 68%, #ffffff 32%) transparent;
+        }
+        .table-responsive.has-overflow-x,
+        .saas-table-scroll.has-overflow-x,
+        .auto-table-wrap.has-overflow-x {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
         }
         .table-responsive::-webkit-scrollbar,
         .saas-table-scroll::-webkit-scrollbar,
@@ -3392,6 +3400,50 @@
             .stat-chip {
                 max-width: 100%;
                 overflow-wrap: anywhere;
+            }
+        }
+
+        /* Tablets operacionais ficam em paisagem: o app usa toda a largura e evita barras de layout. */
+        @media (min-width: 768px) and (max-width: 1200px) and (orientation: landscape) {
+            html,
+            body {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden !important;
+            }
+            .app-shell {
+                width: 100%;
+                max-width: 100%;
+                min-height: 100dvh;
+                padding: 10px !important;
+                overflow-x: hidden;
+            }
+            .app-main,
+            .app-content {
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            .app-main {
+                padding: 10px 10px 22px !important;
+            }
+            .mobile-nav {
+                top: 6px;
+                padding: 0.48rem 0.7rem !important;
+            }
+            body[data-route^="reservasTematicas/"] .app-main {
+                padding: 10px 10px 22px !important;
+            }
+            body[data-route^="reservasTematicas/"] .topbar {
+                margin-bottom: 10px;
+            }
+            body[data-route="reservasTematicas/reservas"] .fb-reserve-datebar__form {
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            body[data-route="reservasTematicas/reservas"] .fb-reserve-datebar__field {
+                min-width: 0;
+                flex: 1 1 300px;
             }
         }
 

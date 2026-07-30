@@ -50,7 +50,8 @@ $launcherAdminTile = static function (string $route, string $icon, string $label
                     <?php $launcherTile('access/index', 'access/index', 'bi-clipboard-check', 'Registro', '#2E7C9E'); ?>
                 <?php endif; ?>
                 <?php if ($perfilLauncher === 'hostess'): ?>
-                    <?php $launcherTile('hostess/turnos', 'hostess/turnos', 'bi-calendar-week', 'Meus turnos', '#4E8B3B'); ?>
+                    <?php if ($canTematicasReserva): ?><?php $launcherTile('reservasTematicas/reservas', ['reservasTematicas/reservas', 'reservasTematicas/conferencia'], 'bi-calendar-heart', 'Reservas', '#6C5CB0'); ?><?php endif; ?>
+                    <?php $launcherTile('hostess/perfil', ['hostess/perfil', 'hostess/turnos'], 'bi-person-circle', 'Meu perfil', '#4E8B3B'); ?>
                 <?php endif; ?>
                 <?php if (in_array($perfilLauncher, ['admin', 'supervisor', 'hostess', 'gerente'], true)): ?>
                     <?php $launcherTile('vouchers/index', 'vouchers/index', 'bi-ticket-perforated', 'Vouchers', '#B07D2A'); ?>
@@ -69,7 +70,7 @@ $launcherAdminTile = static function (string $route, string $icon, string $label
             </div>
         <?php endif; ?>
 
-        <?php if ($canTematicas): ?>
+        <?php if ($canTematicas && $perfilLauncher !== 'hostess'): ?>
             <div class="fb-launcher__section">
                 <p class="fb-launcher__label">Temáticos</p>
                 <div class="fb-launcher__grid">

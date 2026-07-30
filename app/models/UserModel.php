@@ -142,6 +142,39 @@ class UserModel extends Model
         $this->audit('update', $userId, $before, $after, 'usuarios', $id);
     }
 
+    /**
+     * Troca a senha do próprio operador sem permitir colisão com outra conta
+     * ativa que compartilhe o mesmo e-mail de acesso.
+     */
+    public function changeOwnPassword(int $id, string $currentPassword, string $newPassword): array
+    {
+        $user = $this->find($id);
+        if (!$user || (int)($user['ativo'] ?? 0) !== 1) {
+            return ['ok' => false, 'message' => 'Sua conta não está disponível para alterar a senha.'];
+        }
+        if (!password_verify($currentPassword, (string)($user['senha'] ?? ''))) {
+            return ['ok' => false, 'message' => 'A senha atual informada não confere.'];
+        }
+        if (mb_strlen($newPassword, 'UTF-8') < 8) {
+            return ['ok' => false, 'message' => 'A nova senha deve ter pelo menos 8 caracteres.'];
+        }
+        if (hash_equals($currentPassword, $newPassword)) {
+            return ['ok' => false, 'message' => 'Escolha uma senha diferente da senha atual.'];
+        }
+        if ($this->emailPasswordExists((string)$user['email'], $newPassword, $id)) {
+            return ['ok' => false, 'message' => 'Essa senha já está em uso por outra conta com o mesmo e-mail. Escolha uma senha diferente.'];
+        }
+
+        $stmt = $this->db->prepare('UPDATE usuarios SET senha = :senha WHERE id = :id');
+        $stmt->execute([
+            ':senha' => password_hash($newPassword, PASSWORD_DEFAULT),
+            ':id' => $id,
+        ]);
+        // A auditoria confirma a ação sem registrar senha, hash ou dados sensíveis da conta.
+        $this->audit('password_change', $id, ['senha_alterada' => false], ['senha_alterada' => true], 'usuarios', $id);
+        return ['ok' => true, 'message' => 'Senha alterada com sucesso.'];
+    }
+
     public function deactivate(int $id, int $userId): void
     {
         $before = $this->find($id) ?? [];

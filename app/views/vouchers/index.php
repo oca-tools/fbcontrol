@@ -10,123 +10,29 @@ $voucherTargetLimitBytes = (int)($this->data['voucher_target_limit_bytes'] ?? (5
 $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ?? format_bytes_ptbr($voucherTargetLimitBytes));
 ?>
 <style>
-    .vouchers-page,
-    .vouchers-page .row,
-    .vouchers-page [class*="col-"] {
-        min-width: 0;
-    }
-    .vouchers-page .card {
-        overflow: hidden;
-    }
-    .voucher-file-box {
-        border: 1px dashed var(--ab-border);
-        border-radius: 16px;
-        padding: 1rem;
-        background: var(--ab-soft-bg);
-    }
-    .voucher-file-box .form-control {
-        background: var(--ab-card);
-    }
-    .voucher-list-table td,
-    .voucher-list-table th {
-        vertical-align: middle;
-    }
-    @media (max-width: 991.98px) {
-        .vouchers-page .card.p-4,
-        .vouchers-page .card-soft.p-4 {
-            padding: 1rem !important;
-            border-radius: 18px;
-        }
-        .vouchers-page .section-title {
-            align-items: flex-start;
-        }
-    }
-    @media (max-width: 575.98px) {
-        .vouchers-page .section-title .icon {
-            width: 38px;
-            height: 38px;
-            flex: 0 0 38px;
-        }
-        .vouchers-page .section-title h3 {
-            font-size: 1.35rem;
-        }
-        .vouchers-page .section-title .text-muted:not(.small) {
-            display: none;
-        }
-        .voucher-form-card .badge {
-            align-self: flex-start;
-        }
-        .voucher-file-box {
-            padding: .85rem;
-        }
-        .voucher-list-table,
-        .voucher-list-table tbody,
-        .voucher-list-table tr,
-        .voucher-list-table td {
-            display: block;
-            width: 100%;
-        }
-        .voucher-list-table thead {
-            display: none;
-        }
-        .voucher-list-table tr {
-            border: 1px solid var(--ab-border);
-            border-radius: 16px;
-            background: var(--ab-card);
-            padding: .85rem;
-            margin-bottom: .75rem;
-            box-shadow: 0 10px 22px rgba(15, 23, 42, .06);
-        }
-        .voucher-list-table td {
-            border: 0;
-            padding: .35rem 0 !important;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            text-align: right;
-        }
-        .voucher-list-table td::before {
-            content: attr(data-label);
-            color: var(--ab-muted);
-            font-size: .72rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: left;
-        }
-        .voucher-list-table td .btn {
-            min-width: 92px;
-        }
-    }
+    .vouchers-page { --vp-ink:#17243a; --vp-muted:#64758b; --vp-line:#dce6ef; --vp-cyan:#109bb5; --vp-cyan-soft:#e5f8fb; --vp-orange:#e36f14; --vp-green:#168653; color:var(--vp-ink); max-width:1120px; margin:0 auto; }
+    .vouchers-page * { min-width:0; }.voucher-hero { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding:.35rem 0; }.voucher-hero__title { display:flex; align-items:center; gap:.85rem; }.voucher-hero__icon { display:grid; place-items:center; width:50px; height:50px; border-radius:15px; color:#fff; background:linear-gradient(145deg,#f88735,#df5d0b); box-shadow:0 10px 20px rgba(216,106,19,.22); font-size:1.35rem; }.voucher-hero__eyebrow { margin:0 0 .15rem; color:var(--vp-orange); font-size:.68rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.voucher-hero h1 { margin:0; font-size:1.45rem; font-weight:850; }.voucher-hero p { margin:.2rem 0 0; color:var(--vp-muted); font-size:.8rem; }.voucher-hero__counter { display:flex; align-items:center; gap:.6rem; padding:.7rem .85rem; border:1px solid #c6e9ee; border-radius:14px; background:var(--vp-cyan-soft); }.voucher-hero__counter i { color:var(--vp-cyan); font-size:1.15rem; }.voucher-hero__counter b { display:block; color:#08778f; font-size:1rem; line-height:1; }.voucher-hero__counter span { display:block; margin-top:.16rem; color:#387184; font-size:.67rem; font-weight:800; }
+    .voucher-workspace { display:grid; grid-template-columns:minmax(0,1.08fr) minmax(330px,.92fr); gap:1rem; align-items:start; }.voucher-panel { border:1px solid var(--vp-line); border-radius:18px; background:var(--ab-card,#fff); box-shadow:0 12px 30px rgba(26,47,73,.06); overflow:hidden; }.voucher-panel__head { display:flex; justify-content:space-between; align-items:flex-start; gap:.85rem; padding:1.05rem 1.1rem .8rem; border-bottom:1px solid var(--vp-line); }.voucher-panel__head small { display:block; color:var(--vp-orange); font-size:.66rem; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }.voucher-panel__head h2 { margin:.18rem 0 0; font-size:1.03rem; font-weight:850; }.voucher-panel__head p { margin:.22rem 0 0; color:var(--vp-muted); font-size:.75rem; }.voucher-context { display:inline-flex; align-items:center; gap:.35rem; padding:.4rem .55rem; border-radius:999px; color:#08778f; background:var(--vp-cyan-soft); font-size:.68rem; font-weight:850; white-space:nowrap; }.voucher-context.is-off { color:#986119; background:#fff2e2; }
+    .voucher-form { padding:1.05rem 1.1rem 1.1rem; }.voucher-form__context { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; margin-bottom:.8rem; }.voucher-form__context .form-select { min-height:44px; }.voucher-form__grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }.voucher-form__field--wide { grid-column:1 / -1; }.voucher-form label { display:block; margin:0 0 .3rem; color:#4d617a; font-size:.68rem; font-weight:900; letter-spacing:.035em; text-transform:uppercase; }.voucher-form .form-control,.voucher-form .form-select { min-height:44px; color:var(--vp-ink); border-color:#d2e0eb; font-weight:650; }.voucher-file-box { margin-top:.1rem; padding:.85rem; border:1px dashed #9dced9; border-radius:14px; background:#f5fbfc; transition:border-color .2s,background .2s; }.voucher-file-box.is-dragover { border-color:var(--vp-cyan); background:var(--vp-cyan-soft); }.voucher-file-box__top { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }.voucher-file-box__top > div { display:flex; gap:.55rem; align-items:center; }.voucher-file-box__icon { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; color:#08778f; background:#dff4f7; }.voucher-file-box__title { font-size:.8rem; font-weight:850; }.voucher-file-box__hint { color:var(--vp-muted); font-size:.68rem; }.voucher-file-box input[type="file"] { margin-top:.7rem; background:#fff; }.voucher-file-box__status { min-height:1.1rem; margin-top:.45rem; font-size:.72rem; font-weight:700; }.voucher-form__submit { min-height:48px; margin-top:1rem; font-weight:850; }.voucher-required { color:#d63d43; font-weight:900; }
+    .voucher-queue { padding:.35rem .55rem .55rem; }.voucher-queue__item { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.75rem; align-items:center; padding:.85rem .6rem; border-radius:13px; }.voucher-queue__item + .voucher-queue__item { border-top:1px solid #e8eef4; }.voucher-queue__item:hover { background:#f7fbfd; }.voucher-queue__guest { font-size:.86rem; font-weight:850; }.voucher-queue__guest span { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.26rem; color:var(--vp-muted); font-size:.71rem; font-weight:700; }.voucher-queue__code { display:inline-flex; align-items:center; padding:.18rem .38rem; border-radius:6px; color:#406078; background:#eef4f8; font-size:.67rem; font-weight:850; }.voucher-queue__time { color:var(--vp-muted); font-size:.69rem; }.voucher-open { display:grid; place-items:center; width:36px; height:36px; border:1px solid #bfe2e9; border-radius:10px; color:#08778f; background:#fff; text-decoration:none; }.voucher-queue__empty { display:grid; place-items:center; min-height:230px; color:var(--vp-muted); text-align:center; font-size:.82rem; }.voucher-queue__empty i { display:block; margin-bottom:.45rem; color:#9ecbd6; font-size:1.45rem; }
+    html[data-theme="dark"] .vouchers-page { --vp-ink:#edf5fb; --vp-muted:#adbdcf; --vp-line:#304458; --vp-cyan-soft:#153b45; }html[data-theme="dark"] .voucher-panel { background:var(--ab-card,#152235); }html[data-theme="dark"] .voucher-file-box { border-color:#3d6f7c; background:#142a36; }html[data-theme="dark"] .voucher-file-box input[type="file"],html[data-theme="dark"] .voucher-form .form-control,html[data-theme="dark"] .voucher-form .form-select,html[data-theme="dark"] .voucher-open { color:#eef6fc; border-color:#3d5268; background:#172638; }html[data-theme="dark"] .voucher-queue__item:hover { background:#192b3c; }
+    @media (max-width:991px) { .voucher-workspace { grid-template-columns:1fr; }.voucher-queue__empty { min-height:130px; } }
+    @media (max-width:575px) { .voucher-hero { align-items:flex-start; }.voucher-hero__counter { padding:.55rem; }.voucher-hero__counter span { display:none; }.voucher-hero__title { gap:.65rem; }.voucher-hero__icon { width:43px; height:43px; border-radius:13px; font-size:1.15rem; }.voucher-hero h1 { font-size:1.18rem; }.voucher-hero p { display:none; }.voucher-panel__head,.voucher-form { padding-left:.9rem; padding-right:.9rem; }.voucher-form__context,.voucher-form__grid { grid-template-columns:1fr; }.voucher-file-box__top { align-items:flex-start; }.voucher-context { font-size:.61rem; }.voucher-queue { padding:.3rem .42rem .45rem; } }
 </style>
 
 <div class="vouchers-page">
-<div class="card card-soft p-4 mb-4">
-    <div class="section-title">
-        <div class="icon"><i class="bi bi-ticket-perforated"></i></div>
-        <div>
-            <div class="text-uppercase text-muted small">Registro</div>
-            <h3 class="fw-bold mb-0">Vouchers do Turno</h3>
-            <div class="text-muted">Recomendado registrar ao final do turno.</div>
-        </div>
-    </div>
-</div>
+    <header class="voucher-hero">
+        <div class="voucher-hero__title"><span class="voucher-hero__icon"><i class="bi bi-receipt-cutoff"></i></span><div><p class="voucher-hero__eyebrow">Comprovantes da operação</p><h1>Vouchers</h1><p>Registre o comprovante e acompanhe a fila do dia.</p></div></div>
+        <div class="voucher-hero__counter"><i class="bi bi-files"></i><div><b><?= count($vouchers) ?></b><span>registrados hoje</span></div></div>
+    </header>
 
-
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card p-4 voucher-form-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <div class="text-uppercase text-muted small">Cadastro</div>
-                    <h5 class="fw-bold mb-0">Novo voucher</h5>
-                </div>
-                <span class="badge badge-soft">Turno atual</span>
-            </div>
-            <form method="post" action="/?r=vouchers/index" class="row g-3" enctype="multipart/form-data" data-voucher-form>
+    <div class="voucher-workspace">
+        <section class="voucher-panel">
+            <header class="voucher-panel__head"><div><small>Registro rápido</small><h2>Novo voucher</h2><p>Preencha apenas o necessário e anexe o comprovante.</p></div><span class="voucher-context<?= $shift ? '' : ' is-off' ?>"><i class="bi bi-<?= $shift ? 'check2-circle' : 'exclamation-circle' ?>"></i><?= $shift ? 'Turno atual' : 'Sem turno aberto' ?></span></header>
+            <form method="post" action="/?r=vouchers/index" class="voucher-form" enctype="multipart/form-data" data-voucher-form>
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Restaurante</label>
+                <div class="voucher-form__context">
+                    <div><label>Restaurante <span class="voucher-required">*</span></label>
                     <select name="restaurante_id" class="form-select input-xl" required>
                         <option value="">Selecione</option>
                         <?php foreach ($restaurantes as $rest): ?>
@@ -136,9 +42,8 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Operação</label>
+                    </div>
+                    <div><label>Operação <span class="voucher-required">*</span></label>
                     <select name="operacao_id" class="form-select input-xl" required>
                         <option value="">Selecione</option>
                         <?php foreach ($operacoes as $op): ?>
@@ -148,74 +53,35 @@ $voucherTargetLimitLabel = (string)($this->data['voucher_target_limit_label'] ??
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Data da venda</label>
-                    <input type="date" name="data_venda" class="form-control input-xl" value="<?= h(date('Y-m-d')) ?>" required>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Nome do hóspede</label>
-                    <input type="text" name="nome_hospede" class="form-control input-xl" placeholder="Nome no voucher" required>
-                </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Localizador</label>
-                    <input type="text" name="numero_reserva" class="form-control input-xl" placeholder="Número ou código da reserva" required>
-                </div>
-                <div class="col-12">
-                    <div class="voucher-file-box">
-                    <label class="form-label">Anexo do voucher (obrigatório)</label>
-                    <input type="hidden" name="MAX_FILE_SIZE" value="<?= (int)$voucherReceiveLimitBytes ?>">
-                    <input type="file" name="voucher_anexo" class="form-control" accept="application/pdf,image/png,image/jpeg,image/webp" data-voucher-file data-max-bytes="<?= (int)$voucherReceiveLimitBytes ?>" data-target-bytes="<?= (int)$voucherTargetLimitBytes ?>" required>
-                    <div class="form-text">Formatos aceitos: PDF, JPG, PNG ou WEBP. Imagens acima de <?= h($voucherTargetLimitLabel) ?> serão compactadas automaticamente. Limite de envio: <?= h($voucherReceiveLimitLabel) ?>.</div>
-                    <div class="form-text text-muted" data-voucher-file-status></div>
                     </div>
                 </div>
-                <div class="col-12">
-                    <button class="fb-btn fb-btn--primary fb-btn--lg w-100">Registrar voucher</button>
+                <div class="voucher-form__grid">
+                    <div><label>Data da venda <span class="voucher-required">*</span></label><input type="date" name="data_venda" class="form-control input-xl" value="<?= h(date('Y-m-d')) ?>" required></div>
+                    <div><label>Localizador <span class="voucher-required">*</span></label><input type="text" name="numero_reserva" class="form-control input-xl" placeholder="Código da reserva" required></div>
+                    <div class="voucher-form__field--wide"><label>Nome do hóspede <span class="voucher-required">*</span></label><input type="text" name="nome_hospede" class="form-control input-xl" placeholder="Nome conforme o voucher" required></div>
+                    <div class="voucher-form__field--wide">
+                    <div class="voucher-file-box">
+                        <div class="voucher-file-box__top"><div><span class="voucher-file-box__icon"><i class="bi bi-paperclip"></i></span><div><span class="voucher-file-box__title">Anexo do voucher <span class="voucher-required">*</span></span><span class="voucher-file-box__hint">PDF, JPG, PNG ou WEBP</span></div></div></div>
+                    <input type="hidden" name="MAX_FILE_SIZE" value="<?= (int)$voucherReceiveLimitBytes ?>">
+                    <input type="file" name="voucher_anexo" class="form-control" accept="application/pdf,image/png,image/jpeg,image/webp" data-voucher-file data-max-bytes="<?= (int)$voucherReceiveLimitBytes ?>" data-target-bytes="<?= (int)$voucherTargetLimitBytes ?>" required>
+                    <div class="voucher-file-box__hint">Imagens acima de <?= h($voucherTargetLimitLabel) ?> serão compactadas. Limite de envio: <?= h($voucherReceiveLimitLabel) ?>.</div>
+                    <div class="voucher-file-box__status text-muted" data-voucher-file-status></div>
+                    </div>
+                    </div>
                 </div>
+                <button class="fb-btn fb-btn--primary fb-btn--lg w-100 voucher-form__submit" type="submit"><i class="bi bi-check2-circle me-1"></i>Registrar voucher</button>
             </form>
-        </div>
-    </div>
-    <div class="col-12 col-lg-6">
-        <div class="card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-bold mb-0">Vouchers do dia</h5>
-                <span class="text-muted small">Restaurante Corais</span>
+        </section>
+        <section class="voucher-panel">
+            <header class="voucher-panel__head"><div><small>Fila do dia</small><h2>Últimos vouchers</h2><p><?= $shift ? h((string)($shift['restaurante'] ?? 'Turno atual')) : 'Registros mais recentes' ?></p></div><span class="voucher-context"><i class="bi bi-clock-history"></i><?= count($vouchers) ?></span></header>
+            <div class="voucher-queue">
+                <?php foreach ($vouchers as $row): ?>
+                    <article class="voucher-queue__item"><div class="voucher-queue__guest"><?= h((string)$row['nome_hospede']) ?><span><span class="voucher-queue__code"><?= h((string)$row['numero_reserva']) ?></span><span><?= h(format_date_br((string)$row['data_venda'])) ?></span><?php if (!empty($row['criado_em'])): ?><span class="voucher-queue__time"><?= h(substr((string)$row['criado_em'], 11, 5)) ?></span><?php endif; ?></span></div><?php if (safe_public_upload_url((string)($row['voucher_anexo_path'] ?? ''), 'vouchers') !== ''): ?><a class="voucher-open" href="/?r=vouchers/attachment&id=<?= (int)$row['id'] ?>" target="_blank" rel="noopener noreferrer" aria-label="Abrir anexo de <?= h((string)$row['nome_hospede']) ?>"><i class="bi bi-box-arrow-up-right"></i></a><?php else: ?><span class="voucher-open" title="Anexo indisponível"><i class="bi bi-paperclip"></i></span><?php endif; ?></article>
+                <?php endforeach; ?>
+                <?php if (empty($vouchers)): ?><div class="voucher-queue__empty"><div><i class="bi bi-receipt"></i>Nenhum voucher registrado neste contexto.</div></div><?php endif; ?>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle voucher-list-table">
-                    <thead>
-                        <tr>
-                            <th>Hóspede</th>
-                            <th>Reserva</th>
-                            <th>Data</th>
-                            <th>Anexo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($vouchers as $row): ?>
-                            <tr>
-                                <td data-label="Hóspede"><?= h($row['nome_hospede']) ?></td>
-                                <td data-label="Reserva"><?= h($row['numero_reserva']) ?></td>
-                                <td data-label="Data"><?= h($row['data_venda']) ?></td>
-                                <td data-label="Anexo">
-                                    <?php if (safe_public_upload_url((string)($row['voucher_anexo_path'] ?? ''), 'vouchers') !== ''): ?>
-                                        <a class="btn btn-outline-primary btn-sm" href="/?r=vouchers/attachment&id=<?= (int)$row['id'] ?>" target="_blank" rel="noopener noreferrer">Abrir</a>
-                                    <?php else: ?>
-                                        <span class="text-muted">—</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($vouchers)): ?>
-                            <tr><td colspan="4" class="text-muted">Sem vouchers registrados.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        </section>
     </div>
-</div>
 </div>
 
 <script>
