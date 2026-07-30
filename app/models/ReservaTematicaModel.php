@@ -801,6 +801,8 @@ class ReservaTematicaModel extends Model
             $order = "ORDER BY rsv.status, t.ordem, t.hora, uh.numero";
         } elseif (empty($filters['_cursor_order']) && !empty($filters['order']) && $filters['order'] === 'turno') {
             $order = "ORDER BY t.ordem, t.hora, uh.numero, rsv.status";
+        } elseif (empty($filters['_cursor_order']) && !empty($filters['order']) && $filters['order'] === 'date_asc') {
+            $order = "ORDER BY rsv.data_reserva ASC, t.ordem, t.hora, uh.numero";
         }
         $paginationSql = $limit !== null
             ? (!empty($filters['_cursor_order']) ? " LIMIT :limit" : " LIMIT :limit OFFSET :offset")

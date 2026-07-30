@@ -242,6 +242,47 @@ try {
         throw new RuntimeException('Reserva válida em grupo falhou: ' . $grupo->message());
     }
 
+    $conversaoParaGrupo = $service->executar(new CriarReservaCommand($base + [
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE_TO_GROUP,
+        'reserva_id' => $individualId,
+        'grupo_responsavel' => 'Teste conversão em grupo',
+        'grupo_nome' => 'Grupo de teste',
+        'batch_uh_numero' => ['3203', '3204'],
+        'batch_pax' => [1, 1],
+        'batch_chd_idades' => ['', ''],
+    ]));
+    $reservaConvertida = $repository->buscarReserva($individualId);
+    if (!$conversaoParaGrupo->isSuccess()
+        || (int)($conversaoParaGrupo->payload()['grupo_id'] ?? 0) <= 0
+        || (int)($reservaConvertida['grupo_id'] ?? 0) <= 0
+        || count($conversaoParaGrupo->payload()['reservas_ids'] ?? []) !== 2) {
+        throw new RuntimeException('Reserva individual não foi convertida em grupo de forma consistente.');
+    }
+
+    $edicaoDentroDoGrupo = $service->executar(new CriarReservaCommand($base + [
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE,
+        'reserva_id' => $individualId,
+        'uh_numero' => '3203',
+        'titular_nome' => 'Teste conversão em grupo',
+        'pax' => 1,
+    ]));
+    $reservaAindaNoGrupo = $repository->buscarReserva($individualId);
+    if (!$edicaoDentroDoGrupo->isSuccess() || (int)($reservaAindaNoGrupo['grupo_id'] ?? 0) <= 0) {
+        throw new RuntimeException('Edição de integrante de grupo removeu indevidamente o vínculo.');
+    }
+
+    $separacaoDoGrupo = $service->executar(new CriarReservaCommand($base + [
+        'acao' => ReservasTematicasConstants::ACTION_UPDATE_TO_INDIVIDUAL,
+        'reserva_id' => $individualId,
+        'uh_numero' => '3203',
+        'titular_nome' => 'Teste reserva separada',
+        'pax' => 1,
+    ]));
+    $reservaSeparada = $repository->buscarReserva($individualId);
+    if (!$separacaoDoGrupo->isSuccess() || !empty($reservaSeparada['grupo_id'])) {
+        throw new RuntimeException('Reserva do grupo não foi separada para individual.');
+    }
+
     $db->rollBack();
 } catch (Throwable $error) {
     if ($db->inTransaction()) {
@@ -251,4 +292,4 @@ try {
     exit(1);
 }
 
-echo '[OK] Fluxo completo: pré-reserva supervisionada; hostess autora altera UH com auditoria; outra hostess é bloqueada.' . PHP_EOL;
+echo '[OK] Fluxo completo: pré-reserva supervisionada; autoria, conversão individual/grupo e auditoria preservadas.' . PHP_EOL;

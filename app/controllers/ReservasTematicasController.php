@@ -168,6 +168,37 @@ class ReservasTematicasController extends Controller
             ]);
         }
 
+        if (($_GET['ajax'] ?? '') === 'editable_reservation') {
+            $editableId = (int)($_GET['id'] ?? 0);
+            $editable = $editableId > 0 ? $reservaModel->find($editableId) : null;
+            if (!$editable || !ReservaTematicaPolicy::canEdit($editable, $user)) {
+                json_response([
+                    'ok' => false,
+                    'message' => 'Esta reserva não está disponível para edição pelo seu usuário.',
+                ], 403);
+            }
+
+            $uhEditable = $unitModel->find((int)($editable['uh_id'] ?? 0));
+            $idadesEditaveis = $reservaModel->getChdAgesMap([$editableId]);
+            json_response([
+                'ok' => true,
+                'reservation' => [
+                    'id' => $editableId,
+                    'data_reserva' => (string)($editable['data_reserva'] ?? ''),
+                    'restaurante_id' => (int)($editable['restaurante_id'] ?? 0),
+                    'turno_id' => (int)($editable['turno_id'] ?? 0),
+                    'uh_numero' => (string)($uhEditable['numero'] ?? ''),
+                    'titular_nome' => normalize_mojibake((string)($editable['titular_nome'] ?? '')),
+                    'pax' => max(1, (int)($editable['pax'] ?? 1)),
+                    'chd_idades' => !empty($idadesEditaveis[$editableId]) ? implode('', $idadesEditaveis[$editableId]) : '',
+                    'grupo_id' => (int)($editable['grupo_id'] ?? 0),
+                    'grupo_nome' => normalize_mojibake((string)($editable['grupo_nome'] ?? '')),
+                    'observacao_reserva' => normalize_mojibake((string)($editable['observacao_reserva'] ?? '')),
+                    'observacao_tags' => array_values(array_filter(array_map('trim', explode(',', (string)($editable['observacao_tags'] ?? ''))))),
+                ],
+            ]);
+        }
+
         if (($_GET['ajax'] ?? '') === 'availability') {
             $dateAjax = sanitize_date_param($_GET['data'] ?? '', date('Y-m-d'));
             header('Content-Type: application/json; charset=utf-8');
@@ -191,7 +222,8 @@ class ReservasTematicasController extends Controller
             header('Pragma: no-cache');
             $restauranteId = (int)($_GET['restaurante_id'] ?? 0);
             $turnoId = (int)($_GET['turno_id'] ?? 0);
-            if ($restauranteId <= 0 || $turnoId <= 0) {
+            $restaurantesPermitidosIds = array_map(static fn(array $restaurante): int => (int)($restaurante['id'] ?? 0), $restaurantes);
+            if ($restauranteId <= 0 || $turnoId <= 0 || !in_array($restauranteId, $restaurantesPermitidosIds, true)) {
                 json_response([
                     'ok' => false,
                     'message' => 'Parâmetros inválidos para detalhamento.',
@@ -368,6 +400,29 @@ class ReservasTematicasController extends Controller
             ]);
         }
 
+        $minhasReservasEditaveis = [];
+        if ($modo === 'reservas' && $isHostess) {
+            $rowsEditaveis = $reservaModel->listByFilters([
+                'usuario_id' => (int)($user['id'] ?? 0),
+                'data_inicio' => date('Y-m-d'),
+                'data_fim' => date('Y-m-d', strtotime('+365 days')),
+                'order' => 'date_asc',
+            ], 30);
+            foreach ($rowsEditaveis as $rowEditavel) {
+                $statusEditavel = $this->normalizeReservaStatus((string)($rowEditavel['status'] ?? ''));
+                if (!in_array($statusEditavel, [
+                    ReservasTematicasConstants::STATUS_RESERVADA,
+                    ReservasTematicasConstants::STATUS_PRE_RESERVA,
+                ], true)) {
+                    continue;
+                }
+                if (!ReservaTematicaPolicy::canEdit($rowEditavel, $user)) {
+                    continue;
+                }
+                $minhasReservasEditaveis[] = $rowEditavel;
+            }
+        }
+
         $this->view('reservas_tematicas/' . ($modo === 'completa' ? 'reservas_completa' : 'reservas'), [
             'restaurantes' => $restaurantes,
             'turnos' => $turnos,
@@ -379,6 +434,7 @@ class ReservasTematicasController extends Controller
             'edit_item' => $editItem,
             'is_hostess' => $isHostess,
             'reservas_do_turno' => $reservasDoTurno,
+            'minhas_reservas_editaveis' => $minhasReservasEditaveis,
             'reservas_recentes' => $confirmacaoService->listarRecentes((int)$user['id']),
             'reconciliacao' => $confirmacaoService->reconciliarData(
                 (string)$filters['data'],

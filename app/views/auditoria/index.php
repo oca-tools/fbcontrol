@@ -275,7 +275,7 @@ $renderEmpty = static function (string $message): void {
 ?>
 
 <style>
-.audit-page { --audit-ink: #162239; --audit-muted: #65748d; --audit-border: #dce5f0; --audit-soft: #f6f9fc; --audit-primary: #0f90b6; --audit-success: #169b5a; --audit-warning: #d76a10; --audit-danger: #d93b42; color: var(--audit-ink); }
+.audit-page { --audit-ink: #162239; --audit-muted: #50637e; --audit-border: #cedbe7; --audit-soft: #f1f6fa; --audit-primary: #0f90b6; --audit-success: #169b5a; --audit-warning: #d76a10; --audit-danger: #d93b42; color: var(--audit-ink); }
 .audit-page .audit-hero, .audit-page .audit-filter-card, .audit-page .audit-stream { border: 1px solid var(--audit-border); border-radius: 20px; background: var(--ab-card, #fff); box-shadow: 0 16px 38px rgba(28, 42, 68, .07); }
 .audit-page .audit-hero { padding: 1.35rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; background: linear-gradient(120deg, #fff 0%, #f2fbfd 100%); }
 .audit-page .audit-eyebrow { color: var(--audit-primary); font-size: .7rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .22rem; }

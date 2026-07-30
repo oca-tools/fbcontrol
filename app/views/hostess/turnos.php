@@ -24,6 +24,7 @@ $profileQuery = static function (array $changes = []) use ($reservationFilters, 
 };
 $statusClass = static function (string $status): string {
     $classes = [
+        'Reservada' => 'info',
         'Finalizada' => 'success',
         'Nao compareceu' => 'warning',
         'Não compareceu' => 'warning',
@@ -38,7 +39,7 @@ $tabLink = static function (string $tab) use ($profileQuery): string {
 ?>
 
 <style>
-.hostess-space { --hs-ink:#17243a; --hs-muted:#63758c; --hs-line:#dfe8f0; --hs-bg:#f6fafc; --hs-cyan:#109bb5; --hs-cyan-soft:#e5f8fb; --hs-green:#138557; --hs-orange:#d86a13; color:var(--hs-ink); }
+.hostess-space { --hs-ink:#17243a; --hs-muted:#526b84; --hs-line:#cedce7; --hs-bg:#f2f7fa; --hs-cyan:#109bb5; --hs-cyan-soft:#e0f5f8; --hs-green:#138557; --hs-orange:#d86a13; color:var(--hs-ink); }
 .hostess-space * { min-width:0; }.hostess-space__shell { max-width:1040px; margin:0 auto; }.hostess-space__header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.35rem 0 1rem; }.hostess-space__identity { display:flex; align-items:center; gap:.8rem; }.hostess-space__photo,.hostess-space__fallback { width:52px; height:52px; flex:0 0 52px; border-radius:16px; object-fit:cover; }.hostess-space__fallback { display:grid; place-items:center; color:var(--hs-cyan); background:var(--hs-cyan-soft); font-size:1.35rem; }.hostess-space__identity small { display:block; color:var(--hs-muted); font-size:.69rem; font-weight:850; letter-spacing:.07em; text-transform:uppercase; }.hostess-space__identity h1 { margin:.12rem 0 0; font-size:1.28rem; font-weight:850; }.hostess-space__role { display:inline-flex; align-items:center; gap:.34rem; padding:.45rem .68rem; border:1px solid #bce5ed; border-radius:999px; color:#08778f; background:#fff; font-size:.73rem; font-weight:850; white-space:nowrap; }
 .hostess-space__tabs { display:flex; gap:.3rem; padding:.35rem; border:1px solid var(--hs-line); border-radius:14px; background:var(--ab-card,#fff); box-shadow:0 8px 24px rgba(25,46,70,.05); }.hostess-space__tabs a { display:flex; align-items:center; justify-content:center; gap:.42rem; min-height:42px; padding:.55rem .8rem; border-radius:10px; color:#64748b; font-size:.78rem; font-weight:850; text-decoration:none; }.hostess-space__tabs a.is-active { color:#087a92; background:var(--hs-cyan-soft); box-shadow:inset 0 0 0 1px #c4e9ef; }.hostess-space__view { display:none; margin-top:1rem; }.hostess-space__view.is-active { display:block; }.hostess-space__card { border:1px solid var(--hs-line); border-radius:16px; background:var(--ab-card,#fff); box-shadow:0 10px 28px rgba(25,46,70,.055); }.hostess-space__card + .hostess-space__card { margin-top:1rem; }
 .hostess-space__section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:1.05rem 1.15rem .85rem; }.hostess-space__eyebrow { margin:0 0 .18rem; color:var(--hs-cyan); font-size:.68rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }.hostess-space h2 { margin:0; font-size:1.06rem; font-weight:850; }.hostess-space__section-head p:not(.hostess-space__eyebrow) { margin:.25rem 0 0; color:var(--hs-muted); font-size:.78rem; }.hostess-space__count { display:inline-flex; align-items:center; gap:.35rem; padding:.4rem .6rem; border-radius:999px; color:#08778f; background:var(--hs-cyan-soft); font-size:.7rem; font-weight:850; white-space:nowrap; }
@@ -47,8 +48,86 @@ $tabLink = static function (string $tab) use ($profileQuery): string {
 .hostess-turns { padding:0 .55rem .55rem; }.hostess-turn { display:grid; grid-template-columns:1.1fr minmax(115px,.7fr) minmax(110px,.6fr) auto; gap:.8rem; align-items:center; padding:.85rem .7rem; border-radius:13px; }.hostess-turn + .hostess-turn { border-top:1px solid #e8eef4; }.hostess-turn__restaurant { font-size:.88rem; font-weight:850; }.hostess-turn__restaurant span { display:block; margin-top:.14rem; color:var(--hs-muted); font-size:.74rem; font-weight:700; }.hostess-turn__time { color:#50647d; font-size:.77rem; }.hostess-turn__pax b { display:block; font-size:.96rem; }.hostess-turn__pax span { color:var(--hs-muted); font-size:.69rem; font-weight:750; }
 .hostess-account { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(250px,.75fr); gap:1rem; }.hostess-account__card { padding:1.1rem; }.hostess-account__card h3 { margin:0; font-size:.96rem; font-weight:850; }.hostess-account__card p { margin:.25rem 0 0; color:var(--hs-muted); font-size:.77rem; }.hostess-account__password { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.65rem; margin-top:1rem; }.hostess-account__password .btn { align-self:end; min-height:42px; font-weight:850; }.hostess-account__photo { display:flex; flex-direction:column; gap:.75rem; margin-top:1rem; }.hostess-account__photo .btn { min-height:42px; font-weight:850; }.hostess-space__trust { display:flex; gap:.5rem; align-items:flex-start; margin-top:.9rem; padding:.7rem; border-radius:11px; color:#386079; background:#eff8fb; font-size:.74rem; line-height:1.4; }.hostess-space__trust i { color:#08778f; }
 .hostess-history-modal { width:min(620px,calc(100vw - 1.5rem)); max-height:min(720px,calc(100vh - 1.5rem)); border:0; border-radius:18px; color:var(--hs-ink); background:var(--ab-card,#fff); box-shadow:0 24px 80px rgba(15,30,50,.32); padding:0; }.hostess-history-modal::backdrop { background:rgba(10,24,42,.58); backdrop-filter:blur(2px); }.hostess-history-modal__head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; padding:1.15rem 1.2rem; border-bottom:1px solid var(--hs-line); }.hostess-history-modal__head h2 { margin:.15rem 0 0; font-size:1.08rem; font-weight:850; }.hostess-history-modal__head p { margin:0; color:var(--hs-muted); font-size:.72rem; font-weight:850; letter-spacing:.04em; text-transform:uppercase; }.hostess-history-modal__close { display:grid; place-items:center; width:34px; height:34px; border:1px solid #f0b5bb; border-radius:10px; color:#b22d38; background:#fff6f7; font-size:1rem; }.hostess-history-modal__body { max-height:calc(min(720px,100vh - 1.5rem) - 82px); overflow:auto; padding:1rem 1.2rem 1.2rem; }.hostess-history-modal__summary { margin-bottom:.9rem; padding:.75rem .85rem; border:1px solid var(--hs-line); border-radius:12px; background:#f7fbfd; color:#536a82; font-size:.8rem; }.hostess-history-event { position:relative; padding:0 0 1rem 1.15rem; border-left:2px solid #c9e8ee; }.hostess-history-event:last-child { padding-bottom:0; }.hostess-history-event::before { position:absolute; left:-.38rem; top:.15rem; width:.62rem; height:.62rem; border-radius:50%; background:var(--hs-cyan); content:""; }.hostess-history-event time { display:block; color:var(--hs-muted); font-size:.7rem; font-weight:750; }.hostess-history-event strong { display:block; margin-top:.18rem; font-size:.87rem; }.hostess-history-event span { display:block; margin-top:.18rem; color:#596d84; font-size:.76rem; line-height:1.42; }.hostess-history-change { margin-top:.4rem; padding:.42rem .55rem; border-radius:8px; background:#f2f7fa; color:#3c536b; font-size:.72rem; }.hostess-history-loading { padding:1rem 0; color:var(--hs-muted); text-align:center; font-size:.86rem; }
-html[data-theme="dark"] .hostess-space { --hs-ink:#eef5fb; --hs-muted:#afbed0; --hs-line:#2d4055; --hs-bg:#111d2c; --hs-cyan-soft:#153b45; }html[data-theme="dark"] .hostess-space__card,.hostess-space__tabs,html[data-theme="dark"] .hostess-history-modal { background:var(--ab-card,#152235); }html[data-theme="dark"] .hostess-space__periods a,.hostess-space__filter,.hostess-space .form-control,.hostess-space .form-select,.hostess-history-button { color:#e8f3fb; border-color:#3c5268; background:#172638; }html[data-theme="dark"] .hostess-space__filter-grid { border-color:#324b5b; background:#142836; }html[data-theme="dark"] .hostess-reservation:hover { background:#192b3c; }html[data-theme="dark"] .hostess-history-modal__summary,html[data-theme="dark"] .hostess-history-change { color:#c6d6e4; background:#172b3c; }
+html[data-theme="dark"] .hostess-space { --hs-ink:#eef5fb; --hs-muted:#afbed0; --hs-line:#2d4055; --hs-bg:#111d2c; --hs-cyan-soft:#153b45; }html[data-theme="dark"] .hostess-space__card,.hostess-space__tabs,html[data-theme="dark"] .hostess-history-modal { background:var(--ab-card,#152235); }html[data-theme="dark"] .hostess-space__periods a,.hostess-space__filter,.hostess-space .form-control,.hostess-space .form-select { color:#e8f3fb; border-color:#3c5268; background:#172638; }html[data-theme="dark"] .hostess-space__filter-grid { border-color:#324b5b; background:#142836; }html[data-theme="dark"] .hostess-reservation:hover { background:#192b3c; }html[data-theme="dark"] .hostess-history-modal__summary,html[data-theme="dark"] .hostess-history-change { color:#c6d6e4; background:#172b3c; }
+
+/* Histórico de reservas: cada linha precisa funcionar como uma leitura operacional independente. */
+.hostess-space__card { overflow:hidden; }
+.hostess-reservations { display:grid; gap:.7rem; padding:.15rem .9rem .9rem; }
+.hostess-reservation { position:relative; grid-template-columns:56px minmax(180px,1fr) minmax(166px,.85fr) minmax(130px,.7fr) auto; gap:.8rem; min-height:78px; padding:.78rem .82rem; border:1px solid #d6e3ec; border-radius:14px; background:linear-gradient(135deg,#ffffff 0%,#f4f9fb 100%); box-shadow:0 1px 2px rgba(22,46,69,.045); transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease; }
+.hostess-reservation + .hostess-reservation { border-top:1px solid #d6e3ec; }
+.hostess-reservation::before { position:absolute; inset:10px auto 10px 0; width:3px; border-radius:0 999px 999px 0; background:var(--hs-cyan); content:""; }
+.hostess-reservation:hover { border-color:#9fceda; background:#fff; box-shadow:0 9px 20px rgba(22,46,69,.08); transform:translateY(-1px); }
+.hostess-reservation__date { width:52px; min-height:54px; border-color:#addce6; border-radius:15px; color:#076f87; background:linear-gradient(160deg,#e4f8fb,#f6fcfd); box-shadow:inset 0 1px 0 rgba(255,255,255,.8); }
+.hostess-reservation__date b { font-size:1.2rem; }.hostess-reservation__date span { color:#397487; }
+.hostess-reservation__person { color:#172b42; font-size:.94rem; font-weight:900; }.hostess-reservation__person span { color:#526b84; font-size:.74rem; font-weight:750; line-height:1.35; }
+.hostess-reservation__place { display:flex; align-items:flex-start; justify-content:center; flex-direction:column; min-height:48px; color:#344d67; font-size:.78rem; font-weight:800; line-height:1.35; }.hostess-reservation__place .tag { display:inline-flex; width:max-content; max-width:100%; margin-bottom:.25rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:850; }
+.hostess-reservation__pax { padding-left:.75rem; border-left:1px solid #dce7ee; }.hostess-reservation__pax b { color:#17324a; font-size:1rem; font-weight:900; }.hostess-reservation__pax span { color:#5a7188; font-size:.7rem; font-weight:800; line-height:1.35; }
+.hostess-reservation__actions { gap:.5rem; }.hostess-status { padding:.38rem .58rem; border:1px solid transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.55); }.hostess-status.success { border-color:#b9e6ce; }.hostess-status.warning { border-color:#f3d1aa; }.hostess-status.danger { border-color:#efbec4; }.hostess-status.info { border-color:#b9e6ef; }.hostess-status.neutral { border-color:#d6e1e9; }
+.hostess-history-button { display:inline-flex; align-items:center; justify-content:center; gap:.34rem; width:auto; min-width:36px; height:36px; padding:0 .54rem; border-color:#9fcbd8; border-radius:10px; color:#076f87; background:#f5fcfd; font-size:.7rem; font-weight:850; }.hostess-history-button:hover,.hostess-history-button:focus-visible { border-color:var(--hs-cyan); color:#fff; background:var(--hs-cyan); }
+.hostess-space__empty { margin:.25rem 0; min-height:175px; border:1px dashed #bdd4df; border-radius:14px; color:#4d667e; background:#f7fbfd; font-weight:700; }.hostess-space__empty i { color:#178ca6; }
+html[data-theme="dark"] .hostess-reservation { border-color:#385168; background:linear-gradient(135deg,#202d3d,#1a2938); box-shadow:none; }.hostess-space__card .hostess-reservation + .hostess-reservation { border-top-color:#385168; }html[data-theme="dark"] .hostess-reservation:hover { border-color:#4d91a3; background:#22384a; box-shadow:0 8px 20px rgba(0,0,0,.22); }.hostess-space .hostess-reservation__person,.hostess-space .hostess-reservation__pax b { color:#f0f6fc; }.hostess-space .hostess-reservation__person span,.hostess-space .hostess-reservation__place,.hostess-space .hostess-reservation__pax span { color:#bfd0df; }.hostess-space .hostess-reservation__pax { border-left-color:#40566b; }.hostess-space__empty { border-color:#3c596c; color:#c2d1df; background:#1a2a39; }
 @media (max-width:767px) { .hostess-space__header { align-items:flex-start; }.hostess-space__role { font-size:0; width:38px; height:38px; justify-content:center; padding:0; }.hostess-space__role i { font-size:.92rem; }.hostess-space__tabs { width:100%; }.hostess-space__tabs a { flex:1; padding:.52rem .35rem; font-size:.71rem; }.hostess-space__tabs a i { display:none; }.hostess-space__section-head { padding:.95rem .9rem .75rem; }.hostess-space__section-head p:not(.hostess-space__eyebrow) { max-width:230px; }.hostess-space__count { font-size:.65rem; }.hostess-space__periods,.hostess-space__advanced { padding-left:.9rem; padding-right:.9rem; }.hostess-space__filter { margin-left:0; }.hostess-space__filter-grid { grid-template-columns:1fr 1fr; }.hostess-space__filter-grid .hostess-space__search { grid-column:1 / -1; }.hostess-space__filter-submit { grid-column:1 / -1; width:100%; }.hostess-reservation { grid-template-columns:50px minmax(0,1fr) auto; gap:.45rem .65rem; padding:.8rem .45rem; }.hostess-reservation__date { grid-row:1 / span 2; }.hostess-reservation__person { grid-column:2; }.hostess-reservation__place { grid-column:2; }.hostess-reservation__pax { grid-column:3; grid-row:2; text-align:right; }.hostess-reservation__actions { grid-column:3; grid-row:1; }.hostess-space__pagination { flex-direction:column; }.hostess-turn { grid-template-columns:minmax(0,1fr) auto; gap:.5rem .7rem; }.hostess-turn__time { grid-column:1; }.hostess-turn__pax { grid-column:2; grid-row:2; text-align:right; }.hostess-account { grid-template-columns:1fr; }.hostess-account__password { grid-template-columns:1fr; }.hostess-history-modal__head,.hostess-history-modal__body { padding-left:1rem; padding-right:1rem; } }
+
+@media (max-width:767px) { .hostess-reservations { gap:.6rem; padding:.15rem .65rem .7rem; }.hostess-reservation { min-height:94px; padding:.78rem .56rem .78rem .62rem; }.hostess-reservation::before { inset:9px auto 9px 0; }.hostess-reservation__date { width:48px; min-height:52px; }.hostess-reservation__place { min-height:auto; font-size:.72rem; }.hostess-reservation__pax { padding-left:0; border-left:0; }.hostess-reservation__pax b { font-size:.9rem; }.hostess-reservation__pax span { font-size:.64rem; }.hostess-reservation__actions { gap:.3rem; }.hostess-status { max-width:94px; padding:.32rem .4rem; overflow:hidden; text-overflow:ellipsis; font-size:.62rem; }.hostess-history-button { width:32px; min-width:32px; height:32px; padding:0; }.hostess-history-button span { display:none; } }
+
+/* Contraste operacional: a lista deve ser lida em segundos, não decifrada. */
+.hostess-space__periods a { border-color:#b8cedd; color:#35516f; background:#f8fbfe; }
+.hostess-space__periods a:hover { border-color:#109bb5; color:#08778f; background:#e6f8fb; }
+.hostess-space__periods a.is-active { border-color:#0789a5; background:linear-gradient(135deg,#16afc7,#078ba7); box-shadow:0 7px 16px rgba(8,139,167,.24); }
+.hostess-space__filter { border-color:#183a59; color:#fff; background:#183a59; box-shadow:0 6px 14px rgba(24,58,89,.18); }
+.hostess-space__filter:hover { background:#0e7893; border-color:#0e7893; }
+.hostess-reservation { border-color:#b9d2df; background:linear-gradient(135deg,#ffffff 0%,#eef8fb 100%); }
+.hostess-reservation__person { color:#102a43; font-size:1rem; letter-spacing:0; }
+.hostess-reservation__person span { color:#3d607c; font-weight:800; }
+.hostess-reservation__place { color:#153c5c; font-weight:900; }
+.hostess-reservation__pax b { color:#102f4a; font-size:1.08rem; }
+.hostess-reservation__pax span { color:#3d607c; font-weight:850; }
+.hostess-status.neutral { color:#294964; background:#e4edf4; border-color:#bdcedb; }
+.hostess-history-button { border-color:#48a9bd; color:#056f87; background:#e8f9fc; box-shadow:0 3px 8px rgba(15,126,151,.1); }
+.hostess-history-modal__summary { border-color:#b5d8e4; background:#eaf7fb; color:#164867; font-weight:800; }
+.hostess-history-event { border-left-color:#75cad9; }
+.hostess-history-event time { color:#315776; font-weight:850; }
+.hostess-history-event strong { color:#142f49; font-size:.94rem; }
+.hostess-history-event span { color:#355c79; font-weight:650; }
+.hostess-history-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.48rem; margin-top:.55rem; }
+.hostess-history-fact { min-width:0; padding:.54rem .62rem; border:1px solid #cfdfeb; border-radius:10px; background:#f8fcfe; }
+.hostess-history-fact span { display:block; margin:0 0 .18rem; color:#53748e; font-size:.62rem; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+.hostess-history-fact strong { display:block; margin:0; overflow:hidden; color:#173c59; font-size:.76rem; font-weight:850; text-overflow:ellipsis; white-space:nowrap; }
+.hostess-history-change { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:.42rem; padding:.52rem .62rem; border:1px solid #cfdfeb; background:#f6fbfd; color:#244b69; font-weight:750; }
+.hostess-history-change__label { grid-column:1 / -1; color:#50718b; font-size:.62rem; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+.hostess-history-change__value { overflow:hidden; padding:.2rem .35rem; border-radius:6px; background:#e8f0f5; color:#45647e; text-overflow:ellipsis; white-space:nowrap; }
+.hostess-history-change__value.is-new { background:#dff5ef; color:#08774d; }
+.hostess-history-change__arrow { color:#0a93ae; font-weight:900; }
+html[data-theme="dark"] .hostess-space__periods a { border-color:#47657b; color:#d1e1ed; background:#1d3042; }
+html[data-theme="dark"] .hostess-space__periods a.is-active { color:#fff; border-color:#20bed6; background:linear-gradient(135deg,#159db7,#08758e); }
+html[data-theme="dark"] .hostess-space__filter { color:#fff; border-color:#2dc5dd; background:#117f98; }
+html[data-theme="dark"] .hostess-reservation { border-color:#4c6b82; background:linear-gradient(135deg,#213548,#192d40); }
+html[data-theme="dark"] .hostess-history-modal__summary { border-color:#3f7081; background:#173544; color:#d5edf5; }
+html[data-theme="dark"] .hostess-history-event time { color:#b9d5e6; }
+html[data-theme="dark"] .hostess-history-event strong { color:#f2f8fc; }
+html[data-theme="dark"] .hostess-history-event span { color:#c4dbe9; }
+html[data-theme="dark"] .hostess-history-fact { border-color:#3b5a70; background:#1a3042; }
+html[data-theme="dark"] .hostess-history-fact span { color:#a7c5d8; }
+html[data-theme="dark"] .hostess-history-fact strong { color:#f0f7fb; }
+html[data-theme="dark"] .hostess-history-change { border-color:#3b5a70; background:#1a3042; color:#d9eaf4; }
+html[data-theme="dark"] .hostess-history-change__label { color:#a9cadb; }
+html[data-theme="dark"] .hostess-history-change__value { background:#29465a; color:#d6e8f2; }
+html[data-theme="dark"] .hostess-history-change__value.is-new { background:#174c43; color:#a8f0d3; }
+
+/* Evita o estado híbrido em que o tema escuro preserva texto claro sobre um card claro. */
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation { color:#102a43 !important; border-color:#9fc8d7 !important; background:linear-gradient(135deg,#ffffff 0%,#eaf7fb 100%) !important; }
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation__person { color:#102a43 !important; }
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation__person span,
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation__place,
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation__pax span { color:#365b78 !important; }
+html:not([data-theme="dark"]) .hostess-space .hostess-reservation__pax b { color:#102f4a !important; }
+html[data-theme="dark"] .hostess-space .hostess-reservation { color:#eaf4fb !important; border-color:#50758e !important; background:linear-gradient(135deg,#21394c 0%,#182c3e 100%) !important; }
+html[data-theme="dark"] .hostess-space .hostess-reservation__person,
+html[data-theme="dark"] .hostess-space .hostess-reservation__pax b { color:#f4f9fd !important; }
+html[data-theme="dark"] .hostess-space .hostess-reservation__person span,
+html[data-theme="dark"] .hostess-space .hostess-reservation__place,
+html[data-theme="dark"] .hostess-space .hostess-reservation__pax span { color:#c6dce9 !important; }
+@media (max-width:767px) { .hostess-history-facts { grid-template-columns:1fr; }.hostess-history-change { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); } }
 </style>
 
 <div class="hostess-space">
@@ -96,7 +175,7 @@ html[data-theme="dark"] .hostess-space { --hs-ink:#eef5fb; --hs-muted:#afbed0; -
                             <div class="hostess-reservation__person"><?= h((string)($reserva['titular_nome_display'] ?? 'Sem titular')) ?><span>UH <?= h((string)($reserva['uh_numero'] ?? 'Pendente')) ?><?= !empty($reserva['grupo_nome_display']) && $reserva['grupo_nome_display'] !== '-' ? ' · Grupo ' . h((string)$reserva['grupo_nome_display']) : '' ?></span></div>
                             <div class="hostess-reservation__place"><span class="tag <?= restaurant_badge_class($reserva['restaurante'] ?? '') ?>"><?= h((string)($reserva['restaurante'] ?? 'Restaurante')) ?></span><br><?= h((string)($reserva['turno_hora'] ?? '--:--')) ?></div>
                             <div class="hostess-reservation__pax"><b><?= (int)($reserva['pax'] ?? 0) ?> PAX</b><span><?= (int)($reserva['pax_adulto_calc'] ?? 0) ?> adultos · <?= (int)($reserva['pax_chd_calc'] ?? 0) ?> CHD</span></div>
-                            <div class="hostess-reservation__actions"><span class="hostess-status <?= h($statusClass($status)) ?>"><?= h($status === 'Nao compareceu' ? 'Não compareceu' : $status) ?></span><button type="button" class="hostess-history-button" data-hostess-history="<?= (int)($reserva['id'] ?? 0) ?>" aria-label="Ver histórico da reserva"><i class="bi bi-clock-history"></i></button></div>
+                            <div class="hostess-reservation__actions"><span class="hostess-status <?= h($statusClass($status)) ?>"><?= h($status === 'Nao compareceu' ? 'Não compareceu' : $status) ?></span><button type="button" class="hostess-history-button" data-hostess-history="<?= (int)($reserva['id'] ?? 0) ?>" aria-label="Ver histórico da reserva"><i class="bi bi-clock-history"></i><span>Auditar</span></button></div>
                         </article>
                     <?php endforeach; ?>
                     <?php if ($reservas === []): ?><div class="hostess-space__empty"><div><i class="bi bi-calendar-x"></i>Nenhuma reserva criada por você neste filtro.</div></div><?php endif; ?>
@@ -142,7 +221,50 @@ html[data-theme="dark"] .hostess-space { --hs-ink:#eef5fb; --hs-muted:#afbed0; -
     root.querySelector('[data-profile-filter]')?.addEventListener('click', () => { const advanced = root.querySelector('[data-profile-advanced]'); if (advanced) advanced.hidden = !advanced.hidden; });
     const safe = (value) => String(value ?? '—');
     const create = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
-    const render = (history) => { body.replaceChildren(); const reservation = history.reserva || {}; body.append(create('div', 'hostess-history-modal__summary', `${safe(reservation.uh)} · ${safe(reservation.data)} · ${safe(reservation.restaurante)} · ${safe(reservation.turno)}`)); const events = Array.isArray(history.eventos) ? history.eventos : []; if (!events.length) { body.append(create('div', 'hostess-history-loading', 'Ainda não há eventos registrados para esta reserva.')); return; } events.forEach((event) => { const item = create('article', 'hostess-history-event'); item.append(create('time', '', `${safe(event.criado_em_formatado)} · ${safe(event.usuario)}`)); item.append(create('strong', '', safe(event.titulo))); if (event.justificativa) item.append(create('span', '', event.justificativa)); (Array.isArray(event.alteracoes) ? event.alteracoes : []).forEach((change) => item.append(create('div', 'hostess-history-change', change.criacao ? `${safe(change.label)}: ${safe(change.depois)}` : `${safe(change.label)}: ${safe(change.antes)} → ${safe(change.depois)}`))); body.append(item); }); };
+    const addFact = (container, label, value) => {
+        const fact = create('div', 'hostess-history-fact');
+        fact.append(create('span', '', label));
+        fact.append(create('strong', '', safe(value)));
+        container.append(fact);
+    };
+    const addChange = (container, change) => {
+        const changeNode = create('div', 'hostess-history-change');
+        changeNode.append(create('span', 'hostess-history-change__label', safe(change.label)));
+        changeNode.append(create('span', 'hostess-history-change__value', safe(change.antes)));
+        changeNode.append(create('i', 'bi bi-arrow-right hostess-history-change__arrow'));
+        changeNode.append(create('span', 'hostess-history-change__value is-new', safe(change.depois)));
+        container.append(changeNode);
+    };
+    const render = (history) => {
+        body.replaceChildren();
+        const reservation = history.reserva || {};
+        body.append(create('div', 'hostess-history-modal__summary', `${safe(reservation.uh)} · ${safe(reservation.data)} · ${safe(reservation.restaurante)} · ${safe(reservation.turno)}`));
+        const events = Array.isArray(history.eventos) ? history.eventos : [];
+        if (!events.length) {
+            body.append(create('div', 'hostess-history-loading', 'Ainda não há eventos registrados para esta reserva.'));
+            return;
+        }
+        const creationFields = ['Data da reserva', 'Restaurante', 'Turno', 'UH', 'Titular', 'PAX reservada', 'PAX CHD', 'Status', 'Observação da reserva', 'Marcadores'];
+        events.forEach((event) => {
+            const item = create('article', 'hostess-history-event');
+            const changes = Array.isArray(event.alteracoes) ? event.alteracoes : [];
+            item.append(create('time', '', `${safe(event.criado_em_formatado)} · ${safe(event.usuario)}`));
+            item.append(create('strong', '', safe(event.titulo)));
+            if (event.justificativa) item.append(create('span', '', event.justificativa));
+
+            const creation = changes.filter((change) => change.criacao);
+            const realChanges = changes.filter((change) => !change.criacao);
+            if (creation.length) {
+                const facts = create('div', 'hostess-history-facts');
+                creation
+                    .filter((change) => creationFields.indexOf(String(change.label || '')) !== -1 && String(change.depois || '').trim() !== '')
+                    .forEach((change) => addFact(facts, safe(change.label), change.depois));
+                if (facts.childElementCount) item.append(facts);
+            }
+            realChanges.forEach((change) => addChange(item, change));
+            body.append(item);
+        });
+    };
     document.addEventListener('click', async (event) => { const button = event.target.closest('[data-hostess-history]'); if (!button) return; const id = Number(button.dataset.hostessHistory || 0); if (!id) return; body.replaceChildren(create('div', 'hostess-history-loading', 'Carregando histórico...')); modal.showModal(); try { const response = await fetch(`/?r=relatoriosTematicos/historico&id=${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' }); const payload = await response.json(); if (!response.ok || !payload.ok) throw new Error(payload.message || 'Não foi possível carregar este histórico.'); render(payload.historico || {}); } catch (error) { body.replaceChildren(create('div', 'hostess-history-loading', error.message || 'Não foi possível carregar este histórico.')); } });
     modal.querySelector('[data-hostess-history-close]')?.addEventListener('click', () => modal.close());
     modal.addEventListener('click', (event) => { if (event.target === modal) modal.close(); });

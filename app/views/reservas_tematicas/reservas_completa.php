@@ -7,6 +7,7 @@ $availability = $this->data['availability'] ?? [];
 $filters = $this->data['filters'] ?? [];
 $canReserve = $this->data['can_reserve'] ?? false;
 $editItem = $this->data['edit_item'] ?? null;
+$editItemIsGroup = !empty($editItem['grupo_id']);
 $isHostess = $this->data['is_hostess'] ?? false;
 $reservasRecentes = $this->data['reservas_recentes'] ?? [];
 $reconciliacao = $this->data['reconciliacao'] ?? ['totais' => [], 'linhas' => []];
@@ -1620,23 +1621,24 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                     </div>
                 </div>
 
-                <?php if (!$editItem): ?>
-                    <div class="mb-3">
-                        <label class="form-label form-step-label"><span>4</span>Formato da reserva</label>
-                        <div class="mode-switch" role="group" aria-label="Tipo de reserva">
-                            <button type="button" class="btn btn-primary" id="btnModeSingle"><i class="bi bi-person me-1"></i>Individual</button>
-                            <button type="button" class="btn btn-outline-primary" id="btnModeBatch"><i class="bi bi-people me-1"></i>Grupo</button>
-                            <?php if ($canCreatePreReservation): ?>
-                                <button type="button" class="btn btn-outline-primary" id="btnModePreReservation"><i class="bi bi-bookmark-plus me-1"></i>Pré-reserva</button>
-                            <?php endif; ?>
-                        </div>
-                        <?php if ($canCreatePreReservation): ?>
-                            <div class="alert alert-light border mt-2 mb-0 d-none" id="preReservationHint">
-                                Registre o titular e o PAX agora. A UH poderá ser vinculada posteriormente pela supervisão.
-                            </div>
+                <div class="mb-3">
+                    <label class="form-label form-step-label"><span>4</span>Formato da reserva</label>
+                    <div class="mode-switch" role="group" aria-label="Tipo de reserva">
+                        <button type="button" class="btn <?= $editItemIsGroup ? 'btn-outline-primary' : 'btn-primary' ?>" id="btnModeSingle"><i class="bi bi-person me-1"></i>Individual</button>
+                        <button type="button" class="btn <?= $editItemIsGroup ? 'btn-primary' : 'btn-outline-primary' ?>" id="btnModeBatch"><i class="bi bi-people me-1"></i>Grupo</button>
+                        <?php if (!$editItem && $canCreatePreReservation): ?>
+                            <button type="button" class="btn btn-outline-primary" id="btnModePreReservation"><i class="bi bi-bookmark-plus me-1"></i>Pré-reserva</button>
                         <?php endif; ?>
                     </div>
-                <?php endif; ?>
+                    <?php if ($editItemIsGroup): ?>
+                        <div class="text-muted small mt-2">Esta UH faz parte de um grupo. Ao escolher Individual, apenas esta reserva será separada; as demais permanecerão vinculadas.</div>
+                    <?php endif; ?>
+                    <?php if (!$editItem && $canCreatePreReservation): ?>
+                        <div class="alert alert-light border mt-2 mb-0 d-none" id="preReservationHint">
+                            Registre o titular e o PAX agora. A UH poderá ser vinculada posteriormente pela supervisão.
+                        </div>
+                    <?php endif; ?>
+                </div>
 
                 <div id="singleReservationPanel" class="reservation-person-panel">
                     <div class="mb-3" id="singleUhField">
@@ -1694,8 +1696,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                     </details>
                 </div>
 
-                <?php if (!$editItem): ?>
-                    <div id="batchReservationPanel" class="card reservation-batch-panel p-3 mb-3 d-none">
+                <div id="batchReservationPanel" class="card reservation-batch-panel p-3 mb-3 d-none">
                         <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
                             <div>
                                 <div class="text-uppercase text-muted small">Reserva em grupo</div>
@@ -1743,8 +1744,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                                 </div>
                             </div>
                         </details>
-                    </div>
-                <?php endif; ?>
+                </div>
 
                 <div class="reservation-submit-bar">
                     <button class="btn btn-primary btn-xl w-100" <?= !$canReserve ? 'disabled' : '' ?>>
@@ -2413,13 +2413,15 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     const reservaForm = document.querySelector('form[action="/?r=reservasTematicas/reservasCompleta"]');
     const confirmationStorageKey = 'fbReservationConfirmation';
     const correlationInput = document.getElementById('reservaCorrelationId');
+    const isEditingReservation = <?= $editItem ? 'true' : 'false' ?>;
+    const editingGroupReservation = <?= $editItemIsGroup ? 'true' : 'false' ?>;
     const singleFields = [
         document.querySelector('input[name=\"uh_numero\"]'),
         document.querySelector('input[name=\"titular_nome\"]'),
         document.querySelector('input[name=\"pax\"]')
     ];
 
-    const batchTemplate = () => {
+    const batchTemplate = (item = null) => {
         const wrap = document.createElement('div');
         wrap.className = 'batch-row-wrap';
         wrap.innerHTML = `
@@ -2430,6 +2432,11 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 <div class="d-grid"><button type="button" class="btn btn-outline-danger btn-sm js-remove-batch-row" aria-label="Remover UH"><i class="bi bi-dash-lg"></i></button></div>
             </div>
         `;
+        if (item) {
+            wrap.querySelector('[name="batch_uh_numero[]"]').value = item.uh || '';
+            wrap.querySelector('[name="batch_pax[]"]').value = item.pax || 1;
+            wrap.querySelector('[name="batch_chd_idades[]"]').value = item.chd || '';
+        }
         wrap.querySelector('.js-remove-batch-row')?.addEventListener('click', () => wrap.remove());
         return wrap;
     };
@@ -2452,12 +2459,18 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
         if (!actionInput || !singleReservationPanel || !batchReservationPanel) return;
         const isBatch = mode === 'batch';
         const isPreReservation = mode === 'pre';
-        actionInput.value = isBatch ? 'create_batch' : (isPreReservation ? 'create_pre_reservation' : 'create');
+        const editingExistingGroup = isEditingReservation && editingGroupReservation;
+        const convertingToGroup = isEditingReservation && !editingExistingGroup && isBatch;
+        const separatingFromGroup = editingExistingGroup && !isBatch && !isPreReservation;
+        const usesExistingGroup = editingExistingGroup && isBatch;
+        actionInput.value = isBatch
+            ? (convertingToGroup ? 'update_to_group' : (isEditingReservation ? 'update' : 'create_batch'))
+            : (isPreReservation ? 'create_pre_reservation' : (separatingFromGroup ? 'update_to_individual' : (isEditingReservation ? 'update' : 'create')));
 
-        singleReservationPanel.classList.toggle('d-none', isBatch);
-        batchReservationPanel.classList.toggle('d-none', !isBatch);
-        setPanelEnabled(singleReservationPanel, !isBatch);
-        setPanelEnabled(batchReservationPanel, isBatch);
+        singleReservationPanel.classList.toggle('d-none', isBatch && !usesExistingGroup);
+        batchReservationPanel.classList.toggle('d-none', !isBatch || usesExistingGroup);
+        setPanelEnabled(singleReservationPanel, !isBatch || usesExistingGroup);
+        setPanelEnabled(batchReservationPanel, isBatch && !usesExistingGroup);
         singleUhField?.classList.toggle('d-none', isPreReservation);
         preReservationHint?.classList.toggle('d-none', !isPreReservation);
 
@@ -2470,12 +2483,20 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
 
         singleFields.forEach((el, index) => {
             if (!el) return;
-            el.required = !isBatch && (index !== 0 || !isPreReservation);
+            el.required = (!isBatch || usesExistingGroup) && (index !== 0 || !isPreReservation);
         });
 
-        if (isBatch) {
+        if (isBatch && !usesExistingGroup) {
             if (batchRows && batchRows.children.length === 0) {
+                batchRows.appendChild(batchTemplate(isEditingReservation ? {
+                    uh: document.querySelector('input[name="uh_numero"]')?.value || '',
+                    pax: document.querySelector('input[name="pax"]')?.value || 1,
+                    chd: document.querySelector('input[name="chd_idades"]')?.value || ''
+                } : null));
                 batchRows.appendChild(batchTemplate());
+                if (isEditingReservation && batchDefaultTitular) {
+                    batchDefaultTitular.value = document.querySelector('input[name="titular_nome"]')?.value || '';
+                }
             }
             setBatchEnabled(true);
         } else {
@@ -2497,6 +2518,9 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     btnModeSingle?.addEventListener('click', () => setReservaMode('single'));
     btnModeBatch?.addEventListener('click', () => setReservaMode('batch'));
     btnModePreReservation?.addEventListener('click', () => setReservaMode('pre'));
+    if (isEditingReservation && editingGroupReservation) {
+        setReservaMode('batch');
+    }
 
     let reservaSubmitting = false;
     const setReservaSubmitting = (submitting) => {
@@ -2574,7 +2598,13 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 }) || Promise.resolve());
             }
         } else if (fallbackMessage) {
-            window.fbAlerts?.afterRedirect?.(fallbackMessage, { type: 'success', title: 'Alteração confirmada' });
+            await (window.fbAlerts?.show({
+                type: 'success',
+                title: 'Alteração salva com sucesso',
+                message: fallbackMessage,
+                modal: true,
+                buttonText: 'Voltar para reservas'
+            }) || Promise.resolve());
         }
 
         window.fbAlerts?.clearSavedForms?.();
@@ -2783,7 +2813,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 title: 'Reserva confirmada no banco',
                 message,
                 modal: true,
-                buttonText: 'Conferido'
+                buttonText: 'Registrar nova reserva'
             });
         }, 120);
     };
@@ -2850,11 +2880,13 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
                 return;
             }
             clearCorrelationId();
-            if (window.fbAlerts?.afterRedirect) {
-                window.fbAlerts.afterRedirect(successMessage, { type: 'success', title: 'Alteração confirmada' });
-            } else {
-                window.fbAlerts?.success(successMessage, 'Alteração confirmada');
-            }
+            await (window.fbAlerts?.show({
+                type: 'success',
+                title: 'Alteração salva com sucesso',
+                message: successMessage,
+                modal: true,
+                buttonText: 'Voltar para reservas'
+            }) || Promise.resolve());
             window.fbAlerts?.clearSavedForms?.();
             const redirect = payload.redirect || '/?r=reservasTematicas/reservasCompleta';
             setTimeout(() => {
@@ -2868,7 +2900,7 @@ html[data-theme='dark'] .availability-detail-meta .detail-badge {
     });
 
     if (btnModeSingle && btnModeBatch) {
-        setReservaMode('single');
+        setReservaMode(isEditingReservation && editingGroupReservation ? 'batch' : 'single');
     }
     showStoredReservationConfirmation();
     setTurnoSequentialState();

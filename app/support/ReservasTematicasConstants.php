@@ -13,6 +13,8 @@ final class ReservasTematicasConstants
     public const ACTION_CREATE_PRE_RESERVATION = 'create_pre_reservation';
     public const ACTION_QUICK_STATUS = 'quick_status';
     public const ACTION_UPDATE = 'update';
+    public const ACTION_UPDATE_TO_GROUP = 'update_to_group';
+    public const ACTION_UPDATE_TO_INDIVIDUAL = 'update_to_individual';
     public const ACTION_UPDATE_DETAIL = 'update_detail';
     public const ACTION_UPDATE_STATUS = 'update_status';
     public const AUDIT_ACTION_ATTEMPT_REJECTED = 'reservation_attempt_rejected';

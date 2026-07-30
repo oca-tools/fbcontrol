@@ -22,12 +22,12 @@
     --fb-font: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --fb-bg: #F4F4F3;
     --fb-card: #FFFFFF;
-    --fb-card-muted: #FBFBFA;
-    --fb-soft: #EBEBEB;
+    --fb-card-muted: #F3F6F8;
+    --fb-soft: #E9EEF2;
     --fb-ink: #1C1C1B;            /* 3.0: tinta quase-preta (era #252525) */
     --fb-body: #3B3B39;          /* 3.0: texto de leitura */
-    --fb-muted: #6B6B68;         /* 3.0: metadado/rótulo (era #7A7A79) */
-    --fb-border: #E2E2E2;
+    --fb-muted: #526173;         /* metadado/rótulo: leitura confortável em superfícies claras */
+    --fb-border: #D5DFE7;
     --fb-brand: #E67E3C;          /* laranja corporativo Oca — EXCLUSIVO de marca */
     --fb-brand-deep: #C9641F;
     --fb-brand-bg: #FBEFE6;
@@ -74,7 +74,7 @@
     --ab-warning: #C77A12;
     --ab-danger: #C0433B;
     --ab-ink: #1C1C1B;
-    --ab-muted: #6B6B68;
+    --ab-muted: #526173;
     --ab-primary: #15B1C9;
     --ab-accent: #15B1C9;
     --ab-accent-2: #E67E3C;
@@ -121,12 +121,12 @@ html[data-theme='dark'] {
     /* ---------- identidade Oca (Noite) ---------- */
     --fb-bg: #17181A;
     --fb-card: #202225;
-    --fb-card-muted: #25282C;
-    --fb-soft: #2A2D31;
+    --fb-card-muted: #282E35;
+    --fb-soft: #303740;
     --fb-ink: #F2F2F1;
     --fb-body: #D6D6D4;          /* 3.0: texto de leitura (noite) */
-    --fb-muted: #9A9A99;
-    --fb-border: #34373C;
+    --fb-muted: #B9C5D0;
+    --fb-border: #3B4652;
     --fb-brand: #F0955A;
     --fb-brand-deep: #F0955A;
     --fb-brand-bg: #3A2717;
@@ -158,7 +158,7 @@ html[data-theme='dark'] {
     --ab-warning: #E0A64A;
     --ab-danger: #E5776E;
     --ab-ink: #F2F2F1;
-    --ab-muted: #9A9A99;
+    --ab-muted: #B9C5D0;
     --ab-primary: #3CC3D8;
     --ab-accent: #3CC3D8;
     --ab-accent-2: #F0955A;

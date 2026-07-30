@@ -6,10 +6,15 @@ $filters = $this->data['filters'] ?? [];
 $canReserve = (bool)($this->data['can_reserve'] ?? true);
 $isHostess = (bool)($this->data['is_hostess'] ?? false);
 $reservasDoTurno = $this->data['reservas_do_turno'] ?? [];
+$minhasReservasEditaveis = $this->data['minhas_reservas_editaveis'] ?? [];
 
 $user = Auth::user();
 $podePreReserva = in_array((string)($user['perfil'] ?? ''), ['admin', 'supervisor', 'gerente'], true);
 $tagsPadrao = ['Cortesia', 'Aniversário', 'Cupcake', 'Reclamação', 'Atenção especial', 'VIP', 'Restrição alimentar'];
+$identidadesRestaurantes = [];
+foreach ($restaurantes as $restauranteIdentidade) {
+    $identidadesRestaurantes[(int)($restauranteIdentidade['id'] ?? 0)] = restaurante_identidade($restauranteIdentidade);
+}
 
 $dataSelecionada = (string)($filters['data'] ?? date('Y-m-d'));
 $restauranteSelecionadoId = (int)($filters['restaurante_id'] ?? 0);
@@ -42,7 +47,10 @@ $rotuloTurnoCurto = static function (array $turno) use ($rotuloTurno): string {
     return preg_match('/^\d{2}:\d{2}/', $rotulo, $match) === 1 ? $match[0] : $rotulo;
 };
 $nomeCurtoRestaurante = static fn(array $rest): string => preg_replace('/^Restaurante\s+/iu', '', normalize_mojibake((string)($rest['nome'] ?? '')));
-$tipoLabel = ['buffet' => 'Buffet', 'tematico' => 'Temático', 'area' => 'Área especial'];
+$subtituloReservaTematica = static function (array $rest): string {
+    // O tipo cadastral pode ser buffet por causa do almoço; neste módulo, La Brasa é temática à noite.
+    return TematicAccessService::isLaBrasa((string)($rest['nome'] ?? '')) ? 'Temático noturno' : 'Temático';
+};
 
 $linkMapa = static function (string $data) : string {
     return '/?' . http_build_query([
@@ -192,11 +200,113 @@ if ($temSelecao && $restauranteSelecionado) {
             <h1><?= $temSelecao ? 'Cadastrar reserva' : 'Escolha um turno' ?></h1>
             <p><?= $temSelecao ? 'Preencha os dados abaixo. O contexto escolhido permanece fixo durante o cadastro.' : 'Selecione a data e toque em um turno disponível para avançar.' ?></p>
         </div>
-        <a class="fb-btn fb-btn--ghost" href="/?<?= h(http_build_query(['r' => 'reservasTematicas/reservasCompleta', 'data' => $dataSelecionada])) ?>">
-            <i class="bi bi-grid-3x3-gap"></i>
-            Ambiente completo
-        </a>
+        <div class="fb-reserve-topline__actions">
+            <?php if ($isHostess): ?>
+                <button type="button" class="fb-btn fb-btn--my-reservations" data-editable-reservations-open>
+                    <i class="bi bi-pencil-square"></i>
+                    Minhas reservas
+                    <?php if (!empty($minhasReservasEditaveis)): ?><span><?= count($minhasReservasEditaveis) ?></span><?php endif; ?>
+                </button>
+            <?php endif; ?>
+            <a class="fb-btn fb-btn--complete-workspace" href="/?<?= h(http_build_query(['r' => 'reservasTematicas/reservasCompleta', 'data' => $dataSelecionada])) ?>">
+                <i class="bi bi-grid-3x3-gap"></i>
+                Ambiente completo
+            </a>
+        </div>
     </header>
+
+    <?php if ($isHostess): ?>
+        <dialog class="fb-editable-reservations-modal" data-editable-reservations-modal aria-labelledby="editableReservationsTitle">
+            <header class="fb-editable-reservations-modal__head">
+                <div>
+                    <p>Minhas reservas</p>
+                    <h2 id="editableReservationsTitle">Reservas que você pode editar</h2>
+                    <span>Somente reservas futuras ou do dia, criadas por você.</span>
+                </div>
+                <button type="button" class="fb-editable-reservations-modal__close" data-editable-reservations-close aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
+            </header>
+            <div class="fb-editable-reservations-modal__body">
+                <section data-editable-reservations-list-view>
+                    <?php if (empty($minhasReservasEditaveis)): ?>
+                        <div class="fb-editable-reservations-empty"><i class="bi bi-calendar-check"></i><strong>Nenhuma reserva editável no momento.</strong><span>As próximas reservas criadas por você aparecerão aqui.</span></div>
+                    <?php else: ?>
+                        <div class="fb-editable-reservations-list">
+                            <?php foreach ($minhasReservasEditaveis as $minhaReserva): ?>
+                                <?php
+                                $dataReserva = (string)($minhaReserva['data_reserva'] ?? '');
+                                $statusMinhaReserva = normalize_mojibake((string)($minhaReserva['status_reserva'] ?? $minhaReserva['status'] ?? 'Reservada'));
+                                $restauranteMinhaReserva = normalize_mojibake((string)($minhaReserva['restaurante'] ?? 'Restaurante'));
+                                $identMinhaReserva = restaurante_identidade($restauranteMinhaReserva);
+                                $chdMinhaReserva = max((int)($minhaReserva['pax_chd_calc'] ?? 0), (int)($minhaReserva['qtd_chd_calc'] ?? 0));
+                                $grupoMinhaReserva = normalize_mojibake((string)($minhaReserva['grupo_nome_display'] ?? $minhaReserva['grupo_nome'] ?? ''));
+                                $statusClassMinhaReserva = stripos($statusMinhaReserva, 'pré') !== false || stripos($statusMinhaReserva, 'pre-') !== false ? 'is-pre' : 'is-reserved';
+                                ?>
+                                <button type="button" class="fb-editable-reservation" data-editable-reservation-id="<?= (int)($minhaReserva['id'] ?? 0) ?>">
+                                    <span class="fb-editable-reservation__restaurant" style="background:<?= h($identMinhaReserva['bg']) ?>;color:<?= h($identMinhaReserva['cor']) ?>"><i class="bi <?= h($identMinhaReserva['icone']) ?>"></i></span>
+                                    <span class="fb-editable-reservation__date"><strong data-editable-reservation-date><?= h(format_date_br($dataReserva)) ?></strong><small><?= h(substr((string)($minhaReserva['turno_hora'] ?? '--:--'), 0, 5)) ?></small></span>
+                                    <span class="fb-editable-reservation__main"><strong data-editable-reservation-title><?= h(normalize_mojibake((string)($minhaReserva['titular_nome_display'] ?? $minhaReserva['titular_nome'] ?? 'Sem titular'))) ?></strong><small data-editable-reservation-context><?= h($restauranteMinhaReserva) ?></small><span class="fb-editable-reservation__badges"><b class="fb-mini-badge fb-mini-badge--uh">UH <?= h((string)($minhaReserva['uh_numero'] ?? 'Pendente')) ?></b><b class="fb-mini-badge fb-mini-badge--pax" data-editable-reservation-pax><?= (int)($minhaReserva['pax'] ?? 0) ?> PAX</b><?php if ($chdMinhaReserva > 0): ?><b class="fb-mini-badge fb-mini-badge--chd"><?= $chdMinhaReserva ?> CHD</b><?php endif; ?><?php if ($grupoMinhaReserva !== '' && $grupoMinhaReserva !== '-'): ?><b class="fb-mini-badge fb-mini-badge--group"><i class="bi bi-people"></i> Grupo</b><?php endif; ?></span></span>
+                                    <span class="fb-editable-reservation__meta"><small><em class="fb-editable-reservation__status <?= h($statusClassMinhaReserva) ?>"><?= h($statusMinhaReserva) ?></em></small><b>Editar</b></span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
+                <section class="fb-editable-reservation-editor" data-editable-reservation-editor-view hidden>
+                    <button type="button" class="fb-editable-reservation-editor__back" data-editable-reservations-back><i class="bi bi-arrow-left"></i> Voltar para minhas reservas</button>
+                    <div class="fb-editable-reservation-editor__identity" data-editable-reservation-summary>
+                        <span class="fb-editable-reservation__restaurant" data-editable-reservation-summary-icon><i class="bi bi-calendar-check"></i></span>
+                        <div><p>Editar reserva</p><strong data-editable-reservation-summary-title>Carregando reserva...</strong><small data-editable-reservation-summary-context></small><span class="fb-editable-reservation-editor__badges" data-editable-reservation-summary-badges></span></div>
+                    </div>
+                    <form method="post" action="/?r=reservasTematicas/reservas" class="fb-editable-reservation-form" data-editable-reservation-form>
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="">
+                        <input type="hidden" name="correlation_id" value="">
+
+                        <section class="fb-editable-reservation-form__section">
+                            <header><span class="fb-editable-reservation-form__section-icon"><i class="bi bi-calendar-event"></i></span><div><strong>Quando e onde</strong><small>Revise data, restaurante e turno.</small></div></header>
+                            <div class="fb-editable-reservation-form__grid fb-editable-reservation-form__grid--context">
+                                <label class="fb-field"><span>Data <strong class="fb-required">*</strong></span><input class="fb-input" type="date" name="data_reserva" required></label>
+                                <label class="fb-field"><span>Restaurante <strong class="fb-required">*</strong></span><select class="fb-input" name="restaurante_id" required><?php foreach ($restaurantes as $rest): ?><option value="<?= (int)$rest['id'] ?>"><?= h(normalize_mojibake((string)$rest['nome'])) ?></option><?php endforeach; ?></select></label>
+                                <label class="fb-field"><span>Turno <strong class="fb-required">*</strong></span><select class="fb-input" name="turno_id" required><?php foreach ($turnos as $turno): ?><option value="<?= (int)$turno['id'] ?>"><?= h($rotuloTurnoCurto($turno)) ?></option><?php endforeach; ?></select></label>
+                            </div>
+                        </section>
+                        <section class="fb-editable-reservation-form__section">
+                            <header><span class="fb-editable-reservation-form__section-icon"><i class="bi bi-person-vcard"></i></span><div><strong>Quem participa</strong><small>Dados que serão usados na operação.</small></div></header>
+                            <div class="fb-editable-reservation-mode" role="group" aria-label="Formato da reserva">
+                                <button type="button" class="fb-editable-reservation-mode__option" data-editable-mode="single"><i class="bi bi-person"></i> Individual</button>
+                                <button type="button" class="fb-editable-reservation-mode__option" data-editable-mode="group"><i class="bi bi-people"></i> Grupo</button>
+                            </div>
+                            <p class="fb-editable-reservation-mode__hint" data-editable-mode-hint></p>
+                            <div class="fb-editable-reservation-form__grid fb-editable-reservation-form__grid--guest" data-editable-single-fields>
+                                <label class="fb-field"><span>UH <strong class="fb-required">*</strong></span><input class="fb-input fb-input--identity fb-input--uh" type="text" inputmode="numeric" name="uh_numero" required></label>
+                                <label class="fb-field"><span>Titular <strong class="fb-required">*</strong></span><input class="fb-input fb-input--identity" type="text" name="titular_nome" required></label>
+                                <label class="fb-field"><span>PAX <strong class="fb-required">*</strong></span><input class="fb-input fb-num" type="number" min="1" name="pax" required></label>
+                                <label class="fb-field"><span>Idades CHD</span><input class="fb-input" type="text" name="chd_idades" placeholder="Ex: 3y ou 3m"></label>
+                            </div>
+                            <div class="fb-editable-reservation-group" data-editable-group-fields hidden>
+                                <label class="fb-field"><span>Titular do grupo <strong class="fb-required">*</strong></span><input class="fb-input fb-input--identity" type="text" name="grupo_responsavel" placeholder="Nome do titular do grupo"></label>
+                                <div class="fb-editable-reservation-group__list" data-editable-group-rows></div>
+                                <button type="button" class="fb-btn fb-btn--ghost fb-editable-reservation-group__add" data-editable-group-add><i class="bi bi-plus-lg"></i> Adicionar UH</button>
+                            </div>
+                        </section>
+                        <details class="fb-editable-reservation-options">
+                            <summary>Detalhes opcionais <span>Grupo, marcadores e observações</span></summary>
+                            <div>
+                                <label class="fb-field"><span>Grupo</span><input class="fb-input" type="text" name="grupo_nome" maxlength="120"></label>
+                                <div class="fb-field"><span>Marcadores rápidos</span><div class="fb-reserve-tags"><?php foreach ($tagsPadrao as $tag): ?><label class="fb-chip fb-chip--select"><input type="checkbox" name="observacao_tags[]" value="<?= h($tag) ?>"><span><?= h($tag) ?></span></label><?php endforeach; ?></div></div>
+                                <label class="fb-field"><span>Observações</span><textarea class="fb-input" name="observacao_reserva" rows="3" placeholder="Detalhes operacionais para salão e cozinha"></textarea></label>
+                            </div>
+                        </details>
+                        <div class="fb-editable-reservation-form__actions"><button type="button" class="fb-btn fb-btn--ghost" data-editable-reservations-back>Cancelar</button><button type="submit" class="fb-btn fb-btn--complete-workspace"><i class="bi bi-check2-circle"></i> Salvar alterações</button></div>
+                    </form>
+                </section>
+            </div>
+        </dialog>
+        <script type="application/json" data-editable-restaurant-identities><?= json_for_html($identidadesRestaurantes) ?></script>
+    <?php endif; ?>
 
     <?php if ($isHostess && !$canReserve): ?>
         <div class="fb-alert-inline fb-alert-inline--warn">
@@ -236,7 +346,7 @@ if ($temSelecao && $restauranteSelecionado) {
                 $restId = (int)($rest['id'] ?? 0);
                 $ident = restaurante_identidade($rest);
                 $nomeCurto = $nomeCurtoRestaurante($rest);
-                $subtitulo = $tipoLabel[(string)($rest['tipo'] ?? '')] ?? 'Temático';
+                $subtitulo = $subtituloReservaTematica($rest);
                 $resumoRest = $resumoPorRestaurante[$restId] ?? ['capacidade' => 0, 'livres' => 0, 'reservadas' => 0, 'turnos_ativos' => 0, 'turnos_fechados' => 0];
                 ?>
                 <article
@@ -300,15 +410,18 @@ if ($temSelecao && $restauranteSelecionado) {
                                 <span class="fb-reserve-tile__status">' . h($fechado ? 'fechado' : ($restante <= 0 ? 'lotado' : 'vagas')) . '</span>
                             ';
                             ?>
-                            <?php if (!$fechado && $canReserve): ?>
-                                <a class="<?= $tileClasses ?>" href="<?= h($linkSelecionar($restId, $turnoId, $dataSelecionada)) ?>">
-                                    <?= $tileBody ?>
-                                </a>
-                            <?php else: ?>
-                                <div class="<?= $tileClasses ?>" aria-disabled="true">
-                                    <?= $tileBody ?>
-                                </div>
-                            <?php endif; ?>
+                            <div class="fb-reserve-tile-wrap">
+                                <?php if (!$fechado && $canReserve): ?>
+                                    <a class="<?= $tileClasses ?>" href="<?= h($linkSelecionar($restId, $turnoId, $dataSelecionada)) ?>">
+                                        <?= $tileBody ?>
+                                    </a>
+                                <?php else: ?>
+                                    <div class="<?= $tileClasses ?>" aria-disabled="true">
+                                        <?= $tileBody ?>
+                                    </div>
+                                <?php endif; ?>
+                                <button type="button" class="fb-reserve-tile__details" data-reserve-turn-details data-restaurante-id="<?= $restId ?>" data-turno-id="<?= $turnoId ?>" data-data="<?= h($dataSelecionada) ?>" data-restaurante-nome="<?= h(normalize_mojibake((string)$rest['nome'])) ?>" data-turno-hora="<?= h($rotuloTurnoCurto($turno)) ?>" aria-label="Ver detalhes de <?= h($nomeCurto) ?> às <?= h($rotuloTurnoCurto($turno)) ?>"><i class="bi bi-people"></i><span>Detalhes</span></button>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 </article>
@@ -441,7 +554,139 @@ if ($temSelecao && $restauranteSelecionado) {
     <?php endif; ?>
 </div>
 
+<dialog class="fb-turn-details-modal" data-reserve-turn-details-modal aria-labelledby="reserveTurnDetailsTitle">
+    <header class="fb-turn-details-modal__head">
+        <div>
+            <p>Conferência do turno</p>
+            <h2 id="reserveTurnDetailsTitle" data-reserve-turn-details-title>Reservas do turno</h2>
+            <span data-reserve-turn-details-subtitle>Carregando informações...</span>
+        </div>
+        <button type="button" class="fb-editable-reservations-modal__close" data-reserve-turn-details-close aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
+    </header>
+    <div class="fb-turn-details-modal__body" data-reserve-turn-details-body></div>
+    <footer class="fb-turn-details-modal__foot"><button type="button" class="fb-btn fb-btn--complete-workspace" data-reserve-turn-details-close><i class="bi bi-check2"></i> Voltar ao mapa</button></footer>
+</dialog>
+
 <script>
+(function () {
+    var modal = document.querySelector('[data-reserve-turn-details-modal]');
+    var body = document.querySelector('[data-reserve-turn-details-body]');
+    var title = document.querySelector('[data-reserve-turn-details-title]');
+    var subtitle = document.querySelector('[data-reserve-turn-details-subtitle]');
+    if (!modal || !body || typeof modal.showModal !== 'function') { return; }
+
+    function make(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) { node.className = className; }
+        if (text !== undefined && text !== null) { node.textContent = text; }
+        return node;
+    }
+
+    function setLoading(button) {
+        title.textContent = (button.getAttribute('data-restaurante-nome') || 'Restaurante') + ' · ' + (button.getAttribute('data-turno-hora') || '--:--');
+        subtitle.textContent = 'Carregando reservas e ocupação do turno...';
+        body.innerHTML = '';
+        var loading = make('div', 'fb-turn-details-loading');
+        loading.appendChild(make('i', 'bi bi-arrow-repeat'));
+        loading.appendChild(make('strong', '', 'Consultando reservas do turno'));
+        loading.appendChild(make('span', '', 'A conferência usa a mesma base de ocupação exibida no mapa.'));
+        body.appendChild(loading);
+    }
+
+    function statusClass(status) {
+        var value = String(status || '').toLowerCase();
+        if (value.indexOf('final') !== -1) { return 'is-finalized'; }
+        if (value.indexOf('compareceu') !== -1 || value.indexOf('cancel') !== -1) { return 'is-danger'; }
+        if (value.indexOf('pré') !== -1 || value.indexOf('pre-') !== -1) { return 'is-pre'; }
+        return 'is-reserved';
+    }
+
+    function render(payload, button) {
+        var items = Array.isArray(payload.items) ? payload.items : [];
+        var date = String(payload.date || button.getAttribute('data-data') || '');
+        var dateParts = date.split('-');
+        var dateLabel = dateParts.length === 3 ? dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0] : date;
+        var restaurant = button.getAttribute('data-restaurante-nome') || 'Restaurante';
+        var time = button.getAttribute('data-turno-hora') || '--:--';
+        title.textContent = restaurant + ' · ' + time;
+        subtitle.textContent = dateLabel + ' · ' + items.length + (items.length === 1 ? ' reserva encontrada' : ' reservas encontradas');
+        body.innerHTML = '';
+
+        var summary = make('div', 'fb-turn-details-summary');
+        [
+            { label: 'Capacidade', value: String(payload.capacidade || 0) },
+            { label: 'Ocupadas', value: String(payload.reservado || 0) },
+            { label: 'Disponíveis', value: String(payload.restante || 0) },
+            { label: 'PAX / CHD', value: String(payload.total_pax || 0) + ' / ' + String(payload.total_chd || 0) }
+        ].forEach(function (metric) {
+            var cell = make('div', 'fb-turn-details-summary__item');
+            cell.appendChild(make('small', '', metric.label));
+            cell.appendChild(make('strong', 'fb-num', metric.value));
+            summary.appendChild(cell);
+        });
+        body.appendChild(summary);
+
+        if (!items.length) {
+            var empty = make('div', 'fb-turn-details-empty');
+            empty.appendChild(make('i', 'bi bi-calendar2-check'));
+            empty.appendChild(make('strong', '', 'Nenhuma reserva neste turno.'));
+            empty.appendChild(make('span', '', 'A capacidade exibida no mapa continua disponível para novos cadastros.'));
+            body.appendChild(empty);
+            return;
+        }
+
+        var list = make('div', 'fb-turn-details-list');
+        items.forEach(function (item) {
+            var row = make('article', 'fb-turn-details-item');
+            var person = make('div', 'fb-turn-details-item__person');
+            person.appendChild(make('strong', '', item.titular_nome || 'Sem titular'));
+            person.appendChild(make('small', '', item.usuario ? 'Criado por ' + item.usuario : 'Usuário não informado'));
+            var badges = make('div', 'fb-turn-details-item__badges');
+            badges.appendChild(make('b', 'fb-mini-badge fb-mini-badge--uh', item.uh_numero ? 'UH ' + item.uh_numero : 'UH pendente'));
+            badges.appendChild(make('b', 'fb-mini-badge fb-mini-badge--pax', String(item.pax || 0) + ' PAX'));
+            if (Number(item.qtd_chd || 0) > 0) { badges.appendChild(make('b', 'fb-mini-badge fb-mini-badge--chd', String(item.qtd_chd) + ' CHD')); }
+            var status = make('b', 'fb-turn-details-status ' + statusClass(item.status), item.status || 'Reservada');
+            row.appendChild(person);
+            row.appendChild(badges);
+            row.appendChild(status);
+            list.appendChild(row);
+        });
+        body.appendChild(list);
+    }
+
+    document.querySelectorAll('[data-reserve-turn-details]').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            setLoading(button);
+            modal.showModal();
+            var url = new URL('/?r=reservasTematicas/reservas', window.location.origin);
+            url.searchParams.set('ajax', 'availability_detail');
+            url.searchParams.set('data', button.getAttribute('data-data') || '');
+            url.searchParams.set('restaurante_id', button.getAttribute('data-restaurante-id') || '');
+            url.searchParams.set('turno_id', button.getAttribute('data-turno-id') || '');
+            fetch(url.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' } })
+                .then(function (response) { return response.json().then(function (payload) { return { response: response, payload: payload }; }); })
+                .then(function (result) {
+                    if (!result.response.ok || !result.payload || !result.payload.ok) { throw new Error((result.payload && result.payload.message) || 'Não foi possível consultar este turno.'); }
+                    render(result.payload, button);
+                })
+                .catch(function (error) {
+                    subtitle.textContent = 'Não foi possível carregar os dados do turno.';
+                    body.innerHTML = '';
+                    var errorNode = make('div', 'fb-turn-details-empty is-error');
+                    errorNode.appendChild(make('i', 'bi bi-exclamation-triangle'));
+                    errorNode.appendChild(make('strong', '', error.message));
+                    body.appendChild(errorNode);
+                });
+        });
+    });
+
+    document.querySelectorAll('[data-reserve-turn-details-close]').forEach(function (button) {
+        button.addEventListener('click', function () { modal.close(); });
+    });
+    modal.addEventListener('click', function (event) { if (event.target === modal) { modal.close(); } });
+})();
+
 function fbAjustarPax(delta) {
     var input = document.getElementById('reservaPaxInput');
     if (!input) { return; }
@@ -789,3 +1034,296 @@ function fbAdicionarLinhaLote() {
     });
 })();
 </script>
+<?php if ($isHostess): ?>
+<script>
+(function () {
+    var modal = document.querySelector('[data-editable-reservations-modal]');
+    var opener = document.querySelector('[data-editable-reservations-open]');
+    var closer = document.querySelector('[data-editable-reservations-close]');
+    var listView = document.querySelector('[data-editable-reservations-list-view]');
+    var editorView = document.querySelector('[data-editable-reservation-editor-view]');
+    var editForm = document.querySelector('[data-editable-reservation-form]');
+    var identitiesNode = document.querySelector('[data-editable-restaurant-identities]');
+    var modeButtons = modal ? modal.querySelectorAll('[data-editable-mode]') : [];
+    var groupFields = modal ? modal.querySelector('[data-editable-group-fields]') : null;
+    var groupRows = modal ? modal.querySelector('[data-editable-group-rows]') : null;
+    var groupAdd = modal ? modal.querySelector('[data-editable-group-add]') : null;
+    var modeHint = modal ? modal.querySelector('[data-editable-mode-hint]') : null;
+    var singleFields = modal ? modal.querySelector('[data-editable-single-fields]') : null;
+    var activeReservation = null;
+    var restaurantIdentities = {};
+    if (!modal || !opener || typeof modal.showModal !== 'function') { return; }
+
+    try { restaurantIdentities = JSON.parse(identitiesNode ? identitiesNode.textContent : '{}') || {}; } catch (e) {}
+
+    function showList() {
+        if (editorView) { editorView.hidden = true; }
+        if (listView) { listView.hidden = false; }
+        var body = modal.querySelector('.fb-editable-reservations-modal__body');
+        if (body) { body.scrollTop = 0; }
+    }
+
+    function formatDate(value) {
+        var parts = String(value || '').split('-');
+        return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
+    }
+
+    function setSummary(reservation) {
+        var selected = editForm ? editForm.querySelector('[name="restaurante_id"] option:checked') : null;
+        var restaurantName = selected ? String(selected.textContent || '').trim() : 'Restaurante';
+        var identity = restaurantIdentities[String(reservation.restaurante_id || '')] || {};
+        var icon = modal.querySelector('[data-editable-reservation-summary-icon]');
+        var title = modal.querySelector('[data-editable-reservation-summary-title]');
+        var context = modal.querySelector('[data-editable-reservation-summary-context]');
+        var badges = modal.querySelector('[data-editable-reservation-summary-badges]');
+        if (icon) {
+            icon.style.background = identity.bg || '';
+            icon.style.color = identity.cor || '';
+            icon.innerHTML = '<i class="bi ' + String(identity.icone || 'bi-calendar-check') + '"></i>';
+        }
+        if (title) { title.textContent = reservation.titular_nome || 'Reserva sem titular'; }
+        if (context) { context.textContent = restaurantName + ' · ' + (reservation.uh_numero ? 'UH ' + reservation.uh_numero : 'UH pendente') + ' · ' + formatDate(reservation.data_reserva); }
+        if (badges) {
+            badges.innerHTML = '';
+            [
+                { label: 'UH ' + (reservation.uh_numero || 'pendente'), className: 'fb-mini-badge--uh' },
+                { label: String(reservation.pax || 0) + ' PAX', className: 'fb-mini-badge--pax' },
+                { label: reservation.chd_idades ? String((reservation.chd_idades.match(/\\d+\\s*[ym]/gi) || []).length) + ' CHD' : '', className: 'fb-mini-badge--chd' }
+            ].forEach(function (badge) {
+                if (!badge.label) { return; }
+                var node = document.createElement('b');
+                node.className = 'fb-mini-badge ' + badge.className;
+                node.textContent = badge.label;
+                badges.appendChild(node);
+            });
+        }
+    }
+
+    function setInputsEnabled(container, enabled) {
+        if (!container) { return; }
+        container.querySelectorAll('input, textarea, select, button').forEach(function (field) {
+            field.disabled = !enabled;
+        });
+    }
+
+    function groupRowTemplate(item) {
+        var row = document.createElement('div');
+        row.className = 'fb-editable-reservation-group__row';
+        row.innerHTML = '<label class="fb-field"><span>UH <strong class="fb-required">*</strong></span><input class="fb-input fb-input--uh" type="text" inputmode="numeric" name="batch_uh_numero[]" required></label>'
+            + '<label class="fb-field"><span>PAX <strong class="fb-required">*</strong></span><input class="fb-input fb-num" type="number" min="1" name="batch_pax[]" required></label>'
+            + '<label class="fb-field"><span>Idades CHD</span><input class="fb-input" type="text" name="batch_chd_idades[]" placeholder="Ex: 3y ou 3m"></label>'
+            + '<button type="button" class="fb-editable-reservation-group__remove" aria-label="Remover UH"><i class="bi bi-dash-lg"></i></button>';
+        row.querySelector('[name="batch_uh_numero[]"]').value = item && item.uh_numero ? item.uh_numero : '';
+        row.querySelector('[name="batch_pax[]"]').value = item && item.pax ? item.pax : 1;
+        row.querySelector('[name="batch_chd_idades[]"]').value = item && item.chd_idades ? item.chd_idades : '';
+        row.querySelector('.fb-editable-reservation-group__remove').addEventListener('click', function () {
+            if (groupRows && groupRows.children.length > 2) { row.remove(); }
+        });
+        return row;
+    }
+
+    function ensureGroupRows(reservation) {
+        if (!groupRows || groupRows.children.length > 0) { return; }
+        groupRows.appendChild(groupRowTemplate(reservation));
+        groupRows.appendChild(groupRowTemplate(null));
+        var responsible = editForm ? editForm.querySelector('[name="grupo_responsavel"]') : null;
+        if (responsible && !responsible.value) { responsible.value = reservation.titular_nome || ''; }
+    }
+
+    function setEditMode(mode, reservation) {
+        if (!editForm) { return; }
+        var originalGroupId = Number(editForm.getAttribute('data-original-group-id') || 0);
+        var isExistingGroup = originalGroupId > 0;
+        var convertingToGroup = mode === 'group' && !isExistingGroup;
+        var convertingToIndividual = mode === 'single' && isExistingGroup;
+        var action = editForm.querySelector('[name="action"]');
+
+        if (action) {
+            action.value = convertingToGroup ? 'update_to_group' : (convertingToIndividual ? 'update_to_individual' : 'update');
+        }
+        if (singleFields) { singleFields.hidden = convertingToGroup; }
+        if (groupFields) { groupFields.hidden = !convertingToGroup; }
+        setInputsEnabled(singleFields, !convertingToGroup);
+        setInputsEnabled(groupFields, convertingToGroup);
+        if (convertingToGroup) { ensureGroupRows(reservation || activeReservation || {}); }
+
+        modeButtons.forEach(function (button) {
+            var selected = button.getAttribute('data-editable-mode') === mode;
+            button.classList.toggle('is-active', selected);
+            button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+        if (modeHint) {
+            modeHint.textContent = convertingToGroup
+                ? 'Inclua ao menos duas UHs. A primeira linha substitui esta reserva e as demais serão vinculadas ao mesmo grupo.'
+                : (convertingToIndividual
+                    ? 'Esta UH será separada do grupo. As demais reservas vinculadas permanecerão agrupadas.'
+                    : (isExistingGroup
+                        ? 'Esta reserva faz parte de um grupo. As alterações desta UH preservam seu vínculo atual.'
+                        : 'Reserva individual para uma única UH.'));
+        }
+    }
+
+    function populateEditor(reservation) {
+        if (!editForm) { return; }
+        activeReservation = reservation;
+        editForm.setAttribute('data-original-group-id', String(reservation.grupo_id || 0));
+        var fields = ['id', 'data_reserva', 'restaurante_id', 'turno_id', 'uh_numero', 'titular_nome', 'pax', 'chd_idades', 'grupo_nome', 'observacao_reserva'];
+        fields.forEach(function (name) {
+            var field = editForm.querySelector('[name="' + name + '"]');
+            if (field) { field.value = reservation[name] !== undefined && reservation[name] !== null ? reservation[name] : ''; }
+        });
+        var selectedTags = Array.isArray(reservation.observacao_tags) ? reservation.observacao_tags : [];
+        editForm.querySelectorAll('[name="observacao_tags[]"]').forEach(function (field) {
+            field.checked = selectedTags.indexOf(field.value) !== -1;
+        });
+        setSummary(reservation);
+        setEditMode(Number(reservation.grupo_id || 0) > 0 ? 'group' : 'single', reservation);
+    }
+
+    function updateListItem(reservation) {
+        var item = document.querySelector('[data-editable-reservation-id="' + String(reservation.id) + '"]');
+        if (!item) { return; }
+        var selected = editForm ? editForm.querySelector('[name="restaurante_id"] option:checked') : null;
+        var restaurantName = selected ? String(selected.textContent || '').trim() : 'Restaurante';
+        var timeOption = editForm ? editForm.querySelector('[name="turno_id"] option:checked') : null;
+        var identity = restaurantIdentities[String(reservation.restaurante_id || '')] || {};
+        var icon = item.querySelector('.fb-editable-reservation__restaurant');
+        var date = item.querySelector('[data-editable-reservation-date]');
+        var title = item.querySelector('[data-editable-reservation-title]');
+        var context = item.querySelector('[data-editable-reservation-context]');
+        var pax = item.querySelector('[data-editable-reservation-pax]');
+        var uh = item.querySelector('.fb-mini-badge--uh');
+        var chd = item.querySelector('.fb-mini-badge--chd');
+        var groupBadge = item.querySelector('.fb-mini-badge--group');
+        if (icon) {
+            icon.style.background = identity.bg || '';
+            icon.style.color = identity.cor || '';
+            icon.innerHTML = '<i class="bi ' + String(identity.icone || 'bi-calendar-check') + '"></i>';
+        }
+        if (date) { date.textContent = formatDate(reservation.data_reserva); }
+        if (date && date.nextElementSibling) { date.nextElementSibling.textContent = timeOption ? String(timeOption.textContent || '').trim() : ''; }
+        if (title) { title.textContent = reservation.titular_nome || 'Sem titular'; }
+        if (context) { context.textContent = restaurantName; }
+        if (uh) { uh.textContent = 'UH ' + (reservation.uh_numero || 'Pendente'); }
+        if (pax) { pax.textContent = String(reservation.pax || 0) + ' PAX'; }
+        var chdCount = String(reservation.chd_idades || '').match(/\d+\s*[ym]/gi) || [];
+        if (chd && chdCount.length === 0) { chd.remove(); }
+        if (chd && chdCount.length > 0) { chd.textContent = String(chdCount.length) + ' CHD'; }
+        if (!chd && chdCount.length > 0 && pax && pax.parentNode) {
+            chd = document.createElement('b');
+            chd.className = 'fb-mini-badge fb-mini-badge--chd';
+            chd.textContent = String(chdCount.length) + ' CHD';
+            pax.parentNode.appendChild(chd);
+        }
+        if (Number(reservation.grupo_id || 0) > 0 && !groupBadge && pax && pax.parentNode) {
+            groupBadge = document.createElement('b');
+            groupBadge.className = 'fb-mini-badge fb-mini-badge--group';
+            groupBadge.innerHTML = '<i class="bi bi-people"></i> Grupo';
+            pax.parentNode.appendChild(groupBadge);
+        }
+        if (Number(reservation.grupo_id || 0) <= 0 && groupBadge) { groupBadge.remove(); }
+    }
+
+    function editableReservationDetails(reservation) {
+        var restaurant = editForm ? editForm.querySelector('[name="restaurante_id"] option:checked') : null;
+        var turno = editForm ? editForm.querySelector('[name="turno_id"] option:checked') : null;
+        var chdCount = String(reservation.chd_idades || '').match(/\d+\s*[ym]/gi) || [];
+        return [
+            { label: 'Restaurante e turno', value: (restaurant ? String(restaurant.textContent || '').trim() : 'Restaurante') + ' · ' + (turno ? String(turno.textContent || '').trim() : '--:--') },
+            { label: 'Data', value: formatDate(reservation.data_reserva) },
+            { label: 'UH', value: reservation.uh_numero ? 'UH ' + reservation.uh_numero : 'UH pendente' },
+            { label: 'PAX informado', value: String(reservation.pax || 0) + ' pessoas' },
+            { label: 'CHD', value: chdCount.length ? String(chdCount.length) + ' criança(s)' : '' }
+        ];
+    }
+
+    function openEditor(id) {
+        var url = new URL('/?r=reservasTematicas/reservas', window.location.origin);
+        url.searchParams.set('ajax', 'editable_reservation');
+        url.searchParams.set('id', String(id));
+        fetch(url.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' } })
+            .then(function (response) { return response.json().then(function (payload) { return { response: response, payload: payload }; }); })
+            .then(function (result) {
+                if (!result.response.ok || !result.payload || !result.payload.ok) { throw new Error((result.payload && result.payload.message) || 'Não foi possível abrir esta reserva para edição.'); }
+                populateEditor(result.payload.reservation || {});
+                if (listView) { listView.hidden = true; }
+                if (editorView) { editorView.hidden = false; }
+                var body = modal.querySelector('.fb-editable-reservations-modal__body');
+                if (body) { body.scrollTop = 0; }
+            })
+            .catch(function (error) {
+                if (window.fbAlerts && typeof window.fbAlerts.error === 'function') { window.fbAlerts.error(error.message, 'Não foi possível abrir'); }
+            });
+    }
+
+    opener.addEventListener('click', function () { modal.showModal(); });
+    if (closer) {
+        closer.addEventListener('click', function () { modal.close(); });
+    }
+    modal.addEventListener('click', function (event) {
+        if (event.target === modal) { modal.close(); }
+    });
+    modal.querySelectorAll('[data-editable-reservation-id]').forEach(function (item) {
+        item.addEventListener('click', function () { openEditor(item.getAttribute('data-editable-reservation-id')); });
+    });
+    modal.querySelectorAll('[data-editable-reservations-back]').forEach(function (button) {
+        button.addEventListener('click', showList);
+    });
+    modeButtons.forEach(function (button) {
+        button.addEventListener('click', function () { setEditMode(button.getAttribute('data-editable-mode') || 'single', activeReservation || {}); });
+    });
+    if (groupAdd) {
+        groupAdd.addEventListener('click', function () {
+            if (groupRows) { groupRows.appendChild(groupRowTemplate(null)); }
+        });
+    }
+    if (editForm) {
+        editForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (!editForm.reportValidity()) { return; }
+            var submit = editForm.querySelector('[type="submit"]');
+            var original = submit ? submit.innerHTML : '';
+            if (submit) { submit.disabled = true; submit.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Salvando...'; }
+            var formData = new FormData(editForm);
+            fetch(editForm.getAttribute('action'), {
+                method: 'POST', body: formData, credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' }
+            }).then(function (response) {
+                return response.json().then(function (payload) { return { response: response, payload: payload }; });
+            }).then(function (result) {
+                if (!result.response.ok || !result.payload || !result.payload.ok) { throw new Error((result.payload && result.payload.message) || 'Não foi possível salvar as alterações.'); }
+                var updated = {
+                    id: editForm.querySelector('[name="id"]').value,
+                    data_reserva: editForm.querySelector('[name="data_reserva"]').value,
+                    restaurante_id: editForm.querySelector('[name="restaurante_id"]').value,
+                    turno_id: editForm.querySelector('[name="turno_id"]').value,
+                    uh_numero: editForm.querySelector('[name="uh_numero"]').value,
+                    titular_nome: editForm.querySelector('[name="titular_nome"]').value,
+                    pax: editForm.querySelector('[name="pax"]').value,
+                    chd_idades: editForm.querySelector('[name="chd_idades"]').value,
+                    grupo_id: editForm.querySelector('[name="action"]').value === 'update_to_group'
+                        ? Number((result.payload.payload || {}).grupo_id || 1)
+                        : (editForm.querySelector('[name="action"]').value === 'update_to_individual' ? 0 : Number(editForm.getAttribute('data-original-group-id') || 0))
+                };
+                updateListItem(updated);
+                if (window.fbAlerts && typeof window.fbAlerts.modal === 'function') {
+                    return window.fbAlerts.modal({
+                        type: 'success',
+                        title: 'Alteração salva com sucesso',
+                        message: result.payload.message || 'A reserva foi atualizada e a alteração ficou registrada na auditoria.',
+                        details: editableReservationDetails(updated),
+                        buttonText: 'Voltar para reservas',
+                        variant: 'reservation'
+                    }).then(showList);
+                }
+                showList();
+            }).catch(function (error) {
+                if (window.fbAlerts && typeof window.fbAlerts.modal === 'function') { window.fbAlerts.modal({ type: 'danger', title: 'Alteração não realizada', message: error.message, buttonText: 'Corrigir' }); }
+            }).finally(function () {
+                if (submit) { submit.disabled = false; submit.innerHTML = original; }
+            });
+        });
+    }
+})();
+</script>
+<?php endif; ?>

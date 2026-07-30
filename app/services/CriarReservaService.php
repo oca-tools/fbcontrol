@@ -19,7 +19,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
     public function executar(CriarReservaCommand $command): ServiceResult
     {
         try {
-            if ($command->acao !== ReservasTematicasConstants::ACTION_UPDATE && $command->correlationId !== '') {
+            if (!$this->isUpdateAction($command->acao) && $command->correlationId !== '') {
                 $existentes = $this->reservas->buscarReservasPorCorrelacao($command->correlationId, $command->usuarioId);
                 if ($existentes !== []) {
                     return ServiceResult::success(
@@ -34,7 +34,9 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 }
             }
 
-            if ($command->hostessForaDaJanela) {
+            // A janela operacional limita novas reservas. A correção de uma reserva
+            // já criada segue a política de autoria e precisa continuar disponível.
+            if ($command->hostessForaDaJanela && !$this->isUpdateAction($command->acao)) {
                 return ServiceResult::failure(
                     ReservasTematicasConstants::CODE_FORA_JANELA_RESERVA,
                     ReservasTematicasConstants::MESSAGE_FORA_JANELA_RESERVA
@@ -58,11 +60,15 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 return $this->criarGrupoDeReservas($command);
             }
 
-            return $command->acao === ReservasTematicasConstants::ACTION_UPDATE
+            if ($command->acao === ReservasTematicasConstants::ACTION_UPDATE_TO_GROUP) {
+                return $this->converterReservaEmGrupo($command);
+            }
+
+            return $this->isUpdateAction($command->acao)
                 ? $this->atualizarReserva($command)
                 : $this->criarReservaIndividual($command);
         } catch (Throwable $error) {
-            if ($command->acao !== ReservasTematicasConstants::ACTION_UPDATE
+            if (!$this->isUpdateAction($command->acao)
                 && $command->correlationId !== ''
                 && $this->isDuplicateCorrelationError($error)) {
                 $existentes = $this->reservas->buscarReservasPorCorrelacao($command->correlationId, $command->usuarioId);
@@ -158,6 +164,13 @@ final class CriarReservaService implements CriarReservaServiceInterface
             return $dadosDaReserva;
         }
 
+        if ($command->acao === ReservasTematicasConstants::ACTION_UPDATE_TO_INDIVIDUAL) {
+            // A conversão não apaga as demais UHs do grupo: apenas separa esta
+            // reserva, deixando a decisão registrada na trilha de auditoria.
+            $dadosDaReserva['grupo_id'] = null;
+            $dadosDaReserva['grupo_nome'] = null;
+        }
+
         $erroCapacidade = $this->validarCapacidadeDoTurno(
             $command->restauranteId,
             $command->dataReserva,
@@ -178,6 +191,106 @@ final class CriarReservaService implements CriarReservaServiceInterface
         });
 
         return ServiceResult::success(ReservasTematicasConstants::MESSAGE_RESERVA_ATUALIZADA, ['reserva_id' => $command->reservaId]);
+    }
+
+    /**
+     * Converte uma reserva individual em grupo sem perder seu identificador ou
+     * sua trilha. A primeira linha do grupo substitui a reserva original e as
+     * demais linhas sao criadas na mesma transacao.
+     */
+    private function converterReservaEmGrupo(CriarReservaCommand $command): ServiceResult
+    {
+        $reservaAtual = $this->reservas->buscarReserva($command->reservaId);
+        if (!$reservaAtual) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_RESERVA_NAO_ENCONTRADA,
+                ReservasTematicasConstants::MESSAGE_RESERVA_NAO_ENCONTRADA
+            );
+        }
+        if (!ReservaTematicaPolicy::canEdit($reservaAtual, $command->usuario)) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_EDICAO_NAO_AUTORIZADA,
+                ReservasTematicasConstants::MESSAGE_EDICAO_NAO_AUTORIZADA
+            );
+        }
+        if ($command->grupoResponsavel === '') {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_GRUPO_SEM_TITULAR,
+                ReservasTematicasConstants::MESSAGE_GRUPO_SEM_TITULAR
+            );
+        }
+
+        $itensDoGrupo = $this->prepararItensDoGrupo($command, $command->reservaId);
+        if ($itensDoGrupo instanceof ServiceResult) {
+            return $itensDoGrupo;
+        }
+        if (count($itensDoGrupo) < 2) {
+            return ServiceResult::failure(
+                ReservasTematicasConstants::CODE_GRUPO_UH_MINIMO,
+                ReservasTematicasConstants::MESSAGE_GRUPO_UH_MINIMO
+            );
+        }
+
+        $paxTotal = array_sum(array_map(static fn(array $item): int => (int)$item['pax'], $itensDoGrupo));
+        $erroCapacidade = $this->validarCapacidadeDoTurno(
+            $command->restauranteId,
+            $command->dataReserva,
+            $command->turnoId,
+            $paxTotal,
+            $reservaAtual
+        );
+        if ($erroCapacidade) {
+            return $erroCapacidade;
+        }
+
+        $idsCriados = [];
+        $grupoId = 0;
+        $antes = $reservaAtual;
+        $this->reservas->executarTransacao(function () use ($command, $itensDoGrupo, $antes, &$grupoId, &$idsCriados): void {
+            $grupoId = $this->reservas->criarGrupo([
+                'restaurante_id' => $command->restauranteId,
+                'data_reserva' => $command->dataReserva,
+                'turno_id' => $command->turnoId,
+                'responsavel_nome' => $command->grupoResponsavel,
+                'observacao_grupo' => $command->observacaoReserva !== '' ? $command->observacaoReserva : null,
+            ], $command->usuarioId);
+
+            $grupoNome = $command->grupoNome !== '' ? $command->grupoNome : $command->grupoResponsavel;
+            foreach ($itensDoGrupo as $itemIndex => $item) {
+                $payload = $this->montarPayloadReserva($command, [
+                    'uh_id' => $item['uh_id'],
+                    'titular_nome' => $command->grupoResponsavel,
+                    'pax' => $item['pax'],
+                    'pax_adulto' => $item['pax_adulto'],
+                    'pax_chd' => $item['qtd_chd'],
+                    'qtd_chd' => $item['qtd_chd'],
+                    'grupo_id' => $grupoId > ReservasTematicasConstants::DEFAULT_ZERO ? $grupoId : null,
+                    'grupo_nome' => $grupoNome,
+                    'correlation_item' => $itemIndex,
+                    'status' => (string)($antes['status'] ?? ReservasTematicasConstants::STATUS_RESERVADA),
+                    'pax_real' => $itemIndex === 0 ? ($antes['pax_real'] ?? null) : null,
+                ]);
+
+                if ($itemIndex === 0) {
+                    $this->reservas->atualizarReserva($command->reservaId, $payload, $command->usuarioId);
+                    $this->reservas->substituirIdadesChd($command->reservaId, $item['idades']);
+                    $depois = $this->reservas->buscarReserva($command->reservaId) ?? [];
+                    $this->reservas->registrarLog($command->reservaId, ReservasTematicasConstants::ACTION_UPDATE, $command->usuarioId, $antes, $depois);
+                    continue;
+                }
+
+                $reservaId = $this->reservas->criarReserva($payload, $command->usuarioId);
+                $this->reservas->substituirIdadesChd($reservaId, $item['idades']);
+                $this->reservas->registrarLog($reservaId, ReservasTematicasConstants::ACTION_CREATE, $command->usuarioId, [], $this->reservas->buscarReserva($reservaId) ?? []);
+                $idsCriados[] = $reservaId;
+            }
+        });
+
+        return ServiceResult::success('Reserva convertida em grupo com sucesso.', [
+            'reserva_id' => $command->reservaId,
+            'reservas_ids' => array_merge([$command->reservaId], $idsCriados),
+            'grupo_id' => $grupoId,
+        ]);
     }
 
     private function criarGrupoDeReservas(CriarReservaCommand $command): ServiceResult
@@ -280,7 +393,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
             );
         }
         $novaPreReserva = $command->acao === ReservasTematicasConstants::ACTION_CREATE_PRE_RESERVATION;
-        $mantemPreReserva = $command->acao === ReservasTematicasConstants::ACTION_UPDATE
+        $mantemPreReserva = $this->isUpdateAction($command->acao)
             && $reservaAtual !== null
             && (string)($reservaAtual['status'] ?? '') === ReservasTematicasConstants::STATUS_PRE_RESERVA
             && $command->uhNumero === '';
@@ -318,6 +431,9 @@ final class CriarReservaService implements CriarReservaServiceInterface
             return $erroDuplicidade;
         }
 
+        $grupoAtual = $reservaAtual !== null ? (int)($reservaAtual['grupo_id'] ?? 0) : 0;
+        $manterGrupo = $command->acao === ReservasTematicasConstants::ACTION_UPDATE && $grupoAtual > 0;
+
         return $this->montarPayloadReserva($command, [
             'uh_id' => (int)$uh['id'],
             'titular_nome' => $command->titularNome,
@@ -325,15 +441,19 @@ final class CriarReservaService implements CriarReservaServiceInterface
             'pax_adulto' => max(ReservasTematicasConstants::DEFAULT_ZERO, $command->pax - $qtdChd),
             'pax_chd' => $qtdChd,
             'qtd_chd' => $qtdChd,
-            'grupo_nome' => $command->grupoNome !== '' ? $command->grupoNome : null,
+            'grupo_id' => $manterGrupo ? $grupoAtual : null,
+            'grupo_nome' => $manterGrupo
+                ? ($command->grupoNome !== '' ? $command->grupoNome : ($reservaAtual['grupo_nome'] ?? null))
+                : ($command->grupoNome !== '' ? $command->grupoNome : null),
             'idades_chd' => $idadesChd,
+            'pax_real' => $reservaAtual['pax_real'] ?? null,
             'status' => ($novaPreReserva || $mantemPreReserva)
                 ? ReservasTematicasConstants::STATUS_PRE_RESERVA
-                : ReservasTematicasConstants::STATUS_RESERVADA,
+                : (string)($reservaAtual['status'] ?? ReservasTematicasConstants::STATUS_RESERVADA),
         ]);
     }
 
-    private function prepararItensDoGrupo(CriarReservaCommand $command)
+    private function prepararItensDoGrupo(CriarReservaCommand $command, int $ignorarReservaId = 0)
     {
         $itens = [];
         $uhsJaInformadas = [];
@@ -392,7 +512,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
                 return $erroLimiteUh;
             }
 
-            $erroDuplicidade = $this->validarDuplicidadeDaUh((int)$uh['id'], (string)($uh['numero'] ?? $uhNumero), $command);
+            $erroDuplicidade = $this->validarDuplicidadeDaUh((int)$uh['id'], (string)($uh['numero'] ?? $uhNumero), $command, $ignorarReservaId);
             if ($erroDuplicidade) {
                 return ServiceResult::failure($erroDuplicidade->code(), 'Já existe reserva para UH ' . $uhNumero . ' neste turno.');
             }
@@ -542,7 +662,7 @@ final class CriarReservaService implements CriarReservaServiceInterface
             'excedente_motivo' => null,
             'excedente_autor_id' => null,
             'excedente_em' => null,
-            'correlation_id' => $command->acao === ReservasTematicasConstants::ACTION_UPDATE || $command->correlationId === '' ? null : $command->correlationId,
+            'correlation_id' => $this->isUpdateAction($command->acao) || $command->correlationId === '' ? null : $command->correlationId,
             'correlation_item' => 0,
             'idades_chd' => [],
         ], $dados);
@@ -553,5 +673,14 @@ final class CriarReservaService implements CriarReservaServiceInterface
         $message = strtolower($error->getMessage());
         return strpos($message, 'uq_res_tem_correlation_item') !== false
             || (strpos($message, 'duplicate') !== false && strpos($message, 'correlation') !== false);
+    }
+
+    private function isUpdateAction(string $acao): bool
+    {
+        return in_array($acao, [
+            ReservasTematicasConstants::ACTION_UPDATE,
+            ReservasTematicasConstants::ACTION_UPDATE_TO_GROUP,
+            ReservasTematicasConstants::ACTION_UPDATE_TO_INDIVIDUAL,
+        ], true);
     }
 }
