@@ -115,7 +115,7 @@ final class ReservasTematicasConstants
     public const MESSAGE_CAPACIDADE_TURNO_ATINGIDA = 'Limite de reservas excedido para este turno. Ajuste o horário, quantidade de pessoas ou escolha outro turno.';
     public const MESSAGE_CHD_MAIOR_QUE_PAX = 'As idades de CHD não podem exceder a quantidade total de PAX.';
     public const MESSAGE_CONFIRMAR_STATUS_DEFINITIVO = 'Confirme o status definitivo para continuar.';
-    public const MESSAGE_EDICAO_NAO_AUTORIZADA = 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.';
+    public const MESSAGE_EDICAO_NAO_AUTORIZADA = 'A hostess só pode editar reservas criadas por ela que ainda estejam abertas. Reservas finalizadas, canceladas ou com no-show não podem ser alteradas.';
     public const MESSAGE_ERRO_PERSISTENCIA_RESERVA = 'Não foi possível concluir o cadastro da reserva.';
     public const MESSAGE_FECHAMENTO_SEM_TURNO = 'Selecione restaurante e turno para encerrar.';
     public const MESSAGE_FORA_JANELA_RESERVA = 'Fora do horário permitido para reservas.';

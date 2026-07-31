@@ -236,14 +236,14 @@ $buildChanges = static function (array $before, array $after) use ($auditFieldLa
     return $changes;
 };
 
-$renderChanges = static function (array $before, array $after, string $empty = 'Sem mudanças de campos registradas', int $max = 3) use ($buildChanges): void {
+$renderChanges = static function (array $before, array $after, string $empty = 'Nenhum campo operacional foi alterado', int $max = 3) use ($buildChanges): void {
     $changes = $buildChanges($before, $after);
     if ($changes === []) {
         echo '<span class="audit-muted">' . h($empty) . '</span>';
         return;
     }
     ?>
-    <div class="audit-changes">
+    <div class="audit-changes" aria-label="Campos alterados">
         <?php foreach (array_slice($changes, 0, $max) as $change): ?>
             <span class="audit-change"><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></span>
         <?php endforeach; ?>
@@ -303,16 +303,16 @@ $renderEmpty = static function (string $message): void {
 .audit-page .audit-stream-title p { color: var(--audit-muted); font-size: .78rem; margin: .15rem 0 0; }
 .audit-page .audit-count { border-radius: 999px; padding: .36rem .65rem; color: #42607c; background: #eef4f9; font-size: .72rem; font-weight: 850; white-space: nowrap; }
 .audit-page .audit-list { padding: .45rem; }
-.audit-page .audit-event { display: grid; grid-template-columns: 38px minmax(210px, 1.25fr) minmax(180px, .9fr) minmax(180px, 1fr) auto; align-items: center; gap: 1rem; padding: .9rem; border-radius: 14px; }
+.audit-page .audit-event { display: grid; grid-template-columns: 38px minmax(230px, 1.1fr) minmax(200px, .92fr) minmax(250px, 1.25fr) minmax(126px, auto); align-items: start; gap: 1rem; padding: .9rem; border-radius: 14px; }
 .audit-page .audit-event + .audit-event { border-top: 1px solid #e7edf4; }
 .audit-page .audit-event:hover { background: #f8fbfd; }
 .audit-page .audit-event-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; font-size: 1rem; }
 .audit-page .audit-event-icon.success { background: #e8f8ef; color: var(--audit-success); }.audit-page .audit-event-icon.info { background: #e6f7fb; color: var(--audit-primary); }.audit-page .audit-event-icon.warning { background: #fff4e6; color: var(--audit-warning); }.audit-page .audit-event-icon.danger { background: #fdebed; color: var(--audit-danger); }.audit-page .audit-event-icon.neutral { background: #eef2f7; color: #61718a; }
-.audit-page .audit-event-main { min-width: 0; }.audit-page .audit-event-title { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; font-weight: 850; font-size: .9rem; }.audit-page .audit-event-time { color: var(--audit-muted); font-size: .74rem; margin-top: .22rem; }
+.audit-page .audit-event-icon { margin-top: .08rem; }.audit-page .audit-event-main { min-width: 0; padding-top: .05rem; }.audit-page .audit-event-title { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; font-weight: 850; font-size: .9rem; }.audit-page .audit-event-time { color: var(--audit-muted); font-size: .74rem; margin-top: .22rem; line-height: 1.45; }
 .audit-page .audit-badge { border: 1px solid transparent; border-radius: 999px; padding: .22rem .5rem; font-size: .68rem; font-weight: 850; white-space: nowrap; }.audit-page .audit-badge.success { color: #087a42; background: #e9f9f0; border-color: #bcebd1; }.audit-page .audit-badge.info { color: #08799a; background: #e8f8fc; border-color: #b9e8f3; }.audit-page .audit-badge.warning { color: #a54d05; background: #fff4e7; border-color: #ffd5ad; }.audit-page .audit-badge.danger { color: #af2930; background: #feecef; border-color: #f7c4c8; }.audit-page .audit-badge.neutral { color: #5a6c84; background: #f0f4f8; border-color: #d9e2eb; }
-.audit-page .audit-context { min-width: 0; color: #334660; font-size: .8rem; line-height: 1.35; }.audit-page .audit-context b { display: block; color: #60728c; font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; margin-bottom: .2rem; }.audit-page .audit-context .tag { max-width: 100%; white-space: normal; }
-.audit-page .audit-changes { display: flex; flex-wrap: wrap; gap: .35rem; }.audit-page .audit-change { display: inline-flex; align-items: center; gap: .28rem; max-width: 100%; padding: .35rem .45rem; border: 1px solid #dce7f0; border-radius: 9px; background: #fff; color: #60718a; font-size: .7rem; line-height: 1.2; }.audit-page .audit-change b { color: #40536f; }.audit-page .audit-change strong { color: #1d8b5a; }.audit-page .audit-change i { color: #93a3b8; }
-.audit-page .audit-event-more { text-align: right; min-width: 0; }.audit-page .audit-muted { display: block; color: var(--audit-muted); font-size: .76rem; }.audit-page .audit-detail-list { display: grid; gap: .35rem; padding: .7rem .1rem 0; }.audit-page .audit-detail-list > div { display: grid; grid-template-columns: minmax(100px, .65fr) 1fr 20px 1fr; gap: .35rem; align-items: center; color: #52647d; font-size: .75rem; }.audit-page .audit-detail-list strong { color: #1d8b5a; }
+.audit-page .audit-context { min-width: 0; min-height: 42px; color: #334660; font-size: .8rem; line-height: 1.35; padding-top: .05rem; }.audit-page .audit-context b { display: block; color: #60728c; font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; margin-bottom: .24rem; }.audit-page .audit-context .tag { max-width: 100%; white-space: normal; }
+.audit-page .audit-event-context { padding-left: .8rem; border-left: 2px solid #dbe8f1; }.audit-page .audit-event-changes { padding-left: .8rem; border-left: 2px solid #b9e8f3; }.audit-page .audit-changes { display: flex; flex-wrap: wrap; gap: .38rem; }.audit-page .audit-change { display: inline-flex; align-items: center; gap: .3rem; max-width: 100%; min-height: 29px; padding: .34rem .48rem; border: 1px solid #cbdfea; border-radius: 9px; background: #f8fcfe; color: #526a83; font-size: .7rem; font-weight: 700; line-height: 1.2; }.audit-page .audit-change b { color: #36536f; font-size: .63rem; letter-spacing: .035em; text-transform: uppercase; }.audit-page .audit-change strong { color: #087d49; }.audit-page .audit-change i { color: #6487a2; }
+.audit-page .audit-event-more { display: flex; align-items: center; justify-content: flex-end; min-width: 0; min-height: 42px; text-align: right; }.audit-page .audit-event-more .audit-details { margin: 0; }.audit-page .audit-muted { display: block; color: var(--audit-muted); font-size: .76rem; line-height: 1.42; }.audit-page .audit-detail-list { display: grid; gap: .35rem; padding: .7rem .1rem 0; }.audit-page .audit-detail-list > div { display: grid; grid-template-columns: minmax(100px, .65fr) 1fr 20px 1fr; gap: .35rem; align-items: center; color: #52647d; font-size: .75rem; }.audit-page .audit-detail-list strong { color: #1d8b5a; }
 .audit-page .audit-details { margin-top: .45rem; }.audit-page .audit-details summary { cursor: pointer; color: var(--audit-primary); font-size: .74rem; font-weight: 800; list-style: none; }.audit-page .audit-details summary::-webkit-details-marker { display: none; }.audit-page .audit-details summary::before { content: '+'; display: inline-grid; place-items: center; width: 17px; height: 17px; margin-right: .32rem; border: 1px solid #9fd5e3; border-radius: 50%; }.audit-page .audit-details[open] summary::before { content: '−'; }.audit-page .audit-technical pre { max-height: 260px; margin: .55rem 0 0; padding: .75rem; overflow: auto; border: 1px solid #dce7f0; border-radius: 10px; background: #f6f9fc; color: #52647d; font-size: .68rem; line-height: 1.42; white-space: pre-wrap; overflow-wrap: anywhere; }
 .audit-page .audit-empty { display: flex; align-items: center; justify-content: center; gap: .55rem; min-height: 112px; color: var(--audit-muted); font-size: .85rem; }.audit-page .audit-empty i { color: #a9bacb; font-size: 1.05rem; }.audit-page .audit-pagination { display: flex; align-items: center; justify-content: space-between; gap: .7rem; padding: .8rem 1.25rem; border-top: 1px solid var(--audit-border); color: var(--audit-muted); font-size: .75rem; }.audit-page .audit-pagination .page-link { min-width: 2rem; text-align: center; border-radius: 8px; color: #49607a; border-color: #d8e3ed; }.audit-page .audit-pagination .active .page-link { background: var(--audit-primary); border-color: var(--audit-primary); color: #fff; }
 html[data-theme="dark"] .audit-page { --audit-ink: #f3f7fc; --audit-muted: #a9b8ca; --audit-border: #2b3a4e; --audit-soft: #182638; }
@@ -332,13 +332,13 @@ html[data-theme="dark"] .audit-page .audit-event-title,
 html[data-theme="dark"] .audit-page .audit-context { color: #e7eef7; }
 html[data-theme="dark"] .audit-page .audit-context b,
 html[data-theme="dark"] .audit-page .audit-change b { color: #b5c4d6; }
-html[data-theme="dark"] .audit-page .audit-change { background: #1b2b3d; border-color: #33465c; color: #c1cede; }
+html[data-theme="dark"] .audit-page .audit-event-context { border-left-color: #36516b; } html[data-theme="dark"] .audit-page .audit-event-changes { border-left-color: #26758d; } html[data-theme="dark"] .audit-page .audit-change { background: #1b2b3d; border-color: #33465c; color: #c1cede; }
 html[data-theme="dark"] .audit-page .audit-change strong,
 html[data-theme="dark"] .audit-page .audit-detail-list strong { color: #6be0a1; }
 html[data-theme="dark"] .audit-page .audit-detail-list > div { color: #c8d5e3; border-color: #2c4055; }
 html[data-theme="dark"] .audit-page .audit-technical pre { color: #d5e0eb; background: #101a28; border-color: #33465c; }
 html[data-theme="dark"] .audit-page .audit-pagination .page-link { color: #d5e4f2; background: #182638; border-color: #34485d; }
-@media (max-width: 991px) { .audit-page .audit-event { grid-template-columns: 36px 1fr; gap: .65rem .8rem; }.audit-page .audit-event-context, .audit-page .audit-event-changes, .audit-page .audit-event-more { grid-column: 2; }.audit-page .audit-event-more { text-align: left; }.audit-page .audit-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 991px) { .audit-page .audit-event { grid-template-columns: 36px 1fr; gap: .65rem .8rem; }.audit-page .audit-event-context, .audit-page .audit-event-changes, .audit-page .audit-event-more { grid-column: 2; }.audit-page .audit-event-context, .audit-page .audit-event-changes { padding-left: .7rem; }.audit-page .audit-event-more { justify-content: flex-start; text-align: left; }.audit-page .audit-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 576px) { .audit-page { overflow-x: clip; }.audit-page .audit-hero { padding: 1rem; align-items: flex-start; }.audit-page .audit-hero-icon { width: 42px; height: 42px; border-radius: 13px; font-size: 1.15rem; }.audit-page .audit-subtitle { font-size: .8rem; }.audit-page .audit-metrics { gap: .5rem; }.audit-page .audit-metric { padding: .72rem; border-radius: 13px; }.audit-page .audit-metric b { font-size: 1.15rem; }.audit-page .audit-filter-card { padding: .9rem; }.audit-page .audit-stream-header { padding: .85rem .9rem; }.audit-page .audit-stream-title p { display: none; }.audit-page .audit-count { font-size: .66rem; }.audit-page .audit-list { padding: .25rem; }.audit-page .audit-event { padding: .8rem .65rem; }.audit-page .audit-event-title { font-size: .84rem; }.audit-page .audit-context { font-size: .77rem; }.audit-page .audit-change { width: 100%; justify-content: flex-start; }.audit-page .audit-detail-list > div { grid-template-columns: 1fr; gap: .15rem; padding: .4rem 0; border-bottom: 1px solid #e7edf4; }.audit-page .audit-detail-list i { display: none; }.audit-page .audit-pagination { flex-direction: column; align-items: center; padding: .8rem; }.audit-page .pagination { flex-wrap: wrap; justify-content: center; } }
 </style>
 
@@ -410,12 +410,37 @@ html[data-theme="dark"] .audit-page .audit-pagination .page-link { color: #d5e4f
                     if (!empty($log['restaurante_depois'])) { $displayAfter['restaurante_id'] = $log['restaurante_depois']; }
                     if (!empty($log['turno_antes_hora'])) { $displayBefore['turno_id'] = substr((string)$log['turno_antes_hora'], 0, 5); }
                     if (!empty($log['turno_depois_hora'])) { $displayAfter['turno_id'] = substr((string)$log['turno_depois_hora'], 0, 5); }
-                    $meta = $auditActionMeta($log['acao'] ?? '');
-                    $isCreation = strtolower(trim((string)($log['acao'] ?? ''))) === 'create';
+                    $action = strtolower(trim((string)($log['acao'] ?? '')));
+                    $meta = $auditActionMeta($action);
+                    $isCreation = $action === 'create';
+                    $thematicTitle = $isCreation
+                        ? 'Reserva criada'
+                        : ($action === 'status' ? 'Status da reserva atualizado' : ($action === 'update' ? 'Reserva ajustada' : $meta[0]));
                     $changes = $buildChanges($displayBefore, $displayAfter);
                     $reservation = 'UH ' . (string)($log['uh_numero'] ?? 'não informada') . ' · ' . (string)($log['data_reserva'] ?? 'data não informada');
                 ?>
-                <article class="audit-event"><div class="audit-event-icon <?= h($meta[1]) ?>"><i class="bi <?= h($meta[2]) ?>"></i></div><div class="audit-event-main"><div class="audit-event-title"><?= h($meta[0]) ?><span class="audit-badge <?= h($meta[1]) ?>"><?= h($meta[3]) ?></span><span class="audit-badge neutral"><?= h($auditActorLabel($log, 'sistema')) ?></span></div><div class="audit-event-time"><?= h($formatDateTime($log['criado_em'] ?? '')) ?> · <?= h($reservation) ?><?= !empty($log['reserva_criador']) ? ' · Criada por ' . h($log['reserva_criador']) : '' ?></div></div><div class="audit-context audit-event-context"><b>Destino</b><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? 'Não informado') ?></span> · <?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5) ?: 'Sem turno') ?></div><div class="audit-context audit-event-changes"><b><?= !empty($log['justificativa']) ? 'Justificativa' : ($isCreation ? 'Registro inicial' : 'Alterações realizadas') ?></b><?php if (!empty($log['justificativa'])): ?><?= h($log['justificativa']) ?><?php elseif ($isCreation): ?><span class="audit-muted">Dados iniciais da reserva registrados.</span><?php else: ?><?php $renderChanges($displayBefore, $displayAfter); ?><?php endif; ?></div><div class="audit-event-more"><?php if (!$isCreation && count($changes) > 3): ?><details class="audit-details"><summary>Ver todas as <?= count($changes) ?> alterações</summary><div class="audit-detail-list"><?php foreach ($changes as $change): ?><div><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></div><?php endforeach; ?></div></details><?php endif; ?><?php if (!$isCreation): ?><?php $renderEvidence(['antes' => $before, 'depois' => $after], 'Dados técnicos'); ?><?php endif; ?></div></article>
+                <article class="audit-event audit-reservation-event">
+                    <div class="audit-event-icon <?= h($meta[1]) ?>"><i class="bi <?= h($meta[2]) ?>"></i></div>
+                    <div class="audit-event-main">
+                        <div class="audit-event-title"><?= h($thematicTitle) ?><span class="audit-badge <?= h($meta[1]) ?>"><?= h($meta[3]) ?></span><span class="audit-badge neutral"><?= h($auditActorLabel($log, 'sistema')) ?></span></div>
+                        <div class="audit-event-time"><?= h($formatDateTime($log['criado_em'] ?? '')) ?> · <?= h($reservation) ?><?= !empty($log['reserva_criador']) ? ' · Criada por ' . h($log['reserva_criador']) : '' ?></div>
+                    </div>
+                    <div class="audit-context audit-event-context"><b>Reserva direcionada para</b><span class="tag <?= restaurant_badge_class($log['restaurante'] ?? '') ?>"><?= h($log['restaurante'] ?? 'Não informado') ?></span> · <?= h(substr((string)($log['turno_hora'] ?? ''), 0, 5) ?: 'Sem turno') ?></div>
+                    <div class="audit-context audit-event-changes">
+                        <b><?= !empty($log['justificativa']) ? 'Motivo informado' : ($isCreation ? 'Registro inicial' : 'O que mudou') ?></b>
+                        <?php if (!empty($log['justificativa'])): ?>
+                            <?= h($log['justificativa']) ?>
+                        <?php elseif ($isCreation): ?>
+                            <span class="audit-muted">A reserva foi registrada e está disponível para a operação.</span>
+                        <?php else: ?>
+                            <?php $renderChanges($displayBefore, $displayAfter); ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="audit-event-more">
+                        <?php if (!$isCreation && count($changes) > 3): ?><details class="audit-details"><summary>Ver todas as <?= count($changes) ?> alterações</summary><div class="audit-detail-list"><?php foreach ($changes as $change): ?><div><b><?= h($change['label']) ?></b><span><?= h($change['before']) ?></span><i class="bi bi-arrow-right"></i><strong><?= h($change['after']) ?></strong></div><?php endforeach; ?></div></details><?php endif; ?>
+                        <?php if (!$isCreation): ?><?php $renderEvidence(['antes' => $before, 'depois' => $after], 'Dados técnicos'); ?><?php endif; ?>
+                    </div>
+                </article>
             <?php endforeach; ?>
             <?php if (empty($thematicLogs['rows'] ?? [])): $renderEmpty('Nenhum histórico de reserva temática no filtro.'); endif; ?>
         </div>

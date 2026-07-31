@@ -89,6 +89,21 @@ final class ReservaTematicaPolicy
             return true;
         }
 
-        return (int)($reserva['usuario_id'] ?? 0) === (int)($user['id'] ?? 0);
+        return (int)($reserva['usuario_id'] ?? 0) === (int)($user['id'] ?? 0)
+            && self::isEditableStatusForHostess((string)($reserva['status'] ?? ''));
+    }
+
+    /**
+     * Uma hostess pode corrigir somente reservas ainda abertas. A normalização
+     * preserva compatibilidade com registros históricos que usam acentuação.
+     */
+    public static function isEditableStatusForHostess(string $status): bool
+    {
+        $status = trim(normalize_mojibake($status));
+        if ($status === ReservasTematicasConstants::STATUS_NO_SHOW_ACCENTED) {
+            $status = ReservasTematicasConstants::STATUS_NO_SHOW;
+        }
+
+        return !in_array($status, ReservasTematicasConstants::FINAL_STATUSES, true);
     }
 }

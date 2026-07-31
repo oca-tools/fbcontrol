@@ -184,6 +184,18 @@ try {
     if (!$edicaoHostess->isSuccess() || (string)($uhAposHostess['numero'] ?? '') !== '310') {
         throw new RuntimeException('Hostess autora não conseguiu alterar a UH da própria reserva.');
     }
+    if (!ReservaTematicaPolicy::canEdit($individualAposHostess ?? [], $hostess)) {
+        throw new RuntimeException('Hostess autora não conseguiu editar uma reserva aberta.');
+    }
+    foreach (ReservasTematicasConstants::FINAL_STATUSES as $statusFinal) {
+        $reservaDefinitiva = array_merge($individualAposHostess ?? [], ['status' => $statusFinal]);
+        if (ReservaTematicaPolicy::canEdit($reservaDefinitiva, $hostess)) {
+            throw new RuntimeException('Hostess conseguiu editar uma reserva com status definitivo: ' . $statusFinal . '.');
+        }
+        if (!ReservaTematicaPolicy::canEdit($reservaDefinitiva, $gerencia)) {
+            throw new RuntimeException('Gerência perdeu a permissão de editar uma reserva com status definitivo.');
+        }
+    }
     $logHostess = $db->prepare("SELECT COUNT(*) FROM reservas_tematicas_logs WHERE reserva_id = :id AND acao = :acao AND usuario_id = :usuario_id");
     $logHostess->execute([':id' => $individualId, ':acao' => ReservasTematicasConstants::ACTION_UPDATE_DETAIL, ':usuario_id' => (int)$usuario['id']]);
     if ((int)$logHostess->fetchColumn() < 1) {

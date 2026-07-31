@@ -537,6 +537,30 @@ if ($temSelecao && $restauranteSelecionado) {
 
                     <button type="submit" class="fb-btn fb-btn--primary fb-btn--lg" <?= !$canReserve ? 'disabled' : '' ?>><i class="bi bi-check2-circle"></i><span id="reservaSubmitLabel">Confirmar reserva</span></button>
                 </form>
+
+                <dialog class="fb-reserve-confirm-modal" data-reserve-confirm-modal aria-labelledby="reserveConfirmTitle">
+                    <header class="fb-reserve-confirm-modal__head" style="--fb-confirm-color:<?= h($identSelecionado['cor']) ?>;--fb-confirm-bg:<?= h($identSelecionado['bg']) ?>;--fb-confirm-text:<?= h($identSelecionado['texto']) ?>;">
+                        <span class="fb-reserve-confirm-modal__restaurant-mark"><i class="bi <?= h($identSelecionado['icone']) ?>" aria-hidden="true"></i></span>
+                        <div>
+                            <p>Revisão antes do envio</p>
+                            <h2 id="reserveConfirmTitle">Confirmar reserva</h2>
+                            <span><?= h(normalize_mojibake((string)$restauranteSelecionado['nome'])) ?> · <?= h($rotuloTurno($turnoSelecionado)) ?></span>
+                        </div>
+                        <button type="button" class="fb-reserve-confirm-modal__close" data-reserve-confirm-cancel aria-label="Fechar confirmação"><i class="bi bi-x-lg"></i></button>
+                    </header>
+                    <div class="fb-reserve-confirm-modal__body">
+                        <div class="fb-reserve-confirm-modal__date"><i class="bi bi-calendar3"></i><strong><?= h(format_date_br($dataSelecionada)) ?></strong><span>Data da reserva</span></div>
+                        <dl class="fb-reserve-confirm-modal__details" data-reserve-confirm-details></dl>
+                        <section class="fb-reserve-confirm-modal__notes" data-reserve-confirm-notes hidden>
+                            <span><i class="bi bi-chat-left-text"></i> Observações operacionais</span>
+                            <strong data-reserve-confirm-notes-value></strong>
+                        </section>
+                    </div>
+                    <footer class="fb-reserve-confirm-modal__actions">
+                        <button type="button" class="fb-btn fb-btn--ghost" data-reserve-confirm-cancel>Corrigir dados</button>
+                        <button type="button" class="fb-btn fb-btn--primary" data-reserve-confirm-submit><i class="bi bi-check2-circle"></i> Registrar reserva</button>
+                    </footer>
+                </dialog>
             </section>
 
             <?php if (!empty($reservasDoTurno)): ?>
@@ -791,6 +815,11 @@ function fbAdicionarLinhaLote() {
     var form = document.getElementById('reservaCadastroForm');
     if (!form || !window.fetch) { return; }
     var correlationInput = document.getElementById('reservaCorrelationId');
+    var confirmationModal = document.querySelector('[data-reserve-confirm-modal]');
+    var confirmationDetails = document.querySelector('[data-reserve-confirm-details]');
+    var confirmationNotes = document.querySelector('[data-reserve-confirm-notes]');
+    var confirmationNotesValue = document.querySelector('[data-reserve-confirm-notes-value]');
+    var confirmationSubmit = document.querySelector('[data-reserve-confirm-submit]');
 
     function createCorrelationId() {
         if (window.crypto && window.crypto.randomUUID) {
@@ -849,6 +878,81 @@ function fbAdicionarLinhaLote() {
     function activeMode() {
         var active = document.querySelector('[data-reserve-mode-button].is-active');
         return active && active.getAttribute('data-reserve-mode-button') === 'group' ? 'group' : 'individual';
+    }
+
+    function countChildren(values) {
+        return values.reduce(function (total, value) {
+            return total + (String(value || '').match(/\d+\s*[ym]/gi) || []).length;
+        }, 0);
+    }
+
+    function addConfirmationDetail(label, value, modifier) {
+        if (!confirmationDetails || !value) { return; }
+        var item = document.createElement('div');
+        if (modifier) { item.className = modifier; }
+        var title = document.createElement('dt');
+        var content = document.createElement('dd');
+        title.textContent = label;
+        content.textContent = value;
+        item.appendChild(title);
+        item.appendChild(content);
+        confirmationDetails.appendChild(item);
+    }
+
+    function openReservationConfirmation(formData) {
+        if (!confirmationModal || typeof confirmationModal.showModal !== 'function') { return Promise.resolve(true); }
+
+        var isGroup = activeMode() === 'group';
+        var paxValues = isGroup ? formData.getAll('batch_pax[]') : [formData.get('pax')];
+        var chdValues = isGroup ? formData.getAll('batch_chd_idades[]') : [formData.get('chd_idades')];
+        var uhs = isGroup ? formData.getAll('batch_uh_numero[]').map(function (value) { return String(value || '').trim(); }).filter(Boolean) : [String(formData.get('uh_numero') || '').trim()].filter(Boolean);
+        var paxTotal = paxValues.reduce(function (total, value) { return total + (parseInt(String(value), 10) || 0); }, 0);
+        var chdTotal = countChildren(chdValues);
+        var tags = formData.getAll('observacao_tags[]').map(function (value) { return String(value || '').trim(); }).filter(Boolean);
+        var observation = String(formData.get('observacao_reserva') || '').trim();
+        var holder = isGroup ? String(formData.get('grupo_responsavel') || '').trim() : String(formData.get('titular_nome') || '').trim();
+        var groupName = String(formData.get('grupo_nome') || '').trim();
+        var isPreReservation = String(formData.get('action') || '') === 'create_pre_reservation';
+
+        if (confirmationDetails) { confirmationDetails.innerHTML = ''; }
+        addConfirmationDetail(isGroup ? 'Formato' : 'Tipo', isGroup ? 'Reserva em grupo' : (isPreReservation ? 'Pré-reserva' : 'Reserva individual'), 'is-emphasis');
+        addConfirmationDetail(isGroup ? 'Responsável' : 'Titular', holder);
+        addConfirmationDetail('UHs', isPreReservation ? 'A definir na operação' : (isGroup ? uhs.join(' · ') : ('UH ' + (uhs[0] || 'Pendente'))), isGroup ? 'is-wide' : '');
+        addConfirmationDetail('PAX total', paxTotal > 0 ? String(paxTotal) + ' pessoa' + (paxTotal === 1 ? '' : 's') : '');
+        addConfirmationDetail('Crianças', chdTotal > 0 ? String(chdTotal) + ' CHD' : 'Sem crianças');
+        if (isGroup && groupName) { addConfirmationDetail('Nome do grupo', groupName, 'is-wide'); }
+
+        var notes = [];
+        if (tags.length) { notes.push(tags.join(' · ')); }
+        if (observation) { notes.push(observation); }
+        if (confirmationNotes && confirmationNotesValue) {
+            confirmationNotes.hidden = notes.length === 0;
+            confirmationNotesValue.textContent = notes.join(' — ');
+        }
+        if (confirmationSubmit) {
+            confirmationSubmit.innerHTML = '<i class="bi bi-check2-circle"></i> ' + (isGroup ? 'Registrar grupo' : 'Registrar reserva');
+        }
+
+        return new Promise(function (resolve) {
+            var completed = false;
+            var finish = function (confirmed) {
+                if (completed) { return; }
+                completed = true;
+                confirmationModal.close();
+                resolve(confirmed);
+            };
+            var cancel = function (event) {
+                if (event) { event.preventDefault(); }
+                finish(false);
+            };
+            confirmationModal.querySelectorAll('[data-reserve-confirm-cancel]').forEach(function (button) {
+                button.addEventListener('click', cancel, { once: true });
+            });
+            if (confirmationSubmit) { confirmationSubmit.addEventListener('click', function () { finish(true); }, { once: true }); }
+            confirmationModal.addEventListener('cancel', cancel, { once: true });
+            confirmationModal.showModal();
+            window.setTimeout(function () { (confirmationSubmit || confirmationModal).focus(); }, 30);
+        });
     }
 
     function reservationDetails(formData, payload) {
@@ -966,6 +1070,17 @@ function fbAdicionarLinhaLote() {
     }
 
     form.addEventListener('submit', function (event) {
+        if (!form.dataset.reserveConfirmationAccepted) {
+            event.preventDefault();
+            if (!form.reportValidity()) { return; }
+            openReservationConfirmation(new FormData(form)).then(function (confirmed) {
+                if (!confirmed) { return; }
+                form.dataset.reserveConfirmationAccepted = '1';
+                form.requestSubmit();
+            });
+            return;
+        }
+        delete form.dataset.reserveConfirmationAccepted;
         event.preventDefault();
         if (!form.reportValidity()) { return; }
 
@@ -1307,13 +1422,17 @@ function fbAdicionarLinhaLote() {
                 };
                 updateListItem(updated);
                 if (window.fbAlerts && typeof window.fbAlerts.modal === 'function') {
-                    return window.fbAlerts.modal({
-                        type: 'success',
-                        title: 'Alteração salva com sucesso',
-                        message: result.payload.message || 'A reserva foi atualizada e a alteração ficou registrada na auditoria.',
-                        details: editableReservationDetails(updated),
-                        buttonText: 'Voltar para reservas',
-                        variant: 'reservation'
+                    // <dialog> ocupa a camada superior do navegador; feche-o antes do popup global.
+                    if (modal && modal.open) { modal.close(); }
+                    return new Promise(function (resolve) { window.setTimeout(resolve, 0); }).then(function () {
+                        return window.fbAlerts.modal({
+                            type: 'success',
+                            title: 'Alteração salva com sucesso',
+                            message: result.payload.message || 'A reserva foi atualizada e a alteração ficou registrada na auditoria.',
+                            details: editableReservationDetails(updated),
+                            buttonText: 'Voltar para reservas',
+                            variant: 'reservation'
+                        });
                     }).then(showList);
                 }
                 showList();

@@ -174,7 +174,7 @@ class ReservasTematicasController extends Controller
             if (!$editable || !ReservaTematicaPolicy::canEdit($editable, $user)) {
                 json_response([
                     'ok' => false,
-                    'message' => 'Esta reserva não está disponível para edição pelo seu usuário.',
+                    'message' => ReservasTematicasConstants::MESSAGE_EDICAO_NAO_AUTORIZADA,
                 ], 403);
             }
 
@@ -376,7 +376,7 @@ class ReservasTematicasController extends Controller
         $editItem = $editId > 0 ? $reservaModel->find($editId) : null;
         if ($editItem) {
             if (!ReservaTematicaPolicy::canEdit($editItem, $user)) {
-                set_flash('danger', 'Você só pode editar reservas criadas por você. A administração pode acompanhar as alterações pela auditoria.');
+                set_flash('danger', ReservasTematicasConstants::MESSAGE_EDICAO_NAO_AUTORIZADA);
                 $this->redirect($rotaBase);
             }
             $uhRow = $unitModel->find((int)$editItem['uh_id']);
@@ -409,13 +409,6 @@ class ReservasTematicasController extends Controller
                 'order' => 'date_asc',
             ], 30);
             foreach ($rowsEditaveis as $rowEditavel) {
-                $statusEditavel = $this->normalizeReservaStatus((string)($rowEditavel['status'] ?? ''));
-                if (!in_array($statusEditavel, [
-                    ReservasTematicasConstants::STATUS_RESERVADA,
-                    ReservasTematicasConstants::STATUS_PRE_RESERVA,
-                ], true)) {
-                    continue;
-                }
                 if (!ReservaTematicaPolicy::canEdit($rowEditavel, $user)) {
                     continue;
                 }
